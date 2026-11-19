@@ -2483,8 +2483,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # A plan review asked for by event starts the named role's session as a run keyed by the review,
-    # as the reviewer's is keyed by the commit, so it never collides with the Work item's own run or
-    # an earlier review of it. The run names the Work item it reviews, and the plan is its brief.
+    # so it never collides with the Work item's own run or an earlier review of it. The run names the Work item it reviews, and the plan is its brief.
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :run, work: :work, repo: :repo, brief: :plan, agent: :role }
@@ -2549,43 +2548,43 @@ Hecks.bluebook "Hecks" do
                             "end of your turn." }
     end
 
-    # A planning request starts the planner's session as a run keyed by the request, with the goal as
-    # its brief. The planner drafts a plan and asks; it creates Work items only once the owner says so.
-    # A submission review starts the reviewer's session as a run keyed by the submitted commit, so it
-    # never collides with the architect's run for the same Work item. The brief names the branch.
+    # A submission review starts the reviewer's session as a run keyed by the submitted commit, the
+    # key RecordTheReviewersJudgment reads its SubmissionReview by. The brief names the branch.
     policy "StartTheReviewerOnReviewRequest" do
       on      "SubmissionReview.SubmissionReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A recommended promotion starts the release manager's session as a run keyed by the change, with
-    # a brief to recommend promote, revert or fix forward. It only recommends: promoting stays the
-    # owner's confirmed command on the board.
+    # A recommended promotion starts the release manager's session under a minted key, so it never
+    # meets the reviewer's run for the same commit. It only recommends promote, revert or fix
+    # forward: promoting stays the owner's confirmed command on the board.
     policy "StartTheReleaseManagerOnRecommendation" do
       on      "PromotionRecommendation.PromotionRecommended"
-      trigger AgentRun::Dispatch, with: { run: :change, repo: :repo, brief: :brief, agent: :role }
+      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
+    # A planning request starts the planner's session under a minted key, with the goal as its brief.
+    # The planner drafts a plan and asks; it creates Work items only once the owner says so.
     policy "StartThePlannerOnPlanningRequest" do
       on      "Planning.PlanningRequested"
-      trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }
+      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :goal, agent: :role }
     end
 
-    # A woken pruner starts its session as a run of the `pruner` agent. The run key is minted, since
-    # no Work item or commit names a pruner's run.
+    # A woken pruner starts its session as a run of the `pruner` agent, under a minted key.
     policy "StartThePrunerWhenWoken" do
       on      "Pruning.PrunerWoken"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A conflicting Work item asks the orchestrator for advice: its session starts as a run keyed by the
-    # routing request, with a brief that names the Work item and the conflict.
+    # A conflicting Work item asks the orchestrator for advice: its session starts under a minted key,
+    # with a brief that names the Work item and the conflict.
     policy "StartTheOrchestratorOnAdviceRequest" do
       on      "Routing.DispatchAdviceRequested"
-      trigger AgentRun::Dispatch, with: { run: :advice, repo: :repo, brief: :brief, agent: :role }
+      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # An exception the orchestrator must judge starts its session as a run keyed by the escalation.
+    # An exception the orchestrator must judge starts its session as a run keyed by the escalation:
+    # a stall's key is its Work item, which the stall fixer's run is keyed by.
     policy "StartTheCoordinatorWhenWoken" do
       on      "Escalation.CoordinatorWoken"
       trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
