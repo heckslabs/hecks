@@ -667,7 +667,8 @@ Hecks.hecksagon "Hecks" do
       refuses "ReapRefused"
     end
 
-    # Removes the sessions no run holds (done or stopped, older than `session_keep`, no worktree)
+    # Removes the sessions no run holds (done or stopped, no worktree, unpinned, older than
+    # `remove_done_after_minutes` for a pipeline helper or `session_keep` for the owner's)
     # and reports the whole reap. A reap ends under its own events, which free its turn.
     asks "SweepPlain", to: SessionCleanup do
       attribute :run, CleanupName
