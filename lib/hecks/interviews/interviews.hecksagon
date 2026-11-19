@@ -1,0 +1,12 @@
+# The Interviews bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
+# directory). An open interview lives in memory; what outlasts it is the record a concluded
+# interview projects (ADR 0194, decision 7), not a database.
+Hecks.hecksagon "Interviews" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
