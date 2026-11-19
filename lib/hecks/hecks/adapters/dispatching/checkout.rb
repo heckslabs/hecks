@@ -50,9 +50,14 @@ module Hecks
         def self.worktrees(porcelain)
           porcelain.split(BLOCK_BREAK).map do |block|
             lines = block.lines.map(&:strip)
-            [lines.filter_map { |line| line[WORKTREE_LINE, 1] }.first, lines.filter_map { |line| line[BRANCH_LINE, 1] }.first]
+            [first_match(lines, WORKTREE_LINE), first_match(lines, BRANCH_LINE)]
           end
         end
+
+        # @param lines [Array<String>] one worktree's block, line by line
+        # @param pattern [Regexp] a line pattern with one capture
+        # @return [String, nil] the capture of the first line matching it
+        def self.first_match(lines, pattern) = lines.lazy.filter_map { |line| line[pattern, 1] }.first
 
         # @return [Shell::Result] what git answered, run in the directory
         def self.git(directory, *) = Shell.new.capture("git", *, chdir: directory)
