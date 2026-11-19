@@ -213,11 +213,9 @@ Hecks.bluebook "Agents" do
              evidence: "CLAUDE.md: Landing.discard! runs only when the owner names the branch"
     end
 
-    # The roles whose session is never removed, one row each: the orchestrator holds the pipeline's
-    # state in its session. The pruner reads these rows, so no file or role list holds a copy.
-    # A pinned role has at most one live session: the Hecks domain's `AgentRun` declines a run of
-    # the role (`RecordTheHeldRole`) and refuses to answer one (`RefuseTheAnswerOfAHeldRole`)
-    # while another live session holds it, and names that session, which only the owner stops.
+    # The roles whose session is never removed and that have at most one live session (the Hecks
+    # domain's `RecordTheHeldRole`). The orchestrator holds the pipeline's state in its session.
+    # The pruner reads these rows, so no file or role list holds a copy.
     value_object "PinnedRole" do
       attribute :role,   String
       attribute :reason, String
