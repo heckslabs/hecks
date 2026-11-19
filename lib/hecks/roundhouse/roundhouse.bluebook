@@ -1,0 +1,295 @@
+# Roundhouse executes what Signalbox decides (ADR 0222): it starts, meters, rests, resumes, finishes
+# and reaps sessions, reads the machine and keeps the compute meter. It never decides, and it never
+# starts a session that Signalbox did not admit.
+
+Hecks.bluebook "Roundhouse" do
+  vision "Every session runs only on an admission, is metered for what it draws, blows its own fuse when it overdraws, and is reaped only with nothing unsaved."
+
+  supporting
+
+  # Law 5: a session is born with an owner, a purpose, an end condition and its own fuse, all
+  # carried from its admission. The fuse is the smallest breaker; it blows on the meter alone.
+  aggregate "Session" do
+    description "One session on the machine: its admission, role, owner, purpose, end condition and fuse, what it draws, and where it stands."
+    created_by "Session.start!"
+
+    identified_by :session
+
+    attribute :session,      SessionKey
+    attribute :admission,    AdmissionKey
+    attribute :role,         Word
+    attribute :owner,        Label
+    attribute :purpose,      Label
+    attribute :ends_when,    Label
+    attribute :fuse,         Megabytes
+    attribute :fuse_minutes, Minutes
+    attribute :drawn,        Megabytes, optional: true
+    attribute :minutes,      Minutes, optional: true
+
+    value_object "SessionKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The admission Signalbox gave; Roundhouse has no other way to start a session.
+    value_object "AdmissionKey" do
+      attribute :value, String
+      invariant("a session starts only under an admission") { !value.to_s.strip.empty? }
+    end
+
+    value_object "Label" do
+      attribute :value, String
+      invariant("a session names its owner, its purpose and its end condition") { !value.to_s.strip.empty? }
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of memory is not negative") { !value.negative? }
+    end
+
+    value_object "Minutes" do
+      attribute :value, Integer, default: 0
+      invariant("a duration is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    query "Live" do
+      description "Every running session, which the beat meters."
+      where(status: "running")
+      order_by :session
+    end
+
+    # A finished or blown session rests until the beat reaps it with nothing unsaved.
+    lifecycle :status, default: "running" do
+      mark :rests, "running", "resting", "finished", "blown"
+      mark :terminal, "reaped"
+      transition "Rest"   => "resting",  from: "running"
+      transition "Resume" => "running",  from: "resting"
+      transition "Finish" => "finished", from: %w[running resting]
+      transition "Blow"   => "blown",    from: %w[running resting]
+      transition "Reap"   => "reaped",   from: %w[finished blown]
+    end
+
+    command "Start" do
+      role "System"
+      goal "Start the session Signalbox admitted, with the labels and fuse of its admission"
+
+      attribute :session,      SessionKey, sets: true
+      attribute :admission,    AdmissionKey, sets: true
+      attribute :role,         Word, sets: true
+      attribute :owner,        Label, sets: true
+      attribute :purpose,      Label, sets: true
+      attribute :ends_when,    Label, sets: true
+      attribute :fuse,         Megabytes, sets: true
+      attribute :fuse_minutes, Minutes, sets: true
+
+      given("a session's fuse has a memory and a time rating") { fuse.value.positive? && fuse_minutes.value.positive? }
+
+      emits SessionStarted
+    end
+
+    # A meter reading carries the session's own fuse ratings, so the fuse blows on it alone.
+    command "Meter" do
+      role "System"
+      goal "Record what the session draws and how long it has run"
+
+      reference_to Session
+      attribute :drawn,         Megabytes, sets: true
+      attribute :minutes,       Minutes, sets: true
+      attribute :rated,         Megabytes
+      attribute :rated_minutes, Minutes
+
+      given("a meter reading names the session's own fuse") do
+        rated.value == fuse.value && rated_minutes.value == fuse_minutes.value
+      end
+
+      emits SessionMetered
+    end
+
+    command "Blow" do
+      role "System"
+      goal "Blow the session's own fuse: it drew past its memory rating or ran past its time rating"
+
+      reference_to Session
+
+      emits SessionFuseBlown
+    end
+
+    command "Rest" do
+      role "System"
+      goal "Pause the session's heavy steps, as Signalbox's response or shedding asked"
+
+      reference_to Session
+
+      emits SessionRested
+    end
+
+    command "Resume" do
+      role "System"
+      goal "Resume a rested session under the admission Signalbox gave it again"
+
+      reference_to Session
+      attribute :admission, AdmissionKey, sets: true
+
+      emits SessionResumed
+    end
+
+    command "Finish" do
+      role "System"
+      goal "End the session: its end condition was met or Signalbox sent it home"
+
+      reference_to Session
+
+      emits SessionFinished
+    end
+
+    # Reaping ends the process and keeps the worktree: unsaved work is never discarded.
+    command "Reap" do
+      role "System"
+      goal "Remove the ended session's process, which returns its draw to the machine"
+
+      reference_to Session
+      attribute :unsaved, Count
+
+      given("a session with unsaved work is never reaped") { unsaved.value.zero? }
+
+      emits SessionReaped
+    end
+  end
+
+  # One reading of the machine: what the pipeline may draw, what it draws, and the person's reserve.
+  aggregate "Reading" do
+    description "One reading of the machine's memory: capacity, the sessions' draw, the person's reserve, and the headroom left."
+    created_by "Reading.take!"
+
+    identified_by :reading
+
+    attribute :reading,  ReadingKey
+    attribute :machine,  Word
+    attribute :capacity, Megabytes
+    attribute :drawn,    Megabytes
+    attribute :reserve,  Megabytes
+    attribute :headroom, Signed
+
+    value_object "ReadingKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of memory is not negative") { !value.negative? }
+    end
+
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    command "Take" do
+      role "System"
+      goal "Record one reading of the machine, the headroom Signalbox publishes as pressure"
+
+      attribute :reading,  ReadingKey, sets: true
+      attribute :machine,  Word, sets: true
+      attribute :capacity, Megabytes, sets: true
+      attribute :drawn,    Megabytes, sets: true
+      attribute :reserve,  Megabytes, sets: true
+      attribute :headroom, Signed, sets: true
+
+      given("headroom is the capacity less the draw less the person's reserve") do
+        headroom.value == capacity.value - drawn.value - reserve.value
+      end
+
+      emits MachineRead
+    end
+  end
+
+  # The compute meter, one window at a time. Power factor is productive over all sessions;
+  # negawatts are compute reclaimed from waste; curtailment is finished work refused at landing.
+  aggregate "Tally" do
+    description "One window of the compute meter: sessions, productive sessions, landings, compute drawn, compute reclaimed, and landings refused."
+    created_by "Tally.close!"
+
+    identified_by :tally
+
+    attribute :tally,      TallyKey
+    attribute :sessions,   Count
+    attribute :productive, Count
+    attribute :landings,   Count
+    attribute :gb_hours,   Count
+    attribute :reclaimed,  Count
+    attribute :curtailed,  Count
+    attribute :headroom,   Signed
+
+    value_object "TallyKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    # The lowest headroom read in the window, in megabytes.
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    command "Close" do
+      role "System"
+      goal "Close one window of the compute meter with what it counted"
+
+      attribute :tally,      TallyKey, sets: true
+      attribute :sessions,   Count, sets: true
+      attribute :productive, Count, sets: true
+      attribute :landings,   Count, sets: true
+      attribute :gb_hours,   Count, sets: true
+      attribute :reclaimed,  Count, sets: true
+      attribute :curtailed,  Count, sets: true
+      attribute :headroom,   Signed, sets: true
+
+      given("productive sessions are no more than all sessions") { productive.value <= sessions.value }
+
+      emits TallyClosed
+    end
+  end
+
+  policy "BlowTheFuseWhenOverdrawn" do
+    on      "Session.SessionMetered"
+    where   { drawn.value > rated.value || minutes.value > rated_minutes.value }
+    trigger Session::Blow, with: { session: :session }
+  end
+
+  # What Signalbox decided, carried out. These fire once the two bluebooks share a bus (phase 2).
+  policy "StartWhatSignalboxAdmitted" do
+    on      "Admission.SessionAdmitted"
+    trigger Session::Start, with: { session: :admission, admission: :admission, role: :role, owner: :owner,
+                                    purpose: :purpose, ends_when: :ends_when, fuse: :fuse,
+                                    fuse_minutes: :fuse_minutes }
+  end
+
+  policy "RestWhatSignalboxDeferred" do
+    on      "Response.ResponseDeferred"
+    trigger Session::Rest, with: { session: :session }
+  end
+
+  policy "FinishWhatSignalboxSentHome" do
+    on      "Response.ResponseLeft"
+    trigger Session::Finish, with: { session: :session }
+  end
+
+  policy "RestWhatSignalboxShed" do
+    on      "Breaker.BreakerShed"
+    trigger Session::Rest, with: { session: :shed }
+  end
+end

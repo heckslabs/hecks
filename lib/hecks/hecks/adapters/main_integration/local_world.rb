@@ -1,48 +1,65 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "pathname"
 require_relative "../../../adapters/driven/worktree_borrow"
+require_relative "../../../adapters/driven/worktree_overlay"
 
 module Hecks
   module Adapters
     class MainIntegration
-      # The push train's local world, kept as a link to the owner's. The Ticker's wake sessions
-      # start in the train's copy, so a copy with a world of its own (or none) runs them over
-      # empty Memory stores and they cannot see the work item they were woken for. The link
-      # makes the stores and the owner's switches the same everywhere the pipeline runs. A
-      # world that may mint eras or archive a ledger is never linked, and a link already made
-      # to one is removed, so the train never reads it.
+      # The push train's local files, kept as links to the owner's. The Ticker's wake sessions and
+      # the clock's beats run in the train's copy, so a copy that lacks a local world or hecksagon
+      # the owner keeps runs those bluebooks over empty Memory stores. Every overlay file of the
+      # owner's checkout (`WorktreeOverlay::OVERLAY_PATTERNS`: each `*.local.world`, each
+      # `*.local.hecksagon` and `environments/local.*`) is linked, except the copy's own generated
+      # `hecks.local.hecksagon`. A world that may mint eras or archive a ledger is never linked,
+      # and a link already made to one is removed, so the train never reads it.
       class LocalWorld
-        # Where the world is, relative to a checkout.
+        # Where the owner's main world is, relative to a checkout.
         PATH = File.join("lib", "hecks", "hecks", "hecks.local.world")
+
+        # The overlay the copy writes for itself from the kept rows, never linked.
+        OWN = File.join("lib", "hecks", "hecks", "hecks.local.hecksagon")
 
         # @param root [String] the train's copy
         # @param main [String] the owner's checkout
         def initialize(root, main)
-          @link = File.join(root, PATH)
-          @source = File.join(main, PATH)
+          @root = root
+          @main = main
         end
 
-        # Makes the train's world the link to the owner's, or removes the link when the owner's
-        # world may change history.
+        # Links each of the owner's overlay files into the copy, or removes the link to a world
+        # that may change history.
         #
         # @return [String] what was done
         def sync
-          return "no owner world to read" unless File.file?(@source)
-          return unlink_refused if WorktreeBorrow.changes_history?(@source)
-          return "train world current" if File.symlink?(@link) && File.readlink(@link) == @source
+          files = WorktreeOverlay.overlay_files(@main) - [OWN]
+          return "no owner world to read" if files.empty?
 
-          FileUtils.mkdir_p(File.dirname(@link))
-          FileUtils.rm_f(@link)
-          File.symlink(@source, @link)
-          "linked the train's world to #{@source}"
+          said = files.filter_map { |relative| link(relative) }
+          said.empty? ? "train world current" : said.join("; ")
         end
 
         private
 
-        def unlink_refused
-          FileUtils.rm_f(@link) if File.symlink?(@link)
-          "train world not linked: the owner's world may mint eras or archive a ledger"
+        def link(relative)
+          source = File.join(@main, relative)
+          target = File.join(@root, relative)
+          return unlink_refused(target, relative) if history_changing?(source)
+          return if File.symlink?(target) && File.readlink(target) == source
+
+          FileUtils.mkdir_p(File.dirname(target))
+          FileUtils.rm_f(target)
+          File.symlink(source, target)
+          "linked the train's #{relative} to #{source}"
+        end
+
+        def history_changing?(source) = source.end_with?(".world") && WorktreeBorrow.changes_history?(source)
+
+        def unlink_refused(target, relative)
+          FileUtils.rm_f(target) if File.symlink?(target)
+          "train world not linked: the owner's #{relative} may mint eras or archive a ledger"
         end
       end
     end
