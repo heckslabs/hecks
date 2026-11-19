@@ -7,6 +7,7 @@ require_relative "machine_sampling/readings"
 require_relative "machine_sampling/history"
 require_relative "machine_sampling/process_classes"
 require_relative "machine_sampling/cap_bounds"
+require_relative "dispatching/meter_switch"
 
 module Hecks
   module Adapters
@@ -14,7 +15,9 @@ module Hecks
     # against the Tickets world's marks and answers each gauge's state and the state it stood in
     # before. The bluebook says what a crossing is; this reads the machine, which the bluebook
     # never does. A reading within `interval` seconds of the last is refused, so the heartbeat's
-    # beats take at most one reading a minute.
+    # beats take at most one reading a minute. Each reading keeps Roundhouse's metered load beside
+    # its own (ADR 0222, phase 3, metering); with the Tickets world's `metering.roundhouse` switch
+    # on, the metered load is the load it judges and records, and `source` says which it is.
     class MachineSampling
       # The seconds on a clock that only moves forward, for the interval between two readings.
       MONOTONIC = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
@@ -29,13 +32,15 @@ module Hecks
       # @param registry [Runtime::Registry, nil] the booted registry whose world is read
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins: `readings:` answers the gauges, `clock:` answers seconds,
-      #   `processes:` answers the process classes ({ProcessClasses} when absent)
+      #   `processes:` answers the process classes ({ProcessClasses} when absent), `meter:` answers
+      #   Roundhouse's load (none beside stand-in `readings:`, the live meter otherwise)
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
         @readings = settings[:readings] || -> { Readings.new.call }
         @clock = settings[:clock] || MONOTONIC
         @processes = settings[:processes] || ProcessClasses.new
+        @meter = settings.fetch(:meter) { settings.key?(:readings) ? -> {} : -> { Dispatching::MeterSwitch.load } }
       end
 
       # The `Busiest` query: which process classes use the CPU and whose child they are. Read-only.
@@ -50,11 +55,19 @@ module Hecks
       def read(**held)
         marks = Marks.of(@registry)
         refuse_a_repeat(marks[:interval], held)
-        gauges = @readings.call
+        gauges = metered(@readings.call)
         gauges.merge(States.new(gauges, marks, History.new(@registry).states).to_h, CapBounds.of(@registry))
       end
 
       private
+
+      # The gauges with Roundhouse's load beside the sampler's, and, with the switch on and a
+      # metered load read, the metered load as the one judged and recorded.
+      def metered(gauges)
+        load = @meter.call
+        counted = load && Dispatching::MeterSwitch.on?(@registry)
+        gauges.merge(metered_load: load, source: counted ? "roundhouse" : "uptime", **(counted ? { load: load } : {}))
+      end
 
       def refuse_a_repeat(interval, _held)
         now = @clock.call
