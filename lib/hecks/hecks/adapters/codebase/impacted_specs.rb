@@ -63,10 +63,24 @@ module Hecks
         end
 
         def describe(base, changed, mapping)
-          lines = ["changed since #{base}: #{changed.size} file(s)", *changed.map { |file| "  #{file}" },
+          lines = [*head_note(base), "changed since #{base}: #{changed.size} file(s)", *changed.map { |file| "  #{file}" },
                    "impacted specs: #{mapping.specs.size}", *mapping.specs.map { |spec| "  #{spec}" }]
           lines << mapping.cap_note unless mapping.cap_note.empty?
           (lines + mapping.also_ran + skipped(mapping)).join("\n")
+        end
+
+        # Says so when the base is `HEAD`'s own commit: only uncommitted files are compared then, so
+        # "nothing impacted" is no evidence the branch is covered.
+        def head_note(base)
+          return [] unless commit(base) && commit(base) == commit("HEAD")
+
+          ["warning: base #{base} is HEAD itself, so only uncommitted changes are compared; " \
+           "name the branch's base (base.value=origin/main) to compare its commits"]
+        end
+
+        def commit(ref)
+          out, status = Open3.capture2e("git", "-C", @tree.root, "rev-parse", "--verify", "--quiet", "#{ref}^{commit}")
+          out.strip if status.success?
         end
 
         def skipped(mapping)
