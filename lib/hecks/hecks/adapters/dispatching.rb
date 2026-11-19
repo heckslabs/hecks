@@ -16,6 +16,7 @@ require_relative "dispatching/stop_reason"
 require_relative "dispatching/orphaned_work"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
+require_relative "dispatching/settle_rule"
 require_relative "dispatching/claude_sessions"
 require_relative "dispatching/landed_since"
 require_relative "dispatching/last_roll"
@@ -116,9 +117,8 @@ module Hecks
       # filling is for, so a work item whose branch landed is finished and never yielded.
       def settler(held, launcher)
         items = work_items
-        Settler.new(items, launcher, grace: machine.session_grace, landed: LandedSince.new(items, repo: plain(held[:repo])),
-                                     gone: machine, sessions: @standins[:sessions] || ClaudeSessions.listing(machine),
-                                     orphans: OrphanedWork.new(items, min_age: machine.run_gone_minutes * 60))
+        rule = SettleRule.of(items, machine, repo: plain(held[:repo]), sessions: @standins[:sessions])
+        Settler.new(items, launcher, grace: machine.session_grace, **rule)
       end
 
       # A planned work item parked behind a run still recorded started is never launched, so the
