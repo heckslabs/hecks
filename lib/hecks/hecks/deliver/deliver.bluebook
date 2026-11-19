@@ -315,7 +315,7 @@ Hecks.bluebook "Hecks" do
 
       command "Start" do
         role "System"
-        goal "Record that a landed branch is to be pushed as ci/<branch> for an early CI run; off, nothing starts"
+        goal "Record a landed branch, whose ci/<branch> draft is then closed and the branch deleted; off, nothing starts"
 
         attribute :run,       RunKey, sets: true
         attribute :branch,    Word, sets: true
@@ -389,8 +389,8 @@ Hecks.bluebook "Hecks" do
         emits EarlyCiObserved
       end
 
-      # A close the port refused leaves the record closing, never declined, so a coder cannot retry a
-      # landed branch; a second Withdraw asks the port again.
+      # A close the port refused leaves the record closing, never declined; a second Withdraw asks the
+      # port again.
       command "Withdraw" do
         role "System"
         goal "Ask the port to close the draft and delete ci/<branch>, because the branch landed"
@@ -430,12 +430,12 @@ Hecks.bluebook "Hecks" do
       trigger EarlyCi::Start, with: { run: :run, branch: :branch }
     end
 
-    # A landed branch's draft is closed and ci/<branch> deleted. The record is keyed by the branch; a
-    # branch no coder asked CI for has none, and the trigger is refused as not found.
-    policy "WithdrawEarlyCiWhenBranchLanded" do
-      on      "Landing.BranchLanded"
-      where   { branch.value != "main" }
-      trigger EarlyCi::Withdraw, with: { early_ci: :branch }
+    # A landed branch's draft is closed and ci/<branch> deleted. The record Start made in the landing's
+    # own process is the one withdrawn: a coder's request is recorded in the coder's process, which the
+    # landing does not share.
+    policy "WithdrawEarlyCiWhenStarted" do
+      on      "EarlyCi.EarlyCiStarted"
+      trigger EarlyCi::Withdraw, with: { early_ci: :run }
     end
 
     policy "CloseCiWhenWithdrawn" do
