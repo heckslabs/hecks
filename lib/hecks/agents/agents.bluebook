@@ -273,7 +273,7 @@ Hecks.bluebook "Agents" do
              tools: "*",
              model: "inherit",
              purpose: "You work for the owner who started you, in the owner's own session. You may edit files, run specs and use git and gh, and no routing guard refuses a command, so the limits below are yours to keep.",
-             steps: "1. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.\n2. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.\n3. **Say what is stuck first.** Name anything you could not finish.",
+             steps: "1. **Register first.** Before anything else run `exe/hecks HandRun.register! run=orchestrator-owner session=$CLAUDE_CODE_SESSION_ID role=orchestrator-owner --wait`, so a message to `orchestrator-owner` reaches you; read it with `exe/hecks Message.inbox recipient=orchestrator-owner`.\n2. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.\n3. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.\n4. **Say what is stuck first.** Name anything you could not finish.",
              rules: "## Standing rules\n\nThe rows behind these are the `StandingRule` rows of this role; the guard does not enforce them.\n\n- **release-is-the-owners**: a release is the owner's call, said by the `Release-Approved-By` trailer; never add it on your own.\n- **discard-is-the-owners**: `Landing.discard!` runs only when the owner names the branch; never on your own work.\n- Never use `--no-verify`, a force flag, `--admin` or `HECKS_OWNER_PUSH`.",
              handback: "A list of outcomes, each with its links, and what you found stuck first. Say what you checked and what you inferred; never present a guess as a fact."
       member role: "reviewer",
@@ -1391,6 +1391,74 @@ Hecks.bluebook "Agents" do
     policy "RefuseTheRecipient" do
       on      "Message.RecipientMissing"
       trigger Message::Decline, with: { message: :message, refusal: :refusal }
+    end
+  end
+
+  # A session the owner started by hand has no AgentRun, so a message to it would be refused. It
+  # registers itself here under a run key of its own choosing, and the `Recipients` port then
+  # finds it while `claude agents` lists its session. An AgentRun with the same key is found first.
+  # A stopgap: once AgentRun registers a hand-started session itself, this aggregate goes.
+  aggregate "HandRun" do
+    description "A session the owner started by hand, registered under a run key so a message to that key reaches it like a dispatched run's."
+
+    identified_by :run
+
+    attribute :run, RunKey
+    attribute :session, SessionId
+    attribute :role, RunRole
+
+    # The key messages are addressed to, as `Message.send! to=<run>` names it.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The session's own id, `$CLAUDE_CODE_SESSION_ID` in the session's shell.
+    value_object "SessionId" do
+      attribute :value, String, matches: :present
+    end
+
+    # The role the session plays, such as `orchestrator-owner`.
+    value_object "RunRole" do
+      attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+    end
+
+    # A recorded registration is a finished fact: nothing acts on it, so it frees its key, and
+    # registering again (the same session, or a new one after a restart) replaces it. The earlier
+    # one stays readable as `<run>~<n>`, and a message to the key reaches the newest session.
+    lifecycle :status, default: "registering" do
+      transition "Record" => "registered", from: "registering"
+      mark :terminal, "registered"
+      mark :reusable, "registered"
+    end
+
+    command "Register" do
+      role "Operator"
+      goal "Register the current hand-started session under a run key, so messages to that key reach it"
+
+      attribute :run,     RunKey, sets: true
+      attribute :session, SessionId, sets: true
+      attribute :role,    RunRole, sets: true
+
+      emits "HandRunRequested"
+    end
+
+    command "Record", from: "registering" do
+      role "System"
+      goal "Record a registration, which frees its key for the next one"
+
+      reference_to HandRun
+
+      emits "HandRunRegistered"
+    end
+
+    policy "RecordTheRegistration" do
+      on      "HandRun.HandRunRequested"
+      trigger HandRun::Record, with: { run: :run }
+    end
+
+    query "Registered" do
+      description "Every hand-started session registration, with its run key, session and role; a replaced one is keyed `<run>~<n>`."
+      order_by :run
     end
   end
 
