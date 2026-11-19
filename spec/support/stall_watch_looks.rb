@@ -28,11 +28,18 @@ module StallWatchLooks
     File.write(tap, lines.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
   end
 
-  # A train pull request's CI that failed 15 minutes ago and was rerun, and one never rerun.
-  def write_train_pr_tap
-    rows = [["TrainPrFailed", "rerun-pr", 15], ["TrainPrRerun", "rerun-pr", 14], ["TrainPrFailed", "silent-pr", 15]]
-    lines = rows.each_with_index.map { |(event, id, ago), seq| line(seq + 1, event, id, ago).merge(aggregate: "Hecks::TrainPr") }
-    File.write(tap, lines.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
+  # Train pull requests whose CI failed 40 minutes ago: one rerun, one exhausted, and one rerun
+  # whose second attempt (a key of its own) was exhausted. Extra `[aggregate, event, id, ago]`
+  # rows follow, as a merge on the train.
+  def write_train_pr_tap(*extra)
+    rows = [["TrainPrFailed", "rerun-pr", 40], ["TrainPrRerun", "rerun-pr", 39], ["TrainPrFailed", "spent-pr", 40],
+            ["TrainPrExhausted", "spent-pr", 39], ["TrainPrFailed", "again-1", 40], ["TrainPrRerun", "again-1", 39],
+            ["TrainPrFailed", "again-2", 35], ["TrainPrExhausted", "again-2", 35]]
+    lines = rows.map { |row| ["Hecks::TrainPr", *row] } + extra
+    entries = lines.each_with_index.map do |(aggregate, event, id, ago), seq|
+      line(seq + 1, event, id, ago).merge(aggregate: aggregate)
+    end
+    File.write(tap, entries.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
   end
 
   # A plan review asked 30 minutes ago and never answered, whose run (the same id) has not ended.
