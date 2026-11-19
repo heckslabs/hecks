@@ -1,0 +1,256 @@
+# Interviews: work begins in a conversation, and the conversation is kept (ADR 0194).
+#
+# An interview holds what was said, turn by turn, and the Points it established: each Point is a
+# kind in the participants' own word, a statement, the exchange it cites, and a state. Concluding
+# needs at least one exchange and no Point left open.
+Hecks.bluebook "Interviews" do
+  vision "Work begins in a conversation: an interview keeps every exchange, and the Points the participants proposed, accepted, rejected or superseded, so whatever follows can cite where it came from."
+  supporting
+
+  aggregate "Interview" do
+    description "One conversation about a subject: its exchanges in the order they were said, and the Points it established, each accepted, rejected or superseded before it concludes."
+    created_by "Interview.record!"
+
+    identified_by :reference
+
+    attribute :reference, Reference
+    attribute :subject,   Subject
+    # Whether the record is committed (an interview of Hecks's own) or kept local (an outside
+    # expert's, which can hold client details): ADR 0194, decision 7.
+    attribute :keeping,   Keeping
+    attribute :exchanges, list_of(Exchange)
+    attribute :points,    list_of(Point)
+
+    # Held as a count because a rule cannot look inside a list: each proposed Point adds one, and
+    # each Point accepted, rejected or superseded while proposed takes one away (see the policies).
+    attribute :open_points, Tally
+
+    value_object "Reference" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Subject" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Keeping" do
+      attribute :value, String, one_of: %w[committed local]
+    end
+
+    # A participant: a person or an agent role.
+    value_object "Speaker" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Question" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # What was said, in the speaker's own words.
+    value_object "Answer" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    value_object "Exchange" do
+      attribute :speaker,  String, matches: :present
+      attribute :answer,   String, matches: :not_empty
+      attribute :question, String, optional: true
+    end
+
+    # The number of the exchange a Point rests on, counted from one in the order they were recorded.
+    value_object "Source" do
+      attribute :value, Integer
+      invariant("a point cites an exchange by its number, from one") { value.positive? }
+    end
+
+    value_object "PointNumber" do
+      attribute :value, Integer
+      invariant("a point is numbered from one") { value.positive? }
+    end
+
+    # Any word the participants use: work, decision, rule, thing, action, and others as they arise.
+    value_object "Kind" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Statement" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    value_object "Tally" do
+      attribute :value, Integer, default: 0
+      invariant("a tally is not negative") { !value.negative? }
+    end
+
+    # The one open unit of what an interview establishes. A correction is a new Point naming the one
+    # it replaces in `supersedes`; the replaced Point is settled by its own command. Nothing ties
+    # the two together, by design: a replaced Point left proposed still counts as open, so the
+    # interview cannot conclude until it is superseded or rejected.
+    entity "Point" do
+      description "A point the interview establishes: its kind, its statement, the exchange it cites, and whether it was accepted, rejected or superseded."
+
+      identified_by :number
+
+      attribute :number,     PointNumber
+      attribute :kind,       Kind
+      attribute :statement,  Statement
+      attribute :source,     Source
+      attribute :supersedes, PointNumber, optional: true
+
+      lifecycle :status, default: "proposed" do
+        transition "Accept"    => "accepted",   from: "proposed"
+        transition "Reject"    => "rejected",   from: "proposed"
+        transition "Supersede" => "superseded", from: "proposed"
+        transition "Revise"    => "superseded", from: "accepted"
+        mark :terminal, "rejected", "superseded"
+      end
+
+      # An event carries its command's arguments, so the kind and statement are stated again as
+      # accepted and set on the Point: what the point now says and what PointAccepted carries to
+      # the policies keyed on its kind are one and the same.
+      command "Accept", from: "proposed" do
+        role "Maintainer"
+        goal "Establish the point, so whatever keys on its kind can act on it"
+
+        attribute :number,    PointNumber
+        attribute :kind,      Kind,      sets: true
+        attribute :statement, Statement, sets: true
+
+        emits "PointAccepted"
+      end
+
+      command "Reject", from: "proposed" do
+        role "Maintainer"
+        goal "Set the proposed point aside"
+
+        attribute :number, PointNumber
+
+        emits "PointRejected"
+      end
+
+      command "Supersede", from: "proposed" do
+        role "Maintainer"
+        goal "Replace a proposed point with the correction that names it"
+
+        attribute :number, PointNumber
+
+        emits "PointSuperseded"
+      end
+
+      # An accepted point is no longer open, so revising it changes no count.
+      command "Revise", from: "accepted" do
+        role "Maintainer"
+        goal "Replace an accepted point with the correction that names it"
+
+        attribute :number, PointNumber
+
+        emits "PointRevised"
+      end
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Conclude" => "concluded", from: "open"
+      # An open interview waits on its participants, for as long as the conversation takes.
+      mark :rests, "open"
+      mark :terminal, "concluded"
+    end
+
+    # Opens the interview with its first exchange. A later turn appending to the same interview
+    # waits on a command that creates its record or acts on the one that exists; until then this
+    # command only opens, so its `given` cannot yet be false.
+    command "Record" do
+      role "Maintainer"
+      goal "Keep a turn of the conversation: who spoke, what was asked and what was said"
+
+      attribute :reference, Reference
+      attribute :subject,   Subject
+      attribute :keeping,   Keeping
+      attribute :speaker,   Speaker
+      attribute :answer,    Answer
+      attribute :question,  Question, optional: true
+
+      given("turns are recorded only while the interview is open") { status == "open" }
+
+      sets :exchanges, append: { speaker: :speaker, answer: :answer, question: :question }
+
+      emits "ExchangeRecorded"
+    end
+
+    command "ProposePoint" do
+      role "Maintainer"
+      goal "Put a point forward, citing the exchange it rests on"
+
+      reference_to Interview
+      attribute :number,     PointNumber
+      attribute :kind,       Kind
+      attribute :statement,  Statement
+      attribute :source,     Source
+      attribute :supersedes, PointNumber, optional: true
+
+      given("points are proposed only while the interview is open") { status == "open" }
+      given("a point cites an exchange that was recorded") { source.value <= exchanges.size }
+
+      sets :points, append: { number: :number, kind: :kind, statement: :statement, source: :source,
+                              supersedes: :supersedes }
+
+      emits "PointProposed"
+    end
+
+    command "CountOpened" do
+      role "System"
+      policy_only
+      goal "Count one more open point"
+
+      reference_to Interview
+
+      sets :open_points, increment: { value: 1 }
+
+      emits "OpenPointCounted"
+    end
+
+    command "CountSettled" do
+      role "System"
+      policy_only
+      goal "Count one open point fewer"
+
+      reference_to Interview
+
+      sets :open_points, decrement: { value: 1 }
+
+      emits "SettledPointCounted"
+    end
+
+    command "Conclude" do
+      role "Maintainer"
+      goal "End the interview once every point is settled"
+
+      reference_to Interview
+
+      # Cannot be false while Record only opens with an exchange; ADR 0194 decision 3 asks for it.
+      given("an interview that recorded nothing has not happened") { exchanges.size.positive? }
+      given("every point is accepted, rejected or superseded before the interview ends") { open_points.value.zero? }
+
+      emits "InterviewConcluded"
+    end
+  end
+
+  policy "CountProposedPoint" do
+    on      "Interview.PointProposed"
+    trigger Interview::CountOpened, with: { interview: :reference }
+  end
+
+  policy "CountAcceptedPoint" do
+    on      "Interview.PointAccepted"
+    trigger Interview::CountSettled, with: { interview: :reference }
+  end
+
+  policy "CountRejectedPoint" do
+    on      "Interview.PointRejected"
+    trigger Interview::CountSettled, with: { interview: :reference }
+  end
+
+  policy "CountSupersededPoint" do
+    on      "Interview.PointSuperseded"
+    trigger Interview::CountSettled, with: { interview: :reference }
+  end
+end
