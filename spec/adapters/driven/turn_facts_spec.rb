@@ -14,14 +14,14 @@ RSpec.describe Hecks::Adapters::TurnFacts do
 
   before { allow(Hecks::Adapters::SessionInbox).to receive(:new).and_return(inbox) }
 
-  BOOKS = { "Hecks" => "AgentRun", "Tickets" => "Work", "Agents" => "Verdict" }.freeze
-
   def book(name) = double(aggregates: [double(hecks_name: name)])
+
+  def aggregate_of(domain) = { "Hecks" => "AgentRun", "Tickets" => "Work", "Agents" => "Verdict" }.fetch(domain)
 
   def registry(runs, items, verdicts = [])
     stores = { "Hecks" => runs, "Tickets" => items, "Agents" => verdicts }
     instance_double(Hecks::Runtime::Registry).tap do |held|
-      allow(held).to receive(:bluebook) { |domain| book(BOOKS.fetch(domain)) }
+      allow(held).to receive(:bluebook) { |domain| book(aggregate_of(domain)) }
       allow(held).to receive(:repository) { |domain, _| double(all: stores.fetch(domain)) }
     end
   end
