@@ -4,16 +4,17 @@ require "json"
 require_relative "architect_verdict"
 require_relative "session_hooks"
 require_relative "credential_scrub"
+require_relative "mcp_selection"
 
 module Hecks
   module Adapters
     # The command line that starts one background session: the `claude` command, the agent it runs
     # as, and the brief after a `--` so it is never taken for a flag. An argument list, never a
-    # string for a shell. It passes no MCP flags: a resumed session does not keep them, and
-    # `--strict-mcp-config` would drop the session's other servers. A role's `hecks-mcp` server
-    # narrows itself from the `CLAUDE_CODE_AGENT` variable Claude Code gives it (see
-    # `Driving::Mcp::Roles`); a resume names the same role with `--agent` (see
-    # {ClaudeResumption}), since without it that variable reads `claude`.
+    # string for a shell. Its settings disable each project MCP server the role file's tools do not
+    # name ({McpSelection}), so a coder starts none; `--strict-mcp-config` is not used, since it
+    # would drop the role's own frontmatter servers. A role's `hecks-mcp` server narrows itself from
+    # the `CLAUDE_CODE_AGENT` variable Claude Code gives it (see `Driving::Mcp::Roles`); a resume
+    # names the same role with `--agent` and carries the same settings (see {ClaudeResumption}).
     class SessionLine
       # @param command [String] the command that starts sessions
       # @param nice [Array<String>] the niceness prefix, empty for none
@@ -35,7 +36,7 @@ module Hecks
       # @return [Array<String>] the argument list
       def arguments(held, environment = {})
         agent = plain(held[:agent])
-        [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment, plain(held[:run]), agent), "--bg",
+        [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment, held, agent), "--bg",
          "--", briefed(plain(held[:brief]), agent)]
       end
 
@@ -45,10 +46,13 @@ module Hecks
       # variables its commands read (today the caller name) go in the settings `env` block, which
       # Claude Code applies to every command the session runs. The `hooks` block makes the session
       # announce its own end (see {SessionHooks}). A role the world scrubs also carries
-      # {CredentialScrub}'s variables and deny rules.
+      # {CredentialScrub}'s variables and deny rules, and every block names the project MCP servers
+      # the role does not start ({McpSelection}).
       # @return [Array<String>] the `--settings` flag and its JSON, or nothing for no env or hooks
-      def settings(environment, run, agent)
-        block = scrubbed({ "env" => environment, "hooks" => @hooks.for(run) }, agent).reject { |_, value| value.empty? }
+      def settings(environment, held, agent)
+        block = { "env" => environment, "hooks" => @hooks.for(plain(held[:run])) }
+                .merge(McpSelection.settings(plain(held[:repo]), agent))
+        block = scrubbed(block, agent).reject { |_, value| value.empty? }
         block.empty? ? [] : ["--settings", JSON.generate(block)]
       end
 
