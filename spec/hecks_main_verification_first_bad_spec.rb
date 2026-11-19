@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/main_verification"
+require_relative "support/hecks_launcher_stub"
 
 # A failed verification names the first bad merge among the landings since the last verified
 # commit, while the shallow check is off, and adds no line while it is on.
@@ -16,6 +17,7 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
     git("init", "-q", "--bare", "-b", "main", File.join(dir, "remote.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "remote.git"), repo, chdir: dir)
     git("checkout", "-q", "-B", "main")
+    HecksLauncherStub.place(repo)
     File.write(File.join(repo, "README"), "r")
     git("add", ".")
     git("commit", "-q", "-m", "README")

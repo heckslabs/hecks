@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/main_verification"
+require_relative "support/hecks_launcher_stub"
 
 # A verification whose spec fails names the spec file, the first failing example and a kept log,
 # so the failure can be read after the clean copy is gone. The repository and the log directory
@@ -27,7 +28,9 @@ RSpec.describe Hecks::Adapters::MainVerification do
 
   before do
     git("init", "-q", "-b", "main", dir)
-    git("commit", "-q", "--allow-empty", "-m", "start")
+    HecksLauncherStub.place(dir)
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
     allow(Hecks::Adapters::MainIntegration::Checks).to receive(:new)
       .and_return(instance_double(Hecks::Adapters::MainIntegration::Checks, all: checks))
     described_class.runner = ->(argv, **) { argv == %w[gate] ? [true, "green"] : [false, failed_spec_output] }
