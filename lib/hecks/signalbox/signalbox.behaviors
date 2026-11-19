@@ -192,6 +192,36 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[ResponseAsked ResponseWaited], status: "waiting"
   end
 
+  test "a low-tier gate waits its turn when pressure is tight" do
+    tests "Ask", on: "Response"
+    input response: { value: "landing-gate-at-0932" }, session: { value: "landing-gate" }, role: { value: "gate" },
+          tier: { value: "low" }, band: { value: "tight" }
+    expect emits: %w[ResponseAsked ResponseWaited], status: "waiting"
+  end
+
+  # A red fix's landing gate and the push train's gate carry urgent work: admitted in every band.
+  test "an urgent gate keeps running when pressure is short" do
+    tests "Ask", on: "Response"
+    input response: { value: "train-gate-at-0932" }, session: { value: "train-gate" }, role: { value: "gate" },
+          tier: { value: "urgent" }, band: { value: "short" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
+  # A job a person runs by hand is the person's own use of the machine, not the pipeline's load.
+  test "a person's own job runs when pressure is tight" do
+    tests "Ask", on: "Response"
+    input response: { value: "by-hand-at-0933" }, session: { value: "by-hand" }, role: { value: "person" },
+          tier: { value: "normal" }, band: { value: "tight" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
+  test "a person's own job runs when pressure is short" do
+    tests "Ask", on: "Response"
+    input response: { value: "by-hand-at-0934" }, session: { value: "by-hand" }, role: { value: "person" },
+          tier: { value: "normal" }, band: { value: "short" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
   # ---- Law 4: admission by headroom ----
 
   test "law 4: a session whose expected draw does not fit the headroom waits" do
