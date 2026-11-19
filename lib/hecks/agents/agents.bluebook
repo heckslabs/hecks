@@ -216,10 +216,9 @@ Hecks.bluebook "Agents" do
              evidence: "CLAUDE.md: Landing.discard! runs only when the owner names the branch"
     end
 
-    # The effort a brief may ask for, one row per size of task: how many subagents a run of that size
-    # starts and how many tool calls each makes. A brief names one size as its budget. No size starts
-    # more than three subagents (the bounded-fan-out rule); `pieces` is counted in runs, which the
-    # work cap and `Dispatch.preview` bound, so it starts no subagents of its own.
+    # The budget a brief names, one row per size of task: the subagents a run starts (at most three,
+    # by bounded-fan-out) and the tool calls each makes. `pieces` counts runs, bounded by the work
+    # cap and `Dispatch.preview`, and starts no subagents of its own.
     value_object "EffortBudget" do
       attribute :size,      String
       attribute :subagents, Integer
