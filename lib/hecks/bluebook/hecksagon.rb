@@ -51,8 +51,9 @@ module Hecks
       def plugin_path = runs && File.expand_path(runs, source_dir || Dir.pwd)
     end
 
-    # `lent` marks a bind read from another checkout's local files (see {Lent}).
-    Bind = Struct.new(:aggregate, :verb, :adapter, :role, :lent, keyword_init: true) do
+    # `provenance` marks a bind read from a gitignored local file: `:lent` for another
+    # checkout's, `:local` for this checkout's own, nil for a committed one (see {Lent}).
+    Bind = Struct.new(:aggregate, :verb, :adapter, :role, :provenance, keyword_init: true) do
       # Empty for a domain-level default bind with no aggregate.
       def aggregate_name = Naming.demodulise(aggregate)
     end
