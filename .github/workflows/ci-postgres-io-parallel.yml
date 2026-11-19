@@ -234,11 +234,17 @@ jobs:
       # The file list it splits is committed; `postgres_io_file_list` proves it matches a dry run.
       # A plan that cannot be read is no reason to fail: the leg then takes every twentieth file of
       # the committed list, which is still a partition of it.
+      # download-artifact reads the run's own artifact without the REST API's shared budget.
       - name: Read the plan
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-plan-postgres-io
+          path: tmp/plan
+
+      - name: Fall back to every twentieth file without a plan
         run: |
           mkdir -p tmp/plan
-          gh run download ${{ github.run_id }} --name shard-plan-postgres-io --dir tmp/plan \
-            || echo "::warning::no shard plan to read; this leg takes every twentieth file"
           if [ ! -s "tmp/plan/group-${{ matrix.group }}.txt" ]; then
             awk -v group=${{ matrix.group }} 'NR % 20 == group % 20' .github/postgres_io_spec_files.txt \
               > "tmp/plan/group-${{ matrix.group }}.txt"
