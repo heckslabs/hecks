@@ -4,8 +4,8 @@ require_relative "support/stand_in_claude"
 # A conflicting Work item asks the orchestrator for advice, and that event starts its session
 # through AgentRun. The check is handed facts (the areas the item spans, the started items it
 # overlaps) and the bluebook's rule finds the conflict. A stand-in `claude` starts the session, so
-# no real one runs: the spec shows the advice request becomes a run keyed by the routing request,
-# and a check with no conflict starts no orchestrator.
+# no real one runs: the spec shows the advice request becomes a run under a minted key, its brief
+# naming the Work item, and a check with no conflict starts no orchestrator.
 RSpec.describe "an advice request starting the orchestrator's session" do
   include_context "with a stand-in claude"
 
@@ -23,20 +23,26 @@ RSpec.describe "an advice request starting the orchestrator's session" do
 
   def running = launch("agent_run.running").first.to_s
 
-  it "starts the orchestrator's run for an overlapping Work item, keyed by the routing request", :aggregate_failures do
+  def runs = @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("AgentRun"))
+
+  def advised(work)
+    runs.all.select { |run| run[:agent]&.value == "orchestrator" && run[:brief]&.value.to_s.include?("#{work} ") }
+  end
+
+  it "starts the orchestrator's run for an overlapping Work item, under a minted key", :aggregate_failures do
     check("w-conflict", 1)
-    expect(running).to include("advice-w-conflict")
-    expect(running).to include("orchestrator")
+    expect(advised("w-conflict").size).to eq(1)
+    expect(runs.find("advice-w-conflict")).to be_nil
   end
 
   it "starts the orchestrator's run for a Work item that spans several areas" do
     check("w-wide", 0, areas: 2)
-    expect(running).to include("advice-w-wide")
+    expect(advised("w-wide").size).to eq(1)
   end
 
   it "starts no run for a Work item with no conflict" do
     check("w-clear", 0)
-    expect(running).not_to include("advice-w-clear")
+    expect(advised("w-clear")).to be_empty
   end
 
   it "refuses a check that names no advice key, by name", :aggregate_failures do

@@ -98,7 +98,8 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      # What a session reported about itself the last time it was asked.
+      # What a session reported about itself the last time it was asked, or `gone` once the run
+      # was retired because its session is gone. The standing queries below say how to read it.
       value_object "Condition", String
 
       value_object "Report", String
@@ -462,6 +463,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to AgentRun
         attribute :detail, Report, sets: true
+        attribute :condition, Condition, default: "gone", sets: true
 
         emits AgentRunRetired
       end
@@ -475,6 +477,7 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :trial,  Trial, default: true, sets: true
         attribute :detail, Report, sets: true
+        attribute :condition, Condition, default: "gone", sets: true
 
         emits AgentTrialRunRetired
       end
@@ -507,6 +510,32 @@ Hecks.bluebook "Hecks" do
         description "The run under one key, when it is started."
         attribute :run, RunKey
         where(status: "started", run: :run)
+      end
+
+      # A run's standing (working, blocked, ended, gone) is read from these four, never from
+      # `condition` alone: an ended run keeps the condition it ended with.
+      query "Working" do
+        description "Every started run whose session is not waiting on a person, oldest key first; its standing is working."
+        where(status: "started", condition: { ne: "blocked" })
+        order_by :run
+      end
+
+      query "Blocked" do
+        description "Every started run whose session waits on a person, oldest key first."
+        where(status: "started", condition: "blocked")
+        order_by :run
+      end
+
+      query "Ended" do
+        description "Every run whose session ended, finished or tidied, oldest key first."
+        where(status: { in: "finished,tidied" })
+        order_by :run
+      end
+
+      query "Gone" do
+        description "Every run retired because its session is gone, oldest key first."
+        where(status: "retired")
+        order_by :run
       end
 
       query "Declined" do
@@ -2454,8 +2483,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # A plan review asked for by event starts the named role's session as a run keyed by the review,
-    # as the reviewer's is keyed by the commit, so it never collides with the Work item's own run or
-    # an earlier review of it. The run names the Work item it reviews, and the plan is its brief.
+    # so it never collides with the Work item's own run or an earlier review of it. The run names the Work item it reviews, and the plan is its brief.
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :run, work: :work, repo: :repo, brief: :plan, agent: :role }
@@ -2520,43 +2548,43 @@ Hecks.bluebook "Hecks" do
                             "end of your turn." }
     end
 
-    # A planning request starts the planner's session as a run keyed by the request, with the goal as
-    # its brief. The planner drafts a plan and asks; it creates Work items only once the owner says so.
-    # A submission review starts the reviewer's session as a run keyed by the submitted commit, so it
-    # never collides with the architect's run for the same Work item. The brief names the branch.
+    # A submission review starts the reviewer's session as a run keyed by the submitted commit, the
+    # key RecordTheReviewersJudgment reads its SubmissionReview by. The brief names the branch.
     policy "StartTheReviewerOnReviewRequest" do
       on      "SubmissionReview.SubmissionReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A recommended promotion starts the release manager's session as a run keyed by the change, with
-    # a brief to recommend promote, revert or fix forward. It only recommends: promoting stays the
-    # owner's confirmed command on the board.
+    # A recommended promotion starts the release manager's session under a minted key, so it never
+    # meets the reviewer's run for the same commit. It only recommends promote, revert or fix
+    # forward: promoting stays the owner's confirmed command on the board.
     policy "StartTheReleaseManagerOnRecommendation" do
       on      "PromotionRecommendation.PromotionRecommended"
-      trigger AgentRun::Dispatch, with: { run: :change, repo: :repo, brief: :brief, agent: :role }
+      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
+    # A planning request starts the planner's session under a minted key, with the goal as its brief.
+    # The planner drafts a plan and asks; it creates Work items only once the owner says so.
     policy "StartThePlannerOnPlanningRequest" do
       on      "Planning.PlanningRequested"
-      trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }
+      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :goal, agent: :role }
     end
 
-    # A woken pruner starts its session as a run of the `pruner` agent. The run key is minted, since
-    # no Work item or commit names a pruner's run.
+    # A woken pruner starts its session as a run of the `pruner` agent, under a minted key.
     policy "StartThePrunerWhenWoken" do
       on      "Pruning.PrunerWoken"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A conflicting Work item asks the orchestrator for advice: its session starts as a run keyed by the
-    # routing request, with a brief that names the Work item and the conflict.
+    # A conflicting Work item asks the orchestrator for advice: its session starts under a minted key,
+    # with a brief that names the Work item and the conflict.
     policy "StartTheOrchestratorOnAdviceRequest" do
       on      "Routing.DispatchAdviceRequested"
-      trigger AgentRun::Dispatch, with: { run: :advice, repo: :repo, brief: :brief, agent: :role }
+      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # An exception the orchestrator must judge starts its session as a run keyed by the escalation.
+    # An exception the orchestrator must judge starts its session as a run keyed by the escalation:
+    # a stall's key is its Work item, which the stall fixer's run is keyed by.
     policy "StartTheCoordinatorWhenWoken" do
       on      "Escalation.CoordinatorWoken"
       trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }

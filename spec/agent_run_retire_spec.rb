@@ -81,6 +81,34 @@ RSpec.describe "AgentRun.Retire through the Agents port" do
     expect(outcome.dig("state", "refusal")).to include("started 10s ago")
   end
 
+  # A started run whose last check recorded its session blocked on a person.
+  def blocked_run(run)
+    started_run(run)
+    job("blocked")
+    launch("AgentRun.check!", "to=#{run}", "--wait")
+  end
+
+  def standing(query) = launch("AgentRun.#{query}").first.to_s
+
+  it "records a run retired while it read blocked as gone" do
+    blocked_run("r-was-blocked")
+    listing
+    @clock += 300
+    expect(retire("r-was-blocked").dig("state", "condition")).to eq("gone")
+  end
+
+  it "reads a blocked run under Blocked and not under Working", :aggregate_failures do
+    blocked_run("r-waits")
+    expect(standing("blocked")).to include("r-waits")
+    expect(standing("working")).not_to include("r-waits")
+  end
+
+  it "reads a retired run under Gone and under neither started standing", :aggregate_failures do
+    gone_run("r-left")
+    expect(standing("gone")).to include("r-left")
+    expect(standing("working") + standing("blocked")).not_to include("r-left")
+  end
+
   it "records what the listing said on the retired run" do
     expect(gone_run("r-said").dig("state", "detail")).to eq("session stand-in-session is not listed")
   end
