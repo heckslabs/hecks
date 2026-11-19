@@ -479,6 +479,18 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         resolves_via: "",
         disambiguator: "",
     },
+    KeywordSeed {
+        word: "acts_as",
+        context: "Policy",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "acts_as",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
 ];
 
 impl KeywordSeed {
@@ -646,7 +658,7 @@ impl KeywordSeed {
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "KeywordSeed",
                 admitted: &[
-                    "on", "trigger", "ask", "across", "where", "for_each", "root",
+                    "on", "trigger", "ask", "across", "where", "for_each", "root", "acts_as",
                 ],
                 offered: offered.as_str(),
             }
@@ -802,6 +814,23 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
         kind: "text",
         required: "true",
         fills: "for_each",
+        selects: "",
+        pair_key_fills: "",
+        pair_value_fills: "",
+        pairs_shape: "",
+        status: "admitted",
+        variadic: "",
+        coerce: "",
+        blank_message: "",
+    },
+    ArgumentSeed {
+        keyword: "acts_as",
+        context: "Policy",
+        at: "1",
+        named: "",
+        kind: "text",
+        required: "true",
+        fills: "acts_as",
         selects: "",
         pair_key_fills: "",
         pair_value_fills: "",
@@ -1080,7 +1109,7 @@ impl ArgumentSeed {
                 r#type: "ArgumentSeed",
                 admitted: &[
                     "on", "on", "trigger", "trigger", "ask", "across", "across", "for_each",
-                    "trigger", "ask",
+                    "acts_as", "trigger", "ask",
                 ],
                 offered: offered.as_str(),
             }
@@ -1100,6 +1129,7 @@ pub struct Policy {
     pub target_domain: Option<PolicyText>,
     pub expect_undelivered: Option<PolicyText>,
     pub root: Option<PolicyText>,
+    pub acts_as: Option<PolicyText>,
     pub r#where: Option<PolicyText>,
     pub for_each: Option<PolicyText>,
     pub with_spec: Vec<Binding>,
@@ -1152,6 +1182,11 @@ impl crate::kernel::Fielded for Policy {
                 .or(Some(Field::Value(Value::Nil))),
             "root" => self
                 .root
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
+            "acts_as" => self
+                .acts_as
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
@@ -1249,6 +1284,12 @@ impl Policy {
                     .map_or(crate::kernel::Json::Null, |v| v.to_json()),
             ),
             (
+                "acts_as".to_string(),
+                self.acts_as
+                    .as_ref()
+                    .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+            ),
+            (
                 "where".to_string(),
                 self.r#where
                     .as_ref()
@@ -1321,6 +1362,10 @@ impl Policy {
                 Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?),
             },
             root: match v.get("root") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?),
+            },
+            acts_as: match v.get("acts_as") {
                 Some(&crate::kernel::Json::Null) | None => None,
                 Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?),
             },
@@ -1430,6 +1475,11 @@ impl crate::kernel::Fielded for DeclareArgs {
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
+            "acts_as" => self
+                .acts_as
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
             "where" => self
                 .r#where
                 .as_ref()
@@ -1473,6 +1523,7 @@ pub struct DeclareArgs {
     pub target_domain: Option<PolicyText>,
     pub expect_undelivered: Option<PolicyText>,
     pub root: Option<PolicyText>,
+    pub acts_as: Option<PolicyText>,
     pub r#where: Option<PolicyText>,
     pub for_each: Option<PolicyText>,
     pub position: Option<Position>,
@@ -1505,6 +1556,9 @@ pub fn dispatch_declare(
         v.check_invariants()?;
     }
     if let Some(v) = &args.root {
+        v.check_invariants()?;
+    }
+    if let Some(v) = &args.acts_as {
         v.check_invariants()?;
     }
     if let Some(v) = &args.r#where {
@@ -1549,6 +1603,7 @@ pub fn dispatch_declare(
                         target_domain: args.target_domain.clone(),
                         expect_undelivered: args.expect_undelivered.clone(),
                         root: args.root.clone(),
+                        acts_as: args.acts_as.clone(),
                         r#where: args.r#where.clone(),
                         for_each: args.for_each.clone(),
                         with_spec: vec![],
@@ -1571,6 +1626,7 @@ pub fn dispatch_declare(
                         target_domain: args.target_domain.clone(),
                         expect_undelivered: args.expect_undelivered.clone(),
                         root: args.root.clone(),
+                        acts_as: args.acts_as.clone(),
                         r#where: args.r#where.clone(),
                         for_each: args.for_each.clone(),
                         with_spec: vec![],
@@ -1597,6 +1653,7 @@ pub fn dispatch_declare(
             record.target_domain = args.target_domain.clone();
             record.expect_undelivered = args.expect_undelivered.clone();
             record.root = args.root.clone();
+            record.acts_as = args.acts_as.clone();
             record.r#where = args.r#where.clone();
             record.for_each = args.for_each.clone();
             record.position = args.position.clone();
@@ -1659,6 +1716,12 @@ impl DeclareArgs {
                         .map_or(crate::kernel::Json::Null, |v| v.to_json()),
                 ),
                 (
+                    "acts_as".to_string(),
+                    self.acts_as
+                        .as_ref()
+                        .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+                ),
+                (
                     "where".to_string(),
                     self.r#where
                         .as_ref()
@@ -1702,6 +1765,7 @@ impl DeclareArgs {
             "target_domain",
             "expect_undelivered",
             "root",
+            "acts_as",
             "where",
             "for_each",
             "position",
@@ -1723,6 +1787,7 @@ impl DeclareArgs {
                         "target_domain",
                         "expect_undelivered",
                         "root",
+                        "acts_as",
                         "where",
                         "for_each",
                         "position",
@@ -1752,6 +1817,7 @@ impl DeclareArgs {
                         "target_domain",
                         "expect_undelivered",
                         "root",
+                        "acts_as",
                         "where",
                         "for_each",
                         "position",
@@ -1848,6 +1914,13 @@ impl DeclareArgs {
         if let Some(v) = &root {
             v.check_invariants()?;
         }
+        let acts_as = match v.get("acts_as") {
+            Some(crate::kernel::Json::Null) | None => None,
+            Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?),
+        };
+        if let Some(v) = &acts_as {
+            v.check_invariants()?;
+        }
         let r#where = match v.get("where") {
             Some(crate::kernel::Json::Null) | None => None,
             Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?),
@@ -1879,6 +1952,7 @@ impl DeclareArgs {
             target_domain,
             expect_undelivered,
             root,
+            acts_as,
             r#where,
             for_each,
             position,
@@ -1908,6 +1982,7 @@ impl DeclareArgs {
             "target_domain",
             "expect_undelivered",
             "root",
+            "acts_as",
             "where",
             "for_each",
             "position",
@@ -1930,6 +2005,7 @@ impl DeclareArgs {
                             "target_domain",
                             "expect_undelivered",
                             "root",
+                            "acts_as",
                             "where",
                             "for_each",
                             "position",
@@ -1965,6 +2041,7 @@ impl DeclareArgs {
                             "target_domain",
                             "expect_undelivered",
                             "root",
+                            "acts_as",
                             "where",
                             "for_each",
                             "position",
@@ -2244,6 +2321,13 @@ pub fn present(state: crate::kernel::Json) -> crate::kernel::Json {
                             other => other,
                         },
                         "root" => match v {
+                            crate::kernel::Json::Object(fields) => fields
+                                .into_iter()
+                                .find(|(k, _)| k == "value")
+                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
+                            other => other,
+                        },
+                        "acts_as" => match v {
                             crate::kernel::Json::Object(fields) => fields
                                 .into_iter()
                                 .find(|(k, _)| k == "value")

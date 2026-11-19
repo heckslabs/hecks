@@ -53,8 +53,9 @@ module Hecks
       # @param answer [String] the prompt to wake it with
       # @param run [Hash] `env:` the session environment to keep (`CARGO_TARGET_DIR`), `chdir:` the
       #   run's directory and `agent:` the role the run was started as, when it has one
-      # @return [Hash{Symbol => Object}] `resumed_at:`, `session:` the id the run follows (its own
-      #   unless the CLI started a copy) and, for a copy, `note:` what the CLI said
+      # @return [Hash{Symbol => Object}] `resumed_at:`, `held:` the id the run held, `session:` the
+      #   id the run follows (its own unless the CLI started a copy) and, for a copy, `note:` what
+      #   the CLI said
       # @raise [ConsoleCapture::Failure] when the session has no full id or the command refuses
       def call(id, entry, answer, **run)
         full = entry["sessionId"].to_s
@@ -127,13 +128,14 @@ module Hecks
 
       # The CLI prints `backgrounded · <id>` on stdout, the id the session now runs under, and its
       # `note:` on stderr. An id other than the run's, or a note of a copy, means a copy started.
+      # `held:` is the id the run held, so the bluebook can tell a copy from a wake in place.
       def outcome(id, result)
-        at = { value: Time.now.utc.iso8601 }
         named = result.out[ClaudeAgents::SESSION_ID, 1] || result.err[COPY_ID, 1] || id
         note = result.err[COPY_NOTE] || result.out[COPY_NOTE]
-        return { resumed_at: at, session: { value: id } } unless note || named != id
+        base = { resumed_at: { value: Time.now.utc.iso8601 }, held: { value: id } }
+        return base.merge(session: { value: id }) unless note || named != id
 
-        { resumed_at: at, session: { value: named }, note: { value: (note || "started a copy as #{named}").strip } }
+        base.merge(session: { value: named }, note: { value: (note || "started a copy as #{named}").strip })
       end
     end
   end

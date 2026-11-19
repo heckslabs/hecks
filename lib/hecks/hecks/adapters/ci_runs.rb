@@ -5,6 +5,7 @@ require_relative "console_capture"
 require_relative "ci_runs/pull_request"
 require_relative "ci_runs/replaced_runs"
 require_relative "ci_runs/rerun_report"
+require_relative "ci_runs/job_rerun"
 require_relative "ci_runs/train_pr_failure"
 require_relative "ci_runs/red_pull"
 require_relative "ci_runs/ci_start"
@@ -66,6 +67,16 @@ module Hecks
         raise ConsoleCapture::Failure, "gh run rerun failed: #{output.to_s.strip}" unless ok
 
         { report: { value: RerunReport.new(id, plain(held[:pr]), plain(held[:step])).to_s } }
+      end
+
+      # Reruns one failed job of a CI run, by itself, once the bluebook has decided to.
+      #
+      # @param held [Hash] the `TrainPr` record: `job`, and `ci_run`, `pr` and `examples` for the
+      #   report
+      # @return [Hash{Symbol => Hash}] `report:`
+      # @raise [ConsoleCapture::Failure] when no job is named or GitHub refuses the rerun
+      def restart_job(**held)
+        { report: { value: JobRerun.new(runner, Dir.pwd).run(held.transform_values { |value| plain(value) }) } }
       end
 
       private

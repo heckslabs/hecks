@@ -92,6 +92,18 @@ module Hecks
           @root = true
         end
 
+        # Declares the role this reaction dispatches its trigger as, which the domain's Governance
+        # must grant (ADR 0216).
+        #
+        # @param role [String, Symbol] the role, such as `"System"`
+        # @return [String] the role as stored
+        # @raise [Bluebook::DSL::Malformed] if the role is empty
+        def acts_as_impl(role)
+          raise Malformed, " declares acts_as with no role — name the role its reaction runs as" if role.to_s.strip.empty?
+
+          @acts_as = role.to_s
+        end
+
         # Records the guard predicate that decides whether this policy applies to a triggering
         # event.
         #
@@ -150,8 +162,8 @@ module Hecks
 
         # What decides whether it fires, and what it hands over.
         def guard_fields
-          { expect_undelivered: @expect_undelivered || false, root: @root || false, where: @where,
-            for_each: @for_each, with_spec: @with_spec || [] }
+          { expect_undelivered: @expect_undelivered || false, root: @root || false, acts_as: @acts_as,
+            where: @where, for_each: @for_each, with_spec: @with_spec || [] }
         end
 
         # An ask resolves against the ports of the domain it is declared in, so `across` has

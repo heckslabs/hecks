@@ -73,6 +73,7 @@ module Hecks
             target_domain:      [:target_domain,   :plain],
             expect_undelivered: [:expect_undelivered, :plain],
             root:               [:root,            :plain],
+            acts_as:            [:acts_as,         :plain],
             where:              [:where,           :plain],
             for_each:           [:for_each,        :plain],
             with_spec:          [:with_spec,       :bindings]

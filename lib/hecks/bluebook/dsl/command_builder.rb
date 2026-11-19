@@ -92,6 +92,12 @@ module Hecks
         # @return [Boolean] the flag as stored
         def mints_era_impl(value) = @mints_era = value == true
 
+        # Declares that only a policy reaction may dispatch this command; a CLI or MCP caller is
+        # refused whatever role it states (ADR 0216).
+        #
+        # @return [true]
+        def policy_only_impl = @policy_only = true
+
         # Declares the aggregate this command acts on (with no `as:`), or a cross-reference to
         # another aggregate (with `as:`).
         #
@@ -219,7 +225,8 @@ module Hecks
 
         def declared_effects
           { mutations: @mutations, emits: @emits, references: @references, from: @from,
-            provenance: @provenance, idempotent: @idempotent || false, mints_era: @mints_era || false }
+            provenance: @provenance, idempotent: @idempotent || false, mints_era: @mints_era || false,
+            policy_only: @policy_only || false }
         end
       end
     end

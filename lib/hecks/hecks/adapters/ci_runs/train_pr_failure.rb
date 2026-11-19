@@ -4,6 +4,7 @@ require "json"
 require_relative "../console_capture"
 require_relative "../main_integration/failure_log"
 require_relative "failed_jobs"
+require_relative "rerun_facts"
 
 module Hecks
   module Adapters
@@ -44,6 +45,7 @@ module Hecks
           cause = @spec_jobs.empty? ? "setup" : "spec"
           specs = @spec_jobs.flat_map(&:specs).uniq
           base(pull, run, specs, cause).merge(step: steps, report: report(pull, run, specs, cause))
+                                       .merge(RerunFacts.new(@runner, @checkout).read(pull, @jobs, specs))
         end
 
         private

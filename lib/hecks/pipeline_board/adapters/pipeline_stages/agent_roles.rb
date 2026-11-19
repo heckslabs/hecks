@@ -60,8 +60,11 @@ module Hecks
         end
 
         # @return [Boolean] whether the session's run names the role as its agent or the part it
-        #   works as, or claude titled the session with the role's name
+        #   works as, or claude titled the session with the role's name; a session its run left
+        #   for a copy (`superseded_by`) plays no role, so the card reads the run's current session
         def plays?(session, name)
+          return false unless session[:superseded_by].to_s.empty?
+
           [session[:agent], session[:works_as]].any? { |held| held.to_s == name } || session[:name].to_s.start_with?(name)
         end
 

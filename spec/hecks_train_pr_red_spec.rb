@@ -4,8 +4,8 @@ require "securerandom"
 require_relative "support/fake_train_github"
 
 # A red train pull request is handled by the pipeline: its failed CI is read through `gh`, recorded,
-# rerun once (twice for a known-flaky spec), and given to a coder as a red-train Work item when the
-# reruns fail too. The domain is in Memory and GitHub is a scripted fake.
+# its one unrelated failed job rerun once by itself, and given to a coder as a red-train Work item
+# when the rerun fails too. The domain is in Memory and GitHub is a scripted fake.
 RSpec.describe "a red train pull request" do
   let(:landed) { SecureRandom.hex(20) }
   let(:github) { FakeTrainGithub.new }
@@ -133,9 +133,9 @@ RSpec.describe "a red train pull request" do
     expect(names).to include("WorkPlanned", "WorkPrioritized")
   end
 
-  it "reruns a known-flaky spec a second time before it plans" do
+  it "never reruns a spec failure twice, whichever spec it names" do
     fail_twice("rspec ./spec/bounded_capture_spec.rb:9 # waits")
-    expect([github.reruns.size, names.grep(/TrainPrExhausted/)]).to eq([2, []])
+    expect([github.reruns.size, names.grep(/TrainPrExhausted/).size]).to eq([1, 1])
   end
 
   it "does not rerun twice when one failure is observed twice" do
@@ -145,8 +145,8 @@ RSpec.describe "a red train pull request" do
 
   def rerun_payload = @hecks.registry.event_log.find { |e| e.name == "TrainPrRerun" }.payload.to_s
 
-  it "names the failed steps of the jobs in the rerun record", :aggregate_failures do
-    observe
+  it "names the failed steps of the jobs in a setup rerun's record", :aggregate_failures do
+    fail_in_setup(1)
     expect(rerun_payload).to include("failed steps: rspec shard 1/Install zsh")
     expect(github.reruns).to eq(["gh run rerun --failed 77"])
   end

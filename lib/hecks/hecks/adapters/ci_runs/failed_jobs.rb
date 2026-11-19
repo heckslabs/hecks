@@ -14,6 +14,9 @@ module Hecks
         # The spec files an rspec failure summary names: `rspec ./spec/x_spec.rb:12 # description`.
         SPEC_LINE = %r{rspec (?:\./)?(\S+?_spec\.rb)}
 
+        # The failing examples the same summary names, each as `spec/x_spec.rb:12`.
+        EXAMPLE_LINE = %r{rspec (?:\./)?(\S+?_spec\.rb:\d+)}
+
         # What a log that reached the specs holds: a summary line, a failed example or a load error.
         SPEC_RAN = %r{Failure/Error|\d+ examples?, \d+ failures?|rspec (?:\./)?\S+_spec\.rb|error occurred while loading}
 
@@ -24,6 +27,9 @@ module Hecks
 
           # @return [Array<String>] the spec files the job's log names
           def specs = log.scan(SPEC_LINE).flatten.uniq
+
+          # @return [Array<String>] the failing examples the job's log names
+          def examples = log.scan(EXAMPLE_LINE).flatten.uniq
         end
 
         # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]`
