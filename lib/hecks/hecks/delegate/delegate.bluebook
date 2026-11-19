@@ -104,6 +104,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Report", String
 
+      # The pinned role a run plays (Agents `PinnedRole`), empty when no row names its role.
+      value_object "RoleName", String
+
       # When the outside removed a session, as the port reports it.
       value_object "Moment", String
 
@@ -387,8 +390,43 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :forked_from, SessionId, sets: true
         attribute :session,     SessionId
+        attribute :pinned_role, RoleName, default: ""
 
         emits ResumedAsFork
+      end
+
+      # The session is looked at first (`BindTheRunToTheLiveSession` below). The session the run
+      # held is kept as `forked_from`, so the board's role chip reads the run's current session.
+      command "Rebind", from: "started" do
+        role "Operator"
+        goal "Move a started run to a named live session that no other started run holds"
+
+        reference_to AgentRun
+        attribute :session, SessionId
+
+        emits RebindRequested
+      end
+
+      command "Rebound" do
+        role "System"
+        goal "Record the live session a rebind moved the run to, keeping the one it held"
+
+        reference_to AgentRun
+        attribute :session,     SessionId, sets: true
+        attribute :forked_from, SessionId, sets: true
+
+        emits AgentRunRebound
+      end
+
+      # A refused rebind leaves the run where it was, started on the session it held.
+      command "RefuseRebind" do
+        role "System"
+        goal "Record why the run was not moved to the named session"
+
+        reference_to AgentRun
+        attribute :refusal, Report, sets: true
+
+        emits RebindDeclined
       end
 
       # An answer's resume woke the session the run held, under its own id.
@@ -551,11 +589,15 @@ Hecks.bluebook "Hecks" do
       description "One check of every started run's session: each change of state is recorded on its run."
 
       attribute :run, SweepKey
+      attribute :finding, SweepFinding, optional: true
       identified_by :run
 
       value_object "SweepKey" do
         attribute :value, String, matches: :present
       end
+
+      # What a sweep found wrong beyond any one run, as a pinned role with two live sessions.
+      value_object "SweepFinding", String
 
       command "CheckAll" do
         role "Operator"
@@ -564,6 +606,16 @@ Hecks.bluebook "Hecks" do
         attribute :run, SweepKey, sets: true
 
         emits SweepRequested
+      end
+
+      command "Find" do
+        role "System"
+        goal "Record that a pinned role has more than one live session"
+
+        reference_to SessionSweep
+        attribute :finding, SweepFinding, sets: true
+
+        emits PinnedRoleDoubled
       end
     end
 
@@ -2041,8 +2093,17 @@ Hecks.bluebook "Hecks" do
     # `claude`'s default. One look, not two: the reactions after a start stay within the depth limit.
     policy "StartWhenTheAgentIsListed" do
       on      "AgentRun.RepoLocated"
-      where   { listed != false && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") }
+      where   { listed != false && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") && role_holder == "" }
       ask     :start, with: { run: :run }
+    end
+
+    # A pinned role (Agents `PinnedRole`) has one live session: a run of it is declined while another
+    # holds it, naming that session for the owner to stop. `Begin` is not guarded, so two dispatches
+    # located at once can both start: the rule is checked per dispatch and answer, not under a lock.
+    policy "RecordTheHeldRole" do
+      on      "AgentRun.RepoLocated"
+      where   { listed != false && role_holder != "" && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") }
+      trigger AgentRun::Decline, with: { refusal: :role_note }
     end
 
     # A Work item has one live session: a run with no agent on work another started run with no
@@ -2105,6 +2166,20 @@ Hecks.bluebook "Hecks" do
       on       "SessionSweep.SweepRequested"
       for_each "AgentRun.Running"
       trigger  AgentRun::Check, with: { agent_run: :agent_run }
+    end
+
+    # A pinned role (Agents `PinnedRole`) has at most one live session: each sweep reads every
+    # pinned role's live ids (`live_ids`) and the most any role holds (`most`), and a role with two
+    # is a finding, named in `check_all!`'s events.
+    policy "CountThePinnedRolesSessions" do
+      on      "SessionSweep.SweepRequested"
+      ask     :check_roles, with: { run: :run }
+    end
+
+    policy "ReportTheDoubledRole" do
+      on      "SessionSweep.RolesChecked"
+      where   { most > 1 }
+      trigger SessionSweep::Find, with: { finding: :live_ids }
     end
 
     # A job's state becomes an event only when it differs from the state the run last recorded
@@ -2337,15 +2412,30 @@ Hecks.bluebook "Hecks" do
     policy "DeliverToTheWorkingSession" do
       on      "AgentRun.SessionPresent"
       root
-      where   { listed == true && status == "busy" }
+      where   { listed == true && status == "busy" && role_holder == "" }
       ask     :deliver, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
     end
 
     policy "ResumeTheIdleSession" do
       on      "AgentRun.SessionPresent"
       root
-      where   { listed != true || status != "busy" }
+      where   { (listed != true || status != "busy") && role_holder == "" }
       ask     :resume, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    # A pinned role's run is not answered while another live session holds the role. A fork
+    # (`ResumedAsFork`) leaves the old session live, so answers are refused until the owner stops
+    # one; a verdict is kept waiting and sent again (`Unresumed`).
+    policy "RefuseTheAnswerOfAHeldRole" do
+      on      "AgentRun.SessionPresent"
+      where   { role_holder != "" && verdict == "" }
+      trigger AgentRun::Unanswered, with: { refusal: :role_note, verdict: :verdict }
+    end
+
+    policy "RefuseTheVerdictOfAHeldRole" do
+      on      "AgentRun.SessionPresent"
+      where   { role_holder != "" && verdict != "" }
+      trigger AgentRun::Unresumed, with: { refusal: :role_note, verdict: :verdict }
     end
 
     # Queued is answered: the inbox is read at the session's next tool call or turn end. A session
@@ -2365,7 +2455,40 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheForkedResume" do
       on      "AgentRun.AgentResumed"
       where   { held != session }
-      trigger AgentRun::Fork, with: { forked_from: :held, session: :session }
+      trigger AgentRun::Fork, with: { forked_from: :held, session: :session, pinned_role: :pinned_role }
+    end
+
+    # A fork of a pinned role's run stops the session it superseded (`claude stop`, never a kill).
+    # A root, since a fork sits deep in an answer's chain. A refused stop leaves the old session
+    # live, and the held-role guards refuse the run's answers by name until it ends.
+    policy "StopTheSupersededSession" do
+      on      "AgentRun.ResumedAsFork"
+      root
+      where   { pinned_role != "" }
+      ask     :stop_forked_from, with: { run: :run }
+    end
+
+    # A rebind looks at the named session first; the bluebook judges what the port reports.
+    policy "LookAtTheSessionToRebind" do
+      on      "AgentRun.RebindRequested"
+      ask     :inspect_session, with: { run: :run, target: :session }
+    end
+
+    policy "BindTheRunToTheLiveSession" do
+      on      "AgentRun.SessionInspected"
+      where   { alive == true && bound == "" }
+      trigger AgentRun::Rebound, with: { session: :target, forked_from: :held }
+    end
+
+    policy "RefuseTheRebindOfADeadOrHeldSession" do
+      on      "AgentRun.SessionInspected"
+      where   { alive != true || bound != "" }
+      trigger AgentRun::RefuseRebind, with: { refusal: :note }
+    end
+
+    policy "RecordTheUninspectedRebind" do
+      on      "AgentRun.InspectRefused"
+      trigger AgentRun::RefuseRebind, with: { refusal: :refusal }
     end
 
     policy "RecordTheResumeInPlace" do

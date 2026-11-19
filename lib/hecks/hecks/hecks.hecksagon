@@ -704,6 +704,17 @@ Hecks.hecksagon "Hecks" do
     answers_query "Removable"
   end
 
+  # The live sessions of each pinned role, for a sweep: `live_ids` names them, one `role: id id`
+  # line per role with a live session, and `most` is the largest count any role has; the bluebook
+  # decides how many make a finding.
+  Hecks::SessionSweep.port "Agents" do
+    asks "CheckRoles", to: SessionSweep do
+      attribute :run, SweepKey
+      answers "RolesChecked"
+      refuses "RolesUnchecked"
+    end
+  end
+
   Hecks::AgentRun.port "Agents" do
     asks "Locate", to: AgentRun do
       attribute :run, RunKey
@@ -768,6 +779,23 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RunKey
       answers "SessionStopped"
       refuses "StopRefused"
+    end
+
+    # `claude stop` on the session a pinned role's run held before a fork, once the run follows the
+    # copy; never a kill by pid. The session stays listed.
+    asks "StopForkedFrom", to: AgentRun do
+      attribute :run, RunKey
+      answers "ForkedFromStopped"
+      refuses "StopRefused"
+    end
+
+    # Facts about the session a rebind names (`target`): whether it is live (`alive`), the key of
+    # another started run bound to it (`bound`), the session the run holds now (`held`) and a `note`.
+    asks "InspectSession", to: AgentRun do
+      attribute :run, RunKey
+      attribute :target, SessionId
+      answers "SessionInspected"
+      refuses "InspectRefused"
     end
 
     # Whether `claude agents` still lists the session, before a run is retired; the bluebook judges it.
