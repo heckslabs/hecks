@@ -1,13 +1,18 @@
 require "spec_helper"
 require_relative "support/fake_branch_ci"
 
-# Early CI: a landed branch is recorded for an early run under ci/<branch>, the switch turns it off,
-# main is never started, and a CI result is kept on the record. The domain is in Memory.
+# Early CI: a landed branch is recorded and its ci/<branch> draft closed, the switch turns it off,
+# main is never started, and a coder's request keeps what CI said. The domain is in Memory; GitHub
+# and git are a fake runner.
 RSpec.describe "early CI" do
   describe "record" do
     before(:all) do
       @hecks = boot_hecks_in_memory
     end
+
+    before { Hecks::Adapters::GithubBranchCi.runner = FakeBranchCi.new }
+
+    after { Hecks::Adapters::GithubBranchCi.runner = nil }
 
     def launch(*argv)
       outer = Thread.current[:hecks_reaction_depth]
@@ -22,10 +27,8 @@ RSpec.describe "early CI" do
       out.to_s
     end
 
-    it "records a landed coder branch", :aggregate_failures do
-      out = start("ec-1", "coder-x")
-      expect(out).to include("EarlyCiStarted")
-      expect(out).to include("requested")
+    it "records a landed coder branch and closes its draft" do
+      expect(start("ec-1", "coder-x")).to include("EarlyCiStarted", "EarlyCiClosed", "closed draft #7")
     end
 
     it "refuses main" do
@@ -34,14 +37,6 @@ RSpec.describe "early CI" do
 
     it "refuses to start when the switch is off" do
       expect(start("ec-3", "coder-y", "early_ci.value=false")).not_to include("EarlyCiStarted")
-    end
-
-    it "keeps what CI said of the branch" do
-      start("ec-4", "coder-z")
-      launch("EarlyCi.open!", "to=ec-4", "number.value=12", "--wait")
-      out, = launch("EarlyCi.observe!", "to=ec-4", "outcome.value=passed", "report.value=ok",
-                    "of_sha.value=abcdef1234", "--wait")
-      expect(out.to_s).to include("EarlyCiObserved")
     end
   end
 
@@ -132,24 +127,25 @@ RSpec.describe "early CI" do
       expect(late_answer("coder-late")).to include("CI answered for the record's own head")
     end
 
-    # A landed branch's draft is closed and ci/<branch> deleted through the port, never merged; a
-    # branch still open keeps its draft, and a branch no coder asked CI for lands all the same.
+    # A landed branch's draft is closed and ci/<branch> deleted through the port, never merged. The
+    # landing runs in a process of its own, where no coder asked CI for the branch: the record the
+    # landing starts is the one withdrawn. A branch still open keeps its draft.
     describe "when the branch lands" do
       # Reacts to `Landing.BranchLanded` for the branch as the event pump would, with the one policy
-      # that withdraws its early CI; a Landing cannot be made here without the git port.
+      # that starts its early CI record; a Landing cannot be made here without the git port.
       def land(branch)
         event = Hecks::Runtime::Event.new(name: "BranchLanded", aggregate: "Delivery::Landing", id: "land-#{branch}",
                                           payload: { run: { value: "land-#{branch}" }, branch: { value: branch } },
                                           occurred_at: Hecks::Runtime::Event.stamp)
-        interpreter.react(event, "Delivery", only: [withdrawal, "Hecks"]).first
+        interpreter.react(event, "Delivery", only: [start, "Hecks"]).first
       end
 
       def interpreter
         Hecks::Runtime::PolicyInterpreter.new(@hecks.registry, dispatcher: Hecks::Runtime::Dispatcher.new(@hecks.registry))
       end
 
-      def withdrawal
-        @hecks.registry.bluebook("Hecks").policies.find { |policy| policy.name == "WithdrawEarlyCiWhenBranchLanded" }
+      def start
+        @hecks.registry.bluebook("Hecks").policies.find { |policy| policy.name == "StartEarlyCiWhenBranchLanded" }
       end
 
       # The payload of the last `name` event recorded for the branch, empty when none was.
@@ -163,12 +159,16 @@ RSpec.describe "early CI" do
       CLOSES = [%w[gh api --method PATCH -f state=closed repos/{owner}/{repo}/pulls/7],
                 %w[gh api --method DELETE repos/{owner}/{repo}/git/refs/heads/ci/coder-lands]].freeze
 
-      it "closes the draft and deletes ci/<branch>, merging nothing", :aggregate_failures do
-        request("coder-lands")
+      it "closes the draft of a branch no coder asked CI for here and deletes ci/<branch>", :aggregate_failures do
         land("coder-lands")
         expect(closes).to eq(CLOSES)
         expect(fake.calls.map { |argv| argv.join(" ") }.grep(%r{pr merge|/merge\b})).to be_empty
-        expect(recorded("EarlyCiClosed", "coder-lands")).to include("closed draft #7")
+        expect(recorded("EarlyCiClosed", "ci/coder-lands")).to include("closed draft #7")
+      end
+
+      it "closes nothing when main lands" do
+        land("main")
+        expect(closes).to be_empty
       end
 
       it "keeps the draft of a branch that has not landed", :aggregate_failures do
@@ -177,22 +177,11 @@ RSpec.describe "early CI" do
         expect(recorded("EarlyCiWithdrawn", "coder-open")).to be_empty
       end
 
-      it "refuses the withdrawal of a branch no coder asked CI for as not found, never a defect" do
-        expect(land("coder-unasked")).to include(delivered: false, reason: a_string_including("EarlyCi"))
-          .and(satisfy { |record| !record.key?(:defect) })
-      end
-
       it "closes again with nothing open, as the first close did" do
         fake.drafts = []
         fake.ref_gone = true
         expect(Hecks::Adapters::GithubBranchCi.new.branch_ci_close(branch: "coder-gone", checkout: "/tmp"))
           .to eq(number: "", report: "no open draft for ci/coder-gone; no branch ci/coder-gone")
-      end
-
-      it "does not let a coder retry a landed branch" do
-        request("coder-done")
-        land("coder-done")
-        expect(retried("coder-done", "ccccccc333")).not_to include("EarlyCiRetried")
       end
     end
 

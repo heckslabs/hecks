@@ -304,13 +304,15 @@ jobs:
         if: matrix.leg == 'a' && steps.feature_binaries.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+        # Backs off (10, 20, 40, 80, 150 s): a few listing calls in all, since every open pull
+        # request's run shares one API budget and a 2-second poll ran it out.
         run: |
-          for _ in $(seq 1 150); do
+          for delay in 10 20 40 80 150 0; do
             # --paginate runs --jq once per page, so list the names and count the lines
             found=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
                     --jq '.artifacts[] | select(.name | startswith("feature-binaries-")) | .name' | wc -l | tr -d ' ')
             [ "$found" = "4" ] && exit 0
-            sleep 2
+            sleep "$delay"
           done
           echo "not every feature-binaries artifact arrived within 300s; the specs build the rest" >&2
 

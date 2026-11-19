@@ -12,8 +12,6 @@ Hecks.bluebook "Hecks" do
       attribute :name,    DomainName, optional: true
       attribute :adapter, AdapterName, optional: true
       attribute :dir,     TargetDir,  optional: true
-      attribute :expert,  ExpertName, optional: true
-      attribute :no_ai,   Switch,     optional: true
       attribute :output,  Note,       optional: true
       attribute :refusal, Note,       optional: true
       identified_by :run
@@ -43,11 +41,6 @@ Hecks.bluebook "Hecks" do
 
       # Where the new domain goes; the domain's snake-cased name under the current directory when absent.
       value_object "TargetDir" do
-        attribute :value, String, matches: :not_empty
-      end
-
-      # Who is interviewed; asked for at the terminal when absent.
-      value_object "ExpertName" do
         attribute :value, String, matches: :not_empty
       end
 
@@ -105,24 +98,6 @@ Hecks.bluebook "Hecks" do
         emits RailsRequested
       end
 
-      # Holds an interview with a subject matter expert and drafts a first domain from it (ADR 0088).
-      # The Terminal adapter runs the conversation, as it runs a console; the journal records that one
-      # was held and how it ended, not what was said. `--no-ai` leaves the model out.
-      command "Interview" do
-        role "Operator"
-        goal "Hold an interview with a subject matter expert and draft a first domain from it"
-
-        attribute :run,     LaunchKey, sets: true
-        attribute :name,    DomainName, sets: true
-        attribute :adapter, AdapterName, optional: true, sets: true
-        attribute :dir,     TargetDir,   optional: true, sets: true
-        attribute :expert,  ExpertName,  optional: true, sets: true
-        attribute :no_ai,   Switch,      optional: true, sets: true
-
-
-        emits InterviewRequested
-      end
-
       command "Finish" do
         role "System"
         goal "Record that the launch did its work, or was closed, and what it said"
@@ -172,11 +147,6 @@ Hecks.bluebook "Hecks" do
     policy "ProjectRailsWhenRequested" do
       on      "Launch.RailsRequested"
       ask     :write_rails, with: { run: :run }
-    end
-
-    policy "ConverseWhenRequested" do
-      on      "Launch.InterviewRequested"
-      ask     :converse, with: { run: :run }
     end
 
     policy "RecordTheLaunch" do
