@@ -1276,10 +1276,8 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # A coder's closing report states how its run ended: `Result: verified`, `Result: unverified` or
-  # `Result: blocked`. A report that states none (a bare `stopped`, `rspec unchecked`, an empty
-  # detail) is recorded `unstated`, never read as done. A run that closes again after a resume
-  # states its result anew: the last close is the run's result.
+  # A report with no `Result:` line (a bare `stopped`, `rspec unchecked`) is `unstated`, never
+  # done. A run that closes again after a resume states its result anew: the last close is its result.
   aggregate "RunResult" do
     description "One coder run's result as its closing report states it: verified, unverified or blocked, or unstated when the report names no result code."
 
