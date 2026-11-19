@@ -1098,6 +1098,13 @@ Hecks.bluebook "Hecks" do
       attribute :title,       Report, optional: true
       attribute :cause,       Report, optional: true
       attribute :step,        Report, optional: true
+      # How many jobs of the attempt failed, the one failed job's id when only one did, the failing
+      # examples (`spec/x_spec.rb:12`), and whether the failing specs touch the files the pull request
+      # changed: `yes`, `no`, or `unknown` when its files could not be read.
+      attribute :failed_jobs, Tries, optional: true
+      attribute :job,         Report, optional: true
+      attribute :examples,    Report, optional: true
+      attribute :related,     Report, optional: true
       # What the search for a failed verification's first bad merge reports, as facts: the last
       # verified commit, the first merge whose own specs fail, and whether a revert already stands.
       # A fact the search could not read is empty.
@@ -1605,7 +1612,8 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "pr_failed" }
       trigger TrainPr::Record, with: { key: :failure_key, landed: :landed, pr: :pr, ci_run: :ci_run, attempt: :attempt,
-                                       specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report }
+                                       specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report,
+                                       failed_jobs: :failed_jobs, job: :job, examples: :examples, related: :related }
     end
 
     # One record per red run: the merge is being reverted, the episode is parked because a revert
@@ -1762,11 +1770,10 @@ Hecks.bluebook "Hecks" do
     end
 
     # One failed attempt of a train pull request's CI, recorded once under its key
-    # (`<commit>-<run>-<attempt>`), so a second wake for the same failure is refused as already
-    # recorded. The adapter reports facts (attempt, spec files, failed jobs and their first lines);
-    # the policies below decide: a first failure is rerun once, a failure naming a known-flaky spec
-    # is rerun twice, a later one is exhausted and planned as the red-train Work item
-    # (tickets.bluebook).
+    # (`<commit>-<run>-<attempt>`), so a second wake for the same failure is refused. The adapter
+    # reports facts (failed jobs, specs, examples, and whether they touch the change); the policies
+    # below decide: one unrelated failed job is rerun once by itself, any other spec failure is red
+    # at once as the red-train Work item (tickets.bluebook), a setup failure is rerun twice.
     aggregate "TrainPr" do
       description "One failed attempt of a train pull request's CI: what failed, and whether it was rerun or given to a coder."
 
@@ -1781,6 +1788,10 @@ Hecks.bluebook "Hecks" do
       attribute :cause,   Word,   optional: true
       attribute :step,    Report, optional: true
       attribute :failure, Report, optional: true
+      attribute :failed_jobs, Tries, optional: true
+      attribute :job,      Word,   optional: true
+      attribute :examples, Report, optional: true
+      attribute :related,  Word,   optional: true
       attribute :report,  Report, optional: true
       attribute :detail,  Report, optional: true
       attribute :refusal, Report, optional: true
@@ -1798,15 +1809,6 @@ Hecks.bluebook "Hecks" do
 
       # Which attempt of a CI run failed: 1 is the first.
       value_object "Tries", Integer
-
-      # The spec files known to fail on load and pass when run again; a failure naming one is rerun
-      # twice, not once. The policies `RerunTheKnownFlakySpec` and `ExhaustTheFailedTrainPr` name the same files.
-      value_object "KnownFlakySpec" do
-        attribute :spec,   String
-        attribute :reruns, Integer
-
-        member spec: "spec/bounded_capture_spec.rb", reruns: 2
-      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "exhausted"
@@ -1830,6 +1832,10 @@ Hecks.bluebook "Hecks" do
         attribute :cause,   Word, sets: true
         attribute :step,    Report, optional: true, sets: true
         attribute :failure, Report, sets: true
+        attribute :failed_jobs, Tries, optional: true, sets: true
+        attribute :job,      Word,   optional: true, sets: true
+        attribute :examples, Report, optional: true, sets: true
+        attribute :related,  Word,   optional: true, sets: true
 
         emits TrainPrFailed
       end
@@ -1860,21 +1866,28 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    policy "RerunTheFailedTrainPr" do
+    # A setup failure has no spec to blame: its failed jobs are rerun, twice at most.
+    policy "RerunTheFailedSetup" do
       on      "TrainPr.TrainPrFailed"
-      where   { (cause.value == "spec" && attempt.value < 2) || (cause.value == "setup" && attempt.value < 3) }
+      where   { cause.value == "setup" && attempt.value < 3 }
       ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
-    policy "RerunTheKnownFlakySpec" do
+    # A first spec failure of exactly one job, whose failing specs touch none of the files the pull
+    # request changed, is likely flaky: that job alone is rerun, once. Its examples ride the rerun.
+    policy "RerunTheOneUnrelatedJob" do
       on      "TrainPr.TrainPrFailed"
-      where   { cause.value == "spec" && attempt.value == 2 && specs.value.include?("spec/bounded_capture_spec.rb") }
-      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
+      where   { cause.value == "spec" && attempt.value == 1 && failed_jobs.value == 1 && related.value == "no" }
+      ask     :restart_job, with: { key: :key, ci_run: :ci_run, job: :job, pr: :pr, examples: :examples, work: :work,
+                                    title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
+    # Every spec failure the rerun policy does not take is red at once: a related one, one of unknown
+    # relation, one of two or more jobs, and the rerun's own failure. Its `where` is the exact
+    # complement of `RerunTheOneUnrelatedJob`'s among spec failures.
     policy "ExhaustTheFailedTrainPr" do
       on      "TrainPr.TrainPrFailed"
-      where   { attempt.value >= 3 || (cause.value == "spec" && attempt.value == 2 && !specs.value.include?("spec/bounded_capture_spec.rb")) }
+      where   { attempt.value >= 3 || (cause.value == "spec" && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no")) }
       trigger TrainPr::Exhaust, with: { landed: :landed, detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
@@ -1885,6 +1898,16 @@ Hecks.bluebook "Hecks" do
 
     policy "ExhaustTheRefusedRerun" do
       on      "TrainPr.RestartRefused"
+      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
+    end
+
+    policy "RecordTheJobRerun" do
+      on      "TrainPr.RestartJobAnswered"
+      trigger TrainPr::Rerun, with: { report: :report }
+    end
+
+    policy "ExhaustTheRefusedJobRerun" do
+      on      "TrainPr.RestartJobRefused"
       trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 

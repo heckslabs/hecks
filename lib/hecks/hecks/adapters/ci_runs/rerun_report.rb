@@ -6,6 +6,18 @@ module Hecks
       # The one-line record of a rerun of a CI run's failed jobs: the run and the pull request,
       # then the failed steps (each `job/step`) the failure named, when it named any.
       class RerunReport
+        # The one-line record of a rerun of one failed job by itself: the job, its run and pull
+        # request, and the failing examples it named, so a spec that keeps flaking is named.
+        #
+        # @param job [String] the job that was rerun
+        # @param held [Hash{Symbol => Object}] `ci_run`, `pr` and `examples`
+        # @return [String] the report
+        def self.job(job, held)
+          text = "reran job #{job} of CI run #{held[:ci_run]} (PR #{held[:pr]}) once, by itself"
+          examples = held[:examples].to_s.strip
+          examples.empty? ? text : "#{text}; examples: #{examples}"
+        end
+
         # @param run [String] the CI run that was rerun
         # @param pull [String] the pull request it belongs to
         # @param steps [String, nil] the failed steps, comma separated
