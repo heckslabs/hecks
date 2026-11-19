@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../support/mcp_selection_checkout"
+require "hecks/hecks/adapters/claude_agents"
 require "hecks/hecks/adapters/claude_resumption"
 
 # A resumed session carries the same settings, read from the run's own checkout.
