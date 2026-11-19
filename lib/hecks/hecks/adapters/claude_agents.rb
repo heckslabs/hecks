@@ -29,6 +29,7 @@ require_relative "claude_answering"
 require_relative "main_launcher"
 require_relative "session_reaping"
 require_relative "claude_agents/removal"
+require_relative "claude_agents/rebinding"
 
 module Hecks
   module Adapters
@@ -42,6 +43,7 @@ module Hecks
     # taken for a flag.
     class ClaudeAgents
       include Removal
+      include Rebinding
       include ClaudeAnswering
 
       # The command that starts and lists sessions.
