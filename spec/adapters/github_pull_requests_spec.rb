@@ -49,7 +49,7 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
     end
   end
 
-  describe "#squash" do
+  describe "#merge" do
     def merge_args = ["pr", "merge", "42", "--merge"]
 
     def view_args = ["pr", "view", "42", "--json", "mergedAt,mergeCommit"]
@@ -62,7 +62,7 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
     it "merges the pull request by its number as a merge commit, and never passes --admin", :aggregate_failures do
       view_reply("2026-11-08T00:20:00Z", "abcdef0123456789")
 
-      answer = pulls.squash(number: { value: "42" })
+      answer = pulls.merge(number: { value: "42" })
 
       expect(answer).to include(outcome: { value: "merged" }, report: { value: "merged #42 as abcdef012" })
       expect(calls).to eq([merge_args, view_args])
@@ -71,18 +71,18 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
     it "answers queued, not merged, when gh enqueued the pull request and mergedAt is unset", :aggregate_failures do
       view_reply(nil)
 
-      answer = pulls.squash(number: { value: "42" })
+      answer = pulls.merge(number: { value: "42" })
 
       expect(answer).to include(outcome: { value: "queued" })
       expect(answer.dig(:report, :value)).to start_with("queued for merge (auto-merge enabled) #42")
     end
 
     it "refuses when no number is named" do
-      expect { pulls.squash(number: nil) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no pull request number/)
+      expect { pulls.merge(number: nil) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no pull request number/)
     end
 
     it "refuses a number that gh would read as an option", :aggregate_failures do
-      expect { pulls.squash(number: { value: "--admin" }) }
+      expect { pulls.merge(number: { value: "--admin" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not a number/)
       expect(calls).to be_empty
     end
@@ -90,7 +90,7 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
     it "refuses with what gh said when GitHub will not merge" do
       replies[["pr", "merge", "42", "--merge"]] = ["", "Pull request #42 is not mergeable", false]
 
-      expect { pulls.squash(number: { value: "42" }) }
+      expect { pulls.merge(number: { value: "42" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not mergeable/)
     end
   end
