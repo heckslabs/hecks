@@ -30,6 +30,7 @@ require_relative "dispatching/shedding"
 require_relative "dispatching/narrowing"
 require_relative "dispatching/held_ground"
 require_relative "landing/landing_ahead"
+require_relative "landing/settled_rebase"
 require_relative "dispatching/package_roots"
 
 module Hecks
