@@ -63,13 +63,15 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
 
   def report(answer) = answer[:report][:value]
 
-  # The origin merges the train as one commit titled for the boarded sha, with the same tree.
-  def squash_at_origin(boarded)
+  # The origin moves on beside the boarded commit, then lands the train: as a merge commit that
+  # keeps the boarded sha, or (`squash: true`) as one commit of the same tree titled for it.
+  def train_at_origin(boarded, squash: false)
     other = File.join(dir, "other")
     git("clone", "-q", File.join(dir, "remote.git"), other, chdir: dir)
-    File.write(File.join(other, "a.txt"), "a.txt")
-    git("add", ".", chdir: other)
-    git("commit", "-q", "-m", "Train: main at #{boarded[0, 9]} (#1)", chdir: other)
+    commit(other, squash ? "a.txt" : "elsewhere.txt")
+    git("commit", "-q", "--amend", "-m", "Train: main at #{boarded[0, 9]} (#1)", chdir: other) if squash
+    git("fetch", "-q", repo, "main", chdir: other)
+    git("merge", "-q", "--no-ff", "-m", "Merge pull request #1", "FETCH_HEAD", chdir: other) unless squash
     git("push", "-q", "origin", "main", chdir: other)
   end
 
@@ -80,19 +82,18 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
     expect(ran).to be_empty
   end
 
-  it "answers superseded, carried by squash, when a train squash holds the commit", :aggregate_failures do
+  it "answers superseded without a check when a train's merge commit carries the commit", :aggregate_failures do
     landed = landed_commit
-    squash_at_origin(landed)
+    train_at_origin(landed)
     answer = advance(landed)
-    expect(outcome(answer)).to eq("superseded")
-    expect(report(answer)).to include("carried by squash")
+    expect([outcome(answer), ran]).to eq(["superseded", []])
+    expect(report(answer)).to include("is contained in origin/main")
   end
 
-  it "does not run a check after the squash is seen" do
+  it "verifies a commit that only a squash on origin/main names, since nothing squashes" do
     landed = landed_commit
-    squash_at_origin(landed)
-    advance(landed)
-    expect(ran).to be_empty
+    train_at_origin(landed, squash: true)
+    expect(outcome(advance(landed))).to eq("verified")
   end
 
   it "verifies a commit origin/main does not carry", :aggregate_failures do

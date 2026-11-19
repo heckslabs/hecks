@@ -2,8 +2,8 @@ require "spec_helper"
 require "hecks/hecks/adapters/main_integration"
 require_relative "support/carried_repository"
 
-# A run whose commit origin/main already carries (an ancestor, or inside a squash train) does not
-# hold the line; one it does not carry still does. The repository is a throwaway one.
+# A run whose commit origin/main already carries (an ancestor, as a train's merge commit leaves it)
+# does not hold the line; one it does not carry still does. The repository is a throwaway one.
 RSpec.describe Hecks::Adapters::MainIntegration::TrainChecks do
   include CarriedRepository
 
@@ -20,10 +20,10 @@ RSpec.describe Hecks::Adapters::MainIntegration::TrainChecks do
     expect(blocked_by(git("rev-parse", "HEAD"))).to be_nil
   end
 
-  it "does not hold the line for a run a squash train on origin/main carries" do
-    open_repository
-    landed = git("rev-parse", "HEAD")
-    squash_train_over(landed)
+  it "does not hold the line for a run a train merge commit on origin/main carries" do
+    base = open_repository
+    landed = commit("landed")
+    merge_train_over(landed, base)
     expect(blocked_by(landed)).to be_nil
   end
 

@@ -3,8 +3,7 @@ require "open3"
 require "tmpdir"
 
 # A throwaway repository for specs that ask whether origin/main carries a commit: `git` runs in
-# it, `commit` adds a file, and `squash_train_over` makes origin/main hold a "Train: main at"
-# squash of a commit.
+# it, `commit` adds a file, and `merge_train_over` makes origin/main a merge commit of a train.
 module CarriedRepository
   def repo = @repo ||= File.join(File.realpath(Dir.mktmpdir("hecks-carried")), "main")
 
@@ -29,9 +28,12 @@ module CarriedRepository
     commit("start")
   end
 
-  def squash_train_over(landed)
-    git("checkout", "-q", "-b", "squash", "HEAD~0")
-    git("commit", "--allow-empty", "-m", "Train: main at #{landed[0, 12]}")
+  # Origin moved on beside `landed`, then merged the train that boarded it in a merge commit, as
+  # GitHub does: `landed` keeps its sha as the merge's second parent.
+  def merge_train_over(landed, base)
+    git("checkout", "-q", "-b", "origin-side", base)
+    commit("elsewhere")
+    git("merge", "-q", "--no-ff", "-m", "Merge pull request #1 from train/main-#{landed[0, 12]}", landed)
     git("update-ref", "refs/remotes/origin/main", "HEAD")
   end
 

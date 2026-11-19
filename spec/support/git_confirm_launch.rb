@@ -5,7 +5,7 @@ require "tmpdir"
 # The commands that move git state refuse without `--confirm`, in one wording (ADR 0163, plan
 # steps 16 and 24). Each is launched through the real launcher as a subprocess in an empty
 # directory with no remote and its own empty cache, so a guard that failed would still write
-# nothing: `ReviewRequest.take!` past its guard would otherwise squash-merge a real pull request.
+# nothing: `ReviewRequest.take!` past its guard would otherwise merge a real pull request.
 #
 # The specs that launch them are three files, not one: each launch is a cold launcher boot, and
 # the shard plan splits the suite by file, so one file of 22 boots was a shard of its own and the

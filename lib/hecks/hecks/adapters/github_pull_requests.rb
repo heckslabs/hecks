@@ -53,8 +53,8 @@ module Hecks
           report: { value: "opened ##{number} from #{branch} onto #{base}: #{url}" } }
       end
 
-      # Merges one open pull request by its number, as a merge commit that keeps each of its commits
-      # (the method keeps the declared name `squash` until the command is renamed).
+      # Merges one open pull request by its number, in a merge commit that keeps each of its
+      # commits.
       #
       # @param held [Hash] the `PullRequest` record: `number` (required)
       # `gh pr merge` also succeeds when it only enqueues the pull request (auto-merge or a merge
@@ -63,7 +63,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `outcome:` (`merged`, or `queued` when GitHub accepted the
       #   merge but has not made it), `number:` and `report:`
       # @raise [ConsoleCapture::Failure] when no number is named, or GitHub refuses
-      def squash(**held)
+      def merge(**held)
         number = pull_request_number(held[:number], "merge")
         gh!("pr", "merge", number, "--merge")
         merge = JSON.parse(gh!("pr", "view", number, "--json", "mergedAt,mergeCommit"))
