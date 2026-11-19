@@ -776,6 +776,7 @@ Hecks.bluebook "Agents" do
     identified_by :review
 
     acknowledges :key_by_value, "the Work item's slug, which lives in the Tickets store, not in a Routing record, so a reference would refuse every change review of a branch no routing was asked for", of: :work
+    acknowledges :key_by_value, "the architect's AgentRun key, the commit's tree, which no PlanReview holds: a plan review's run and a change review's never meet", of: :run
 
     attribute :review,   ReviewKey
     attribute :run,      RunKey, optional: true
@@ -837,8 +838,9 @@ Hecks.bluebook "Agents" do
       transition "SendBack"        => "sent_back", from: "asked"
       mark :terminal, "unasked", "unread", "cleared", "sent_back"
       # An asked review waits for the architect's verdict; a verdict that never comes is the
-      # verdict-timeout sweep's to time, as it is for a plan review's.
-      mark :rests, "asked"
+      # verdict-timeout sweep's to time, as it is for a plan review's. A considered review is
+      # carried out in the same dispatch, by the paths read or the decision's request.
+      mark :rests, "asked", "considered"
     end
 
     command "Consider" do
@@ -863,8 +865,8 @@ Hecks.bluebook "Agents" do
       emits "DecisionConsidered"
     end
 
-    # The rule that asks the architect, a given on the paths the port read. Both requests emit one
-    # event, so they take the same fields: the architect's run key and the checkout it reads.
+    # Both requests emit one event, so they take the same fields: the architect's run key and the
+    # checkout it reads. Which change asks is the rule on `PathsRead` below.
     command "Request" do
       role "System"
       goal "Ask the architect to review a submitted change that touches a bluebook, hecksagon or decision file"
@@ -873,11 +875,6 @@ Hecks.bluebook "Agents" do
       attribute :run,      RunKey, sets: true
       attribute :paths,    ChangedPathList, optional: true, sets: true
       attribute :checkout, CheckoutPath, optional: true
-
-      given("the change touches a bluebook, hecksagon or decision file") do
-        paths.value.include?(".bluebook|") || paths.value.include?(".hecksagon|") ||
-          paths.value.include?("|docs/decisions/")
-      end
 
       emits "ChangeReviewRequested"
     end
@@ -900,11 +897,6 @@ Hecks.bluebook "Agents" do
 
       reference_to ChangeReview
       attribute :paths, ChangedPathList, sets: true
-
-      given("the change touches no bluebook, hecksagon or decision file") do
-        !paths.value.include?(".bluebook|") && !paths.value.include?(".hecksagon|") &&
-          !paths.value.include?("|docs/decisions/")
-      end
 
       emits "ChangeReviewNotNeeded"
     end
@@ -993,14 +985,18 @@ Hecks.bluebook "Agents" do
       ask     :submitted_paths, with: { review: :review, checkout: :checkout }
     end
 
-    # Both are asked; the given of each picks the one the paths call for.
+    # The rule that asks the architect: the change touches a bluebook, a hecksagon or a decision
+    # file. Each policy takes one side of it, so neither command is refused for the other's paths.
+    # Retiring the decision files removes only the `docs/decisions/` clause.
     policy "AskTheArchitectWhenTheDesignChanged" do
       on      "ChangeReview.PathsRead"
+      where   { paths.value.include?(".bluebook|") || paths.value.include?(".hecksagon|") || paths.value.include?("|docs/decisions/") }
       trigger ChangeReview::Request, with: { review: :review, run: :tree, paths: :paths, checkout: :checkout }
     end
 
     policy "PassTheChangeThatTouchesNoDesign" do
       on      "ChangeReview.PathsRead"
+      where   { !paths.value.include?(".bluebook|") && !paths.value.include?(".hecksagon|") && !paths.value.include?("|docs/decisions/") }
       trigger ChangeReview::Pass, with: { review: :review, paths: :paths }
     end
 
@@ -1039,9 +1035,11 @@ Hecks.bluebook "Agents" do
 
     # The findings go to the coder of the Work item as a verdict keyed by the architect's run, as
     # written: a waiting coder is answered in place, and a finished one is recorded unreached, a
-    # finding the orchestrator hears. A decision names no Work item, so `Verdict.Judge` refuses it.
+    # finding the orchestrator hears. A decision names no Work item and no coder: its findings stay
+    # on its `Reviews` row, for the orchestrator to read.
     policy "TellTheCoderTheChangeWasSentBack" do
       on      "ChangeReview.ChangeSentBack"
+      where   { work.to_s != "" }
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings }
     end
   end
