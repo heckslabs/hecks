@@ -57,6 +57,8 @@ Hecks.bluebook "Agents" do
       # Hands a question whose answer is the owner's to the owner, unanswered, and frees its seat.
       member role: "orchestrator", pattern: "Question.escalate!"
       member role: "orchestrator", pattern: "Question.open"
+      member role: "orchestrator", pattern: "Question.of_run"
+      member role: "orchestrator", pattern: "AgentRun.answering"
       member role: "orchestrator", pattern: "PlanReview.record!"
       member role: "orchestrator", pattern: "AgentRun.tidy!"
       member role: "orchestrator", pattern: "PushRehearsal.rehearse!"
