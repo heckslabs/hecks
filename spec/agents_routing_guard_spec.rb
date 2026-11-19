@@ -176,6 +176,11 @@ RSpec.describe "the orchestrator routing guard" do
       expect(verdict(call)).to eq(text: "allowed")
     end
 
+    it "lets an answerer read its own run and the one question it serves", :aggregate_failures do
+      expect(verdict("exe/hecks AgentRun.answering")).to eq(text: "allowed")
+      expect(verdict("exe/hecks Question.of_run run=coder-x")).to eq(text: "allowed")
+    end
+
     it "carries the Operation.follow row as data" do
       expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("Operation.follow")
     end

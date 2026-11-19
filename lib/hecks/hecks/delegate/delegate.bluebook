@@ -545,6 +545,14 @@ Hecks.bluebook "Hecks" do
         order_by :run
       end
 
+      # The started runs that answer a question: at most two, as the answer desk seats two, so an
+      # answerer reads its own run, newest first, and the blocked run its work names, in one small read.
+      query "Answering" do
+        description "Every started run that answers a blocked run's question, its work the run that asks."
+        where(status: "started", works_as: "answerer")
+        order_by :started_at, :desc
+      end
+
       query "Ended" do
         description "Every run whose session ended, finished or tidied, oldest key first."
         where(status: { in: "finished,tidied" })
@@ -3210,8 +3218,12 @@ Hecks.bluebook "Hecks" do
         transition "Close"    => "closed",    from: "seated"
         transition "Drop"     => "dropped",   from: "asked"
         transition "Escalate" => "escalated", from: "seated"
-        mark :terminal, "closed", "dropped", "escalated"
-        mark :reusable, "closed", "dropped", "escalated"
+        # `released`: the answerer seated for it ended or failed to start without answering, so
+        # the run still waits on its question and the seat is free; it is neither closed nor the
+        # owner's, and the agent-run-blocked stall times the run as before.
+        transition "Release"  => "released",  from: "seated"
+        mark :terminal, "closed", "dropped", "escalated", "released"
+        mark :reusable, "closed", "dropped", "escalated", "released"
       end
 
       command "Ask" do
@@ -3263,6 +3275,15 @@ Hecks.bluebook "Hecks" do
         emits "QuestionEscalated"
       end
 
+      command "Release" do
+        role "System"
+        goal "Free the seat of a question whose answerer ended or failed without answering it"
+
+        reference_to Question
+
+        emits "QuestionReleased"
+      end
+
       query "Open" do
         description "Every question still waiting on an answer, asked or seated."
         where(status: { in: "asked,seated" })
@@ -3275,6 +3296,20 @@ Hecks.bluebook "Hecks" do
         description "The seated question one run asks, when it asks one."
         attribute :run, QuestionRun
         where(status: "seated", run: :run)
+      end
+
+      # The seated question an answerer serves, found by the answerer's `work`, the run that asks.
+      query "SeatedOfWork" do
+        description "The seated question of the run an answerer works for, when it is still seated."
+        attribute :work, QuestionRun
+        where(status: "seated", run: :work)
+      end
+
+      # The question one run asks, in any state, so an answerer reads the one question it serves.
+      query "OfRun" do
+        description "The question one run asks, whatever its state."
+        attribute :run, QuestionRun
+        where(run: :run)
       end
 
       # The question one run asks that has found no seat yet, which the run's end or answer drops.
@@ -3321,8 +3356,9 @@ Hecks.bluebook "Hecks" do
         root
         trigger AgentRun::Dispatch,
                 with: { repo: ".", agent: "orchestrator", works_as: "answerer", work: :run, parent: :run,
-                        brief: "A run is blocked on a question for you: your run's work names it " \
-                               "(AgentRun.running). Answer it with AgentRun.answer! under your standing rule " \
+                        brief: "A run is blocked on a question for you. Your own run is listed by " \
+                               "AgentRun.answering (at most two rows, newest first: the first is yours) and its work is the " \
+                               "blocked run; Question.of_run run=<that run> reads its question. Answer it with AgentRun.answer! under your standing rule " \
                                "answer-within-the-brief, or escalate it when the answer is the owner's. " \
                                "Never answer for the owner a push, promote, release, plan confirmation, " \
                                "secret, account or login: escalate those. " \
@@ -3372,6 +3408,33 @@ Hecks.bluebook "Hecks" do
             resuming != true
         end
         trigger Question::Escalate, with: { run: :work }
+      end
+
+      # An answerer that ended, failed (or could not start) or closed with its word releases a question
+      # still seated: an answer closed it, a block escalated it. `JobRead` is the one read of a run's
+      # end that carries its `works_as` and `work`.
+      policy "ReleaseTheQuestionOfAnAnswererThatEnded" do
+        on       "AgentRun.JobRead"
+        root
+        where    { works_as == "answerer" && resuming != true && (state == "failed" || state == "done" || state == "stopped") }
+        for_each "Question.SeatedOfWork"
+        trigger  Question::Release, with: { run: :work }
+      end
+
+      policy "ReleaseTheQuestionOfAnAnswererThatClosed" do
+        on       "AgentRun.JobRead"
+        root
+        where    do
+          state == "working" && listed == "idle" && resuming != true && works_as == "answerer" &&
+            (report.rstrip.end_with?("answered") || report.rstrip.end_with?("escalated"))
+        end
+        for_each "Question.SeatedOfWork"
+        trigger  Question::Release, with: { run: :work }
+      end
+
+      policy "FreeTheSeatOfAReleasedQuestion" do
+        on      "Question.QuestionReleased"
+        trigger AnswerDesk::Free, with: { desk: "orchestrator" }
       end
 
       # Every run's answer, end and failure looks its question up: a run that asked none finds no
