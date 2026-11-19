@@ -306,7 +306,8 @@ Hecks.bluebook "Hecks" do
         mark :failure, "declined"
         transition "Open"    => "opened",    from: "requested"
         transition "Observe" => "observed",  from: %w[requested opened]
-        transition "Close"   => "closed",    from: %w[requested opened observed]
+        transition "Withdraw" => "closing",  from: %w[requested opened observed declined closing]
+        transition "Close"   => "closed",    from: "closing"
         transition "Decline" => "declined",  from: %w[requested opened]
         transition "Retry"   => "requested", from: %w[observed declined]
         mark :terminal, "closed"
@@ -388,11 +389,23 @@ Hecks.bluebook "Hecks" do
         emits EarlyCiObserved
       end
 
-      command "Close" do
+      # A close the port refused leaves the record closing, never declined, so a coder cannot retry a
+      # landed branch; a second Withdraw asks the port again.
+      command "Withdraw" do
         role "System"
-        goal "Record that the push train carried the commits, so the draft is closed and ci/<branch> deleted"
+        goal "Ask the port to close the draft and delete ci/<branch>, because the branch landed"
 
         reference_to EarlyCi
+
+        emits EarlyCiWithdrawn
+      end
+
+      command "Close" do
+        role "System"
+        goal "Record that the port closed the draft and deleted ci/<branch>; nothing was merged"
+
+        reference_to EarlyCi
+        attribute :report, Report, sets: true
 
         emits EarlyCiClosed
       end
@@ -415,6 +428,24 @@ Hecks.bluebook "Hecks" do
       on      "Landing.BranchLanded"
       where   { branch.value != "main" }
       trigger EarlyCi::Start, with: { run: :run, branch: :branch }
+    end
+
+    # A landed branch's draft is closed and ci/<branch> deleted. The record is keyed by the branch; a
+    # branch no coder asked CI for has none, and the trigger is refused as not found.
+    policy "WithdrawEarlyCiWhenBranchLanded" do
+      on      "Landing.BranchLanded"
+      where   { branch.value != "main" }
+      trigger EarlyCi::Withdraw, with: { early_ci: :branch }
+    end
+
+    policy "CloseCiWhenWithdrawn" do
+      on      "EarlyCi.EarlyCiWithdrawn"
+      ask     :branch_ci_close, with: { run: :run }
+    end
+
+    policy "RecordTheClose" do
+      on      "EarlyCi.BranchCiClosed"
+      trigger EarlyCi::Close, with: { report: :report }
     end
 
     # A coder's request is the port's to run: push ci/<branch>, open or reuse the draft, read its checks.
