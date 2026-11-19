@@ -29400,6 +29400,20 @@
               ],
               [
                 "site",
+                "role_unstated"
+              ],
+              [
+                "template",
+                "{command} refused — role: {role}, and the caller stated no role"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
                 "cross_tenant_reference"
               ],
               [
@@ -33550,6 +33564,74 @@
               [
                 "argument",
                 "caller_role"
+              ],
+              [
+                "shape",
+                "scalar"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ""
+              ],
+              [
+                "sorted",
+                "false"
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "role_unstated"
+              ],
+              [
+                "argument",
+                "command"
+              ],
+              [
+                "shape",
+                "scalar"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ""
+              ],
+              [
+                "sorted",
+                "false"
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "role_unstated"
+              ],
+              [
+                "argument",
+                "role"
               ],
               [
                 "shape",
