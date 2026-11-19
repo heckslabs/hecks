@@ -267,6 +267,10 @@ Hecks.bluebook "Signalbox" do
       attribute :seats,          Count
       attribute :unused_servers, Count
       attribute :curtailed,      Count
+      # The shedding floor and the gap admission keeps above it (phase 3, admission). Absent, both
+      # are nought and the given below is the draw fitting the headroom.
+      attribute :floor,          Megabytes, default: { value: 0 }
+      attribute :gap,            Megabytes, default: { value: 0 }
 
       given("nothing is admitted while the owner's switch is off") { switch.value == "on" }
       given("a session is admitted only from a current view") { role.value == "repair" || age.value <= stale_after.value }
@@ -274,6 +278,11 @@ Hecks.bluebook "Signalbox" do
       given("a helper does not start a helper") { asked_by.value != "helper" }
       given("a session is not started for a purpose already met") { met.value != "yes" }
       given("a session's expected draw fits the headroom") { draw.value <= headroom.value }
+      # Hysteresis: shedding trips under the floor, so a lower-tier session is admitted only while
+      # its draw leaves the gap above it, and the next reading's noise does not shed what was admitted.
+      given("a lower-tier session leaves the gap above the floor after its draw") do
+        tier.value == "urgent" || headroom.value - draw.value >= floor.value + gap.value
+      end
       given("only an urgent coder is admitted while pressure is short") do
         band.value != "short" || (role.value == "coder" && tier.value == "urgent")
       end
