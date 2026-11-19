@@ -4,6 +4,7 @@ require_relative "model_check/client_profile"
 require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
+require_relative "model_check/acts_as_checks"
 require_relative "model_check/context_checks"
 require_relative "model_check/context_map_checks"
 require_relative "model_check/ask_checks"
@@ -42,6 +43,7 @@ module Hecks
 
       extend SagaChecks
       extend PolicyChecks
+      extend ActsAsChecks
       extend ContextChecks
       extend AskChecks
       extend ReactionDepthChecks
@@ -100,6 +102,7 @@ module Hecks
             policy_findings(bluebook, policy, options[:hecksagon], options[:known_domains],
                             options[:global_emitted_events])
           end,
+          *acts_as_findings(bluebook, options[:hecksagon]),
           *translates_source_findings(bluebook, options[:hecksagon], options[:aggregate_owners])
         ]
       end

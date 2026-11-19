@@ -3037,6 +3037,14 @@ RSpec.describe "the DSL surface" do
       expect(build_command("CmdNoMint") { goal "feed people" }.mints_era?).to be(false)
     end
 
+    it "policy_only says only a policy reaction may dispatch the command" do
+      expect(build_command("CmdPolicyOnly") { policy_only }.policy_only?).to be(true)
+    end
+
+    it "is open to any caller its role admits unless it says policy_only" do
+      expect(build_command("CmdOpen") { goal "feed people" }.policy_only?).to be(false)
+    end
+
     it "is not idempotent unless it says so" do
       expect(build_command("CmdPlain") { goal "feed people" }.idempotent?).to be(false)
     end

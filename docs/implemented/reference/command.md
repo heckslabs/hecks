@@ -70,6 +70,13 @@ Hecks.bluebook "CommandReference" do
       sets :serial
       emits "MeterCalibrated"
     end
+
+    command "Recall" do
+      # ONLY A POLICY REACTION may send it; a person or an agent at the CLI or MCP may not.
+      policy_only
+      reference_to Meter
+      emits "MeterRecalled"
+    end
   end
 
   # A SEPARATE AGGREGATE, purely for `delegates_to` — it needs a NESTED
@@ -319,6 +326,26 @@ The adapter reads the world's names at boot. Until the word is retired from the 
 that still says `mints_era true` keeps its allowance, and the two must agree: a world that names a
 command the domain does not declare, or that leaves out a command still saying `mints_era true`,
 refuses the boot by name. A world with no `mints_era` leaves the bluebook word alone.
+
+## policy_only
+
+<!-- generated:begin word=policy_only -->
+`policy_only` — fills `policy_only`
+<!-- generated:end -->
+
+Declares that only a policy reaction may dispatch this command. A caller at the CLI or the MCP
+door is refused whatever role it states, so a command that a domain runs only from its own
+reactions cannot be started by hand (ADR 0216). It takes no argument. A command without it may be
+reached by any caller its `role` admits. The word is carried on the IR as `policy_only: true`,
+and a command that does not say it carries no such key:
+
+```ruby
+meter = runtime.registry.bluebook("CommandReference").aggregate("Meter")
+meter.commands.find { |c| c.hecks_name == "Recall" }.policy_only?   # => true
+meter.commands.find { |c| c.hecks_name == "Install" }.policy_only?  # => false
+```
+
+The refusal itself is the runtime's to make, at dispatch; this word is what it reads.
 
 ## reference_to
 
