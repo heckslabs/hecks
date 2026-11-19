@@ -1,0 +1,7 @@
+# Binds the `Fleet` port to `FleetControl`, which lists, finds, stops and resumes background sessions.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/fleet_control"
+
+Hecks.adapter "FleetControl" do
+  port "Fleet"
+end

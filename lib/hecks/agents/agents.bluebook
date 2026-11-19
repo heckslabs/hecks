@@ -47,6 +47,9 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "Message.send!"
       member role: "orchestrator", pattern: "Message.read!"
       member role: "orchestrator", pattern: "Message.inbox"
+      # Reads of the sessions; Fleet.stop! and Fleet.resume! stay the operator's.
+      member role: "orchestrator", pattern: "Fleet.sessions"
+      member role: "orchestrator", pattern: "Fleet.topic"
       member role: "orchestrator", pattern: "PlanReview.answer!"
       # Hands a question whose answer is the owner's to the owner, unanswered, and frees its seat.
       member role: "orchestrator", pattern: "Question.escalate!"
@@ -1937,6 +1940,174 @@ Hecks.bluebook "Agents" do
     policy "RecordTheDeclinedSweep" do
       on      "Sweep.SweepRefused"
       trigger Sweep::Decline, with: { refusal: :refusal }
+    end
+  end
+
+  # The AgentRun ledger is read, never written: a stopped run is finished `stopped` by the next
+  # `AgentRun.check_all!`. A role never stops a session, so no RoutingRule row names Stop or Resume.
+  aggregate "Fleet" do
+    description "One steering of a background Claude session: stopped, or resumed under a name, or refused with the reason; and the reads that list the sessions with their runs and find one by topic."
+
+    identified_by :session
+
+    attribute :session, FleetSession
+    attribute :name,    FleetName,    optional: true
+    attribute :report,  FleetSummary, optional: true
+    attribute :refusal, FleetSummary, optional: true
+    attribute :run,     FleetRun,     optional: true
+
+    value_object "FleetSession" do
+      attribute :value, String, matches: :present
+    end
+
+    # The name a resumed session is listed under. It starts with a letter or digit, so it cannot be
+    # taken for a flag of the command it is passed to.
+    value_object "FleetName" do
+      attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+    end
+
+    value_object "FleetSummary" do
+      attribute :value, String, matches: :present
+    end
+    value_object "FleetTopic", String
+
+    # The key of the AgentRun that holds the session, empty when none does, so a policy of the
+    # Hecks domain can follow a stop or a resume without reading the report.
+    value_object "FleetRun", String
+
+    value_object "FleetDocument" do
+      attribute :text, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      # A stop `claude` carried out is `ended`: the session ended, and the steering did not fail.
+      transition "RecordStop"   => "ended", from: "requested"
+      transition "RecordResume" => "resumed", from: "requested"
+      transition "Decline"      => "refused", from: "requested"
+      mark :terminal, "ended", "resumed", "refused"
+      # A steering that ended frees the session's key, so the same session is stopped or resumed again.
+      mark :reusable, "ended", "resumed", "refused"
+    end
+
+    command "Stop" do
+      role "Operator"
+      goal "Stop a background session (claude stop) that no pinned role holds"
+
+      attribute :session, FleetSession, sets: true
+
+      emits "FleetStopRequested"
+    end
+
+    command "Resume" do
+      role "Operator"
+      goal "Resume a session that is not working under the given name (claude --bg --resume <id> -n <name>)"
+
+      attribute :session, FleetSession, sets: true
+      attribute :name,    FleetName,    sets: true
+
+      emits "FleetResumeRequested"
+    end
+
+    command "RecordStop" do
+      role "System"
+      goal "Record that the session was stopped, and the run that holds it"
+
+      reference_to Fleet
+      attribute :report, FleetSummary, sets: true
+      attribute :run,    FleetRun,     sets: true
+
+      emits "FleetStopped"
+    end
+
+    command "RecordResume" do
+      role "System"
+      goal "Record that the session was resumed under its name, and the run that holds it"
+
+      reference_to Fleet
+      attribute :report, FleetSummary, sets: true
+      attribute :run,    FleetRun,     sets: true
+
+      emits "FleetResumed"
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why the session was not stopped or resumed"
+
+      reference_to Fleet
+      attribute :refusal, FleetSummary, sets: true
+
+      emits "FleetRefused"
+    end
+
+    query "Sessions" do
+      description "Every background session claude lists, one line each: id, name, state, status and the AgentRun that holds it (run, status, condition) or none. Reads only; refused where no AgentRun ledger is booted."
+      returns FleetDocument
+    end
+
+    query "Topic" do
+      description "The listed sessions whose transcript mentions the topic (any case), newest first, each with its name, state, run and the first line that matches. Reads only; refused where no AgentRun ledger is booted."
+      attribute :topic, FleetTopic
+      returns FleetDocument
+    end
+
+    # The port reads the facts first (whether the session is listed, the run that holds it,
+    # whether a pinned role names it, whether it is working); the policies below judge them and
+    # either ask the port to run `claude` or refuse by name.
+    policy "ExamineBeforeStopping" do
+      on      "Fleet.FleetStopRequested"
+      ask     :examine_stop, with: { session: :session }
+    end
+
+    policy "RefuseToStopAPinnedRole" do
+      on      "Fleet.StopExamined"
+      where   { pinned == true }
+      trigger Fleet::Decline, with: { refusal: :note }
+    end
+
+    policy "StopTheFreeSession" do
+      on      "Fleet.StopExamined"
+      where   { pinned != true }
+      ask     :halt, with: { session: :session }
+    end
+
+    policy "ExamineBeforeResuming" do
+      on      "Fleet.FleetResumeRequested"
+      ask     :examine_resume, with: { session: :session, name: :name }
+    end
+
+    policy "RefuseToResumeAWorkingSession" do
+      on      "Fleet.ResumeExamined"
+      where   { working == true }
+      trigger Fleet::Decline, with: { refusal: :note }
+    end
+
+    policy "ResumeTheIdleSession" do
+      on      "Fleet.ResumeExamined"
+      where   { working != true }
+      ask     :revive, with: { session: :session, name: :name }
+    end
+
+    policy "RecordTheStop" do
+      on      "Fleet.SessionHalted"
+      trigger Fleet::RecordStop, with: { report: :report, run: :run }
+    end
+
+    policy "RecordTheResume" do
+      on      "Fleet.SessionRevived"
+      trigger Fleet::RecordResume, with: { report: :report, run: :run }
+    end
+
+    # A session the port could not read or `claude` refused is declined with the reason.
+    policy "RecordTheRefusedStop" do
+      on      "Fleet.SessionHaltRefused"
+      trigger Fleet::Decline, with: { refusal: :refusal }
+    end
+
+    policy "RecordTheRefusedResume" do
+      on      "Fleet.SessionReviveRefused"
+      trigger Fleet::Decline, with: { refusal: :refusal }
     end
   end
 end

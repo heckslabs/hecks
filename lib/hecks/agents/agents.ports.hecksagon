@@ -34,4 +34,40 @@ Hecks.hecksagon "Agents" do
       refuses "RecipientMissing"
     end
   end
+
+  # The sessions claude lists, joined to the AgentRun ledger (adapters/fleet_control). The examines
+  # read the facts Fleet's policies judge; the adapter refuses only a session not listed, a boot
+  # with no ledger, and a command `claude` refused.
+  Agents::Fleet.port "Fleet" do
+    # Whether a pinned role holds the session, the run that holds it, and that in words.
+    asks "ExamineStop", to: Fleet do
+      attribute :session, FleetSession
+      answers "StopExamined"
+      refuses "SessionHaltRefused"
+    end
+
+    # Whether the session is working, the run that holds it, and that in words; the name is kept.
+    asks "ExamineResume", to: Fleet do
+      attribute :session, FleetSession
+      attribute :name,    FleetName
+      answers "ResumeExamined"
+      refuses "SessionReviveRefused"
+    end
+
+    asks "Halt", to: Fleet do
+      attribute :session, FleetSession
+      answers "SessionHalted"
+      refuses "SessionHaltRefused"
+    end
+
+    asks "Revive", to: Fleet do
+      attribute :session, FleetSession
+      attribute :name,    FleetName
+      answers "SessionRevived"
+      refuses "SessionReviveRefused"
+    end
+
+    answers_query "Sessions"
+    answers_query "Topic"
+  end
 end

@@ -3,6 +3,8 @@
 require "time"
 require_relative "plain_sweep"
 require_relative "reap_report"
+require_relative "../claude_jobs"
+require_relative "../session_reaping"
 
 module Hecks
   module Adapters
@@ -20,8 +22,9 @@ module Hecks
           { since: { value: clock.call.utc.iso8601 } }
         end
 
-        # Removes the sessions no run holds that are done or stopped, older than `session_keep`
-        # hours and in no worktree, then reports the reap.
+        # Removes the sessions no run holds that are done or stopped, in no worktree and older than
+        # their {KeepWindow}: `remove_done_after_minutes` for a helper the pipeline launched,
+        # `session_keep` hours for the owner's; then reports the reap.
         #
         # @param held [Hash] the `SessionCleanup` record: `since`
         # @return [Hash{Symbol => Hash}] `report:` the line `removed N sessions and M worktrees;
@@ -37,9 +40,17 @@ module Hecks
         private
 
         def sweeper
-          PlainSweep.new(keep_hours: keep_hours, now: clock, transcript: @transcript, remove: method(:refusal_of),
+          PlainSweep.new(window: window, now: clock, transcript: @transcript, remove: method(:refusal_of))
+        end
+
+        def window
+          KeepWindow.new(owner_hours: keep_hours, helper_minutes: helper_minutes, jobs: ClaudeJobs.from(@tuning),
                          pinned: @runs.pinned_roles || [])
         end
+
+        # The minutes a finished helper session no run holds stays listed: the caller's, else the
+        # world's `reaping` line ({SessionReaping#remove_done_after}).
+        def helper_minutes = @tuning[:remove_done_after] || SessionReaping.new(registry: @registry).remove_done_after
 
         def clock = @tuning[:now] || -> { Time.now }
 
