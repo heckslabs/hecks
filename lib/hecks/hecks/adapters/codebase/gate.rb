@@ -3,6 +3,7 @@
 require_relative "tree"
 require_relative "ruby_child"
 require_relative "heavy_slots"
+require_relative "trials"
 
 module Hecks
   module Adapters
@@ -47,15 +48,54 @@ module Hecks
         # @param held [Hash] the `GateRun` record's fields: `stage`, and `only` when given
         # @param tree [Tree] the working tree, already known to be a hecks checkout
         # @param shell [#capture, nil] unused: the tool runs in this process
-        # @return [String] which checks passed
+        # @param trials [Trials, nil] records each check's result; the machine's trial log when nil
+        # @return [String] which checks passed, and the stage's pass^k lines
         # @raise [Red] with what the red checks printed and the cause they name
         # @raise [ConsoleCapture::Failure] with what the run printed, when it names no red check
-        def call(_operation, held, tree, shell: nil)
+        def call(_operation, held, tree, shell: nil, trials: nil)
+          argv = argv_of(held)
+          out = tried(argv, trials || Trials.new) { named_red(argv.first) { run(tree, argv) } }
+          { report: { value: out } }.merge(counts_of(out))
+        end
+
+        # @param held [Hash] the `GateRun` record's fields: `stage`, and `only` when given
+        # @return [Array<String>] the stage and its `only=` filter, as the gate tool takes them
+        def argv_of(held)
           plain = ->(name) { held[name].is_a?(Hash) ? held[name][:value] : held[name] }
           only = plain.call(:only).to_s
-          argv = [plain.call(:stage).to_s, *("only=#{only}" unless only.empty?)]
-          out = named_red(argv.first) { run(tree, argv) }
-          { report: { value: out } }.merge(counts_of(out))
+          [plain.call(:stage).to_s, *("only=#{only}" unless only.empty?)]
+        end
+
+        # Runs the block and records each check that ran as a trial of `gate-<stage>`, adding the
+        # stage's pass^k lines to what the gate printed, green or red.
+        #
+        # @param argv [Array<String>] the stage and its `only=` filter
+        # @param trials [Trials] the trial record
+        # @yield the gate run
+        # @return [String] what the block answers, with the pass^k lines
+        # @raise [Red] when the block fails, its message with the pass^k lines
+        def tried(argv, trials)
+          noted(yield, argv, trials)
+        rescue Red => e
+          raise Red.new(noted(e.message, argv, trials), e.kind)
+        end
+
+        # @param text [String] what the gate printed
+        # @param argv [Array<String>] the stage and its `only=` filter
+        # @param trials [Trials] the trial record
+        # @return [String] the text and, when a check ran, the pass^k lines
+        def noted(text, argv, trials)
+          results = Trials::GateResults.call(text, planned(argv))
+          [text, trials.record("gate-#{argv.first}", results)].compact.join("\n")
+        end
+
+        # @param argv [Array<String>] the stage and its `only=` filter
+        # @return [Array<String>] the ids of the checks the run plans; none for an unknown stage
+        def planned(argv)
+          require "hecks/tools/gate"
+          name, only = Tools::Gate.parse(argv)
+          checks = Tools::Gate.stages.dig(name, "checks") || []
+          (Tools::Gate.select(checks, only) || []).map { |check| check["id"] }
         end
 
         # Runs the block, naming the cause on the failure of a gate. A failure that names no red
