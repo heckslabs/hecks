@@ -97,6 +97,26 @@ RSpec.describe Hecks::Tools::AgentRoles do
     end
   end
 
+  describe "the guarded-role list" do
+    let(:list) { File.join(dir, "guarded_roles") }
+
+    def run_list(*argv) = described_class.main(argv, rows: [row], out: dir, guarded: { path: list, roles: %w[scout scout] })
+
+    it "writes each role with routing rows once, under the banner" do
+      quietly { run_list }
+      expect(File.read(list)).to eq("# Generated from agents.bluebook, do not edit\nscout\n")
+    end
+
+    it "answers 1 under --check when the list is missing" do
+      quietly { run_tool }
+      expect(hushed { run_list("--check") }).to eq(1)
+    end
+
+    it "names the orchestrator as the one guarded role of the checkout" do
+      expect(Hecks::Tools::AgentRoles::Rows.guarded(InMemoryDomain::ROOT)).to eq(%w[orchestrator])
+    end
+  end
+
   describe "the real role files" do
     let(:root) { InMemoryDomain::ROOT }
     let(:rows) { Hecks::Tools::AgentRoles::Rows.read(root) }

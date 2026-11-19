@@ -411,7 +411,7 @@ Hecks.bluebook "Hecks" do
 
       command "ProjectAgentRoles" do
         role "Maintainer"
-        goal "Write .claude/agents from the RoleFile rows of the Role aggregate, or with check only compare them"
+        goal "Write .claude/agents from the RoleFile rows of the Role aggregate, and .claude/hooks/guarded_roles from its RoutingRule rows, or with check only compare them"
 
         attribute :check,   Switch, optional: true, sets: true
         attribute :run,     RunKey, sets: true
