@@ -2672,10 +2672,10 @@ Hecks.bluebook "Hecks" do
       end
 
       # The mechanical cleanup. Every finished run is tidied in its own order (`AgentRun.Tidy`: kept
-      # by name or its scratch cleared, its worktree retired, its session removed), then the sessions
-      # no run holds are removed when they are done or stopped, older than the world's `session_keep`
-      # hours and hold no worktree. The report names what was removed and each session kept, with
-      # the reason. `ReapTurn` starts it, one at a time; nobody removes a session by hand.
+      # by name or its scratch cleared, its worktree retired, its session removed), then the unpinned
+      # sessions no run holds, done or stopped with no worktree, once past the reaping window. The
+      # report names what was removed and each session kept, with the reason. `ReapTurn` starts it,
+      # one at a time; nobody removes a session by hand.
       command "Reap" do
         role "System"
         goal "Tidy every finished run's session and worktree in order, remove the old sessions no run holds, and report what was removed and kept"
