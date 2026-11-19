@@ -18,6 +18,11 @@ module Hecks
       BLUEBOOK_DIR = File.expand_path("..", __dir__)
       LAUNCHER = %r{\A(?:\./)?(?:exe/)?hecks\s+}
       CHAINING = /[;&|<>`\n]|\$\(/
+      # A span the chaining check reads past, scanned left to right: a backslash pair outside
+      # quotes first, so an escaped quote opens no span, then a single- or double-quoted span.
+      QUOTED = /\\.|'[^']*'|"(?:\\.|[^"\\])*"/m
+      # What the shell still runs inside double quotes; `${x:-$(y)}` is caught by its `$(`.
+      SUBSTITUTION = /`|\$\(/
       # An `Aggregate.verb` word of a launcher call, in either spelling.
       VERB_WORD = /\A[A-Za-z_]\w*\.\w/
 
@@ -117,12 +122,23 @@ module Hecks
       def agents_dir = @checkout ? File.join(@checkout, "lib/hecks/agents") : BLUEBOOK_DIR
 
       def allowed?(rules, text, name = nil)
-        return false if text.match?(CHAINING)
+        return false if unquoted(text).match?(CHAINING)
         return ShellReads.new(rules, rows("ShellFlagRule", name)).allowed?(text) if ShellReads.shell?(text)
         return false unless text.match?(LAUNCHER)
 
         verb = verb_of(text.sub(LAUNCHER, ""))
         rules.any? { |rule| rule.end_with?(".*") ? verb.start_with?(rule.delete_suffix("*")) : verb == rule }
+      end
+
+      # The text with each quoted span blanked, so a `;` the shell reads as literal is not chaining.
+      # A backslash pair stays, a double-quoted span holding a substitution stays, and an unclosed
+      # quote matches no span and so stays too.
+      def unquoted(text)
+        text.gsub(QUOTED) do |span|
+          next span unless span.start_with?("'", '"')
+
+          span.start_with?('"') && span.match?(SUBSTITUTION) ? span : span[0] * 2
+        end
       end
 
       # The `Aggregate.verb` a launcher call names, past an optional domain word.
