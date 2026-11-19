@@ -34,7 +34,7 @@ module Hecks
         # Tickets bluebook's `Priority` list, in the same order.
         TIERS = %w[expedite now next later].freeze
 
-        # The priority `Work.expedite!` sets: the lane outside the cap (ADR 0222).
+        # The priority `Work.expedite!` sets: the lane outside the cap (ADR 0224).
         EXPEDITE = "expedite"
 
         # @param item [Plan::Item] a work item

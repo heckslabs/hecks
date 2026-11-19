@@ -2,7 +2,8 @@
 
 **Status:** Accepted. Date: 2026-11-19. Asked by the owner on 2026-11-13 as a "hot patch": a path
 through the pipeline for an urgent item, so nobody changes the cap by hand. The plan was reviewed by
-the architect (plan review run `a0291f17`, verdict changes), and its findings are taken in.
+the architect (plan review runs `a0291f17`, verdict changes, and `6c0a44f2`, sound), and their
+findings are taken in. The cap it passes is the one in force, fixed or moving (`MovingCap`).
 
 ## Context
 

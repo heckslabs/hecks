@@ -47,7 +47,7 @@ Hecks.world "Tickets" do
                            interval: 60.0
   github_issues "GitHubIssues", enabled: false
   # `urgent_reserve`: red-* items that may start past a full cap (1 when absent); one expedited item
-  # takes its own place outside the cap and the reserve (ADR 0222). The cap 7 and epic limit 4 are
+  # takes its own place outside the cap and the reserve (ADR 0224). The cap 7 and epic limit 4 are
   # not yet measured: docs/findings/dispatch-limits-2026-11.md.
   work_limit "WorkLimits", cap: 7, urgent_reserve: 1
   # `work_cap` moves the cap with the machine (the Tune `WorkCap`) inside `least` and `most`
