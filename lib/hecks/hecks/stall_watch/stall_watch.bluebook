@@ -144,13 +144,13 @@ Hecks.bluebook "Hecks" do
         member kind: "agent-run-answer-refused", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AnswerRefused",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunStarted,AgentRunAnswered", minutes: 0, forgets: 1440, fixer: "orchestrator",
-               move: "Read the refusal and the verdict's run on the event (Verdict.undelivered names it), then Work.yield! " \
-                     "the run's Work item with the refusal and that run, so the fill restarts it with the review in its brief."
+               move: "Work.yield! the run's Work item (AgentRun.running names it) with the refusal on the event, so the " \
+                     "fill restarts it with the review in its brief."
         member kind: "agent-run-unreached", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnreached",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunStarted,AgentRunAnswered", minutes: 0, forgets: 1440, fixer: "orchestrator",
-               move: "Read the refusal and the verdict's run on the event (Verdict.undelivered names it), then Work.yield! " \
-                     "the run's Work item with the refusal and that run, so the fill restarts it with the review in its brief."
+               move: "Work.yield! the run's Work item (AgentRun.running names it) with the refusal on the event, so the " \
+                     "fill restarts it with the review in its brief."
         member kind: "agent-run-blocked", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
                named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",

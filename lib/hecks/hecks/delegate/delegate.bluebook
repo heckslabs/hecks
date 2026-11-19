@@ -446,7 +446,7 @@ Hecks.bluebook "Hecks" do
 
       # A verdict came for a coder run tidied, retired or never started, which neither `Answer`
       # (started) nor `Unreached` (finished) takes. A requested run is left alone: it starts next.
-      command "RefuseAnswer", from: %w[tidied retired refused] do
+      command "RefuseAnswer", from: ["tidied", "retired", "refused"] do
         role "System"
         goal "Record that a verdict came for a coder run whose session is gone or was never started"
 
