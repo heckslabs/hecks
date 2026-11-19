@@ -42,19 +42,38 @@ module Hecks
       end
 
       # Clears the ambient caller for the duration of the block, restoring the previous one.
-      # A reaction is the system acting, so `Dispatcher#reenter` clears the caller around it.
+      # A reaction is the system acting, so `Dispatcher#reenter` clears the caller around it and
+      # says so with `reacting: true`, which `reacting?` answers inside the block.
       #
+      # @param reacting [Boolean] whether the block is a policy or saga reaction's dispatch
       # @yield the code that should see no ambient caller bound
       # @return [Object] the block's result
-      def without
-        previous = Thread.current[:hecks_caller]
-        previous_origin = Thread.current[:hecks_caller_origin]
-        Thread.current[:hecks_caller_origin] = previous_origin || previous
+      def without(reacting: false)
+        saved = saved_binding
+        Thread.current[:hecks_caller_origin] = origin
         Thread.current[:hecks_caller] = nil
+        Thread.current[:hecks_reacting] = reacting
         yield
       ensure
-        Thread.current[:hecks_caller] = previous
-        Thread.current[:hecks_caller_origin] = previous_origin
+        restore_binding(saved) if saved
+      end
+
+      # Whether the innermost `without` on this thread is a reaction's dispatch.
+      #
+      # @return [Boolean] true inside `without(reacting: true)`, false elsewhere
+      def reacting? = Thread.current[:hecks_reacting] ? true : false
+
+      # The thread's caller, cascade origin and reaction flag, as `without` found them.
+      def saved_binding
+        { caller: Thread.current[:hecks_caller], origin: Thread.current[:hecks_caller_origin],
+          reacting: Thread.current[:hecks_reacting] }
+      end
+
+      # Puts back what `saved_binding` read.
+      def restore_binding(saved)
+        Thread.current[:hecks_caller] = saved[:caller]
+        Thread.current[:hecks_caller_origin] = saved[:origin]
+        Thread.current[:hecks_reacting] = saved[:reacting]
       end
 
       # The caller a reaction cascade on this thread began under: the one `without` cleared at

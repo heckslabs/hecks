@@ -25,16 +25,17 @@ module Hecks
           attr_accessor :runner
 
           # The runner is asked for from inside a command's own reaction cascade, and the
-          # dispatcher keeps that cascade's depth on the thread. A run starts at depth zero, as a
-          # plain run does, so work that cascades four deep is not cut off by the cascade that
-          # launched it.
+          # dispatcher keeps that cascade's depth and its reaction flag on the thread. A run starts
+          # at depth zero and outside any reaction, as a plain run does, so work that cascades four
+          # deep is not cut off by the cascade that launched it, and a spec's own dispatch is not
+          # read as the system's.
           #
           # @yield the work to run at depth zero
           # @return [Object] what the block answers
-          def at_reaction_depth_zero
+          def at_reaction_depth_zero(&)
             depth = Thread.current[:hecks_reaction_depth]
             Thread.current[:hecks_reaction_depth] = 0
-            yield
+            Hecks::Runtime::Caller.without(&)
           ensure
             Thread.current[:hecks_reaction_depth] = depth
           end
