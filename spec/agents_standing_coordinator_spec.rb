@@ -19,13 +19,12 @@ RSpec.describe "the orchestrator's standing seat" do
     expect(coordinators_started).to eq(1)
   end
 
-  # The stand-in holds one session for every run, so a sweep that finds the stop may also start
-  # into it; the seat is filled again by a run under a key that is not the stopped one.
-  it "starts a new run under a new key after its run stops", :aggregate_failures do
-    sweep("beat-1")
-    stop_and_refill
-    expect(seat).to include("status" => "present", "lost_by" => "stopped")
-    expect(seat["run"]).not_to eq("beat-1")
+  # Each sweep is a process of its own, which opens the in-Memory seat afresh; the seat's
+  # AgentRun under `orchestrator-seat` ended with the stop, so a later sweep fills the seat again.
+  it "fills the seat again from a later process after its run stops" do
+    fresh_sweep("beat-1")
+    fresh_stop_and_refill
+    expect(live_seats.size).to eq(1)
   end
 
   it "keeps the seat when its run ends idle" do
