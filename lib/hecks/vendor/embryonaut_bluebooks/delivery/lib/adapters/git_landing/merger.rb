@@ -35,8 +35,8 @@ module Hecks
         # @return [Hash{Symbol => Hash}] `outcome:` (`current` or `merged`),
         #   `checkout:`, `branch:`, `landed:` (the commit the target names now) and `report:`
         # @raise [Swap::Lost] when the target moved while the landing was built
-        # @raise [ConsoleCapture::Failure] when the merge conflicts, or a tree holds
-        #   uncommitted work
+        # @raise [ConsoleCapture::Failure] when the merge conflicts or fails (saying why), or a tree
+        #   holds uncommitted work
         def land
           tip = branch_tip(@branch)
           before = branch_tip(@onto)
@@ -77,7 +77,20 @@ module Hecks
 
           conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: dir).out.split
           @git.capture("merge", "--abort", chdir: dir)
-          raise ConsoleCapture::Failure, "merging #{@branch} into #{@onto} conflicts in #{conflicts.join(", ")}; nothing changed"
+          raise ConsoleCapture::Failure, "merging #{@branch} into #{@onto} #{why(conflicts, result)}; nothing changed"
+        end
+
+        # What a failed merge says: the paths in conflict, or, when none are, git's own words.
+        def why(conflicts, result)
+          return "conflicts in #{conflicts.join(", ")}" unless conflicts.empty?
+
+          "failed: #{git_words(result)}"
+        end
+
+        # The first lines git printed, so a hook's long output cannot flood the refusal.
+        def git_words(result)
+          lines = "#{result.err}\n#{result.out}".lines.map(&:strip).reject(&:empty?)
+          lines.first(3).join(" / ")[0, 400].then { |words| words.empty? ? "git gave no reason" : words }
         end
 
         # A merge commit needs an author. The configured one is used; when a machine has none (a
