@@ -8,25 +8,65 @@ RSpec.describe Hecks::Adapters::TurnFacts do
   let(:run) { { run: "fix-it", status: "started", works_as: "coder", session: "abc123", repo: "/tmp/fix-it" } }
   let(:work) { { work: "fix-it", status: "started" } }
   let(:message) { "All specs pass.\n\nI am done." }
+  let(:verdicts) { [] }
+
+  let(:inbox) { Hecks::Adapters::SessionInbox.new(directory: Dir.mktmpdir("turn-facts-inbox")) }
+
+  before { allow(Hecks::Adapters::SessionInbox).to receive(:new).and_return(inbox) }
 
   def book(name) = double(aggregates: [double(hecks_name: name)])
 
-  def registry(runs, items)
-    stores = { "Hecks" => runs, "Tickets" => items }
+  def aggregate_of(domain) = { "Hecks" => "AgentRun", "Tickets" => "Work", "Agents" => "Verdict" }.fetch(domain)
+
+  def registry(runs, items, verdicts = [])
+    stores = { "Hecks" => runs, "Tickets" => items, "Agents" => verdicts }
     instance_double(Hecks::Runtime::Registry).tap do |held|
-      allow(held).to receive(:bluebook) { |domain| book(domain == "Hecks" ? "AgentRun" : "Work") }
+      allow(held).to receive(:bluebook) { |domain| book(aggregate_of(domain)) }
       allow(held).to receive(:repository) { |domain, _| double(all: stores.fetch(domain)) }
     end
   end
 
-  def facts(runs: [run], items: [work], landed: nil, transcript: message, tail: "")
-    described_class.new(registry: registry(runs, items), landed: ->(_work, _repo) { landed },
+  def adapter(runs: [run], items: [work], landed: nil, transcript: message, tail: "")
+    described_class.new(registry: registry(runs, items, verdicts), landed: ->(_work, _repo) { landed },
                         closing: double(of: transcript), jobs: double(closing: tail))
-                   .measure_turn(run: { value: "fix-it" }, again: { value: false })
   end
 
+  def facts(**given) = adapter(**given).measure_turn(run: { value: "fix-it" }, again: { value: false })
+
   it "measures a coder that said done and handed nothing in" do
-    expect(facts).to eq(role: "coder", reviewing: false, held: true, landed: false, question: "", word: "done", again: false)
+    expect(facts).to eq(role: "coder", reviewing: false, held: true, landed: false, question: "", word: "done", again: false,
+                        inbox: false, resuming: false, pending: false)
+  end
+
+  it "reads an answer waiting in the session's inbox" do
+    inbox.leave("fix-it", "sound")
+    expect(facts).to include(inbox: true)
+  end
+
+  it "reads an answer on its way to the session" do
+    expect(facts(runs: [run.merge(resuming: true)])).to include(resuming: true)
+  end
+
+  context "with a verdict judged for the Work item and not delivered" do
+    let(:verdicts) { [{ work: "fix-it", status: "judged" }] }
+
+    it("reads it as pending") { expect(facts).to include(pending: true) }
+  end
+
+  context "with a delivered verdict" do
+    let(:verdicts) { [{ work: "fix-it", status: "delivered" }] }
+
+    it("reads it as read") { expect(facts).to include(pending: false) }
+  end
+
+  it "measures the coder run a submitted branch is named for" do
+    inbox.leave("fix-it", "changes")
+    expect(adapter.measure_submitter(branch: { value: "fix-it" })).to eq(inbox: true, resuming: false)
+  end
+
+  it "refuses a submitted branch no started coder run serves" do
+    expect { adapter.measure_submitter(branch: "other") }
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "no started coder run serves other")
   end
 
   it "reads the Work item as not held once it is no longer started" do
