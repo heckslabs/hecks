@@ -175,3 +175,20 @@ whole-machine fuse, and trips last. `dispatch_roll_forward` stays as the owner's
 - **[owner]** The person's reserve: 8 GB is a guess at what the owner's own use of the machine needs;
   `the-pipeline-backs-off-when-the-owner-uses-the-machine` would read it live.
 - **[owner]** Whether the names Signalbox and Roundhouse stand.
+
+## Decided 2026-11-19
+
+The owner left the four open items to the orchestrator ("your call"), which decided them:
+
+1. **What binds.** Memory binds first. CPU joins as a second pressure input: the band is the worse of
+   the memory band and a load band, read from the 1-minute load against the performance cores. Model
+   usage is not part of headroom: it is a daily budget fuse (a `model` breaker) beside the boot
+   budget, rated by ADR 0220's spend bound.
+2. **Merit order.** Until work is sized: priority `now` first, then the epic's tier, then the step.
+   Once `work-is-sized-and-routed-to-a-model` lands, value per unit of compute is the tier's weight
+   divided by the estimated pomodoros.
+3. **The reserve and the draws.** The person's reserve stays at 8 GB, a coder's expected draw at
+   1.5 GB and a gate's at 2.5 GB, as starting estimates. After a day of shadow readings they are
+   replaced by the meter's measured means.
+4. **The names.** Signalbox and Roundhouse stand. The wider naming record
+   (`naming-decision-hecks-on-rails-and-its-parts`) stays Proposed.

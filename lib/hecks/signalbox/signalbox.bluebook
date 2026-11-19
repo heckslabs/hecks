@@ -21,6 +21,13 @@ Hecks.bluebook "Signalbox" do
     attribute :target,   Megabytes, optional: true
     attribute :floor,    Megabytes, optional: true
     attribute :gap,      Megabytes, optional: true
+    # The second input (decided 2026-11-19): the 1-minute load in hundredths, the performance cores
+    # it is read against, and the load marks in percent of those cores.
+    attribute :load,       Hundredths, optional: true
+    attribute :cores,      Count, optional: true
+    attribute :load_tight, Percent, optional: true
+    attribute :load_short, Percent, optional: true
+    attribute :load_gap,   Percent, optional: true
 
     value_object "Key" do
       attribute :value, String, matches: :present
@@ -41,6 +48,21 @@ Hecks.bluebook "Signalbox" do
       invariant("a duration is not negative") { !value.negative? }
     end
 
+    value_object "Hundredths" do
+      attribute :value, Integer, default: 0
+      invariant("a load is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Percent" do
+      attribute :value, Integer, default: 0
+      invariant("a mark is not negative") { !value.negative? }
+    end
+
     lifecycle :band, default: "normal" do
       mark :rests, "normal", "tight", "short", "dark"
       transition "Tighten" => "tight",  from: %w[normal tight short dark]
@@ -59,16 +81,22 @@ Hecks.bluebook "Signalbox" do
       emits PressureOpened
     end
 
-    # A reading names the marks it is judged against, so every part reads the same signal.
+    # A reading names the marks it is judged against, so every part reads the same signal. The load
+    # and its marks are the second input; a reading that leaves them out is judged on memory alone.
     command "Read" do
       role "System"
-      goal "Publish one current reading of headroom against the target, the floor and the gap"
+      goal "Publish one current reading of headroom and load against their marks"
 
       reference_to Pressure
       attribute :headroom,    Signed, sets: true
       attribute :target,      Megabytes, sets: true
       attribute :floor,       Megabytes, sets: true
       attribute :gap,         Megabytes, sets: true
+      attribute :load,        Hundredths, default: { value: 0 }, sets: true
+      attribute :cores,       Count, default: { value: 0 }, sets: true
+      attribute :load_tight,  Percent, default: { value: 0 }, sets: true
+      attribute :load_short,  Percent, default: { value: 0 }, sets: true
+      attribute :load_gap,    Percent, default: { value: 0 }, sets: true
       attribute :age,         Seconds
       attribute :stale_after, Seconds
 
@@ -372,7 +400,7 @@ Hecks.bluebook "Signalbox" do
   end
 
   # Protection coordination: a session's fuse (rank 1), the helpers' share (2), shedding (3) and the
-  # whole-machine fuse (4). A breaker trips past its rating, once no smaller one can act.
+  # whole-machine fuses (4): the boot budget and the daily model usage budget. A breaker trips past its rating, once no smaller one can act.
   aggregate "Breaker" do
     description "One breaker in the protection order: its level, its rating, whether it has tripped, and the session it shed."
     created_by "Breaker.install!"
@@ -394,12 +422,14 @@ Hecks.bluebook "Signalbox" do
 
     value_object "Level" do
       attribute :value, String
-      invariant("a breaker is a fuse, the helper share, shedding or the machine fuse") do
-        value == "fuse" || value == "helpers" || value == "shedding" || value == "machine"
+      # `model` is the daily model usage fuse (ADR 0220's spend bound), beside the machine fuse.
+      invariant("a breaker is a fuse, the helper share, shedding, the machine fuse or the model fuse") do
+        value == "fuse" || value == "helpers" || value == "shedding" || value == "machine" || value == "model"
       end
     end
 
-    # What a breaker is rated in: megabytes, helpers, sessions or boot minutes, by its level.
+    # What a breaker is rated in: megabytes, helpers, sessions, boot minutes or model usage, by its
+    # level.
     value_object "Amount" do
       attribute :value, Integer, default: 0
       invariant("a rating is not negative") { !value.negative? }
@@ -529,22 +559,451 @@ Hecks.bluebook "Signalbox" do
     end
   end
 
+  # The pressure beat (ADR 0222, phase 2, the shadow): the record owns what its one look through
+  # the `Looking` port found. It is cleared only from the main checkout's current view.
+  aggregate "Beat" do
+    description "One pressure beat: what one look found of the copy's view, the machine and Delegate's last fill and shed, held for Signalbox's clearance, pressure and rulings."
+    created_by "Beat.begin!"
+
+    identified_by :beat
+
+    attribute :beat,          BeatKey
+    attribute :head,          Word, optional: true
+    attribute :main,          Word, optional: true
+    attribute :missing,       Count, optional: true
+    attribute :capacity,      Megabytes, optional: true
+    attribute :used,          Megabytes, optional: true
+    attribute :reserve,       Megabytes, optional: true
+    attribute :headroom,      Signed, optional: true
+    attribute :load,          Count, optional: true
+    attribute :cores,         Count, optional: true
+    attribute :age,           Seconds, optional: true
+    attribute :stale_after,   Seconds, optional: true
+    attribute :target,        Megabytes, optional: true
+    attribute :floor,         Megabytes, optional: true
+    attribute :gap,           Megabytes, optional: true
+    attribute :load_tight,    Count, optional: true
+    attribute :load_short,    Count, optional: true
+    attribute :load_gap,      Count, optional: true
+    attribute :coder_draw,    Megabytes, optional: true
+    attribute :fill_ruling,   Word, optional: true
+    attribute :fill_subject,  Word, optional: true
+    attribute :fill_delegate, Word, optional: true
+    attribute :shed_ruling,   Word, optional: true
+    attribute :shed_subject,  Word, optional: true
+    attribute :shed_delegate, Word, optional: true
+    attribute :refusal,       Note, optional: true
+
+    value_object "BeatKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of memory is not negative") { !value.negative? }
+    end
+
+    # Headroom goes below zero when what is in use passes the capacity less the reserve.
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Seconds" do
+      attribute :value, Integer, default: 0
+      invariant("a duration is not negative") { !value.negative? }
+    end
+
+    # A clearance for the pressure beat is keyed by the beat it clears.
+    query "ClearedBy" do
+      description "The beat a granted clearance names, whose looked facts are published once it is cleared."
+      attribute :clearance, BeatKey
+      where(beat: :clearance)
+    end
+
+    lifecycle :status, default: "begun" do
+      mark :rests, "looked"
+      mark :terminal, "published", "unlooked"
+      mark :failure, "unlooked"
+      transition "Record"  => "looked",    from: "begun"
+      transition "Fault"   => "unlooked",  from: "begun"
+      transition "Publish" => "published", from: "looked"
+    end
+
+    command "Begin" do
+      role "System"
+      goal "Begin one pressure beat, which looks at the outside once"
+
+      attribute :beat, BeatKey, sets: true
+
+      emits BeatBegun
+    end
+
+    # The headroom is the capacity less what is in use less the person's reserve: what the
+    # pipeline may still draw. It is reckoned here, never by the port that looked.
+    command "Record" do
+      role "System"
+      goal "Record what the beat's look found"
+
+      reference_to Beat
+      attribute :head,          Word, sets: true
+      attribute :main,          Word, sets: true
+      attribute :missing,       Count, sets: true
+      attribute :capacity,      Megabytes, sets: true
+      attribute :used,          Megabytes, sets: true
+      attribute :reserve,       Megabytes, sets: true
+      attribute :load,          Count, sets: true
+      attribute :cores,         Count, sets: true
+      attribute :age,           Seconds, sets: true
+      attribute :stale_after,   Seconds, sets: true
+      attribute :target,        Megabytes, sets: true
+      attribute :floor,         Megabytes, sets: true
+      attribute :gap,           Megabytes, sets: true
+      attribute :load_tight,    Count, sets: true
+      attribute :load_short,    Count, sets: true
+      attribute :load_gap,      Count, sets: true
+      attribute :coder_draw,    Megabytes, sets: true
+      attribute :fill_ruling,   Word, sets: true
+      attribute :fill_subject,  Word, sets: true
+      attribute :fill_delegate, Word, sets: true
+      attribute :shed_ruling,   Word, sets: true
+      attribute :shed_subject,  Word, sets: true
+      attribute :shed_delegate, Word, sets: true
+      sets :headroom, to: capacity - used - reserve
+
+      emits BeatRecorded
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record why the beat could not look"
+
+      reference_to Beat
+      attribute :refusal, Note, sets: true
+
+      emits BeatFaulted
+    end
+
+    # A cleared beat publishes what it looked, so every part that reads the beat reads one fact.
+    command "Publish" do
+      role "System"
+      goal "Publish the facts of a beat Signalbox cleared"
+
+      reference_to Beat
+      attribute :head,          Word
+      attribute :main,          Word
+      attribute :missing,       Count
+      attribute :capacity,      Megabytes
+      attribute :used,          Megabytes
+      attribute :reserve,       Megabytes
+      attribute :headroom,      Signed
+      attribute :load,          Count
+      attribute :cores,         Count
+      attribute :age,           Seconds
+      attribute :stale_after,   Seconds
+      attribute :target,        Megabytes
+      attribute :floor,         Megabytes
+      attribute :gap,           Megabytes
+      attribute :load_tight,    Count
+      attribute :load_short,    Count
+      attribute :load_gap,      Count
+      attribute :coder_draw,    Megabytes
+      attribute :fill_ruling,   Word
+      attribute :fill_subject,  Word
+      attribute :fill_delegate, Word
+      attribute :shed_ruling,   Word
+      attribute :shed_subject,  Word
+      attribute :shed_delegate, Word
+
+      emits BeatPublished
+    end
+  end
+
+  # Shadow (ADR 0222, phase 2). Each beat's ruling has its own key (`<beat>:fill`, `<beat>:shed`),
+  # so a ruling is never revised in place: the newest one stands. Nothing acts on a ruling.
+  aggregate "Ruling" do
+    description "Signalbox's ruling on one subject of a Delegate fill, shed or reap, beside Delegate's own decision."
+    created_by "Ruling.record!"
+
+    identified_by :ruling
+
+    attribute :ruling,   Key
+    attribute :function, Function
+    attribute :subject,  Word
+    attribute :delegate, Note
+    attribute :decision, Word
+    attribute :law,      Note
+    attribute :load,     Hundredths
+    attribute :headroom, Signed
+    attribute :agrees,   Answer
+    attribute :also,     Note, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Function" do
+      attribute :value, String
+      invariant("a ruling is on a fill, a shed or a reap") { value == "fill" || value == "shed" || value == "reap" }
+    end
+
+    value_object "Hundredths" do
+      attribute :value, Integer, default: 0
+      invariant("a load is not negative") { !value.negative? }
+    end
+
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    value_object "Answer" do
+      attribute :value, String
+      invariant("a ruling agrees with Delegate or it does not") { value == "yes" || value == "no" }
+    end
+
+    query "Shadowed" do
+      description "Every ruling, Delegate's decision beside Signalbox's, by function and subject."
+      order_by :ruling
+    end
+
+    query "Disagreements" do
+      description "The rulings where Signalbox would have decided otherwise than Delegate did."
+      where(agrees: "no")
+      order_by :ruling
+    end
+
+    # `also` names the next law that would refuse, when the deciding law is one a start's settings
+    # fix rather than the machine's state (the MCP servers a session starts).
+    command "Record" do
+      role "System"
+      goal "Record what Signalbox would have decided on one subject of a Delegate fill, shed or reap"
+
+      attribute :ruling,   Key, sets: true
+      attribute :function, Function, sets: true
+      attribute :subject,  Word, sets: true
+      attribute :delegate, Note, sets: true
+      attribute :decision, Word, sets: true
+      attribute :law,      Note, sets: true
+      attribute :load,     Hundredths, sets: true
+      attribute :headroom, Signed, sets: true
+      attribute :agrees,   Answer, sets: true
+      attribute :also,     Note, optional: true, sets: true
+
+      emits RulingRecorded
+    end
+  end
+
+  # What one pressure beat heard of Delegate: the subject of its last fill and whether it started or
+  # left it waiting, and the subject of its last shed and whether it shed. The beat carries the
+  # reading the rulings are judged on; the policies below rule, and a ruling is recorded per function.
+  aggregate "Shadow" do
+    description "What one pressure beat heard of Delegate's last fill and shed, with the reading Signalbox rules them on."
+    created_by "Shadow.hear!"
+
+    identified_by :shadow
+
+    attribute :shadow,        Key
+    attribute :headroom,      Signed
+    attribute :floor,         Megabytes
+    attribute :load,          Hundredths
+    attribute :cores,         Count
+    attribute :load_short,    Percent
+    attribute :draw,          Megabytes
+    attribute :fill_ruling,   RulingKey
+    attribute :fill_subject,  Word
+    attribute :fill_delegate, FillWord
+    attribute :shed_ruling,   RulingKey
+    attribute :shed_subject,  Word
+    attribute :shed_delegate, ShedWord
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    # The key the beat's ruling on one function takes: `<beat>:fill` or `<beat>:shed`.
+    value_object "RulingKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # Delegate's last fill: it started its subject, left it waiting, or had nothing planned.
+    value_object "FillWord" do
+      attribute :value, String
+      invariant("a fill started, waited or had nothing") { value == "start" || value == "wait" || value == "none" }
+    end
+
+    # Delegate's last shed: it asked its subject to yield, or it spared every one.
+    value_object "ShedWord" do
+      attribute :value, String
+      invariant("a shed asked one to yield or spared every one") { value == "shed" || value == "none" }
+    end
+
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of memory is not negative") { !value.negative? }
+    end
+
+    value_object "Hundredths" do
+      attribute :value, Integer, default: 0
+      invariant("a load is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Percent" do
+      attribute :value, Integer, default: 0
+      invariant("a mark is not negative") { !value.negative? }
+    end
+
+    command "Hear" do
+      role "System"
+      goal "Hear Delegate's last fill and shed on one pressure beat, with the reading to rule them on"
+
+      attribute :shadow,        Key, sets: true
+      attribute :headroom,      Signed, sets: true
+      attribute :floor,         Megabytes, sets: true
+      attribute :load,          Hundredths, sets: true
+      attribute :cores,         Count, sets: true
+      attribute :load_short,    Percent, sets: true
+      attribute :draw,          Megabytes, sets: true
+      attribute :fill_ruling,   RulingKey, sets: true
+      attribute :fill_subject,  Word, sets: true
+      attribute :fill_delegate, FillWord, sets: true
+      attribute :shed_ruling,   RulingKey, sets: true
+      attribute :shed_subject,  Word, sets: true
+      attribute :shed_delegate, ShedWord, sets: true
+
+      emits DelegateHeard
+    end
+  end
+
+  # The pressure beat's chain. Clearance's givens stop a beat from a worktree or a stale copy; a
+  # cleared beat publishes its facts, which open and read its own Pressure and let Signalbox hear Delegate.
+  policy "LookWhenTheBeatBegins" do
+    on  "Beat.BeatBegun"
+    ask :look, with: { beat: :beat }
+  end
+
+  policy "RecordTheLook" do
+    on      "Beat.BeatLooked"
+    trigger Beat::Record, with: {
+      beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
+      reserve: :reserve, load: :load, cores: :cores, age: :age, stale_after: :stale_after, target: :target,
+      floor: :floor, gap: :gap, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
+      coder_draw: :coder_draw, fill_ruling: :fill_ruling, fill_subject: :fill_subject,
+      fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
+      shed_delegate: :shed_delegate
+    }
+  end
+
+  policy "FaultTheLook" do
+    on      "Beat.BeatUnlooked"
+    trigger Beat::Fault, with: { beat: :beat, refusal: :refusal }
+  end
+
+  policy "AskClearanceForTheBeat" do
+    on      "Beat.BeatLooked"
+    trigger Clearance::Grant, with: {
+      clearance: :beat, part: { value: "pressure-beat" }, head: :head, main: :main, missing: :missing,
+      age: :age, stale_after: :stale_after
+    }
+  end
+
+  # A root: a cleared beat's publication begins its own chain, as Delegate's fill after a reading
+  # does, so the band and the rulings it sets off are not cut off by the look before it.
+  policy "PublishTheClearedBeat" do
+    on       "Clearance.ClearanceGranted"
+    root
+    where    { part.value == "pressure-beat" }
+    for_each "Beat.ClearedBy"
+    trigger  Beat::Publish, with: {
+      beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
+      reserve: :reserve, headroom: :headroom, load: :load, cores: :cores, age: :age,
+      stale_after: :stale_after, target: :target, floor: :floor, gap: :gap, load_tight: :load_tight,
+      load_short: :load_short, load_gap: :load_gap, coder_draw: :coder_draw, fill_ruling: :fill_ruling,
+      fill_subject: :fill_subject, fill_delegate: :fill_delegate, shed_ruling: :shed_ruling,
+      shed_subject: :shed_subject, shed_delegate: :shed_delegate
+    }
+  end
+
+  policy "OpenTheClearedBeatsPressure" do
+    on      "Beat.BeatPublished"
+    trigger Pressure::Open, with: { pressure: :beat, capacity: :capacity }
+  end
+
+  policy "PublishTheClearedBeatsPressure" do
+    on      "Beat.BeatPublished"
+    trigger Pressure::Read, with: {
+      pressure: :beat, headroom: :headroom, target: :target, floor: :floor, gap: :gap, load: :load,
+      cores: :cores, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap, age: :age,
+      stale_after: :stale_after
+    }
+  end
+
+  policy "HearDelegateOnTheClearedBeat" do
+    on      "Beat.BeatPublished"
+    trigger Shadow::Hear, with: {
+      shadow: :beat, headroom: :headroom, floor: :floor, load: :load, cores: :cores,
+      load_short: :load_short, draw: :coder_draw, fill_ruling: :fill_ruling, fill_subject: :fill_subject,
+      fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
+      shed_delegate: :shed_delegate
+    }
+  end
+
+  # The band is the worse of the memory band and the load band (decided 2026-11-19). The load is in
+  # hundredths and its marks in percent of the performance cores, so `cores * mark` is in hundredths.
   policy "TripWhenHeadroomFallsUnderTheFloor" do
     on      "Pressure.PressureRead"
-    where   { headroom.value < floor.value }
+    where   { headroom.value < floor.value || load.value > cores.value * load_short.value }
     trigger Pressure::Trip, with: { pressure: :pressure }
   end
 
   policy "TightenWhenHeadroomFallsUnderTheTarget" do
     on      "Pressure.PressureRead"
-    where   { headroom.value >= floor.value && headroom.value < target.value }
+    where   do
+      headroom.value >= floor.value && load.value <= cores.value * load_short.value &&
+        (headroom.value < target.value || load.value > cores.value * load_tight.value)
+    end
     trigger Pressure::Tighten, with: { pressure: :pressure }
   end
 
-  # Between the target and the target plus the gap no policy answers, so the band holds: hysteresis.
+  # Between a mark and the mark past it by the gap no policy answers, so the band holds: hysteresis.
+  # Memory and load must both be past their marks by their gaps for the band to ease.
   policy "EaseOnlyPastTheTargetByTheGap" do
     on      "Pressure.PressureRead"
-    where   { headroom.value >= target.value + gap.value }
+    where   do
+      headroom.value >= target.value + gap.value && load.value <= cores.value * (load_tight.value - load_gap.value)
+    end
     trigger Pressure::Ease, with: { pressure: :pressure }
   end
 
@@ -579,5 +1038,120 @@ Hecks.bluebook "Signalbox" do
     on      "Response.ResponseAsked"
     where   { band.value != "normal" && role.value == "gate" }
     trigger Response::Wait, with: { response: :response, session: :session }
+  end
+
+  # The shadow's rulings, the whole table: Signalbox starts a normal-tier coder whose draw fits the
+  # headroom while pressure is not short (law 4), and sheds only while it is short. Exactly one
+  # policy answers each function of a beat; a fill with nothing planned is not ruled on.
+  policy "RuleWithDelegatesStart" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      fill_delegate.value == "start" &&
+        (draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
+      decision: { value: "start" }, load: :load, headroom: :headroom,
+      law: { value: "a coder's expected draw fits the headroom and pressure is not short" },
+      agrees: { value: "yes" }
+    }
+  end
+
+  policy "RuleAgainstDelegatesStart" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      fill_delegate.value == "start" &&
+        !(draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
+      decision: { value: "wait" }, load: :load, headroom: :headroom,
+      law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is short" },
+      agrees: { value: "no" }
+    }
+  end
+
+  policy "RuleWithDelegatesWait" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      fill_delegate.value == "wait" &&
+        !(draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
+      decision: { value: "wait" }, load: :load, headroom: :headroom,
+      law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is short" },
+      agrees: { value: "yes" }
+    }
+  end
+
+  policy "RuleAgainstDelegatesWait" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      fill_delegate.value == "wait" &&
+        (draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
+      decision: { value: "start" }, load: :load, headroom: :headroom,
+      law: { value: "a coder's expected draw fits the headroom and pressure is not short" },
+      agrees: { value: "no" }
+    }
+  end
+
+  policy "RuleWithDelegatesShed" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      shed_delegate.value == "shed" &&
+        (headroom.value < floor.value || load.value > cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,
+      decision: { value: "shed" }, load: :load, headroom: :headroom,
+      law: { value: "shedding rests the lowest-merit coder while pressure is short" },
+      agrees: { value: "yes" }
+    }
+  end
+
+  policy "RuleAgainstDelegatesShed" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      shed_delegate.value == "shed" &&
+        !(headroom.value < floor.value || load.value > cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,
+      decision: { value: "none" }, load: :load, headroom: :headroom,
+      law: { value: "nothing is shed while pressure is not short" },
+      agrees: { value: "no" }
+    }
+  end
+
+  policy "RuleWithDelegatesSparing" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      shed_delegate.value == "none" &&
+        !(headroom.value < floor.value || load.value > cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,
+      decision: { value: "none" }, load: :load, headroom: :headroom,
+      law: { value: "nothing is shed while pressure is not short" },
+      agrees: { value: "yes" }
+    }
+  end
+
+  policy "RuleAgainstDelegatesSparing" do
+    on      "Shadow.DelegateHeard"
+    where   do
+      shed_delegate.value == "none" &&
+        (headroom.value < floor.value || load.value > cores.value * load_short.value)
+    end
+    trigger Ruling::Record, with: {
+      ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,
+      decision: { value: "shed" }, load: :load, headroom: :headroom,
+      law: { value: "shedding rests the lowest-merit coder while pressure is short" },
+      agrees: { value: "no" }
+    }
   end
 end
