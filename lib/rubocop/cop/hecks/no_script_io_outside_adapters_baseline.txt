@@ -30,7 +30,6 @@ lib/hecks/tools/deploy_recipe.rb
 lib/hecks/tools/downstream_model_check.rb
 lib/hecks/tools/fuzz_sweep.rb
 lib/hecks/tools/fuzz_sweep/pool.rb
-lib/hecks/tools/interview_run.rb
 lib/hecks/tools/model_check.rb
 lib/hecks/tools/pattern_cases.rb
 lib/hecks/tools/project_cli.rb
