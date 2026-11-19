@@ -841,12 +841,9 @@ Hecks.bluebook "Agents" do
       attribute :value, String, matches: :present
     end
 
-    # The tier of review one class of changed path asks for, one row per class: `full` (the
-    # reviewer runs every touched domain's behaviors) or `verify_only` (it checks the gates and the
-    # row's proof). `paths` are globs matched whole against a path; `proof` is what a verify_only
-    # path must show: `none`, `regenerated` (regenerating gave the same bytes, as the landing's
-    # generated check proves) or `pure_rename` (git reports the path as a rename at 100%). The rename
-    # row names no glob: it is the class of every path of a pure rename, both its ends.
+    # One row per class of changed path: its tier, the globs that name it, and the proof a verify_only
+    # path must show (`none`, `regenerated`: the same bytes on regeneration, or `pure_rename`: git's
+    # rename at 100%). The rename row names no glob; it classes both ends of every pure rename.
     value_object "ReviewTier" do
       attribute :kind,   String
       attribute :tier,   String
@@ -902,10 +899,9 @@ Hecks.bluebook "Agents" do
       member word: "oidc",        reason: "OIDC is how a person signs in"
     end
 
-    # Which domain a changed path belongs to, one row per class of path, first match wins: `owner`
-    # is the nearest directory above the path that holds a bluebook (a `bluebook/` folder counts as
-    # its parent), and `every` is every domain that has a `.behaviors` file, for a path no one domain
-    # owns, such as the host or the kernel. An `owner` path with no bluebook above it is `every` too.
+    # The domain of a changed path, first matching row wins: `owner` is the nearest directory above it
+    # holding a bluebook (a `bluebook/` folder names its parent), or `every` when there is none;
+    # `every` is each domain with a `.behaviors` file, for a path no one domain owns.
     value_object "DomainPath" do
       attribute :paths,   String
       attribute :maps_to, String
@@ -1080,13 +1076,10 @@ Hecks.bluebook "Agents" do
       where(work: :work)
     end
 
-    # The rule: security first; a path no `ReviewTier` row names is `unnamed`, full; a verify_only
-    # class whose proof is not shown is full; a path any full row names is full, so a rename into a
-    # full directory or a doc among adapters is full; a diff with any full path, or none at all, is
-    # full; otherwise verify_only. The adapter only matches the rows' globs and words to the paths
-    # git read; the rule is this comment and the rows above.
+    # The rule is the description and the rows above; the adapter only matches their globs and words
+    # to the paths git read. A path any full row names is full, so a rename into a full directory is.
     query "Tier" do
-      description "The review tier of a submitted commit: full or verify_only on the first line, then each changed path with its class and tier. Security-shaped, unnamed and unproven paths are full, and one full path makes the diff full."
+      description "The review tier of a submitted commit: full or verify_only on the first line, then each changed path with its tier and class. A path with a SecurityWord is full; a path no ReviewTier row names is unnamed and full; a verify_only path whose proof is not shown is full; a path any full row names is full; one full path, or an empty diff, makes the commit full."
       attribute :review,      ReviewKey
       attribute :checkout,    CheckoutPath
       attribute :regenerated, ProofState, optional: true
