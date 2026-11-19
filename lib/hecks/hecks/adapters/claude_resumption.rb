@@ -4,6 +4,7 @@ require "json"
 require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
+require_relative "mcp_selection"
 
 module Hecks
   module Adapters
@@ -14,11 +15,10 @@ module Hecks
     # the CLI continues the same session under its own id. Given a short id, a live session or
     # those variables, it starts a copy instead.
     #
-    # The one flag is `--agent`, and only for a run that has a role. Measured with `claude -p` on
-    # 2026-11-09: it does not start a copy (the session id stays the same), and it is needed, since
-    # a resume without it starts the session's MCP servers with `CLAUDE_CODE_AGENT=claude`, so a
-    # role's `hecks-mcp` server (which narrows itself from that variable) comes back unrestricted.
-    # With it the servers see the role again. Any other flag may still start a copy.
+    # A run with a role is resumed with `--agent` and `--settings` only; `claude -p` measured
+    # neither starting a copy. Without `--agent` the MCP servers see `CLAUDE_CODE_AGENT=claude`,
+    # so a role's `hecks-mcp` server comes back unrestricted. `--settings` carries {McpSelection}'s
+    # disabled servers, read from the run's checkout: a resume does not keep the start's settings.
     class ClaudeResumption
       # The line the CLI prints when a resume started a copy instead of waking the session.
       COPY_NOTE = /^.*started a copy.*$/
@@ -72,12 +72,19 @@ module Hecks
 
       # Runs the resume: the role flag when the run has one, the full id, and the answer after `--`.
       def wake(full, answer, run)
-        @shell.capture(*@nice, @command, *role_flag(run[:agent]), "--bg", "--resume", full, "--", answer,
+        @shell.capture(*@nice, @command, *role_flag(run[:agent]), *mcp_flag(run), "--bg", "--resume", full, "--", answer,
                        env: cleared.merge(run.fetch(:env)), chdir: run.fetch(:chdir))
       end
 
       # @return [Array<String>] `--agent <role>` for a run that has a role, else nothing
       def role_flag(agent) = agent.to_s.empty? ? [] : ["--agent", agent.to_s]
+
+      # @return [Array<String>] `--settings` with the project servers the role does not start,
+      #   read from the run's checkout, else nothing
+      def mcp_flag(run)
+        block = McpSelection.settings(run[:chdir], run[:agent])
+        block.empty? ? [] : ["--settings", JSON.generate(block)]
+      end
 
       def stop(entry)
         unless STOPPED_STATES.include?(entry["state"].to_s)
