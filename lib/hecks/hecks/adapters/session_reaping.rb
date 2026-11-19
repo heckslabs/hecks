@@ -78,6 +78,11 @@ module Hecks
       #   run is ended (`abandon_after_minutes`), 0 when it sets none
       def abandon_after = settings[:abandon_after_minutes].to_i
 
+      # @return [Integer] the minutes the world's `reaping` line keeps a done or stopped helper
+      #   session the pipeline launched and no run holds (`remove_done_after_minutes`), 0 when it
+      #   sets none
+      def remove_done_after = settings[:remove_done_after_minutes].to_i
+
       private
 
       def open?(held) = OPEN.include?(@items.work_status(work_key(held)))
