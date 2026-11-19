@@ -1395,10 +1395,9 @@ Hecks.bluebook "Tickets" do
     trigger  Work::Lapse, with: { work: :work }
   end
 
-  # An accepted decision Point of an interview is one draft decision record, numbered as the Point
-  # names it and citing the interview and Point (ADR 0194, decision 4). A store read from
-  # docs/decisions refuses the draft by name, so like LapseWorkWhenSuperseded this drafts only in a
-  # Memory boot; a number already drafted is refused, so a replayed interview drafts nothing twice.
+  # An accepted decision Point is one draft record, numbered as the Point names it (ADR 0194,
+  # decision 4). A store read from docs/decisions refuses Draft, so like LapseWorkWhenSuperseded
+  # this drafts only in a Memory boot; a drafted number is refused, so a replay drafts nothing twice.
   policy "DraftAdrWhenDecisionAccepted" do
     on      "Interview.PointAccepted"
     where   { kind.value == "decision" }
