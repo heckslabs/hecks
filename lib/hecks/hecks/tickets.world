@@ -66,11 +66,8 @@ Hecks.world "Tickets" do
   # query (ADR 0222, metering); off, each Machine reading keeps it beside as `metered_load`.
   # Memory stays judged on free plus inactive pages; at the turn the marks see one of each meter.
   metering "Machine", roundhouse: false
-  # `admission.signalbox` (ADR 0222, phase 3, admission) puts each coder a fill would start to
-  # Signalbox's `Admission.Admit` in place of `work_limit`, the moving `work_cap` and the red
-  # `urgent_reserve`: a coder starts only if its expected draw fits the headroom, priority-now and
-  # red items first, one start per ramp window, and a lower-tier one only while its draw leaves
-  # the gap above the shedding floor (hysteresis). Off, the cap holds. Turn with `hecks Dial.turn!`.
+  # `admission.signalbox` (ADR 0222, phase 3): Signalbox admits each coder by headroom in place of
+  # `work_limit`, the moving `work_cap` and the red `urgent_reserve`. Off, the cap holds.
   admission "Dispatch", signalbox: false
   epic_wip_limit "Dispatch", limit: 4
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
