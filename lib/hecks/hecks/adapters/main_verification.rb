@@ -18,7 +18,7 @@ module Hecks
     # names there: the quick gate, all the listener promises before a push (CI on the train pull
     # request is the full check). These commits are answered `superseded` without a check: one
     # holding no hecks launcher (a project on the hecks gem landed it), one other than the head of
-    # local main, one `origin/main` carries (contained, or squash-merged by a train) or an open
+    # local main, one `origin/main` already contains (`CarriedCheck`) or an open
     # train pull request holds (`BoardedCheck`), judged before every check and after the last.
     # A failing check refuses the verification: the first line names every failing check, and a
     # block for each keeps its last `TAIL` lines. The copy's crates build into the shared Cargo

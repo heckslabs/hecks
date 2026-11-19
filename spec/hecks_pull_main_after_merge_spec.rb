@@ -52,13 +52,13 @@ RSpec.describe "pulling main after a boarded commit merged" do
     git("rev-parse", "HEAD", chdir: where)
   end
 
-  # Local main boards one commit; GitHub squashes it into a new commit on origin/main, so local
-  # main stands ahead by one and behind by one.
-  def board_and_squash
+  # Local main boards one commit; GitHub merges it in a merge commit on origin/main that keeps the
+  # boarded sha, so local main stands behind by one and ahead by none.
+  def board_and_merge
     boarded = commit(repo, "boarded.txt", "boarded")
-    File.write(File.join(other, "boarded.txt"), "boarded")
-    git("add", ".", chdir: other)
-    git("commit", "-q", "-m", "Train: main at #{boarded[0, 9]} (#12)", chdir: other)
+    git("fetch", "-q", repo, "main", chdir: other)
+    git("merge", "-q", "--no-ff", "-m", "Merge pull request #12 from train/main-#{boarded[0, 12]}", "FETCH_HEAD",
+        chdir: other)
     git("push", "-q", "origin", "main", chdir: other)
     @pull = { number: 12, state: "MERGED", mergeCommit: { oid: git("rev-parse", "HEAD", chdir: other) } }
     boarded
@@ -90,14 +90,14 @@ RSpec.describe "pulling main after a boarded commit merged" do
 
   def fetch = git("fetch", "-q", "origin")
 
-  it "brings main level with a squash merge of its boarded commit", :aggregate_failures do
-    observe(board_and_squash)
+  it "brings main level with the merge commit of its boarded commit by a fast-forward", :aggregate_failures do
+    observe(board_and_merge)
     expect(ahead_behind).to eq([0, 0])
-    expect(last("MainPulled", :report)).to include("carried by squash")
+    expect(last("MainPulled", :report)).to include("main fast-forwarded 1 commit")
   end
 
   it "keeps the unpushed commits the pull request did not carry", :aggregate_failures do
-    boarded = board_and_squash
+    boarded = board_and_merge
     commit(repo, "later.txt", "mine")
     observe(boarded)
     expect(git("log", "--format=%s", "origin/main..main")).to eq("later.txt")
@@ -106,12 +106,12 @@ RSpec.describe "pulling main after a boarded commit merged" do
 
   it "pulls main when CI on the merge commit failed too" do
     @conclusion = "failure"
-    observe(board_and_squash)
+    observe(board_and_merge)
     expect(ahead_behind).to eq([0, 0])
   end
 
   it "refuses a dirty checkout by name and leaves main where it was", :aggregate_failures do
-    boarded = board_and_squash
+    boarded = board_and_merge
     File.write(File.join(repo, "README"), "edited")
     observe(boarded)
     expect(last("PullDeclinedRecorded", :refusal)).to include("cannot pull main: the checkout has uncommitted changes")
@@ -119,10 +119,10 @@ RSpec.describe "pulling main after a boarded commit merged" do
   end
 
   it "pulls nothing while the pull request is still open", :aggregate_failures do
-    boarded = board_and_squash
+    boarded = board_and_merge
     @pull = { number: 12, state: "OPEN" }
     observe(boarded)
     fetch
-    expect(ahead_behind).to eq([1, 1])
+    expect(ahead_behind).to eq([0, 1])
   end
 end

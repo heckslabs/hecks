@@ -107,7 +107,7 @@ Hecks.bluebook "Hecks" do
                closes: "TrainPrCiStarted", minutes: 0, forgets: 1440, fixer: "orchestrator",
                move: "Read githubstatus.com for GitHub Actions, and the PR's checks with SendTrain.watch! to=<boarding> (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
-                     "started once Actions is up, read when the launchd beat last ran from the mtime of ~/.claude/hecks-dev/train-beat.log (start no beat), then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
+                     "started once Actions is up, read when the launchd beat last ran from the mtime of ~/.claude/hecks-dev/train-beat.log (start no beat), then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --merge)."
         # The four AgentRun rows end on the run's last lines: `closes` clears a line before it is
         # filed, and `ends` abandons a filed stall whose run was tidied or retired after it opened,
         # even when a closing line came first, so its Work item is not started on a run that is gone.

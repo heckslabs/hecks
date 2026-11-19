@@ -64,7 +64,7 @@ runs cold. Before adding a spec or a step, check where it runs:
 - **Measure the right run.** The wall is `run_started_at` to `updated_at` of the attempt
   (`gh api repos/<owner>/<repo>/actions/runs/<id>/attempts/<n>`). Take attempt 1 of a run on
   a tree no earlier run had: a rerun, or a run on a tree already attested (the PR's own tree
-  after a squash merge; any rerun after the pre-push hook's note lands), skips the heavy jobs
+  after a merge commit that adds nothing to it; any rerun after the pre-push hook's note lands), skips the heavy jobs
   and reads fast. A change to a cache key, to `rust/src` or to `ci-rust-io.yml` makes the next
   run cold once. `main`'s runs and the cache-warm job share the runner pool, so a busy pool
   adds queueing; a single cache download can also stall, so one slow job is not a regression

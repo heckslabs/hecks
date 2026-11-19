@@ -33,6 +33,6 @@ RSpec.describe "the settle of a started work item with no live run" do
     "a person claimed"                  => -> { { claimant: "chris" } },
     "the dispatch started a moment ago" => -> { { claimed_at: (now - 30).iso8601 } }
   }.each do |name, given|
-    it("leaves an item #{name}") { expect(settle(**instance_exec(&given))).to eq([]) }
+    it("leaves an item #{name}, saying so") { expect(settle(**instance_exec(&given))).to match([/\Aleft w: /]) }
   end
 end

@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
 require "time"
+require_relative "settle_standing"
 
 module Hecks
   module Adapters
     class Dispatching
       # Settles the started work items whose sessions have ended: asks each running session how it
       # is, then finishes the work item whose branch landed since it started and yields any other,
-      # with the condition as the reason. A session still working is left alone.
+      # with the condition as the reason. A session still working is left alone, and its line
+      # says so: every started work item gets one line, settled, yielded or left with why.
       class Settler
         # Why a stall item lands nothing, which its finish names.
         STALL_MOVE = "a stall item's move is its session"
@@ -37,13 +39,16 @@ module Hecks
           @sessions = rule[:sessions]
           @orphans = rule[:orphans]
           @stall = rule[:stall]
+          @standing = SettleStanding.new(grace: grace, clock: clock, in_flight: ->(key) { work_items.landing_in_flight?(key) })
         end
 
-        # @return [Array<String>] one line for each work item settled, empty when none was
+        # @return [Array<String>] one line for each started work item: settled, yielded, or left
+        #   with the reason it was left; empty only when no work item is started
         def call
           @launcher.check_all unless checkable.empty?
           retire_gone
-          ended.filter_map { |key, run| settle(key, run[:condition]) } + release_orphans
+          told = settled + release_orphans
+          told.map(&:last) + left(told.map(&:first))
         end
 
         private
@@ -53,8 +58,22 @@ module Hecks
         def release_orphans
           return [] unless @orphans
 
-          @orphans.among(started).map { |item| @launcher.yield_back(item, ORPHAN_REASON) }
+          @orphans.among(started).map { |item| [item.key, @launcher.yield_back(item, ORPHAN_REASON)] }
         end
+
+        # Each ended session's work item with the line its settle gave, for those it settled.
+        def settled
+          ended.filter_map { |key, run| (line = settle(key, run[:condition])) && [key, line] }
+        end
+
+        # A line for each started work item nothing else reported, read from its run as it stands
+        # after the check, so a run an answer resumed reads as started again.
+        def left(told)
+          runs = @work_items.runs
+          untold(told).map { |key| @standing.line(key, runs[key]) }
+        end
+
+        def untold(told) = started.map(&:key).uniq - told
 
         # With `claude` out of reach nothing lists a session, so a run started longer ago than the
         # world's minutes is asked to retire; `AgentRun.Retire` closes it only when the world's rule
@@ -121,13 +140,7 @@ module Hecks
 
         # A clock guard only: a run younger than the grace has not been read long enough to say
         # how its session ended, so it is left alone. A run with no recorded start counts as old.
-        def ended = mine.select { |_key, run| run[:status] == "finished" && !young?(run) }
-
-        def young?(run)
-          @clock.call - Time.parse(run[:started_at].to_s) < @grace
-        rescue ArgumentError
-          false
-        end
+        def ended = mine.select { |_key, run| run[:status] == "finished" && !@standing.young?(run) }
 
         def mine
           @work_items.runs.slice(*started.map(&:key))

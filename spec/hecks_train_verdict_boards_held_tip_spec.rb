@@ -172,14 +172,14 @@ RSpec.describe "a verdict on the train pull request ahead boards the tip held be
     expect([stage(first), stage(third)]).to eq(%w[green verified])
   end
 
-  # GitHub squashes the first pull request into origin/main, and the checkout's pull rebases the
-  # held tip onto it: the tip's commit is rewritten, so the run keyed by the old sha is superseded.
-  def squash_first_and_pull(first)
+  # GitHub merges the first pull request into origin/main in a merge commit, and the checkout's
+  # pull rebases the held tip onto that merge: the tip's commit is rewritten, so the run keyed by
+  # the old sha is superseded.
+  def merge_first_and_pull(first)
     other = File.join(dir, "other")
     git("clone", "-q", File.join(dir, "origin.git"), other, chdir: dir)
-    File.write(File.join(other, "first.rb"), git("show", "#{first}:first.rb"))
-    git("add", ".", chdir: other)
-    git("commit", "-m", "Train: main at first (#12)", chdir: other)
+    git("fetch", "-q", repo, "main", chdir: other)
+    git("merge", "-q", "--no-ff", "-m", "Merge pull request #12 from train/main-first", first, chdir: other)
     git("push", "-q", "origin", "main", chdir: other)
     git("pull", "-q", "--rebase", "origin", "main")
     resolve(first, "MERGED")
@@ -189,7 +189,7 @@ RSpec.describe "a verdict on the train pull request ahead boards the tip held be
 
   it "opens a run for a held tip the pull rewrote, and boards it", :aggregate_failures do
     first, second = held_behind_open_pull_request
-    squash_first_and_pull(first)
+    merge_first_and_pull(first)
     head = rewritten_tip(second)
     2.times { poll }
     expect([stage(second), stage(head)]).to eq(%w[superseded ci_running])
@@ -197,7 +197,7 @@ RSpec.describe "a verdict on the train pull request ahead boards the tip held be
 
   it "opens no second run for the rewritten tip however many observations follow" do
     first, second = held_behind_open_pull_request
-    squash_first_and_pull(first)
+    merge_first_and_pull(first)
     head = rewritten_tip(second)
     3.times { poll }
     expect(@hecks.registry.saga_instances[saga].keys.count(head)).to eq(1)
