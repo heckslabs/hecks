@@ -8,7 +8,7 @@ require_relative "support/pipeline_board_world"
 RSpec.describe Hecks::Adapters::PipelineTickets do
   let(:probe) { Hecks::Adapters::PipelineBoard::Probe }
   let(:running) do
-    { run: "r1", session: "s1", brief: "ROW: w1\nOUTCOME: x", status: "started", agent: "architect" }
+    { run: "r1", session: "s1", brief: "ROW: w1\nOUTCOME: x", status: "started", agent: "architect", parent: "w1" }
   end
   let(:finished) { { run: "r2", session: "s2", brief: "plan", status: "finished", agent: nil } }
   let(:store) { instance_double(Hecks::Adapters::PipelineBoard::LiveStore, records: nil) }
@@ -28,6 +28,12 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
     runs = runs_from_live_store
     expect(runs["s1"]).to include(run: "r1", agent: "architect", work_item: "w1", status: "started")
     expect(runs["s2"]).to include(run: "r2", agent: "", status: "finished")
+  end
+
+  it "keeps the run that dispatched each run, empty for one no run dispatched", :aggregate_failures do
+    runs = runs_from_live_store
+    expect(runs["s1"]).to include(parent: "w1")
+    expect(runs["s2"]).to include(parent: "")
   end
 
   it "asks the running and tidyable queries, and never loads every run to choose among them" do
