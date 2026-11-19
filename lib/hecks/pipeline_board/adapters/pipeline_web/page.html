@@ -613,7 +613,18 @@ function attentionTable(items) {
 }
 // A session's deep link: the board with its row highlighted, by run key, else by session id.
 function runHref(s) { return "/runs/" + encodeURIComponent(s.run || s.id); }
-function sessionLabel(s) { return h("span", {}, h("a", { href: runHref(s), class: "run-link", "data-tip": "Highlight this run on the board" }, s.name), " ", h("small", { class: "sid" }, s.id || "")); }
+// Orders the sessions so each run's fan-out follows the run that dispatched it, one step deeper
+// (`nest`); a run whose parent is not listed heads a group of its own, and a cycle is cut.
+function nestByParent(list) {
+  const runs = new Set(list.map((s) => s.run).filter(Boolean)), kids = new Map(), seen = new Set(), out = [];
+  const listed = (s) => s.parent && runs.has(s.parent) && s.parent !== s.run;
+  for (const s of list) if (listed(s)) kids.set(s.parent, [...(kids.get(s.parent) || []), s]);
+  const walk = (s, nest) => { if (seen.has(s)) return; seen.add(s); out.push({ ...s, nest }); for (const k of kids.get(s.run) || []) walk(k, nest + 1); };
+  for (const s of list) if (!listed(s)) walk(s, 0);
+  for (const s of list) walk(s, 0);
+  return out;
+}
+function sessionLabel(s) { return h("span", { style: s.nest ? "padding-left:" + s.nest + "em" : "" }, s.nest ? "↳ " : "", h("a", { href: runHref(s), class: "run-link", "data-tip": "Highlight this run on the board" }, s.name), " ", h("small", { class: "sid" }, s.id || "")); }
 // Answers a blocked session's question on its own, for the kinds the board may answer.
 function addAutoReply(row, s) {
   const button = h("button", { type: "button", class: "del", tip: "Answer this question on its own: " + (s.question_kind === "confirm" ? "yes" : "retry") }, "Auto reply");
@@ -722,12 +733,13 @@ function renderSessions(all) {
   if (isUnknown(all)) { put("sessions", unknown(all)); return applyHighlight(); }
   lastSessions = all;
   if (highlight && highlight.kind === "runs" && !highlight.placed) aimSessions(all);
-  const list = all.filter(visible);
+  const list = nestByParent(all.filter(visible));
   setTitle("h-sess", "Sessions", list.length);
   const waiting = (lastState && lastState.waiting_on_you && lastState.waiting_on_you.count) || 0;
   const by = (status) => (status === "blocked" ? waiting : all.filter((s) => s.status === status).length);
   summarize("sess", [by("busy") && [by("busy") + " working", "working"], by("blocked") && [by("blocked") + " waiting on you", "attention"],
-    by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable"]);
+    by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable",
+    all.filter((s) => s.parent).length + " fanned out"]);
   const at = pageOf("sessions", list.length, SESSION_PAGE);
   const shown = list.slice(at * SESSION_PAGE, (at + 1) * SESSION_PAGE);
   put("sessions", filterBar(all), table(["Session", "Status", "Class", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s), " ", s.state], s.kind || "-", s.row || "-", clock(s.started), replyNote(s)])),
@@ -748,7 +760,7 @@ function renderSessions(all) {
 // The Sessions table shows the highlighted run's row: the filter that holds it, and the page it is on.
 function aimSessions(all) {
   const has = (s) => s.run === highlight.key || s.id === highlight.key;
-  const listed = () => all.filter(visible);
+  const listed = () => nestByParent(all.filter(visible));
   if (!all.some(has)) return;
   if (!listed().some(has)) resetFilters();
   pages.set("sessions", Math.floor(listed().findIndex(has) / SESSION_PAGE));
