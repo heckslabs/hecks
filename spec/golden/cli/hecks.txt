@@ -60,6 +60,7 @@ commands:
     check_command_names!
     check_workflow_pagination!
     argument_gate_matrix!
+    report_role_shadow!
   StyleRun:
     …
     check_comments!
