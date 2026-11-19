@@ -23,6 +23,10 @@ RSpec.describe "the Sessions page filters" do
     expect(page.scan("nestByParent(all.filter(visible))").size).to eq(2)
   end
 
+  it "heads a group with a run whose parent is not listed, never dropping it" do
+    expect(page).to include("s.parent && runs.has(s.parent)")
+  end
+
   it "counts the runs another run fanned out" do
     expect(page).to include('all.filter((s) => s.parent).length + " fanned out"')
   end
