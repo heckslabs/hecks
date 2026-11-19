@@ -1,0 +1,141 @@
+Hecks.behaviors "Interviews" do
+  vision "An interview opens on its first turn, keeps its Points from proposed to accepted, rejected or superseded, and concludes only with nothing left open."
+
+  # `interviews.hecksagon` binds the aggregate to Memory and attaches Governance, so a boot of
+  # these files passes the memory-only guard and the role check.
+  loads "interviews.hecksagon", "interviews.bluebook"
+
+  test "Record opens an interview with its first exchange" do
+    tests "Record", on: "Interview"
+    input reference: { value: "INT-1" }, subject: { value: "tools" }, keeping: { value: "committed" },
+          speaker: { value: "owner" }, question: { value: "Where do tools go?" }, answer: { value: "Behind ports." }
+    expect emits: ["ExchangeRecorded"], status: "open"
+  end
+
+  # Appending a later turn waits on a command that creates or acts; until then a second Record
+  # on the same interview is refused as a duplicate.
+  test "Record refuses an interview that is already open" do
+    tests "Record", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-2" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    input reference: { value: "INT-2" }, subject: { value: "tools" }, keeping: { value: "committed" },
+          speaker: { value: "agent" }, answer: { value: "Agreed." }
+    expect refused: "already"
+  end
+
+  test "Record refuses a keeping that is neither committed nor local" do
+    tests "Record", on: "Interview"
+    input reference: { value: "INT-3" }, subject: { value: "tools" }, keeping: { value: "shared" },
+          speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    expect refused: "committed"
+  end
+
+  test "ProposePoint refuses a point citing an exchange that was not recorded" do
+    tests "ProposePoint", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-4" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    input interview: "INT-4", number: { value: 1 }, kind: { value: "decision" },
+          statement: { value: "Tools dissolve behind ports" }, source: { value: 2 }
+    expect refused: "a point cites an exchange that was recorded"
+  end
+
+  test "ProposePoint counts one open point" do
+    tests "ProposePoint", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-5" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    input interview: "INT-5", number: { value: 1 }, kind: { value: "decision" },
+          statement: { value: "Tools dissolve behind ports" }, source: { value: 1 }
+    expect emits: %w[PointProposed OpenPointCounted], open_points: { value: 1 }
+  end
+
+  test "Accept emits PointAccepted and settles the open point" do
+    tests "Interviews::Interview.Point.Accept"
+    setup "Interviews::Interview.Record", reference: { value: "INT-6" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-6", number: { value: 1 }, kind: { value: "work" },
+          statement: { value: "Move the tools" }, source: { value: 1 }
+    input reference: { value: "INT-6" }, number: { value: 1 }, kind: { value: "work" },
+          statement: { value: "Move the tools" }
+    expect emits: %w[PointAccepted SettledPointCounted], open_points: { value: 0 }
+  end
+
+  test "Reject settles the open point" do
+    tests "Interviews::Interview.Point.Reject"
+    setup "Interviews::Interview.Record", reference: { value: "INT-7" }, subject: { value: "tools" },
+          keeping: { value: "local" }, speaker: { value: "expert" }, answer: { value: "We lend books." }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-7", number: { value: 1 }, kind: { value: "thing" },
+          statement: { value: "Book" }, source: { value: 1 }
+    input reference: { value: "INT-7" }, number: { value: 1 }
+    expect emits: %w[PointRejected SettledPointCounted], open_points: { value: 0 }
+  end
+
+  test "Supersede settles a proposed point its correction replaces" do
+    tests "Interviews::Interview.Point.Supersede"
+    setup "Interviews::Interview.Record", reference: { value: "INT-8" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-8", number: { value: 1 }, kind: { value: "rule" },
+          statement: { value: "Tools stay" }, source: { value: 1 }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-8", number: { value: 2 }, kind: { value: "rule" },
+          statement: { value: "Tools go" }, source: { value: 1 }, supersedes: { value: 1 }
+    input reference: { value: "INT-8" }, number: { value: 1 }
+    expect emits: %w[PointSuperseded SettledPointCounted], open_points: { value: 1 }
+  end
+
+  test "Revise replaces an accepted point and changes no count" do
+    tests "Interviews::Interview.Point.Revise"
+    setup "Interviews::Interview.Record", reference: { value: "INT-9" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-9", number: { value: 1 }, kind: { value: "decision" },
+          statement: { value: "Tools stay" }, source: { value: 1 }
+    setup "Interviews::Interview.Point.Accept", reference: { value: "INT-9" }, number: { value: 1 },
+          kind: { value: "decision" }, statement: { value: "Tools stay" }
+    input reference: { value: "INT-9" }, number: { value: 1 }
+    expect emits: ["PointRevised"], open_points: { value: 0 }
+  end
+
+  test "Accept refuses a point that is already settled" do
+    tests "Interviews::Interview.Point.Accept"
+    setup "Interviews::Interview.Record", reference: { value: "INT-10" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-10", number: { value: 1 }, kind: { value: "work" },
+          statement: { value: "Move the tools" }, source: { value: 1 }
+    setup "Interviews::Interview.Point.Reject", reference: { value: "INT-10" }, number: { value: 1 }
+    input reference: { value: "INT-10" }, number: { value: 1 }, kind: { value: "work" },
+          statement: { value: "Move the tools" }
+    expect refused: "rejected"
+  end
+
+  test "Conclude refuses while a point is open" do
+    tests "Conclude", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-11" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-11", number: { value: 1 }, kind: { value: "work" },
+          statement: { value: "Move the tools" }, source: { value: 1 }
+    input interview: "INT-11"
+    expect refused: "every point is accepted, rejected or superseded before the interview ends"
+  end
+
+  # The no-exchange refusal cannot be reached while Record opens an interview with its first
+  # exchange; the given stands for when a later command can open one empty.
+  test "Conclude ends an interview whose every point is settled" do
+    tests "Conclude", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-12" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.ProposePoint", interview: "INT-12", number: { value: 1 }, kind: { value: "work" },
+          statement: { value: "Move the tools" }, source: { value: 1 }
+    setup "Interviews::Interview.Point.Accept", reference: { value: "INT-12" }, number: { value: 1 },
+          kind: { value: "work" }, statement: { value: "Move the tools" }
+    input interview: "INT-12"
+    expect emits: ["InterviewConcluded"], status: "concluded"
+  end
+
+  # `policy_only` is refused at the CLI and MCP doors, which this runner does not pass through;
+  # what holds here is that the open count never goes below zero.
+  test "CountSettled refuses to take the open count below zero" do
+    tests "CountSettled", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-13" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    input interview: "INT-13"
+    expect refused: "a tally is not negative"
+  end
+end
