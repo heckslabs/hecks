@@ -1991,7 +1991,7 @@ Hecks.bluebook "Agents" do
 
     command "Stop" do
       role "Operator"
-      goal "Stop a background session (claude stop); refused for a session a PinnedRole row names and one not listed"
+      goal "Stop a background session (claude stop) that no pinned role holds"
 
       attribute :session, FleetSession, sets: true
 
@@ -2051,13 +2051,40 @@ Hecks.bluebook "Agents" do
       returns FleetDocument
     end
 
-    policy "StopWhenAsked" do
+    # The port reads the facts first (whether the session is listed, the run that holds it,
+    # whether a pinned role names it, whether it is working); the policies below judge them and
+    # either ask the port to run `claude` or refuse by name.
+    policy "ExamineBeforeStopping" do
       on      "Fleet.FleetStopRequested"
+      ask     :examine_stop, with: { session: :session }
+    end
+
+    policy "RefuseToStopAPinnedRole" do
+      on      "Fleet.StopExamined"
+      where   { pinned == true }
+      trigger Fleet::Decline, with: { refusal: :note }
+    end
+
+    policy "StopTheFreeSession" do
+      on      "Fleet.StopExamined"
+      where   { pinned != true }
       ask     :halt, with: { session: :session }
     end
 
-    policy "ResumeWhenAsked" do
+    policy "ExamineBeforeResuming" do
       on      "Fleet.FleetResumeRequested"
+      ask     :examine_resume, with: { session: :session, name: :name }
+    end
+
+    policy "RefuseToResumeAWorkingSession" do
+      on      "Fleet.ResumeExamined"
+      where   { working == true }
+      trigger Fleet::Decline, with: { refusal: :note }
+    end
+
+    policy "ResumeTheIdleSession" do
+      on      "Fleet.ResumeExamined"
+      where   { working != true }
       ask     :revive, with: { session: :session, name: :name }
     end
 
@@ -2071,6 +2098,7 @@ Hecks.bluebook "Agents" do
       trigger Fleet::RecordResume, with: { report: :report, run: :run }
     end
 
+    # A session the port could not read or `claude` refused is declined with the reason.
     policy "RecordTheRefusedStop" do
       on      "Fleet.SessionHaltRefused"
       trigger Fleet::Decline, with: { refusal: :refusal }

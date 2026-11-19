@@ -13,9 +13,9 @@ module Hecks
     # each, found by what their transcripts say, stopped with `claude stop` and resumed with
     # `claude --bg --resume <id> -n <name>`.
     #
-    # It reads the AgentRun ledger and the `PinnedRole` rows ({Ledger}) and writes neither. A
-    # refusal names its cause: a session not listed, a pinned role's session to stop, a working
-    # session to resume, a command the CLI refused, or a boot with no ledger.
+    # It reads the AgentRun ledger and the `PinnedRole` rows ({Ledger}) and writes neither. Its
+    # examines answer the facts the Fleet policies judge, and it refuses only what it cannot do: a
+    # session not listed, a boot with no ledger, or a command the CLI refused.
     class FleetControl
       # @param registry [Runtime::Registry, nil] whose ledger and rows are read
       # @param settings [Hash] stand-ins: `shell:` runs `claude`, `projects:` the transcripts'
@@ -45,15 +45,39 @@ module Hecks
         { text: found.empty? ? "no listed session mentions #{words}" : found.join("\n") }
       end
 
+      # Reads whether a pinned role holds the session, and changes nothing.
+      #
+      # @param session [Hash, String] the session to stop
+      # @return [Hash{Symbol => Object}] `session:`, `run:`, `pinned:` whether a pinned role's name
+      #   begins the listed name, and `note:` that in words
+      # @raise [ConsoleCapture::Failure] when the session is not listed or the ledger not booted
+      def examine_stop(session:, **)
+        entry = listed(plain(session))
+        role = @ledger.pinned_role(entry["name"])
+        note = role ? "session #{entry["id"]} holds the pinned role #{role}: it is never stopped" : line(entry)
+        facts(entry, session: { value: plain(session) }, pinned: !role.nil?, note: { value: note })
+      end
+
+      # Reads whether the session is working, and changes nothing.
+      #
+      # @param session [Hash, String] the session to resume
+      # @param name [Hash, String] the name it is to be resumed under, answered back
+      # @return [Hash{Symbol => Object}] `session:`, `name:`, `run:`, `working:` whether its state
+      #   is working or its status busy, and `note:` that in words
+      # @raise [ConsoleCapture::Failure] when the session is not listed or the ledger not booted
+      def examine_resume(session:, name:, **)
+        entry = listed(plain(session))
+        busy = working?(entry)
+        note = busy ? "session #{entry["id"]} is working: only one not working is resumed" : line(entry)
+        facts(entry, session: { value: plain(session) }, name: { value: plain(name) }, working: busy, note: { value: note })
+      end
+
       # @param session [Hash, String] the session to stop
       # @return [Hash{Symbol => Hash}] `report:` the session stopped, and `run:` the key of the run
       #   that holds it (empty when none does)
-      # @raise [ConsoleCapture::Failure] naming why the session was not stopped
+      # @raise [ConsoleCapture::Failure] when the session is not listed or `claude stop` refused
       def halt(session:, **)
         entry = listed(plain(session))
-        role = @ledger.pinned_role(entry["name"])
-        raise ConsoleCapture::Failure, "session #{entry["id"]} holds the pinned role #{role}: it is never stopped" if role
-
         run!("stop", entry["id"].to_s)
         answer("stopped session #{entry["id"]} (#{entry["name"]}), #{run_text(entry)}", entry)
       end
@@ -62,11 +86,9 @@ module Hecks
       # @param name [Hash, String] the name it is resumed under
       # @return [Hash{Symbol => Hash}] `report:` the session resumed and its name, and `run:` the
       #   key of the run that holds it (empty when none does)
-      # @raise [ConsoleCapture::Failure] naming why the session was not resumed
+      # @raise [ConsoleCapture::Failure] when the session is not listed or `claude` refused
       def revive(session:, name:, **)
         entry = listed(plain(session))
-        raise ConsoleCapture::Failure, "session #{entry["id"]} is working: only one not working is resumed" if working?(entry)
-
         full = full_id(entry)
         run!("--bg", "--resume", full, "-n", plain(name), chdir: @transcripts.directory(full))
         answer("resumed session #{entry["id"]} as #{plain(name)}, #{run_text(entry)}", entry)
@@ -74,7 +96,11 @@ module Hecks
 
       private
 
-      def answer(report, entry) = { report: { value: report }, run: { value: @ledger.run_of(full_id(entry))&.first.to_s } }
+      def answer(report, entry) = { report: { value: report }, run: run_key(entry) }
+
+      def facts(entry, **judged) = { run: run_key(entry), **judged }
+
+      def run_key(entry) = { value: @ledger.run_of(full_id(entry))&.first.to_s }
 
       def mentions(words)
         newest_first(@listing.entries.filter_map { |entry| mention(entry, words) }).map(&:last)
