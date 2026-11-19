@@ -23,6 +23,12 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanSummary do
     expect(summary[:lanes]).to include("unset" => 1, "now" => 0, "done" => 2)
   end
 
+  it "counts an expedited item in the expedite lane" do
+    expedited = events + [event("WorkPlanned", "d"), event("WorkExpedited", "d", priority: "expedite")]
+
+    expect(held.catch_up(:work, expedited).summary[:lanes]).to include("expedite" => 1, "unset" => 1)
+  end
+
   it "moves a running item to the running lane" do
     expect(held.catch_up(:work, events).summary(running: ["b"])[:lanes]).to include("running" => 1, "unset" => 0)
   end

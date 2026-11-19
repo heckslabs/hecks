@@ -89,7 +89,7 @@ module Hecks
           end
         end
 
-        def lane(entry) = %w[now next later].include?(entry.priority) ? entry.priority : PlanOrder::UNSET
+        def lane(entry) = %w[expedite now next later].include?(entry.priority) ? entry.priority : PlanOrder::UNSET
 
         def promoted(lanes, entry)
           return lanes if entry.nil? || CLOSED.include?(entry.status)

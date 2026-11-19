@@ -8,7 +8,7 @@ module Hecks
       # most urgent lane any of its open items is in, so the page leads with what moves now.
       module PlanOrder
         # The lanes, most urgent first. `done` holds only epics with nothing left open.
-        LANES = %w[running now next later unset done].freeze
+        LANES = %w[running expedite now next later unset done].freeze
         UNSET = "unset"
 
         module_function
