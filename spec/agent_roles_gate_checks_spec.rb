@@ -46,8 +46,8 @@ RSpec.describe "the role gate checks" do
     expect(check_row("role_files")["argv"]).to include("project_agent_roles! check.value=true")
   end
 
-  it "runs the world-list example as role_world_list" do
-    expect(check_row("role_world_list")["script"]).to include("loads one row for each role the world pins")
+  it "runs the tagged world-list example as role_world_list" do
+    expect(check_row("role_world_list")["argv"]).to eq("bundle exec rspec spec/agents_role_rows_spec.rb --tag world_list")
   end
 
   it "passes role_files on files as the rows project them" do

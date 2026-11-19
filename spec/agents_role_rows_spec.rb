@@ -6,7 +6,7 @@ require_relative "support/role_file_slices"
 RSpec.describe "the Role aggregate's RoleFile rows" do
   include RoleFileSlices
 
-  it "loads one row for each role the world pins" do
+  it "loads one row for each role the world pins", :world_list do
     expect(rows.keys).to match_array(world_roles)
   end
 

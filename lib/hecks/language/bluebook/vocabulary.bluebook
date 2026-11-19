@@ -872,8 +872,8 @@ Hecks.bluebook "Bluebook" do
              blocked: "a file under .claude/agents differs from its RoleFile row, or is missing. Edit the row in lib/hecks/agents/agents.bluebook, never the file, and run `hecks regeneration_run.project_agent_roles! --confirm`."
       member name: "role_world_list", id: "role_world_list",
              title: "role world list, the agent_roles line of lib/hecks/hecks/hecks.world names the roles of the RoleFile rows",
-             argv: "",
-             script: "bundle exec rspec spec/agents_role_rows_spec.rb -e \"loads one row for each role the world pins\"\n",
+             argv: "bundle exec rspec spec/agents_role_rows_spec.rb --tag world_list",
+             script: "",
              blocked: "the agent_roles line of lib/hecks/hecks/hecks.world and the RoleFile rows of lib/hecks/agents/agents.bluebook name different roles. Add or remove the role in both."
       member name: "io_spec_list", id: "io_spec_list",
              title: "io spec list, the committed Postgres io file list names every spec file a --tag io dry run selects",
