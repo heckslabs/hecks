@@ -15,8 +15,11 @@ RSpec.describe "the seeded lessons" do
     out.strip == "true"
   end
 
-  # Whether the checkout's git knows the commit.
+  # Whether the checkout's git knows the commit. A shallow checkout holds only its tip, so there the
+  # sha's form is all that can be read; the landing's own checkout holds the history and reads git.
   def commit?(sha)
+    return sha.match?(/\A\h{9,40}\z/) if shallow?
+
     _, status = Open3.capture2e("git", "-C", InMemoryDomain::ROOT, "cat-file", "-e", "#{sha}^{commit}")
     status.success?
   end
@@ -48,7 +51,6 @@ RSpec.describe "the seeded lessons" do
   end
 
   it "names a red commit git holds for every sighting" do
-    skip "a shallow checkout holds only its tip, so the CI shards cannot read the sightings' commits" if shallow?
     expect(sightings.map { |sighting| sighting["commit"] }.reject { |sha| commit?(sha) }).to be_empty
   end
 end
