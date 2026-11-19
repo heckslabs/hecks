@@ -10,8 +10,8 @@ module Hecks
       # (what runs, what starts next, what lands, what waits on them).
       module PlanOverview
         # The lanes in the order the bar draws them, each with the word the key gives it.
-        WORDS = { "done" => "done", "running" => "running", "now" => "now", "next" => "next", "later" => "later",
-                  "unset" => "not prioritised" }.freeze
+        WORDS = { "done" => "done", "running" => "running", "expedite" => "expedited", "now" => "now", "next" => "next",
+                  "later" => "later", "unset" => "not prioritised" }.freeze
 
         module_function
 
@@ -74,7 +74,10 @@ module Hecks
           end
         end
 
+        # Another project's plan has no train of the board's to show: its card says so.
         def landing(train)
+          return card("Landing now", ["not read for this project"]) unless train
+
           card("Landing now", ["#{esc(train[:count])} #{esc(train[:state])} <span class=\"facts\">#{esc(train[:detail])}</span>"])
         end
 

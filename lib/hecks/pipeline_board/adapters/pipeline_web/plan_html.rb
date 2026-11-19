@@ -15,7 +15,7 @@ module Hecks
       # Filters on the page hide rows by their `data-` attributes, so a redraw keeps them.
       module PlanHtml
         # The heading each lane of epics is drawn under.
-        LANES = { "running" => "Running now", "now" => "Now", "next" => "Next", "later" => "Later",
+        LANES = { "running" => "Running now", "expedite" => "Expedited", "now" => "Now", "next" => "Next", "later" => "Later",
                   "unset" => "Not prioritised", "done" => "Finished" }.freeze
 
         module_function

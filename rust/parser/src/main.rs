@@ -388,6 +388,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("idempotent", "Command"),
     ("mints_era", "Command"),
     ("policy_only", "Command"),
+    ("creates_or_acts", "Command"),
     ("sets", "Command"),
     ("corrects", "Command"),
     ("delegates_to", "Command"),

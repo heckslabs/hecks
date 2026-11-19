@@ -30,6 +30,7 @@ require_relative "dispatching/shedding"
 require_relative "dispatching/narrowing"
 require_relative "dispatching/held_ground"
 require_relative "landing/landing_ahead"
+require_relative "landing/settled_rebase"
 require_relative "dispatching/package_roots"
 
 module Hecks
@@ -152,14 +153,15 @@ module Hecks
       end
 
       # What bounds a filling: the machine's cap and load, what pauses every work item, and the
-      # boot budget, which a red-* work item is exempt from. It only reads: a dry plan and the
-      # board look at the queue through here too, and looking must not change what the clock's
-      # next beat does.
+      # boot budget, which a red-* or expedited work item is exempt from. It only reads: a dry plan
+      # and the board look at the queue through here too, and looking must not change what the
+      # clock's next beat does.
       def limits
         gauge = machine
         { cap: gauge.cap, urgent_reserve: gauge.urgent_reserve, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen,
-          epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: gauge.boot_stop,
-          exempt: WorkItems.method(:red?), stall: SettleRule.stall(work_items), **headroom_limit(gauge), **cached_reads(gauge) }
+          cpus: gauge.cpus.to_f, epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: gauge.boot_stop,
+          exempt: WorkItems.method(:urgent?),
+          stall: SettleRule.stall(work_items), **headroom_limit(gauge), **cached_reads(gauge) }
       end
 
       # The runs and the architect's reviews, each read once for the plan: the plan asks for them

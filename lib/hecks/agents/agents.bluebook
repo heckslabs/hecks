@@ -319,9 +319,9 @@ Hecks.bluebook "Agents" do
              tools: "Read, Edit, Write, Grep, Glob, Bash",
              model: "sonnet",
              purpose: "You write code for one brief. You do not decide what to build, and you do not judge whether your own change is right; the reviewer does that. Your output is a committed branch and an honest report.",
-             steps: "1. **Read the brief and the files it names.** If the brief does not name what may change, stop and report that; do not widen the scope.\n2. **Work only inside your worktree.** Never edit the shared checkout, never switch the checkout's branch, never `git stash`. Commit with explicit paths (`git add <path>`), never `git commit -a`.\n3. **Make the smallest change that meets the brief.** Keep to the repo's conventions in `CLAUDE.md`. Do not refactor code the brief does not mention.\n4. **Commit on your branch before you run the checks.** The gate and the impacted run read the commits since `main`, not the working tree. Do not push yourself (step 8 has the one push a coder makes, through Hecks). Do not add attribution lines to the commit message. Fix what a check names in a further commit.\n5. **Run the quick gate on the committed branch and fix what it names.** One blocking call: `exe/hecks gate_run.gate! stage=quick --wait`, with a Bash timeout of 600000 ms. The landing runs the same checks (comment_style, comment_blocks, shape ledger, rubocop and the rest) and a refusal costs an hour; a coder sees them in two minutes. A gate that is red, or a call that timed out, is not a pass: fix it or end `blocked`.\n6. **Run the impacted specs the landing will run.** One blocking call: `exe/hecks test_suite_run.run_impacted_specs! cap.value=200 --wait`, with a Bash timeout of 600000 ms. The landing maps up to 200 spec files and the launcher's default cap is 60, so a run without `cap.value=200` leaves the specs ranked 61 to 200 to the landing. Report `N of M` impacted files run. A red spec is fixed, or you end `blocked` naming it; never call it unrelated or a stale expectation and hand off anyway. Do not run the whole suite; it runs only in CI.\n7. **Keep subagents few and read-only.** Start at most three subagents at once, only for searching or checking, never for editing: your worktree is one editor's, and the work cap and area check cannot see a subagent.\n8. **Have CI check the branch before you hand it off.** After the gate and the impacted specs, one blocking call: `exe/hecks EarlyCi.request! run.value=<branch> branch.value=<branch> sha.value=<tip> checkout.value=<worktree> clean.value=true --wait`, with a Bash timeout of 600000 ms. It pushes the tip as `ci/<branch>` (never main, a train or a force), opens or reuses a draft pull request that is never merged, and waits up to eight minutes for that tip's CI run. `passed` is green; it may carry inherited failures, the jobs that failed on the same examples in the CI run of your branch's base, listed under `inherited from main` in the report. Do not chase them: hand off, naming them as inherited, apart from your own. When main is red (the report says so, or `exe/hecks RedFlag.status`), its fix is the orchestrator's priority, not yours. `failed` names the branch's own failed jobs and their last log lines: fix them, commit, and `exe/hecks EarlyCi.retry! to=<branch> sha.value=<new tip> clean.value=true --wait`. A run still going when the wait ends is declined: retry at the same sha. Hand off only on `passed`; if you cannot get there, end `blocked` naming the jobs.",
+             steps: "1. **Read the brief and the files it names.** If the brief does not name what may change, stop and report that; do not widen the scope.\n2. **Work only inside your worktree.** Never edit the shared checkout, never switch the checkout's branch, never `git stash`. Commit with explicit paths (`git add <path>`), never `git commit -a`.\n3. **Write the brief's spec first and see it fail.** Before any fix, write the spec the brief names, run it through the launcher (`exe/hecks test_suite_run.run_spec_files! \"files.value=<spec>\" isolation.value=shared --wait`), and see it fail for the reason the brief states: a spec that passes, or fails for another reason, does not yet test the brief. Commit it with explicit paths as the branch's first commit, then make it pass. Report both outputs: the failing run and the passing run. A spec states behaviour in the domain's words: the aggregates, commands, events and policies the bluebook names, not the methods behind them.\n4. **Start domain behaviour in the bluebook.** When the change is to what an aggregate, command, policy or event does, the bluebook and its `.behaviors` file come first, and the code behind them after. Never rewrite a golden fixture or a snapshot to make a spec pass unless the brief says that output changes; then rewrite it the documented way (`exe/hecks regeneration_run.regenerate_corpus! --confirm --wait`, then `--check`) and say why in the commit and the report.\n5. **Make the smallest change that meets the brief.** Keep to the repo's conventions in `CLAUDE.md`. Do not refactor code the brief does not mention.\n6. **Commit on your branch before you run the checks.** The gate reads the commits since `main`, not the working tree. Do not push yourself (step 9 has the one push a coder makes, through Hecks). Do not add attribution lines to the commit message. Fix what a check names in a further commit.\n7. **Run the work item's own specs and the quick gate, and fix what they name.** Locally run only the work item's own specs and the quick gate; CI runs the rest, and the landing still runs the impacted specs and refuses on red. The specs: every spec file you touched in one call, `exe/hecks test_suite_run.run_spec_files! \"files.value=<spec> <spec>\" isolation.value=shared --wait`. The gate: one blocking call, `exe/hecks gate_run.gate! stage=quick --wait`, with a Bash timeout of 600000 ms. The landing runs the same checks (comment_style, comment_blocks, shape ledger, rubocop and the rest) and a refusal costs an hour; a coder sees them in two minutes. A gate that is red, or a call that timed out, is not a pass: fix it or end `blocked`. A red spec is fixed, or you end `blocked` naming it; never call it unrelated or a stale expectation and hand off anyway. Do not run the whole suite; it runs only in CI.\n8. **Keep subagents few and read-only.** Start at most three subagents at once, only for searching or checking, never for editing: your worktree is one editor's, and the work cap and area check cannot see a subagent.\n9. **Have CI check the branch before you hand it off.** After the work item's own specs and the gate, one blocking call: `exe/hecks EarlyCi.request! run.value=<branch> branch.value=<branch> sha.value=<tip> checkout.value=<worktree> clean.value=true --wait`, with a Bash timeout of 600000 ms. It pushes the tip as `ci/<branch>` (never main, a train or a force), opens or reuses a draft pull request that is never merged, and waits up to eight minutes for that tip's CI run. `passed` is green; it may carry inherited failures, the jobs that failed on the same examples in the CI run of your branch's base, listed under `inherited from main` in the report. Do not chase them: hand off, naming them as inherited, apart from your own. When main is red (the report says so, or `exe/hecks RedFlag.status`), its fix is the orchestrator's priority, not yours. `failed` names the branch's own failed jobs and their last log lines: fix them, commit, and `exe/hecks EarlyCi.retry! to=<branch> sha.value=<new tip> clean.value=true --wait`. A run still going when the wait ends is declined: retry at the same sha. Hand off only on `passed`; if you cannot get there, end `blocked` naming the jobs.",
              rules: "## Handoffs\n\nYou never hand work to another role directly. When your branch is ready, end your report with `submitted`; the adapter then runs `coder Submission.submit!` for your branch and the reviewer is asked by event, not by you.",
-             handback: "End your report with exactly one of these words on its own, so the board can read it: `submitted` when the branch is committed, the quick gate is green, the impacted specs pass and CI passed on its tip, `blocked` when you could not finish or either is red; a red spec is never reclassified, and `submitted` names the gate's result, the `N of M` count of the impacted run and the CI run id `EarlyCi` recorded as passed, with the inherited failures its report listed named apart from the branch's own. Before that word, give the branch name, the commit, the files changed, and the result of each spec run. If anything failed, say which spec and quote its failure line; do not guess at a cause you did not check."
+             handback: "End your report with exactly one of these words on its own, so the board can read it: `submitted` when the branch is committed, the spec failed before the fix and passes on the branch, the quick gate is green and CI passed on its tip, `blocked` when you could not finish or any of these is red; a red spec is never reclassified, and `submitted` names the gate's result, the brief's spec as it failed in step 3 and as it passes now, and the CI run id `EarlyCi` recorded as passed, with the inherited failures its report listed named apart from the branch's own. Before that word, give the branch name, the commit, the files changed, and the result of each spec run, then one line stating the result code: `Result: verified` when the brief's spec failed before the fix and passes, and the gate and CI passed on the tip, `Result: unverified` when any of these was not run or is red (specs unchecked, host tests failing), or `Result: blocked` when you could not finish; `submitted` goes only with `Result: verified`, a pairing the report states and nothing enforces. A report with no result code, a bare `stopped` above all, is recorded unstated (`RunResult`), never done. If anything failed, say which spec and quote its failure line; do not guess at a cause you did not check."
       member role: "pruner",
              description: "Removes finished background Claude sessions that are safe to remove. It lists the sessions, skips any that is pinned (by id or by a PinnedRole), is working or blocked, or is only idle between turns, and runs claude rm on each whose run the AgentRun ledger says is finished. It never discards unpushed work, never pushes and never edits files.",
              tools: "Bash, Read",
@@ -508,7 +508,8 @@ Hecks.bluebook "Agents" do
     end
 
     # The architect answers with a verdict: sound, changes, or rethink. A review that ended without
-    # one keeps its end: the coder was already told, so a late verdict is refused by name.
+    # one keeps its end, so a late verdict is refused by name and no coder is told it. The verdict
+    # is judged for the coder only once the row holds it (`ForwardTheAnsweredReview`).
     command "Answer" do
       role "System"
       goal "Record the architect's verdict on the plan"
@@ -517,12 +518,29 @@ Hecks.bluebook "Agents" do
       attribute :verdict, Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
 
-      given("the verdict is one the architect gives") do
+      given("the verdict is sound, changes or rethink") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
       end
-      given("the review did not end without a verdict") { ended_at.nil? || ended_at.value == 0 }
+      given("the review did not end without a verdict") { ended_at == nil || ended_at.value == 0 }
 
       emits "PlanReviewed"
+    end
+
+    # The verdict a review now holds, read back off its row and sent on to be judged for the coder of
+    # its Work item (`ForwardTheAnsweredReview`, `JudgeTheForwardedVerdict`). It changes nothing: the
+    # event carries what the row holds, so the coder is told exactly the stored verdict.
+    command "Forward" do
+      role "System"
+      goal "Send a review's stored verdict on to the coder of its Work item"
+
+      reference_to PlanReview
+      attribute :work,     WorkKey
+      attribute :verdict,  Verdict
+      attribute :findings, FindingsText, optional: true
+
+      given("the review holds a verdict") { verdict != nil && verdict.to_s != "" }
+
+      emits "VerdictForwarded"
     end
 
     # The verdict of an architect run no request row names, such as one started by hand or whose row
@@ -537,7 +555,7 @@ Hecks.bluebook "Agents" do
       attribute :verdict,  Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
 
-      given("the verdict is one the architect gives") do
+      given("the verdict is sound, changes or rethink") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
       end
 
@@ -557,8 +575,8 @@ Hecks.bluebook "Agents" do
       attribute :now,    Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
-      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+      given("the review has no verdict yet") { verdict == nil || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at == nil || ended_at.value == 0 }
 
       sets :ended_at, to: :now
 
@@ -581,9 +599,9 @@ Hecks.bluebook "Agents" do
       attribute :now,  Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
-      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
-      given("the architect was not asked again yet") { asks.nil? || asks.value == 0 }
+      given("the review has no verdict yet") { verdict == nil || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at == nil || ended_at.value == 0 }
+      given("the architect was not asked again yet") { asks == nil || asks.value == 0 }
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
@@ -607,10 +625,10 @@ Hecks.bluebook "Agents" do
       attribute :window, TimeLimit, default: 60
       needs :now
 
-      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
-      given("the review ended already") { !ended_at.nil? && ended_at.value > 0 }
+      given("the review has no verdict yet") { verdict == nil || verdict.to_s.empty? }
+      given("the review ended already") { ended_at != nil && ended_at.value > 0 }
       given("the review ended just now") { ended_at.value + window.value >= now.value }
-      given("the coder was not reminded already") { reminded_at.nil? || reminded_at.value == 0 }
+      given("the coder was not reminded already") { reminded_at == nil || reminded_at.value == 0 }
 
       sets :reminded_at, to: :now
 
@@ -630,9 +648,9 @@ Hecks.bluebook "Agents" do
       attribute :now,    Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
-      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
-      given("the architect was asked again already") { !asks.nil? && asks.value >= 1 }
+      given("the review has no verdict yet") { verdict == nil || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at == nil || ended_at.value == 0 }
+      given("the architect was asked again already") { asks != nil && asks.value >= 1 }
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
@@ -722,6 +740,16 @@ Hecks.bluebook "Agents" do
       root
       where   { agent == "architect" && work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
       trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
+    end
+
+
+    # An answered review reads its own row back, so what goes on to the coder is what the row holds.
+    policy "ForwardTheAnsweredReview" do
+      on       "PlanReview.PlanReviewed"
+      root
+      for_each "PlanReview.OfRun"
+      trigger  PlanReview::Forward, with: { plan_review: :plan_review, work: :work, verdict: :verdict,
+                                            findings: :findings }
     end
 
     # A coder began waiting on a Work item: each review of it that ended just before is reminded.
@@ -1253,7 +1281,7 @@ Hecks.bluebook "Agents" do
       attribute :answer, AnswerText, sets: true
       attribute :word,   VerdictWord, default: "", sets: true
 
-      given("the verdict has tries left") { tries.nil? || tries.value < 3 }
+      given("the verdict has tries left") { tries == nil || tries.value < 3 }
 
       sets :tries, increment: { value: 1 }
 
@@ -1271,7 +1299,7 @@ Hecks.bluebook "Agents" do
       attribute :work,   WorkKey, sets: true
       attribute :reason, ReasonText, sets: true
 
-      given("the verdict's tries are spent") { !tries.nil? && tries.value >= 3 }
+      given("the verdict's tries are spent") { tries != nil && tries.value >= 3 }
 
       emits "VerdictAbandoned"
     end
@@ -1352,12 +1380,18 @@ Hecks.bluebook "Agents" do
                                          reason: "the coder's session refused the verdict on every try" }
     end
 
-    # The architect's closing text is its findings; the verdict word leads them. A run with no Work
-    # item is a change review's, which sends its verdict on only when it is not sound.
-    policy "JudgeTheArchitectsVerdict" do
-      on      "AgentRun.JobRead"
+    # Judged for the coder only once the review holds the verdict (`VerdictForwarded`,
+    # `PlanReviewRecorded`), never off the job read: a refused `Answer` (a review already ended)
+    # forwards nothing, so no coder is told a verdict the ledger lacks.
+    policy "JudgeTheForwardedVerdict" do
+      on      "PlanReview.VerdictForwarded"
       root
-      where   { agent == "architect" && work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings, word: :verdict }
+    end
+
+    policy "JudgeTheRecordedReview" do
+      on      "PlanReview.PlanReviewRecorded"
+      root
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings, word: :verdict }
     end
 
@@ -1374,6 +1408,141 @@ Hecks.bluebook "Agents" do
     policy "JudgeTheUnstartedReview" do
       on      "PlanReview.ReviewUnstarted"
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :reason }
+    end
+  end
+
+  # A report with no `Result:` line (a bare `stopped`, `rspec unchecked`) is `unstated`, never
+  # done, and so is one naming two codes. A run that closes again after a resume states its result
+  # anew: the last close overwrites the code, and the event log keeps the earlier ones.
+  aggregate "RunResult" do
+    description "One coder run's result as its closing report states it: verified, unverified or blocked, or unstated when the report names no result code."
+
+    identified_by :run
+
+    attribute :run,     RunKey
+    attribute :closing, ClosingText, optional: true
+    attribute :code,    ResultCode, optional: true
+    attribute :reason,  ReasonText, optional: true
+
+    # The coder's AgentRun key.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The coder's closing report, as the job reading carries it.
+    value_object "ClosingText", String
+
+    value_object "ResultCode" do
+      attribute :value, String, one_of: %w[verified unverified blocked unstated]
+    end
+
+    # Why a run's result is unstated.
+    value_object "ReasonText" do
+      attribute :value, String, matches: :present
+    end
+
+    command "Open" do
+      role "System"
+      goal "Open the one result record of a coder run, before its closing report is heard"
+
+      attribute :run, RunKey, sets: true
+
+      emits "RunResultOpened"
+    end
+
+    command "Hear" do
+      role "System"
+      goal "Hear a coder run's closing report, so its result code is read off it"
+
+      reference_to RunResult
+      attribute :closing, ClosingText, sets: true
+
+      emits "ClosingHeard"
+    end
+
+    command "State" do
+      role "System"
+      goal "Record the result code a coder run's closing report states, or that it states none"
+
+      reference_to RunResult
+      attribute :code,   ResultCode, sets: true
+      attribute :reason, ReasonText, optional: true, sets: true
+
+      emits "RunResultStated"
+    end
+
+    query "Results" do
+      description "Every coder run's result, by run: its code and the closing report it was read off."
+      order_by :run
+    end
+
+    # A coder run has closed: its job reads done or stopped, or its session went idle having said
+    # its report. A stop while an answer is on its way (`resuming`) or a wait on a plan review
+    # (`reviewing`) closes nothing. The open is refused, and benign, once the record is there.
+    policy "OpenTheResultOfAClosedCoderRun" do
+      on      "AgentRun.JobRead"
+      root
+      where   do
+        agent == "coder" && resuming != true && reviewing != true &&
+          (((state == "done" || state == "stopped") && previous != state) ||
+            (state == "working" && listed == "idle" && previous != "done" && report.to_s != ""))
+      end
+      trigger RunResult::Open, with: { run: :run }
+    end
+
+    policy "HearTheClosingOfACoderRun" do
+      on      "AgentRun.JobRead"
+      root
+      where   do
+        agent == "coder" && resuming != true && reviewing != true &&
+          (((state == "done" || state == "stopped") && previous != state) ||
+            (state == "working" && listed == "idle" && previous != "done" && report.to_s != ""))
+      end
+      trigger RunResult::Hear, with: { run: :run, closing: :report }
+    end
+
+    # Exactly one code names the result: `Result: unverified` does not hold `Result: verified`, and a
+    # closing naming two codes (one quoting the instruction line) states none.
+    policy "StateAVerifiedRun" do
+      on      "RunResult.ClosingHeard"
+      where   do
+        !closing.nil? && closing.value.to_s.include?("Result: verified") &&
+          !closing.value.to_s.include?("Result: unverified") && !closing.value.to_s.include?("Result: blocked")
+      end
+      trigger RunResult::State, with: { run: :run, code: "verified" }
+    end
+
+    policy "StateAnUnverifiedRun" do
+      on      "RunResult.ClosingHeard"
+      where   do
+        !closing.nil? && closing.value.to_s.include?("Result: unverified") &&
+          !closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: blocked")
+      end
+      trigger RunResult::State, with: { run: :run, code: "unverified" }
+    end
+
+    policy "StateABlockedRun" do
+      on      "RunResult.ClosingHeard"
+      where   do
+        !closing.nil? && closing.value.to_s.include?("Result: blocked") &&
+          !closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: unverified")
+      end
+      trigger RunResult::State, with: { run: :run, code: "blocked" }
+    end
+
+    # A closing word alone (`stopped`, `blocked`, `submitted`), or two codes at once, states no result.
+    policy "StateAnUnstatedRun" do
+      on      "RunResult.ClosingHeard"
+      where   do
+        closing.nil? ||
+          (!closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: unverified") &&
+            !closing.value.to_s.include?("Result: blocked")) ||
+          (closing.value.to_s.include?("Result: verified") && closing.value.to_s.include?("Result: unverified")) ||
+          (closing.value.to_s.include?("Result: verified") && closing.value.to_s.include?("Result: blocked")) ||
+          (closing.value.to_s.include?("Result: unverified") && closing.value.to_s.include?("Result: blocked"))
+      end
+      trigger RunResult::State, with: { run: :run, code: "unstated",
+                                        reason: "the report states no one result code: a bare closing word is not a result" }
     end
   end
 
@@ -2373,7 +2542,7 @@ Hecks.bluebook "Agents" do
       attribute :now, Instant
       needs :now
 
-      given("the watch has not ended") { ended_at.nil? || ended_at.value == 0 }
+      given("the watch has not ended") { ended_at == nil || ended_at.value == 0 }
       given("attempts remain") { attempts.value < max_attempts.value }
       given("the window has passed") { opened_at.value + timeout_seconds.value <= now.value }
 
@@ -2392,7 +2561,7 @@ Hecks.bluebook "Agents" do
       attribute :now, Instant
       needs :now
 
-      given("the watch has not ended") { ended_at.nil? || ended_at.value == 0 }
+      given("the watch has not ended") { ended_at == nil || ended_at.value == 0 }
       given("no attempt remains") { attempts.value >= max_attempts.value }
       given("the window has passed") { opened_at.value + timeout_seconds.value <= now.value }
 

@@ -48,41 +48,43 @@ module Hecks
       extend Behaviour::Command
 
       emits_ir(
-        name:        :hecks_name,
-        role:        :role,
+        name:            :hecks_name,
+        role:            :role,
         # Every role that may run the command, when more than one may; `role` is then the first.
-        roles:       -> { roles.size > 1 ? roles : Hecks::IR::OMIT },
+        roles:           -> { roles.size > 1 ? roles : Hecks::IR::OMIT },
         # Who a launcher lists the command for; absent when the command declares none.
-        audience:    -> { audience.empty? ? Hecks::IR::OMIT : audience },
-        goal:        :goal,
-        references:  :references,
-        attributes:  many(:attributes),
-        givens:      -> { givens.map { |rule| Expression::AstJson.rule_row(rule) } },
-        ensures:     -> { ensures.map { |rule| Expression::AstJson.rule_row(rule) } },
-        needs:       -> { needs.map { |fact| { fact: fact.to_s } } },
-        mutations:   many(:mutations),
-        emits:       :emits,
+        audience:        -> { audience.empty? ? Hecks::IR::OMIT : audience },
+        goal:            :goal,
+        references:      :references,
+        attributes:      many(:attributes),
+        givens:          -> { givens.map { |rule| Expression::AstJson.rule_row(rule) } },
+        ensures:         -> { ensures.map { |rule| Expression::AstJson.rule_row(rule) } },
+        needs:           -> { needs.map { |fact| { fact: fact.to_s } } },
+        mutations:       many(:mutations),
+        emits:           :emits,
         # The lifecycle state this command is admissible from: a guard, not a transition.
-        from:        -> { from },
-        provenance:  :provenance,
+        from:            -> { from },
+        provenance:      :provenance,
         # Safe to deliver twice; the saga redrive reads it for a dispatch left unsettled.
-        idempotent:  -> { idempotent? },
+        idempotent:      -> { idempotent? },
         # Lets this command's own record through a boot whose shape no era holds yet.
-        mints_era:   -> { mints_era? },
+        mints_era:       -> { mints_era? },
         # Only a policy reaction may dispatch it (ADR 0216); absent unless the command says so.
-        policy_only: -> { policy_only? || Hecks::IR::OMIT }
+        policy_only:     -> { policy_only? || Hecks::IR::OMIT },
+        # Acts on the record its identity names when one is there; absent unless it says so.
+        creates_or_acts: -> { creates_or_acts? || Hecks::IR::OMIT }
       )
 
       # Every optional declared field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         role: nil, roles: [], audience: [], goal: nil, attributes: [], givens: [], ensures: [], needs: [],
         mutations: [], emits: [], references: nil, from: nil, provenance: nil, idempotent: false,
-        mints_era: false, policy_only: false
+        mints_era: false, policy_only: false, creates_or_acts: false
       }.freeze
 
       class << self
         attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
-                    :from, :provenance, :idempotent, :mints_era, :policy_only
+                    :from, :provenance, :idempotent, :mints_era, :policy_only, :creates_or_acts
 
         # @return [Boolean] whether a second delivery leaves the state a first one did
         def idempotent? = @idempotent ? true : false
@@ -93,6 +95,10 @@ module Hecks
 
         # @return [Boolean] whether only a policy reaction may dispatch it
         def policy_only? = @policy_only ? true : false
+
+        # @return [Boolean] whether a creating command acts on the record its identity already
+        #   names, rather than refusing it as taken
+        def creates_or_acts? = @creates_or_acts ? true : false
 
         # @return [Array<String>] every role that may run it when more than one may, else empty
         def roles = @roles || []

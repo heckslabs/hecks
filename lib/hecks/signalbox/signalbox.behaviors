@@ -3,7 +3,7 @@ Hecks.behaviors "Signalbox" do
 
   # Given is each test's setup and the readings in its input; When is the command; Then is the
   # expectation. The machine is the owner's M3 Pro: 36 GB, of which 28 GB is the pipeline's supply.
-  loads "signalbox.bluebook", "signalbox.hecksagon"
+  loads "../../../spec/fixtures/signalbox/signalbox.hecksagon", "signalbox.bluebook", "signalbox.ports.hecksagon"
 
   # ---- Law 1: conservation ----
 
@@ -87,6 +87,51 @@ Hecks.behaviors "Signalbox" do
           gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
     input pressure: "m3-pro", headroom: { value: 8500 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: %w[PressureRead PressureEased], band: "normal"
+  end
+
+  # Decided 2026-11-19: CPU is the second pressure input. The 1-minute load is read in hundredths
+  # against the performance cores (6 on the M3 Pro), with marks in percent of them: tight past 150
+  # (a load of 9), short past 300 (a load of 18). The band is the worse of the two.
+  test "the load band: a load of 32 on six performance cores is short even with memory to spare" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 3200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    expect emits: %w[PressureRead PressureFellShort], band: "short"
+  end
+
+  test "the band is the worse of the two: a load past the tight mark tightens a machine with memory to spare" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    expect emits: %w[PressureRead PressureTightened], band: "tight"
+  end
+
+  test "memory past its gap does not ease a band the load still holds" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 },
+          gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 840 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    expect emits: ["PressureRead"], band: "tight"
+  end
+
+  test "a load under its tight mark by the gap, with memory past its own, eases the band" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 },
+          gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 700 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
     expect emits: %w[PressureRead PressureEased], band: "normal"
   end
 
@@ -371,5 +416,138 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Breaker.Trip", breaker: "helper-share", load: { value: 80 }, smaller_ready: { value: 0 }
     input breaker: "helper-share", load: { value: 3 }, gap: { value: 1 }
     expect refused: "a breaker resets only once the load is under its rating by the gap"
+  end
+
+  # Decided 2026-11-19: model usage is a daily fuse beside the boot budget, not part of headroom.
+  test "the model usage fuse is installed beside the machine fuse" do
+    tests "Install", on: "Breaker"
+    input breaker: { value: "model-fuse" }, level: { value: "model" }, rating: { value: 100 }
+    expect emits: ["BreakerInstalled"], state: "closed"
+  end
+
+  test "the model usage fuse waits while a smaller breaker can still act" do
+    tests "Trip", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "model-fuse" }, level: { value: "model" }, rating: { value: 100 }
+    input breaker: "model-fuse", load: { value: 104 }, smaller_ready: { value: 1 }
+    expect refused: "a larger breaker waits while a smaller one can still act"
+  end
+
+  # ---- Shadow (phase 2): what Signalbox would have decided, beside what Delegate did ----
+
+  # On each pressure beat Signalbox hears Delegate's last fill and shed and records its own ruling
+  # on each, and acts on nothing. Each beat's ruling has its own key, so none is revised in place.
+  test "shadow: a ruling records Signalbox's refusal beside Delegate's start" do
+    tests "Record", on: "Ruling"
+    input ruling: { value: "beat-1:fill" }, function: { value: "fill" }, subject: { value: "pipeline-board-tiles" },
+          delegate: { value: "start" }, decision: { value: "wait" },
+          law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is short" },
+          load: { value: 3397 }, headroom: { value: 900 }, agrees: { value: "no" }
+    expect emits: ["RulingRecorded"], agrees: "no"
+  end
+
+  test "shadow: a ruling names its function" do
+    tests "Record", on: "Ruling"
+    input ruling: { value: "beat-1:start" }, function: { value: "start" }, subject: { value: "coder-1" },
+          delegate: { value: "start" }, decision: { value: "start" }, law: { value: "every law holds" },
+          load: { value: 700 }, headroom: { value: 9000 }, agrees: { value: "yes" }
+    expect refused: "a ruling is on a fill, a shed or a reap"
+  end
+
+  test "shadow: hearing Delegate's fill and shed records one ruling on each" do
+    tests "Hear", on: "Shadow"
+    input shadow: { value: "beat-1" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-1:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-1:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect emits: %w[DelegateHeard RulingRecorded RulingRecorded]
+  end
+
+  test "shadow: a quiet machine agrees with Delegate's start and its sparing" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-2" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-2:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-2:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 0
+  end
+
+  test "shadow: Delegate starts a coder while the load is short, and Signalbox would have it wait" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-3" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 3397 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-3:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-3:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
+    expect count: 1
+  end
+
+  test "shadow: Delegate leaves a coder waiting that the headroom has room for" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-4" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-4:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "wait" }, shed_ruling: { value: "beat-4:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 1
+  end
+
+  test "shadow: Delegate sheds while pressure is not short, which Signalbox would not" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-5" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-5:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-5:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
+    expect count: 1
+  end
+
+  test "shadow: memory under the floor is short: sparing every coder disagrees, as starting one does" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-6" }, headroom: { value: 1000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-6:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-6:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 2
+  end
+
+  test "shadow: a fill with nothing planned is not ruled on" do
+    tests "Signalbox::Ruling.Shadowed", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-7" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-7:fill" },
+          fill_subject: { value: "nothing-planned" }, fill_delegate: { value: "none" }, shed_ruling: { value: "beat-7:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 1
+  end
+
+  # ---- The pressure beat: one look, cleared only from the main checkout's current view ----
+
+  # The looks are replayed by spec/fixtures/signalbox/adapters/replayed_looking.adapter, by beat.
+  test "the beat: a quiet machine's look from main is cleared, published and ruled on" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-quiet" }
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead
+                     PressureEased DelegateHeard RulingRecorded RulingRecorded]
+  end
+
+  test "the beat: the helper storm's look puts the machine in the short band" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-storm" }
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead PressureFellShort
+                     DelegateHeard RulingRecorded RulingRecorded]
+  end
+
+  test "the beat: a look from a copy behind main is not cleared, so nothing is published" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-worktree" }
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded]
+  end
+
+  test "the beat: a machine that cannot be read faults the beat" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-unread" }
+    expect emits: %w[BeatBegun BeatUnlooked BeatFaulted], status: "unlooked"
+  end
+
+  test "the beat: the headroom is the capacity less what is in use less the person's reserve" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-quiet" }
+    expect headroom: 8209
   end
 end

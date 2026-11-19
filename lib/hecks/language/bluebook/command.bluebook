@@ -39,6 +39,9 @@ Hecks.bluebook "Bluebook" do
     # `policy_only`: only a policy reaction may dispatch this command; a CLI or MCP caller is
     # refused (ADR 0216). Held as text like `idempotent`, emitted as a boolean.
     attribute :policy_only, CommandText, optional: true
+    # `creates_or_acts`: a creating command that acts on the record its identity already names
+    # instead of refusing it as taken. Held as text like `policy_only`, emitted as a boolean.
+    attribute :creates_or_acts, CommandText, optional: true
     # Lifecycle guard as a literal (`from: "open"` or `from: ["open", "frozen"]`); ADR 0025.
     attribute :from,       CommandText, optional: true
 
@@ -126,6 +129,7 @@ Hecks.bluebook "Bluebook" do
       attribute :idempotent, CommandText, optional: true
       attribute :mints_era,  CommandText, optional: true
       attribute :policy_only, CommandText, optional: true
+      attribute :creates_or_acts, CommandText, optional: true
       attribute :from,       CommandText, optional: true
 
       attribute :position, Position, optional: true
@@ -138,6 +142,7 @@ Hecks.bluebook "Bluebook" do
       sets :idempotent
       sets :mints_era
       sets :policy_only
+      sets :creates_or_acts
       sets :from
       sets :position
       emits VerbDeclared
@@ -345,6 +350,9 @@ Hecks.bluebook "Bluebook" do
       member word: "mints_era",       context: "Command", body: "none",   inner: "", opens: "", fills: "mints_era", calls: "mints_era_impl"
       # Lets only a policy reaction dispatch the command (CommandBuilder#policy_only_impl).
       member word: "policy_only",     context: "Command", body: "none",   inner: "", opens: "", fills: "policy_only", calls: "policy_only_impl"
+      # Acts on the record when its identity is taken, creates it otherwise
+      # (CommandBuilder#creates_or_acts_impl).
+      member word: "creates_or_acts", context: "Command", body: "none",   inner: "", opens: "", fills: "creates_or_acts", calls: "creates_or_acts_impl"
       member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references", calls: "reference_to_impl"
       member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain", calls: "given_impl"
       member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "sets_impl"

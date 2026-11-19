@@ -318,6 +318,9 @@ fn command_text(out: &mut String, command: &ir::Command) -> Result<(), String> {
     if command.policy_only {
         out.push_str("      policy_only\n");
     }
+    if command.on_occupied == ir::OnOccupied::Act {
+        out.push_str("      creates_or_acts\n");
+    }
     if let Some(reference) = &command.references {
         out.push_str(&format!("      reference_to {reference}\n"));
     }

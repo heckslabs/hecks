@@ -13,9 +13,11 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "TrainFlakes"
   end
 
-  # The Work items, read through the Tickets domain.
+  # The Work items, read through the Tickets domain, and another project's, read from its own
+  # Tickets store.
   PipelineBoard::PipelineBoard.port "Tickets" do
     answers_query "OpenWork"
+    answers_query "ProjectWork"
   end
 
   # The dispatched sessions: each job's state file and `claude agents --json`.
