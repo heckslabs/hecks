@@ -552,10 +552,9 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  # Signalbox's pressure beat, begun once a clock beat (ADR 0222, phase 3b). Hecks attaches
-  # Signalbox and conforms to it, so the clock asks Signalbox to beat through this port and
-  # Signalbox never hears a Hecks event: its adapter dispatches Signalbox's `Beat.Begin` keyed by
-  # the clock's beat. Refused when Signalbox is not attached.
+  # Signalbox's pressure beat, begun once a clock beat (ADR 0222, phase 3b): Hecks conforms to
+  # the Signalbox it attaches, so the clock asks here and Signalbox hears no Hecks event. Refused
+  # when Signalbox is not attached.
   Hecks::Heartbeat.port "Signalling" do
     asks "Signal", to: Heartbeat do
       attribute :beat, BeatKey
