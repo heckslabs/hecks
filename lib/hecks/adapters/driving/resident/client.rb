@@ -65,8 +65,9 @@ module Hecks
           # @return [String] the outcome when the launcher goes on to boot on its own: the reason a
           #   resident gave for not serving the line, else what starting one came to
           def attempt(root, script)
+            asked = Time.now
             status, why = ask(root, script)
-            Stuck.after(root, why)
+            Stuck.after(root, why, asked: asked)
             return end_line(root, script, status) if status
 
             spawned = spawn_resident(root, script)

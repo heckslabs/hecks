@@ -6,8 +6,9 @@ require "hecks/adapters/driving/resident/client"
 
 # A resident and a launcher that speak different protocols (ADR 0201): the files are named for
 # the protocol, so the launcher never talks to the old resident and starts its own; a resident
-# too busy to answer twice in a row is stopped; and a resident that no caller can use still goes
-# idle. No process starts: the system's process table and signals are stood in for.
+# too busy to answer twice in a row, taking no caller between, is stopped; and a resident that no
+# caller can use still goes idle. No process starts: the system's process table and signals are
+# stood in for.
 RSpec.describe "a resident of another protocol" do
   let(:resident) { Hecks::Adapters::Driving::Resident }
   let(:paths) { resident::Paths }
@@ -90,7 +91,13 @@ RSpec.describe "a resident of another protocol" do
 
     def stopper = ->(pid) { stopped << pid }
 
-    def busy(found = ours) = stuck.after(root, "busy", look: ->(_pid) { found }, stop: stopper)
+    def busy(found = ours, asked: Time.now) = stuck.after(root, "busy", look: ->(_pid) { found }, stop: stopper, asked: asked)
+
+    # Leaves the mark a resident's worker leaves when it takes a caller, as of `at`.
+    def took_at(at)
+      stuck.took(root)
+      File.utime(at, at, paths.taken(root))
+    end
 
     before { File.write(paths.pid(root), "4242") }
 
@@ -110,6 +117,21 @@ RSpec.describe "a resident of another protocol" do
       stuck.after(root, nil, look: ->(_pid) { ours }, stop: stopper)
       expect(busy).to be(false)
       expect(stopped).to be_empty
+    end
+
+    it "is not stopped when it took a caller after the first busy line asked", :aggregate_failures do
+      asked = Time.now - 10
+      busy(asked: asked)
+      took_at(asked + 1)
+      expect(busy(asked: asked + 2)).to be(false)
+      expect(stopped).to be_empty
+    end
+
+    it "is stopped when the last caller it took came before the first busy line asked" do
+      asked = Time.now - 10
+      took_at(asked - 5)
+      busy(asked: asked)
+      expect(busy(asked: asked + 2)).to be(true)
     end
 
     it "is not stopped when the first busy was long ago" do
