@@ -771,25 +771,32 @@ Hecks.bluebook "Agents" do
   # landing and this judges design. A decision event asks too, so retiring the decision files removes
   # only the path clause. Anything but sound goes to the coder on the Verdict route.
   aggregate "ChangeReview" do
-    description "One architect review of a submitted change's design: asked when the branch changed a bluebook, hecksagon or decision file, or a decision was recorded; passed otherwise; cleared when sound, or sent back to the coder."
+    description "One architect review of a submitted change's design: asked when the branch changed a bluebook, hecksagon or decision file, or a decision was recorded; passed otherwise; unread when git could not read it; cleared when sound, or sent back to the coder."
 
     identified_by :review
 
     acknowledges :key_by_value, "the Work item's slug, which lives in the Tickets store, not in a Routing record, so a reference would refuse every change review of a branch no routing was asked for", of: :work
 
     attribute :review,   ReviewKey
+    attribute :run,      RunKey, optional: true
     attribute :work,     WorkKey, optional: true
     attribute :checkout, CheckoutPath, optional: true
     attribute :paths,    ChangedPathList, optional: true
+    attribute :tree,     TreeRef, optional: true
     attribute :adr,      DecisionRef, optional: true
     attribute :verdict,  Verdict, optional: true
     attribute :findings, FindingsText, optional: true
     attribute :reason,   ReasonText, optional: true
 
-    # The submitted commit for a submission, so the review never meets a `PlanReview` run key; the
-    # decision's number for a decision, which is reviewed once, on the first event that names it. It
-    # is also the key of the architect's run that answers the review.
+    # The submitted commit for a submission; the decision's number for a decision, which is
+    # reviewed once, on the first event that names it.
     value_object "ReviewKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The key of the architect's run: the commit's tree for a submission, so it never meets the
+    # reviewer's run, keyed by the commit; the decision's number for a decision.
+    value_object "RunKey" do
       attribute :value, String, matches: :present
     end
 
@@ -802,6 +809,9 @@ Hecks.bluebook "Agents" do
     # The paths the branch changed against main, each between bars (`|a.bluebook|b.rb|`), as the
     # `SubmittedPaths` port answers them: so a given matches a path whole, by its start or its end.
     value_object "ChangedPathList", String
+
+    # The submitted commit's tree, as git names it.
+    value_object "TreeRef", String
 
     # The decision record a Tickets event named.
     value_object "DecisionRef", String
@@ -817,14 +827,15 @@ Hecks.bluebook "Agents" do
     end
 
     lifecycle :status, default: "considered" do
+      mark :failure, "unread"
       transition "Request"         => "asked",     from: "considered"
-      transition "RequestUnread"   => "asked",     from: "considered"
       transition "RequestDecision" => "asked",     from: "considered"
       transition "Pass"            => "unasked",   from: "considered"
+      transition "Unread"          => "unread",    from: "considered"
       transition "Answer"          => "asked",     from: "asked"
       transition "Clear"           => "cleared",   from: "asked"
       transition "SendBack"        => "sent_back", from: "asked"
-      mark :terminal, "unasked", "cleared", "sent_back"
+      mark :terminal, "unasked", "unread", "cleared", "sent_back"
       # An asked review waits for the architect's verdict; a verdict that never comes is the
       # verdict-timeout sweep's to time, as it is for a plan review's.
       mark :rests, "asked"
@@ -852,21 +863,33 @@ Hecks.bluebook "Agents" do
       emits "DecisionConsidered"
     end
 
-    # The rule that asks the architect, a given on the paths the port read.
+    # The rule that asks the architect, a given on the paths the port read. Both requests emit one
+    # event, so they take the same fields: the architect's run key and the checkout it reads.
     command "Request" do
       role "System"
       goal "Ask the architect to review a submitted change that touches a bluebook, hecksagon or decision file"
 
       reference_to ChangeReview
-      attribute :paths,  ChangedPathList, optional: true, sets: true
-      attribute :reason, ReasonText, optional: true, sets: true
-      # Where the architect reads, carried on the event its run is started from.
+      attribute :run,      RunKey, sets: true
+      attribute :paths,    ChangedPathList, optional: true, sets: true
       attribute :checkout, CheckoutPath, optional: true
 
       given("the change touches a bluebook, hecksagon or decision file") do
         paths.value.include?(".bluebook|") || paths.value.include?(".hecksagon|") ||
           paths.value.include?("|docs/decisions/")
       end
+
+      emits "ChangeReviewRequested"
+    end
+
+    command "RequestDecision" do
+      role "System"
+      goal "Ask the architect to review a decision the Tickets store recorded"
+
+      reference_to ChangeReview
+      attribute :run,      RunKey, sets: true
+      attribute :paths,    ChangedPathList, optional: true, sets: true
+      attribute :checkout, CheckoutPath, optional: true
 
       emits "ChangeReviewRequested"
     end
@@ -886,32 +909,16 @@ Hecks.bluebook "Agents" do
       emits "ChangeReviewNotNeeded"
     end
 
-    # A change whose paths could not be read is reviewed, never waved through. The three requests
-    # take the same fields, since they emit one event, and carry the checkout the architect reads.
-    command "RequestUnread" do
+    # Git could not read the commit, so neither can the architect: the review ends with the reason,
+    # never passed.
+    command "Unread" do
       role "System"
-      goal "Ask the architect to review a submitted change whose changed paths could not be read"
+      goal "Record that a submitted change's paths could not be read, with git's reason"
 
       reference_to ChangeReview
-      attribute :paths,  ChangedPathList, optional: true, sets: true
-      attribute :reason, ReasonText, optional: true, sets: true
-      # Where the architect reads, carried on the event its run is started from.
-      attribute :checkout, CheckoutPath, optional: true
+      attribute :reason, ReasonText, sets: true
 
-      emits "ChangeReviewRequested"
-    end
-
-    command "RequestDecision" do
-      role "System"
-      goal "Ask the architect to review a decision the Tickets store recorded"
-
-      reference_to ChangeReview
-      attribute :paths,  ChangedPathList, optional: true, sets: true
-      attribute :reason, ReasonText, optional: true, sets: true
-      # Where the architect reads, carried on the event its run is started from.
-      attribute :checkout, CheckoutPath, optional: true
-
-      emits "ChangeReviewRequested"
+      emits "ChangeUnread"
     end
 
     command "Answer" do
@@ -946,6 +953,7 @@ Hecks.bluebook "Agents" do
 
       reference_to ChangeReview
       # Read off the review's row and carried on the event, for the verdict the coder is sent.
+      attribute :run,      RunKey, optional: true
       attribute :work,     WorkKey, optional: true
       attribute :findings, FindingsText, optional: true
 
@@ -955,7 +963,7 @@ Hecks.bluebook "Agents" do
     end
 
     query "Reviews" do
-      description "Every change review, by key: its Work item or decision, the paths read, and the verdict once the architect has answered."
+      description "Every change review, by key: its Work item or decision, the paths read, the architect's run, and the verdict once it has answered."
       order_by :review
     end
 
@@ -964,6 +972,13 @@ Hecks.bluebook "Agents" do
       description "The change review keyed by one review key, with its Work item and the architect's findings."
       attribute :review, ReviewKey
       where(review: :review)
+    end
+
+    # The reviews an architect run answers: one, or more when a tree was submitted twice.
+    query "OfRun" do
+      description "The change reviews the architect's run answers, by its run key."
+      attribute :run, RunKey
+      where(run: :run)
     end
 
     query "OfWork" do
@@ -981,7 +996,7 @@ Hecks.bluebook "Agents" do
     # Both are asked; the given of each picks the one the paths call for.
     policy "AskTheArchitectWhenTheDesignChanged" do
       on      "ChangeReview.PathsRead"
-      trigger ChangeReview::Request, with: { review: :review, paths: :paths, checkout: :checkout }
+      trigger ChangeReview::Request, with: { review: :review, run: :tree, paths: :paths, checkout: :checkout }
     end
 
     policy "PassTheChangeThatTouchesNoDesign" do
@@ -989,23 +1004,24 @@ Hecks.bluebook "Agents" do
       trigger ChangeReview::Pass, with: { review: :review, paths: :paths }
     end
 
-    policy "AskTheArchitectWhenThePathsAreUnread" do
+    policy "RecordTheUnreadChange" do
       on      "ChangeReview.PathsUnread"
-      trigger ChangeReview::RequestUnread, with: { review: :review, reason: :refusal, checkout: :checkout }
+      trigger ChangeReview::Unread, with: { review: :review, reason: :refusal }
     end
 
     policy "AskTheArchitectOnTheDecision" do
       on      "ChangeReview.DecisionConsidered"
-      trigger ChangeReview::RequestDecision, with: { review: :review, checkout: :checkout }
+      trigger ChangeReview::RequestDecision, with: { review: :review, run: :review, checkout: :checkout }
     end
 
     # The architect's run for a change review is dispatched with no Work item, which tells its job
-    # read apart from a plan review's; a run no change review keys is refused by `Answer`.
+    # read apart from a plan review's; a run no change review names finds no row.
     policy "RecordTheChangeVerdict" do
-      on      "AgentRun.JobRead"
+      on       "AgentRun.JobRead"
       root
-      where   { agent == "architect" && work == "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
-      trigger ChangeReview::Answer, with: { review: :run, verdict: :verdict, findings: :findings }
+      where    { agent == "architect" && work == "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+      for_each "ChangeReview.OfRun"
+      trigger  ChangeReview::Answer, with: { review: :review, verdict: :verdict, findings: :findings }
     end
 
     policy "ClearTheSoundChange" do
@@ -1018,15 +1034,15 @@ Hecks.bluebook "Agents" do
       on       "ChangeReview.ChangeReviewed"
       where    { verdict.value != "sound" }
       for_each "ChangeReview.OfReview"
-      trigger  ChangeReview::SendBack, with: { review: :review, work: :work, findings: :findings }
+      trigger  ChangeReview::SendBack, with: { review: :review, run: :run, work: :work, findings: :findings }
     end
 
-    # The findings go to the coder of the Work item as a verdict, as written: a waiting coder is
-    # answered in place, and a finished one is recorded unreached, a finding the orchestrator hears.
-    # A decision names no Work item, so `Verdict.Judge` refuses it and its verdict stays on the review.
+    # The findings go to the coder of the Work item as a verdict keyed by the architect's run, as
+    # written: a waiting coder is answered in place, and a finished one is recorded unreached, a
+    # finding the orchestrator hears. A decision names no Work item, so `Verdict.Judge` refuses it.
     policy "TellTheCoderTheChangeWasSentBack" do
       on      "ChangeReview.ChangeSentBack"
-      trigger Verdict::Judge, with: { run: :review, work: :work, role: "architect", answer: :findings }
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings }
     end
   end
 

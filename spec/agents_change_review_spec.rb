@@ -34,16 +34,21 @@ RSpec.describe "the architect's change review" do
     expect(status(sha)).to eq("unasked")
   end
 
-  it "asks the architect when the branch's paths cannot be read" do
+  it "ends a review whose paths cannot be read as unread, never passed" do
     branch_changing("lib/x/x.rb")
     consider("0" * 40)
-    expect(status("0" * 40)).to eq("asked")
+    expect(status("0" * 40)).to eq("unread")
   end
 
-  it "starts the architect's run keyed by the review, with no Work item" do
+  it "starts the architect's run keyed by the commit's tree, with no Work item" do
     sha = branch_changing("lib/x/x.hecksagon").tap { |tip| consider(tip) }
-    run = JSON.parse(launch("query", "agent_run.running").first).find { |row| row["run"] == sha }
+    run = running(git("rev-parse", "#{sha}^{tree}").strip)
     expect(run.slice("agent", "work").transform_values(&:to_s)).to eq("agent" => "architect", "work" => "")
+  end
+
+  it "leaves the commit's own key to the reviewer's run" do
+    sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
+    expect(running(sha)).to be_nil
   end
 
   it "asks the architect about a decision the Tickets store recorded" do
@@ -73,6 +78,6 @@ RSpec.describe "the architect's change review" do
   it "records no plan review for a change review's verdict" do
     sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
     architect_closes(sha, "Verdict: sound.")
-    expect(plan_review(sha)).to be_nil
+    expect(plan_review(run_of(sha))).to be_nil
   end
 end

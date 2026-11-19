@@ -2674,5 +2674,19 @@ Hecks.bluebook "Hecks" do
       where   { verdict.value != "clean" }
       trigger LandingReview::Shadow, with: { tip: :tip }
     end
+
+    # A change review that asks the architect starts its session as a run keyed by the review's run,
+    # with no Work item, so its verdict is read as a change review's and never as a plan review's.
+    policy "StartTheArchitectOnChangeReview" do
+      on      "ChangeReview.ChangeReviewRequested"
+      trigger AgentRun::Dispatch,
+              with: { run: :run, repo: :checkout, agent: "architect",
+                      brief: "Review the design of a submitted change: read your review with exe/hecks agents " \
+                             "ChangeReview.reviews (the row whose run is your run key). For a branch, judge its " \
+                             "bluebook, hecksagon and decision-file changes against main (git diff " \
+                             "main...<review>); for a decision, judge the decision record it names. Close with " \
+                             "Verdict: sound, Verdict: sound with changes or Verdict: rethink, and your findings: " \
+                             "anything but sound goes back to the coder as written." }
+    end
   end
 end
