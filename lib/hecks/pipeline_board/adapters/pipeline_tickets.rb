@@ -7,6 +7,7 @@ require_relative "pipeline_tickets/run_detail"
 require_relative "pipeline_tickets/stopped_runs"
 require_relative "pipeline_tickets/finished_times"
 require_relative "pipeline_tickets/closed_work"
+require_relative "pipeline_tickets/project_work"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
@@ -20,6 +21,7 @@ module Hecks
       include PipelineBoard::RunDetail
       include PipelineBoard::StoppedRuns
       include PipelineBoard::FinishedTimes
+      include PipelineBoard::ProjectWork
 
       # The statuses a stand-in list of Work items is not open in; a store is asked `Work.Undone`.
       DONE = %w[done dropped].freeze
@@ -33,19 +35,19 @@ module Hecks
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `work_items:`, `landings:` and `findings:` stand in for the
-      #   registry's Work, Landing and Finding records
+      #   registry's Work, Landing and Finding records; `projects_dir:` is where the projects'
+      #   checkouts sit, for `ProjectWork` (the parent of the board's own checkout when absent)
       # @param root [String, nil] unused
       # `live_store:` in `settings` stands in for the {PipelineBoard::LiveStore} read when the board
       # is told where the live store is (`PIPELINE_BOARD_LAUNCHER_ROOT`).
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @live = settings.fetch(:live_store) { live_store_named }
+        @registry = registry
         @own = PipelineBoard::RegistryStore.new(registry: registry)
-        @standin = settings[:work_items]
-        @epics_standin = settings[:epics]
-        @landed = settings[:landings]
-        @stopped = settings[:findings]
-        @finished = settings[:finished_times]
-        @work_times = settings[:work_times]
+        @standin, @epics_standin = settings.values_at(:work_items, :epics)
+        @landed, @stopped = settings.values_at(:landings, :findings)
+        @finished, @work_times = settings.values_at(:finished_times, :work_times)
+        @projects_dir = settings[:projects_dir]
       end
 
       # @return [Hash{Symbol => String}] `text:` the open work items as JSON: slug, status, area,
