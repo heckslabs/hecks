@@ -21,17 +21,24 @@ module ChangeReviewHelpers
            "checkout.value=#{scratch}", "--wait")
   end
 
+  # The architect's run for the review closes with the verdict.
   def architect_closes(review, verdict)
     state = { state: "done", detail: "reviewed", output: { result: verdict } }
     File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state))
-    launch("agent_run.check!", "to=#{review}", "--wait")
+    launch("agent_run.check!", "to=#{run_of(review)}", "--wait")
   end
 
   # @return [Hash, nil] the review's row as `ChangeReview.reviews` lists it
   def change_review(review) = rows("ChangeReview.reviews").find { |row| row["review"] == review }
 
+  # @return [String, nil] the key of the architect's run for the review
+  def run_of(review) = change_review(review)&.fetch("run")
+
+  # @return [Hash, nil] the started run with that key, as `agent_run.running` lists it
+  def running(run) = JSON.parse(launch("query", "agent_run.running").first.to_s).find { |row| row["run"] == run }
+
   # @return [Hash, nil] the judged verdict the review sent to its coder
-  def verdict_for(review) = rows("Verdict.judged").find { |row| row["run"] == review }
+  def verdict_for(review) = rows("Verdict.judged").find { |row| row["run"] == run_of(review) }
 
   def plan_review(run) = rows("PlanReview.reviews").find { |row| row["run"] == run }
 
