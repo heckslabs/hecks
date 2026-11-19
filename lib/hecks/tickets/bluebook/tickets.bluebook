@@ -272,7 +272,19 @@ Hecks.bluebook "Tickets" do
     attribute :narrows,       list_of(AdrNumber), optional: true
     attribute :narrowed_by,   list_of(AdrNumber), optional: true
     reference_to Finding, as: :settles, optional: true
+    attribute :interview,     InterviewCitation, optional: true
+    attribute :point,         PointCitation, optional: true
     identified_by :adr
+
+    # The interview a record came from, named by the key its Interviews bluebook identifies it by.
+    value_object "InterviewCitation" do
+      attribute :value, String, matches: :present
+    end
+
+    # The Point of that interview a record came from, named as the interview names it.
+    value_object "PointCitation" do
+      attribute :value, String, matches: :present
+    end
 
     # Four digits; a letter when a record was split (0054a); NNNN/NN for a record under a numbered
     # directory (0064/02).
@@ -328,10 +340,12 @@ Hecks.bluebook "Tickets" do
 
     command "Draft" do
       role "Maintainer"
-      goal "Open a decision record, optionally for the finding it settles; a store read from docs/decisions refuses it: write the file"
+      goal "Open a decision record, optionally for the finding it settles and citing the interview and Point it came from; a store read from docs/decisions refuses it: write the file"
 
       attribute :adr,       AdrNumber, sets: true
       attribute :title,     AdrTitle, sets: true
+      attribute :interview, InterviewCitation, optional: true, sets: true
+      attribute :point,     PointCitation, optional: true, sets: true
       reference_to Finding, as: :settles, optional: true
 
       sets :settles
@@ -734,7 +748,19 @@ Hecks.bluebook "Tickets" do
     reference_to Epic, as: :epic, optional: true
     attribute :priority, Priority, optional: true
     reference_to Adr, as: :decision, optional: true
+    attribute :interview, InterviewCitation, optional: true
+    attribute :point,     PointCitation, optional: true
     identified_by :work
+
+    # The interview a record came from, named by the key its Interviews bluebook identifies it by.
+    value_object "InterviewCitation" do
+      attribute :value, String, matches: :present
+    end
+
+    # The Point of that interview a record came from, named as the interview names it.
+    value_object "PointCitation" do
+      attribute :value, String, matches: :present
+    end
 
     # A path prefix or glob a claim covers. Two areas overlap by `Hecks::Adapters::AreaOverlap`;
     # a work item with no area claims nothing.
@@ -857,7 +883,7 @@ Hecks.bluebook "Tickets" do
 
     command "Plan" do
       role "Maintainer"
-      goal "Enter a work item into a plan, optionally under the decision it carries out"
+      goal "Enter a work item into a plan, optionally under the decision it carries out and citing the interview and Point it came from"
 
       attribute :work,   WorkKey, sets: true
       attribute :title,  WorkTitle, sets: true
@@ -866,6 +892,8 @@ Hecks.bluebook "Tickets" do
       attribute :detail, WorkText, optional: true, sets: true, default: { value: "" }
       attribute :step,   Step, optional: true, sets: true
       attribute :area,   list_of(Word), optional: true, sets: true, default: []
+      attribute :interview, InterviewCitation, optional: true, sets: true
+      attribute :point,     PointCitation, optional: true, sets: true
       reference_to Adr, as: :decision, optional: true
       # A work item may be born a member of an epic, as the evidence of a missed outcome is.
       reference_to Epic, as: :epic, optional: true
