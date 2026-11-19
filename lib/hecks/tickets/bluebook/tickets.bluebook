@@ -1013,7 +1013,7 @@ Hecks.bluebook "Tickets" do
     end
 
     # Priority `expedite`, above `now`: started after a red fix, in the one place outside the cap,
-    # past the epic limit and boot budget, held by load only above the CPU count (ADR 0222).
+    # past the epic limit and boot budget, held by load only above the CPU count (ADR 0224).
     command "Expedite" do
       role "Orchestrator"
       goal "Put one open work item ahead of the queue, so it starts without anyone changing the cap; its claim, step and area stay"

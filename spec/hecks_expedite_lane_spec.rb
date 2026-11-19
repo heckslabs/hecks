@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/hecks/adapters/work_limits"
 require_relative "support/new_work_started"
 
-# The expedite lane (ADR 0222): a work item `Work.expedite!` marks starts first after a red fix, in
+# The expedite lane (ADR 0224): a work item `Work.expedite!` marks starts first after a red fix, in
 # the one place outside the cap, past the boot budget and the epic limit, and is held by the load
 # only above the CPU count. The plan and the `WorkLimits` port apply the one rule in `WorkSlots`.
 RSpec.describe "the expedite lane" do
@@ -27,6 +27,11 @@ RSpec.describe "the expedite lane" do
   def fill_cap = (1..Hecks::Adapters::WorkLimits.cap(hecks.registry)).each { |n| plan("held-#{n}") && start("held-#{n}") }
 
   def expedite(key) = plan(key) && cli("work.expedite!", "to=#{key}")
+
+  # The Tune `WorkCap` record opened at its default level, 4: the cap while the world says it moves.
+  def open_moving_cap
+    Hecks::Runtime::Dispatcher.new(hecks.registry).dispatch_flat("Hecks::WorkCap.Open", cap: { value: "pipeline" })
+  end
 
   def item(key, priority = "")
     Hecks::Adapters::Dispatching::Plan::Item.new(key: key, title: key, area: [key], priority: priority)
@@ -82,6 +87,14 @@ RSpec.describe "the expedite lane" do
 
     expect(dispatch(hot, [], paused: Hecks::Adapters::Dispatching::Plan::LOAD_PAUSE, budget: "spent").chosen.size).to eq(1)
     expect(dispatch(hot, [], paused: "skipped: memory low (MemoryLow)").chosen).to be_empty
+  end
+
+  it "passes a moving cap below the fixed one with the expedited item, and holds the now one" do
+    open_moving_cap && fill_cap
+    plan("x") && cli("work.prioritize!", "to=x", "priority.value=now")
+    statuses = [start("x")["status"], expedite("hot") && start("hot")["status"]]
+
+    expect([Hecks::Adapters::WorkLimits.cap(hecks.registry), *statuses]).to eq([4, "planned", "started"])
   end
 
   it "records each use as WorkExpedited, saying the priority the board reads" do
