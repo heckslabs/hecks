@@ -1,7 +1,7 @@
 # Nothing squashes: a merge commit keeps each landed commit
 
 **Status:** Accepted. Date: 2026-11-14. Asked for by the owner: "I want to stop doing squash commits
-everywhere, even GitHub." Stage one is built; the later stages are listed at the end.
+everywhere, even GitHub." Stages one and two are built; what is left waits on the delivery package and is listed at the end.
 
 ## Context
 
@@ -47,9 +47,12 @@ A squash on GitHub erased those merge commits, so the two had to change together
 - `main`'s history is a first-parent line of merges, each with the commits of one train or one
   landing beneath it. `git log --first-parent` reads as a list of landings; `git bisect --first-parent`
   tests one landing at a time.
-- The declared names `ReviewRequest.Squash` and the `Squash` port ask keep their names in stage
-  one: they now ask GitHub for a merge commit. Renaming them (the hecksagon, deliver.bluebook, the
-  CLI goldens and the specs) is stage three, with the removal of the carried-by-squash code.
+- The `ReviewRequest` port ask is `Merge` (answers `MergeAnswered`, refuses `MergeRefused`), asked
+  by the policy `MergeWhenRequested`, and its adapter method is `GithubPullRequests#merge`.
+- `CarriedCheck` reads a commit as carried only when it is an ancestor of `origin/main`. A run
+  carried only by an old squash would now read as not carried and be verified again; on
+  2026-11-19 none of the open `MainIntegration` runs was in that state, so no run changes its
+  answer.
 - A pull request whose branch is not up to date now merges into a merge commit that is not a
   fast-forward of the tip that was tested; the merge queue builds each entry on top of the
   lane and the entries ahead of it, so what merges is what was tested.
@@ -58,9 +61,14 @@ A squash on GitHub erased those merge commits, so the two had to change together
 
 1. **Built:** the ruleset generator (`lib/hecks/tools/lanes/ruleset.rb`) and `main.json` allow only
    `merge` and queue with `MERGE`; the four callers pass `--merge`; their specs say so. Then the
-   ruleset is applied to GitHub, in the order of point 4.
-2. **After one train has merged as a merge commit and local `main` has pulled it cleanly:** remove
-   the carried-by-squash code (`git_main_pull/boarding.rb`, `carried_check.rb`, `adoption.rb`,
-   `main_verification.rb`, `deliver.bluebook` `ask :squash`) and its specs, and
-   rename `ReviewRequest.Squash` to a merge. The vendored `git_main_pull/carried.rb` belongs to the
-   delivery package, so that part goes upstream in Switchyard and is re-vendored.
+   ruleset is applied to GitHub, in the order of point 4. Applied: `lane-main` on GitHub allows
+   only `merge` and queues with `MERGE`.
+2. **Built, once trains had merged as merge commits and local `main` had pulled them cleanly:**
+   `CarriedCheck` keeps only the ancestry test; the `Squash` ask is renamed `Merge`; the specs
+   build a train on origin as a merge commit; `adoption.rb` stays, because a pull still rebases a
+   held tip onto the merge of the train ahead of it.
+3. **Waits on the delivery package:** the vendored `git_main_pull/carried.rb`, `nowhere.rb` and
+   `git_landing/carried.rb` still read old squashes and include `git_main_pull/boarding.rb`. That
+   code belongs to Switchyard, so the squash path is dropped there and re-vendored; then
+   `boarding.rb` and the specs of that path (`hecks_pull_main_squash_spec`,
+   `hecks_git_landing_squash_carried_spec`, the squash example of `hecks_pull_main_spec`) go.

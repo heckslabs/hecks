@@ -8,7 +8,7 @@ module Hecks
   module Adapters
     class GitTrain
       # The boarding of a repository that disallows auto-merge: the train waits for the PR's
-      # required checks itself, then squash-merges it through `GithubPullRequests#squash`, the
+      # required checks itself, then merges it through `GithubPullRequests#merge`, the
       # path `ReviewRequest.take!` takes. `--admin` is never passed, so branch protection stands.
       #
       # Green, it answers `pushed` with the merge commit. A failed or cancelled required check
@@ -45,7 +45,7 @@ module Hecks
           failed = wait_for(branch)
           return failed_answer(branch, failed) unless failed.empty?
 
-          answer = GithubPullRequests.new(runner: method(:gh)).squash(number: number)
+          answer = GithubPullRequests.new(runner: method(:gh)).merge(number: number)
           return merged(boarded) if answer.dig(:outcome, :value) == "merged"
 
           follow(branch, boarded)
