@@ -2,6 +2,7 @@ require_relative "../caller"
 require_relative "../errors"
 require_relative "../refusal_wording"
 require_relative "../../ports/authorization"
+require_relative "unstated_caller"
 
 module Hecks
   module Runtime
@@ -9,25 +10,29 @@ module Hecks
       # Refuses a command whose declared `role` the ambient caller does not hold.
       #
       # A caller with an `actor_id` is checked against live grants when the domain has an
-      # authorization provider (ADR 0025); one without is compared by role string only.
+      # authorization provider (ADR 0025); one without is compared by role string only. A
+      # caller who states no role runs in shadow (ADR 0216): the command goes through and the
+      # would-refuse is recorded by `UnstatedCaller`.
       module Authorization
+        include UnstatedCaller
+
         # Refuses the command when the ambient caller (`Caller.current`) lacks its declared role.
         #
-        # Opt-in on both sides: no caller bound, or no role declared, means no check.
+        # No role declared means no check. No caller bound lets the command run and records a
+        # would-refuse (shadow); refusing it is the 7.0.0 default ADR 0216 names.
         #
         # @param command [Bluebook::Command] the command about to run
         # @param domain [String] name of the command's domain, whose provider answers the check
-        # @return [nil] when unchecked or authorized
+        # @return [nil] when unchecked, unstated (shadow) or authorized
         # @raise [Runtime::Unauthorized] if the caller holds no grant of the role (identified
         #   caller) or its role string differs (unidentified caller)
         # @raise [Runtime::WiringError] if zero or several adapters implement the port
         def refuse_role_mismatch(command, domain)
-          caller = Caller.current
-          return unless caller
-
           roles = command.role_set
           return if roles.empty?
 
+          caller = Caller.current
+          return note_unstated_caller(command, domain) unless caller
           return if roles.any? { |role| role_held?(caller, role, domain) }
 
           raise Unauthorized, RefusalWording.render_site("Unauthorized", "role_mismatch",

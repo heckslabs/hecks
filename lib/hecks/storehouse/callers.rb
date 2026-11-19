@@ -1,3 +1,5 @@
+require_relative "../runtime/refusal_wording"
+
 module Hecks
   module Storehouse
     # The checks on who is calling and what a call may carry: its options, summary, source and
@@ -66,15 +68,14 @@ module Hecks
         Hecks.as_caller(role: role, actor_id: actor_id, &)
       end
 
-      # A caller who omits role: would otherwise reach a role-gated command
-      # unchecked (refuse_role_mismatch no-ops with no bound caller) — refuse here instead.
+      # A caller who omits role: is refused at this door, in the words of the runtime's
+      # `role_unstated` refusal (ADR 0216); the runtime itself only records it, in shadow.
       # :nodoc:
       def require_caller_for_role_gated!(spec, role)
         return unless spec[:role_gated] && role.nil?
 
-        raise Runtime::Unauthorized,
-              "#{spec[:command]} requires role: #{spec[:role].inspect} — this command is role-gated and no caller " \
-              "(role:/actor_id:) is bound; dispatching it unbound is refused, not silently unchecked"
+        raise Runtime::Unauthorized, Runtime::RefusalWording.render_site("Unauthorized", "role_unstated",
+                                                                         command: spec[:command], role: spec[:role])
       end
     end
   end
