@@ -1,3 +1,5 @@
+require "hecks/adapters/driving/resident/stuck"
+
 module Hecks
   module Adapters
     module Driving
@@ -46,8 +48,11 @@ module Hecks
             @upkeep = Thread.new { upkeep }
           end
 
+          # Takes callers off the queue until it closes, marking each take ({Stuck.took}) so a
+          # launcher can tell a resident that is slow from one that is stuck.
           def work
             while (job = @queue.pop)
+              Stuck.took(@root)
               client, queued = job
               now - queued > QUEUE_WAIT ? drop(client, []) : handle(client)
             end
