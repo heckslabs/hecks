@@ -58,7 +58,7 @@ RSpec.describe "the Work concurrency cap" do
 
   it "admits a start again once a holder finishes" do
     (1..(cap + 1)).each { |n| start("free/#{n}") }
-    cli("work.finish!", "to=free/1")
+    cli("work.finish!", "to=free/1", "no_change.value=a verify")
     cli("work.start!", "to=free/#{cap + 1}", "claimed_by.value=s", "claimed_at.value=2026-11-01T09:00:00Z")
 
     expect(JSON.parse(cli("work.undone")).find { |work| work["work"] == "free/#{cap + 1}" }["status"]).to eq("started")

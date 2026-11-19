@@ -750,6 +750,11 @@ Hecks.bluebook "Tickets" do
     reference_to Adr, as: :decision, optional: true
     attribute :interview, InterviewCitation, optional: true
     attribute :point,     PointCitation, optional: true
+    # The commit on main a done item landed as, or why it lands nothing: one is set on every done item.
+    attribute :landing,   WorkText, optional: true
+    attribute :no_change, WorkText, optional: true
+    # Why the last finish left the item open: no landing of it was on main. A close clears it.
+    attribute :refusal,   WorkText, optional: true
     identified_by :work
 
     # The interview a record came from, named by the key its Interviews bluebook identifies it by.
@@ -875,7 +880,7 @@ Hecks.bluebook "Tickets" do
       transition "Release" => "planned", from: "started"
       transition "Yield"   => "planned", from: "started"
       transition "Refuse"  => "planned", from: "started"
-      transition "Finish" => "done",    from: %w[planned started]
+      transition "Close"  => "done",    from: %w[planned started]
       transition "Drop"   => "dropped", from: %w[planned started]
       transition "Lapse"  => "dropped", from: %w[planned started]
       transition "Reopen" => "planned", from: %w[done dropped]
@@ -1091,16 +1096,51 @@ Hecks.bluebook "Tickets" do
       emits "WorkReleased"
     end
 
+    # Asks for a work item to be done. It changes nothing itself: a `no_change` reason (a verify, an
+    # answer) closes it at once, and without one the WorkLandings port looks for a landing of its
+    # branch on main, which closes it or refuses by name.
     command "Finish" do
       role "Maintainer"
-      goal "Record that a work item is done"
+      goal "Ask that a work item be done, naming why it lands nothing when it lands no change"
 
       reference_to Work
+      attribute :no_change, WorkText, optional: true, default: { value: "" }
+
+      sets :refusal, to: ""
+
+      emits "FinishRequested"
+    end
+
+    # The WorkLandings port found no landing of the item on main: it stays as it was and keeps the
+    # refusal, which the finish's caller reads.
+    command "KeepOpen" do
+      role "System"
+      goal "Record why a finish left a work item open: no landing of it is on main"
+
+      reference_to Work
+      attribute :refusal, WorkText, sets: true
+
+      emits "WorkKeptOpen"
+    end
+
+    # The only way a work item becomes done. Sent with the landing the WorkLandings port found on
+    # main or a landing just recorded, or with a no-change reason: a `given` sees its own arguments,
+    # so a caller who dispatches it by hand vouches for the landing.
+    command "Close" do
+      role "System"
+      goal "Record that a work item is done, with the landing on main the WorkLandings port found or the reason it lands nothing"
+
+      reference_to Work
+      attribute :landing,   WorkText, optional: true, sets: true, default: { value: "" }
+      attribute :no_change, WorkText, optional: true, sets: true, default: { value: "" }
+
+      given("a work item is done only with a landing on main or a no-change reason") { !landing.value.to_s.empty? || !no_change.value.to_s.empty? }
 
       # A finished item starts a later life from a clean backoff: its yields no longer count.
       sets :yield_kind, to: ""
       sets :retry_at, to: ""
       sets :yield_count, to: 0
+      sets :refusal, to: ""
 
       emits "WorkFinished"
     end
@@ -1172,10 +1212,10 @@ Hecks.bluebook "Tickets" do
     end
 
     # The sweep for work finished with no code on main: a read, never a write. Each line is the local
-    # branch of a done work item whose tip `main` does not contain. A done item with no local branch
-    # is not listed: nothing is left to lose.
+    # branch of a done work item whose tip `main` does not contain, then each done item that no landed
+    # Landing names and that records neither a landing nor a no-change reason, as `key - -`.
     query "DoneOffMain" do
-      description "The local branches that name a done work item and whose tip main does not contain, one line each as key, branch and tip. Read-only."
+      description "The local branches that name a done work item and whose tip main does not contain, one line each as key, branch and tip; then each done work item no landing names and that records no landing or no-change reason, as key - -. Read-only."
       returns Document
     end
 
@@ -1396,9 +1436,36 @@ Hecks.bluebook "Tickets" do
   # Only a landing finishes a work item, never a submission, which a landing job may still refuse.
   # The LandedWork port found the open work item the branch names (the whole name, else without a
   # leading `qa/`); a branch with no open work item is refused there and never reaches here.
-  policy "FinishWorkWhenBranchLanded" do
+  policy "CloseWorkWhenBranchLanded" do
     on      "Landing.LandedWorkFound"
-    trigger Work::Finish, with: { work: :branch }
+    trigger Work::Close, with: { work: :branch, landing: :landed }
+  end
+
+  # A finish that names why the item lands nothing closes it; one that names nothing asks the
+  # WorkLandings port for a landing of its branch on main. The closes are roots, so the epic review
+  # a close starts counts from the close, as it does from a landing, not from the hand finish.
+  policy "CloseWorkWhenFinishedWithNoChange" do
+    on      "Work.FinishRequested"
+    root
+    where   { no_change.value != nil && !no_change.value.to_s.empty? }
+    trigger Work::Close, with: { work: :work, no_change: :no_change }
+  end
+
+  policy "CheckLandingWhenFinishRequested" do
+    on      "Work.FinishRequested"
+    where   { no_change.value == nil || no_change.value.to_s.empty? }
+    ask     :check_landing, with: { work: :work }
+  end
+
+  policy "KeepWorkOpenWhenNoLandingOnMain" do
+    on      "Work.NoLandingOnMain"
+    trigger Work::KeepOpen, with: { refusal: :refusal }
+  end
+
+  policy "CloseWorkWhenLandingOnMain" do
+    on      "Work.LandingOnMain"
+    root
+    trigger Work::Close, with: { work: :work, landing: :landing }
   end
 
   # A landing job refused a submitted branch for a cause a coder can fix: its started work item is
@@ -1530,9 +1597,9 @@ Hecks.bluebook "Tickets" do
   end
 
   # The run that no longer fails the file closes its work item.
-  policy "FinishWorkWhenSpecWentGreen" do
+  policy "CloseWorkWhenSpecWentGreen" do
     on      "RedSpec.SpecWentGreen"
-    trigger Work::Finish, with: { work: :spec }
+    trigger Work::Close, with: { work: :spec, no_change: "a spec run no longer fails the file" }
   end
 
   # A filed stall is one work item for its fixer, keyed as the stall is (`stall-<kind>-<subject>`), so a
@@ -1586,10 +1653,10 @@ Hecks.bluebook "Tickets" do
     trigger Work::Revise, with: { work: :work, title: :title, detail: :detail }
   end
 
-  policy "FinishWorkWhenPushSettled" do
+  policy "CloseWorkWhenPushSettled" do
     on      "PushNudge.PushDueRead"
     where   { due.value == "no" && raised.value == "yes" }
-    trigger Work::Finish, with: { work: :work }
+    trigger Work::Close, with: { work: :work, no_change: "the push is no longer due" }
   end
 
   policy "RecordTheIssue" do

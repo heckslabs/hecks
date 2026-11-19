@@ -4,7 +4,7 @@ Hecks.hecksagon "Tickets" do
   attaches "Governance"
   persisted_by "Memory"
 
-  # The Hecks domain's landing found the step a landed branch was cut for: FinishWorkWhenBranchLanded reacts.
+  # The Hecks domain's landing found the step a landed branch was cut for: CloseWorkWhenBranchLanded reacts.
   subscribe "Delivery.LandedWorkFound"
 
   # The Hecks domain's landing job refused a branch a coder can fix: RefuseWorkWhenLandingRefused reacts.

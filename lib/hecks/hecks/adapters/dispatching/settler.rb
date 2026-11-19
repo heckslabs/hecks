@@ -9,6 +9,9 @@ module Hecks
       # is, then finishes the work item whose branch landed since it started and yields any other,
       # with the condition as the reason. A session still working is left alone.
       class Settler
+        # Why a stall item lands nothing, which its finish names.
+        STALL_MOVE = "a stall item's move is its session"
+
         # Why a started item with no live run and no landing under way returns to the plan.
         ORPHAN_REASON = "started with no live run and no landing in flight"
 
@@ -96,7 +99,7 @@ module Hecks
         # A stall item's move is the session itself and lands no branch, so a session that ended
         # done finishes it; yielded, the fill would start it again on every roll. A finished stall
         # item is never filed again, because the tap holds its stall key (`Standing#filed?`).
-        def finish_stall(key) = "#{@launcher.finish(key)}: a stall item whose session ended done"
+        def finish_stall(key) = "#{@launcher.finish(key, no_change: STALL_MOVE)}: a stall item whose session ended done"
 
         def finish_landed(key, sha) = "#{@launcher.finish(key)}: landed as #{sha[0, 9]}, finishing instead"
 
