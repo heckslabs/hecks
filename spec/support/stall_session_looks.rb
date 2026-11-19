@@ -26,6 +26,18 @@ module StallSessionLooks
     append("SessionBlocked", run, "Hecks::AgentRun", 20)
   end
 
+  # A run seated to answer the question `asks` asked, then blocked itself.
+  def blocked_answerer(run, asks)
+    append("QuestionSeated", asks, "Hecks::Question", 31)
+    append("AgentRunRequested", run, "Hecks::AgentRun", 31, { work: asks })
+    blocked(run)
+  end
+
+  # The detail of the one sighting of a run's blocked line.
+  def blocked_detail(run)
+    watching.unclosed(run: "look").find { |row| row[:stall] == "stall-agent-run-blocked-#{run}" }&.dig(:detail).to_s
+  end
+
   # A blocked run's stall filed and its session begun, then its work item done, then a beat.
   def file_begin_then_settle(run)
     blocked(run)
