@@ -138,13 +138,18 @@ Hecks.bluebook "Hecks" do
                move: "The sweep already sends the verdict again and then ends the run, so a stall here means the " \
                      "sweep or its retry chain is broken: report that as the finding. AgentRun.check! the run, then " \
                      "Work.yield! the run's Work item (AgentRun.running names it) with the reason, so its area claim is freed."
+        # A blocked run tidied afterwards (a reviewer whose worktree went at its landing) waits on
+        # nothing: its `ends` abandons a filed stall and a look files none, so the move plans no item.
         member kind: "agent-run-blocked", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
                named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 15, forgets: 1440, fixer: "orchestrator",
-               move: "AgentRun.answer! the [confirm] or [retry] question it waits on, and confirm the board did. " \
+               move: "First AgentRun.check! the run: a run whose status is finished or tidied, or whose condition is " \
+                     "stopped, and that asks no question waits on nothing. Plan no work item and make no AgentRun.retire! " \
+                     "(refused once tidied): the watch abandons this stall when the run is tidied. Otherwise " \
+                     "AgentRun.answer! the [confirm] or [retry] question it waits on, and confirm the board did. " \
                      "For a [choose] question answer it with AgentRun.answer! when the answer follows from the brief, " \
                      "the Work item's area or an architect verdict (a wrong area: Work.rescope!, then answer); " \
                      "otherwise Work.plan! a work item titled 'needs an answer: <run>' with the question text as its detail " \
