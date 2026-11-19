@@ -58,6 +58,14 @@ Hecks.world "Tickets" do
   integration_bound "Integration", verifying: 60, boarding: 30, pushed: 45, ci_running: 90,
                                    reverifying: 60, merged: 90
   dispatch_max_load "Dispatch", limit: 10.0
+  # `metering.roundhouse` (ADR 0222, phase 3, metering) moves every Delegate reader of load (the
+  # fill's limit and headroom, the Machine readings and the marks above, Overload, the moving cap)
+  # from `uptime` to Roundhouse's meter (its `Load` query). Off, `uptime` counts and each Machine
+  # reading keeps the metered load beside it as `metered_load`, so the two are read side by side
+  # first. Both read the kernel's 1-minute load average; they differ only by when each was read.
+  # Memory is not moved yet: the free-memory marks stay judged on free plus inactive pages. At the
+  # turn, the marks' history sees one reading from each meter. Turn with `hecks Dial.turn!`.
+  metering "Machine", roundhouse: false
   epic_wip_limit "Dispatch", limit: 4
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
   # `load_shed` bounds the Delegate `Shed`: a rise of the load asks one started item to yield.
