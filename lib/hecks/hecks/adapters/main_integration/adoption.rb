@@ -5,8 +5,8 @@ require "securerandom"
 module Hecks
   module Adapters
     class MainIntegration
-      # Opens a run for a tip of local main that no run covers. A pull that rewrites a held tip
-      # (a squash merge ahead of it) leaves the run keyed by the old commit superseded, and
+      # Opens a run for a tip of local main that no run covers. A pull that rebases a held tip
+      # onto a train merged ahead of it leaves the run keyed by the old commit superseded, and
       # nothing else names the new one. When no run is open, main is ahead of `origin/main`, and
       # `origin/main` carries none of the tip, it records the tip as landed on main
       # (`Landing.Adopt`), which starts the run the usual way; a tip some run already keys is

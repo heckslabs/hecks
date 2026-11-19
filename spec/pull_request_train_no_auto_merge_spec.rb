@@ -6,7 +6,7 @@ require "tmpdir"
 require "hecks/hecks/adapters/git_train"
 
 # The push train boarding main in a repository that disallows auto-merge: it waits for the PR's
-# required checks, then squash-merges it (never with `--admin`), or answers `checks_failed`
+# required checks, then merges it (never with `--admin`), or answers `checks_failed`
 # naming the failed checks and leaves the PR open. Against a local bare repository and a clone
 # of it; `gh` is a stubbed GitHub that refuses auto-merge and reports the checks it is given,
 # one read at a time.
