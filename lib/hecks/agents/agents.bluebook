@@ -45,6 +45,9 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "AgentRun.check!"
       # A message is an event the run's session hears; AgentRun.answer! stays for a session not following.
       member role: "orchestrator", pattern: "Message.send!"
+      # The standing seat's first step, so a message to `orchestrator` reaches it; the row is
+      # verb-wide, and the seat registers only `run=orchestrator`.
+      member role: "orchestrator", pattern: "HandRun.register!"
       member role: "orchestrator", pattern: "Message.read!"
       member role: "orchestrator", pattern: "Message.inbox"
       # Reads of the sessions; Fleet.stop! and Fleet.resume! stay the operator's.
