@@ -20,6 +20,10 @@ module Hecks
     # The variable that chooses a boot's engine when the caller left `engine:` at its default.
     ENGINE_VARIABLE = "HECKS_ENGINE".freeze
 
+    # The host wiring variable that names the role mode a boot installs (ADR 0132); see
+    # `Runtime::RoleShadow`.
+    ROLE_ENFORCEMENT_VARIABLE = "HECKS_ROLE_ENFORCEMENT".freeze
+
     # The engines a boot can run a domain on: `:ruby` in this process, `:kernel` in the Rust kernel.
     ENGINES = %i[ruby kernel].freeze
 
@@ -151,8 +155,12 @@ module Hecks
       registry.ports.any? ? bind_runtime(dispatcher) : dispatcher
     end
 
-    # The dispatcher, with the Ruby driving adapter installed over it when asked.
-    def drive(dispatcher, install_driving) = install_driving ? bind_runtime(dispatcher) : dispatcher
+    # The dispatcher, with the Ruby driving adapter installed over it when asked, after the
+    # role mode `HECKS_ROLE_ENFORCEMENT` names is installed for the runtime.
+    def drive(dispatcher, install_driving)
+      Runtime::RoleShadow.install(Runtime::RoleShadow.parse(ENV.fetch(ROLE_ENFORCEMENT_VARIABLE, nil)))
+      install_driving ? bind_runtime(dispatcher) : dispatcher
+    end
     private_class_method :drive
   end
 end
