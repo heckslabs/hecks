@@ -184,6 +184,7 @@ RSpec.describe "the declared syntax" do
       created_by_impl:        "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       mints_era_impl:         "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       policy_only_impl:       "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
+      creates_or_acts_impl:   "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       handles_impl:           "PortOperationBuilder's own real implementation, called by GenericDispatch's calls:",
       split_impl:             "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       tells_impl:             "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \

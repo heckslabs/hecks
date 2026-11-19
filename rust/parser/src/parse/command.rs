@@ -271,6 +271,7 @@ pub fn parse_body(
             }
             "idempotent" => command.idempotent = true,
             "policy_only" => command.policy_only = true,
+            "creates_or_acts" => command.on_occupied = ir::OnOccupied::Act,
             "mints_era" => {
                 command.mints_era =
                     super::positional_literal_text(file, line, "mints_era", &gated.args, 1)?

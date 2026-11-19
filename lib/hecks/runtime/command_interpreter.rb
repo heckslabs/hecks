@@ -46,7 +46,8 @@ module Hecks
       # the step that sets them runs.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
-                           :dry_run, :correction_bindings, :outbox_rows, :invocation, :dispatch_key, :archiving) do
+                           :dry_run, :correction_bindings, :outbox_rows, :invocation, :dispatch_key, :archiving,
+                           :acting_on_occupant) do
         include DispatchContext
       end
 
@@ -141,8 +142,9 @@ module Hecks
         ctx.instance = step(:hydrate) { hydrate_for(ctx) }
       end
 
+      # A `creates_or_acts` command that found its record acts on it, so it assigns nothing.
       def step_assign_creation_attributes(ctx)
-        return unless legacy_implicit_creation?(ctx)
+        return unless legacy_implicit_creation?(ctx) && !ctx.acting_on_occupant
 
         step(:assign_creation_attributes) { assign_creation_attributes(ctx.instance, ctx.aggregate, ctx.command, ctx.args) }
       end

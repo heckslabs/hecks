@@ -1,0 +1,45 @@
+# Small fixture that exercises `creates_or_acts` end to end: the first Write opens a page, and a
+# later Write to the same title adds a line to it instead of refusing the title as taken.
+Hecks.bluebook "CreatesOrActs" do
+  vision "A notebook keeps writing on the page a title already names."
+  core
+
+  aggregate "Page" do
+    description "A page of lines, opened by its first line and written on by every later one."
+
+    identified_by :title
+
+    attribute :title, Title
+    attribute :lines, list_of(Line)
+
+    value_object "Title" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Line" do
+      attribute :text, String, matches: :present
+    end
+
+    command "Write" do
+      role "Writer"
+      goal "Add a line to the page its title names, opening the page when there is none"
+      creates_or_acts
+
+      attribute :title, Title
+      attribute :text,  String
+
+      sets :lines, append: { text: :text }
+
+      emits "LineWritten"
+    end
+
+    command "Open" do
+      role "Writer"
+      goal "Open a page that must not exist yet"
+
+      attribute :title, Title, sets: true
+
+      emits "PageOpened"
+    end
+  end
+end
