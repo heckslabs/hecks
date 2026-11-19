@@ -68,6 +68,8 @@ module Hecks
       ci_pipeline:  "lib/hecks/ci_pipeline/*.bluebook",
       ci_speed:     "lib/hecks/ci_speed/*.bluebook",
       ci_workflows: "lib/hecks/ci_workflows/*.bluebook",
+      # The Interviews bluebook boots from its own directory beside its hecksagon (ADR 0194).
+      interviews:   "lib/hecks/interviews/*.bluebook",
       fixture:      "spec/fixtures/**/*.bluebook"
     }.freeze
 
