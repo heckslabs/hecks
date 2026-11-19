@@ -1388,10 +1388,9 @@ Hecks.bluebook "Agents" do
                                          reason: "the coder's session refused the verdict on every try" }
     end
 
-    # The architect's verdict is judged for the coder only once its review holds it: forwarded off the
-    # row a request made and the verdict answered (`VerdictForwarded`), or from the review the verdict
-    # created (`PlanReviewRecorded`), never from the job read itself. A refused `Answer` (a review
-    # already ended) forwards nothing, so no coder is told a verdict the ledger lacks.
+    # Judged for the coder only once the review holds the verdict (`VerdictForwarded`,
+    # `PlanReviewRecorded`), never off the job read: a refused `Answer` (a review already ended)
+    # forwards nothing, so no coder is told a verdict the ledger lacks.
     policy "JudgeTheForwardedVerdict" do
       on      "PlanReview.VerdictForwarded"
       root
