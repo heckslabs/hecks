@@ -709,7 +709,7 @@ Hecks.bluebook "Hecks" do
       # open. A boarding that pushed, closed or never queued has no pull request left to watch.
       command "Watch" do
         role "Operator"
-        goal "Look at each queued boarding's pull request, and record any that merged or ended with failed checks"
+        goal "Look at a queued or red boarding's pull request, and record a merge, a close or failed checks"
 
         reference_to SendTrain
 
