@@ -1,11 +1,11 @@
 require "spec_helper"
 require_relative "support/routing_reads_helper"
 
-# The guard binds the orchestrator's own session, never a subagent that only uses its agent file.
-RSpec.describe "the orchestrator guard and a delegated run" do
+# The guard binds the Lead's own session, never a subagent that only uses its agent file.
+RSpec.describe "the Lead guard and a delegated run" do
   include RoutingReadsHelper
 
-  it "refuses an orchestrator-session command off the list" do
+  it "refuses a Lead-session command off the list" do
     expect(refusal("cat lib/x.rb")).to include("routes only")
   end
 

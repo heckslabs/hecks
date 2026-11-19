@@ -2,10 +2,10 @@
 
 # Helpers for the specs that read `TurnFinished` from a scratch event log.
 module TurnLogHelpers
-  def stuck_item = { kind: "session", what: "stray orchestrator session", since: "65f4f4a9", owner_run: "fix-1", link: "" }
+  def stuck_item = { kind: "session", what: "stray Lead session", since: "65f4f4a9", owner_run: "fix-1", link: "" }
 
   def turn_line(run, at, verdict, extra = {})
-    payload = { role: "orchestrator", verdict: verdict }.merge(extra)
+    payload = { role: "lead", verdict: verdict }.merge(extra)
     row = { kind: "event", at: at, aggregate: "Hecks::Agents::Turn", id: run, event: "TurnFinished", payload: payload }
     "#{JSON.generate(row)}\n"
   end

@@ -1,9 +1,9 @@
 require "spec_helper"
 require "hecks/agents/adapters/routing_guard"
 
-# The owner-launched `orchestrator-owner` role has every tool and no routing rows; the pipeline's
-# `orchestrator` keeps its rows and its one tool. Nothing here touches a live ledger or tap.
-RSpec.describe "the orchestrator-owner role" do
+# The owner-launched `lead-owner` role has every tool and no routing rows; the pipeline's
+# `lead` keeps its rows and its one tool. Nothing here touches a live ledger or tap.
+RSpec.describe "the lead-owner role" do
   let(:root)  { InMemoryDomain::ROOT }
   let(:guard) { Hecks::Adapters::RoutingGuard.new }
 
@@ -18,27 +18,27 @@ RSpec.describe "the orchestrator-owner role" do
   def agent_file(role) = File.read(File.join(root, ".claude/agents/#{role}.md"))
 
   it "has no routing rows" do
-    expect(routing_rows.map { |row| row[:role] }).not_to include("orchestrator-owner")
+    expect(routing_rows.map { |row| row[:role] }).not_to include("lead-owner")
   end
 
   it "is allowed an arbitrary command" do
-    expect { verdict("orchestrator-owner", "git push origin main") }.not_to raise_error
+    expect { verdict("lead-owner", "git push origin main") }.not_to raise_error
   end
 
-  it "leaves the orchestrator its routing rows" do
-    expect(routing_rows.count { |row| row[:role] == "orchestrator" }).to be > 40
+  it "leaves the Lead its routing rows" do
+    expect(routing_rows.count { |row| row[:role] == "lead" }).to be > 40
   end
 
-  it "still refuses the orchestrator a command off its list" do
-    expect { verdict("orchestrator", "git push origin main") }
+  it "still refuses the Lead a command off its list" do
+    expect { verdict("lead", "git push origin main") }
       .to raise_error(Hecks::Adapters::RoutingGuard::Refused)
   end
 
   it "generates tools * for the owner role" do
-    expect(agent_file("orchestrator-owner")).to match(/^tools: \*$/)
+    expect(agent_file("lead-owner")).to match(/^tools: \*$/)
   end
 
-  it "keeps tools Bash for the orchestrator" do
-    expect(agent_file("orchestrator")).to match(/^tools: Bash$/)
+  it "keeps tools Bash for the Lead" do
+    expect(agent_file("lead")).to match(/^tools: Bash$/)
   end
 end

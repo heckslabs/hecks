@@ -7,7 +7,7 @@ module EndedRunLooks
   NOW = Time.utc(2026, 11, 18, 12, 0, 0)
   KIND = { kind: "agent-run-unresumed", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
            closes: "AgentRunAnswered,SessionFinished", ends_aggregate: "Hecks::AgentRun",
-           ends: "AgentRunTidied,AgentRunRetired", minutes: 10, forgets: 1440, fixer: "orchestrator", move: "look" }.freeze
+           ends: "AgentRunTidied,AgentRunRetired", minutes: 10, forgets: 1440, fixer: "lead", move: "look" }.freeze
 
   def run_line(event, minutes_ago)
     { "kind" => "event", "at" => (NOW - (minutes_ago * 60)).iso8601, "aggregate" => "Hecks::AgentRun",

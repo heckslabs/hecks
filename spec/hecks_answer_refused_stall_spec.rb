@@ -19,7 +19,7 @@ module AnswerRefusedStallLooks
 end
 
 # The StallWatch `agent-run-answer-refused` and `agent-run-unreached` rows file a verdict that no
-# coder run could take at once, as `stall-<kind>-<run>`, so the orchestrator is woken; a later
+# coder run could take at once, as `stall-<kind>-<run>`, so the Lead is woken; a later
 # start of the run closes the line.
 RSpec.describe "the refused-answer stalls" do
   include_context "with a stall watch tap"

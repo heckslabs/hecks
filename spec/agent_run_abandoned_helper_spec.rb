@@ -5,7 +5,7 @@ require_relative "support/stand_in_claude"
 # A helper session blocked on a question nobody answers ends itself. Through the booted Hecks
 # domain, whose world gives a blocked helper `abandon_after_minutes` (30): a reviewer blocked past
 # it ends its run `abandoned` with its question kept, and the reap that follows removes its
-# session; one blocked under it, a coder, the orchestrator, a session `pins.json` names, a trial
+# session; one blocked under it, a coder, the Lead, a session `pins.json` names, a trial
 # run, one in a world that sets no time and one answered in time all stay started.
 # The stand-in `claude` lists the session and logs each `rm`.
 RSpec.describe "AgentRun: a helper blocked with no answer" do
@@ -82,8 +82,8 @@ RSpec.describe "AgentRun: a helper blocked with no answer" do
     expect(blocked_run("ab-coder", "coder", 40)).to include("status" => "started")
   end
 
-  it "leaves the orchestrator blocked past the time started" do
-    expect(blocked_run("ab-orchestrator", "orchestrator", 40)).to include("status" => "started")
+  it "leaves the Lead blocked past the time started" do
+    expect(blocked_run("ab-lead", "lead", 40)).to include("status" => "started")
   end
 
   it "leaves a helper whose session pins.json names started" do

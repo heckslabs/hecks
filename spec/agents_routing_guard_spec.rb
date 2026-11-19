@@ -1,13 +1,13 @@
 require "spec_helper"
 require "hecks/agents/adapters/routing_guard"
 
-# The orchestrator's allowlist is data on the Agents bluebook's Role aggregate; the guard, the
+# The Lead's allowlist is data on the Agents bluebook's Role aggregate; the guard, the
 # hook and the role file only read or forward it. Nothing here touches a live ledger or tap.
-RSpec.describe "the orchestrator routing guard" do
+RSpec.describe "the Lead routing guard" do
   let(:root)  { InMemoryDomain::ROOT }
   let(:guard) { Hecks::Adapters::RoutingGuard.new }
 
-  def verdict(command, role: "orchestrator") = guard.guard(role: { value: role }, command: { value: command })
+  def verdict(command, role: "lead") = guard.guard(role: { value: role }, command: { value: command })
 
   def refusal(command)
     verdict(command)
@@ -22,17 +22,17 @@ RSpec.describe "the orchestrator routing guard" do
   end
 
   describe "the Role row" do
-    it "carries the routing commands of the orchestrator", :aggregate_failures do
+    it "carries the routing commands of the Lead", :aggregate_failures do
       patterns = rows("RoutingRule").map { |row| row[:pattern] }
       expect(patterns).to include("Work.*", "Dispatch.preview", "SendTrain.board!", "PipelineBoard.snapshot")
       expect(patterns).to include("AgentRun.check_all!", "AgentRun.answer!", "AgentRun.tidy!", "Landing.retire!")
     end
 
-    it "no longer lets the orchestrator fill the queue by hand: planned work rolls forward" do
+    it "no longer lets the Lead fill the queue by hand: planned work rolls forward" do
       expect(rows("RoutingRule").map { |row| row[:pattern] }).not_to include("Dispatch.fill!")
     end
 
-    it "refuses a fill naming the Dispatch verb the orchestrator may read" do
+    it "refuses a fill naming the Dispatch verb the Lead may read" do
       expect(refusal("exe/hecks Dispatch.fill! run.value=x repo.value=/r --confirm")).to include("use Dispatch.preview")
     end
 
@@ -40,7 +40,7 @@ RSpec.describe "the orchestrator routing guard" do
       expect(rows("RoleRule").map { |row| row[:rule] }.last).to include("A coder starts by itself")
     end
 
-    it "lets the orchestrator settle ended sessions, with a hint for the nearest refused shape", :aggregate_failures do
+    it "lets the Lead settle ended sessions, with a hint for the nearest refused shape", :aggregate_failures do
       expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("Dispatch.settle!")
       expect(rows("RefusalHint").map { |row| row[:shape] }).to include("settle")
     end
@@ -57,10 +57,10 @@ RSpec.describe "the orchestrator routing guard" do
            .value_objects.find { |object| object.hecks_name == "StallKind" }.members
     end
 
-    # The moves the orchestrator runs: a kind whose fixer is another role (the disk kind's pruner)
-    # is that role's to run, and the orchestrator's list does not hold it.
+    # The moves the Lead runs: a kind whose fixer is another role (the disk kind's pruner)
+    # is that role's to run, and the Lead's list does not hold it.
     def verbs
-      kinds.select { |row| row[:fixer] == "orchestrator" }
+      kinds.select { |row| row[:fixer] == "lead" }
            .flat_map { |row| row[:move].scan(/\b[A-Z]\w+\.[a-z_]+!?/) }.uniq
     end
 
@@ -68,7 +68,7 @@ RSpec.describe "the orchestrator routing guard" do
       expect(kinds.map { |row| row[:move].to_s }).to all(match(/\b[A-Z]\w+\.[a-z_]+!/))
     end
 
-    it "names only verbs the orchestrator is allowed to run" do
+    it "names only verbs the Lead is allowed to run" do
       expect(verbs.reject { |verb| allowed?(verb) }).to be_empty
     end
 
@@ -91,7 +91,7 @@ RSpec.describe "the orchestrator routing guard" do
 
   describe "a command off the list" do
     it "refuses a file read naming the role to use" do
-      expect(refusal("cat lib/x.rb")).to include("orchestrator routes only: use the coder or reviewer role")
+      expect(refusal("cat lib/x.rb")).to include("lead routes only: use the coder or reviewer role")
     end
 
     it "refuses a spec runner" do
@@ -153,7 +153,7 @@ RSpec.describe "the orchestrator routing guard" do
       expect(verdict("exe/hecks tickets Work.undone")).to eq(text: "allowed")
     end
 
-    it "allows Operation.follow, so the orchestrator hears a run start or end without polling" do
+    it "allows Operation.follow, so the Lead hears a run start or end without polling" do
       call = "exe/hecks Operation.follow domain.value=Hecks aggregate.value=AgentRun from_now=true wait=600"
       expect(verdict(call)).to eq(text: "allowed")
     end
@@ -168,7 +168,7 @@ RSpec.describe "the orchestrator routing guard" do
     end
   end
 
-  describe "a git verb the orchestrator may run" do
+  describe "a git verb the Lead may run" do
     %w[show fetch switch merge cherry-pick revert commit add tag worktree].each do |verb|
       it "allows git #{verb}" do
         expect(verdict("git #{verb} x")).to eq(text: "allowed")
@@ -238,7 +238,7 @@ RSpec.describe "the orchestrator routing guard" do
     end
   end
 
-  describe "a gh write the orchestrator may run" do
+  describe "a gh write the Lead may run" do
     ["gh pr close 12 --comment done", "gh pr comment 12 --body hi", "gh run rerun 99", "gh run rerun 99 --failed"].each do |call|
       it "allows #{call}" do
         expect(verdict(call)).to eq(text: "allowed")
@@ -266,7 +266,7 @@ RSpec.describe "the orchestrator routing guard" do
   end
 
   describe "the hook" do
-    let(:hook) { File.read(File.join(root, ".claude/hooks/orchestrator_guard.sh")) }
+    let(:hook) { File.read(File.join(root, ".claude/hooks/lead_guard.sh")) }
 
     it "only forwards to the Role.guard query" do
       expect(hook).to include("exe/hecks agents Role.guard")
@@ -283,7 +283,7 @@ RSpec.describe "the orchestrator routing guard" do
   end
 
   describe "the role file" do
-    let(:file) { File.read(File.join(root, ".claude/agents/orchestrator.md")) }
+    let(:file) { File.read(File.join(root, ".claude/agents/lead.md")) }
 
     it "states the rule held on the Role row" do
       expect(file).to include(rows("RoleRule").first[:rule])

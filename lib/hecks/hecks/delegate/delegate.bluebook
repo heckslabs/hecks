@@ -2151,7 +2151,7 @@ Hecks.bluebook "Hecks" do
 
     # A session that finished its turn is listed `idle` while its job still reads `working`, and it
     # stays listed so until a person or an answer wakes it. A role that works one turn at a time (every
-    # role but the orchestrator, which idles between beats) has ended when it is idle and said its
+    # role but the Lead, which idles between beats) has ended when it is idle and said its
     # closing words: an architect's verdict, another role's report. A session waiting on a person
     # reads `blocked`, not `working`, so this never ends one. The run then reads `done`, so the
     # architect's verdict is recorded and a coder's session stops being listed as working.
@@ -2163,7 +2163,7 @@ Hecks.bluebook "Hecks" do
       root
       where   do
         state == "working" && listed == "idle" && resuming != true && reviewing != true && previous != "done" &&
-          agent != "orchestrator" && (verdict != "" || (agent != "architect" && report != ""))
+          agent != "lead" && (verdict != "" || (agent != "architect" && report != ""))
       end
       trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
     end
@@ -2181,14 +2181,14 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Finish, with: { condition: "stopped", detail: :report, checkout: :checkout }
     end
 
-    # A helper (not coder or orchestrator) blocked past `abandon_after_minutes` ends `abandoned`,
+    # A helper (not coder or Lead) blocked past `abandon_after_minutes` ends `abandoned`,
     # its question kept as the detail, and is reaped; a coder, a pinned session or one being
     # answered is left. It fires once: `Check` reads only a started run's job.
     policy "AbandonTheUnansweredHelper" do
       on      "AgentRun.JobRead"
       root
       where   do
-        state == "blocked" && agent != "coder" && agent != "orchestrator" && agent != "" && abandon_after > 0 &&
+        state == "blocked" && agent != "coder" && agent != "lead" && agent != "" && abandon_after > 0 &&
           blocked_minutes >= abandon_after && pin_listed == false && resuming != true && reviewing != true &&
           !run.start_with?("live-") && !run.start_with?("resume-")
       end
@@ -2604,14 +2604,14 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A conflicting Work item asks the orchestrator for advice: its session starts under a minted key,
+    # A conflicting Work item asks the Lead for advice: its session starts under a minted key,
     # with a brief that names the Work item and the conflict.
-    policy "StartTheOrchestratorOnAdviceRequest" do
+    policy "StartTheLeadOnAdviceRequest" do
       on      "Routing.DispatchAdviceRequested"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # An exception the orchestrator must judge starts its session as a run keyed by the escalation:
+    # An exception the Lead must judge starts its session as a run keyed by the escalation:
     # a stall's key is its Work item, which the stall fixer's run is keyed by.
     policy "StartTheCoordinatorWhenWoken" do
       on      "Escalation.CoordinatorWoken"
@@ -2988,10 +2988,10 @@ Hecks.bluebook "Hecks" do
     end
 
     # Marked or not, a stall fixer's (`stall-`) too, which agent-run-blocked never times. No other
-    # orchestrator run asks: an answerer's minted key never starts `stall-`. [owner] and [review]
+    # Lead run asks: an answerer's minted key never starts `stall-`. [owner] and [review]
     # waits are not asked.
     aggregate "Question" do
-      description "One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's."
+      description "One question a blocked run asks the Lead: asked, seated with a Lead run that answers it, then closed when the run is answered or escalated as the owner's."
 
       identified_by :run
 
@@ -3005,8 +3005,8 @@ Hecks.bluebook "Hecks" do
 
       value_object "QuestionText", String
 
-      # `asked` waits for a seat; `seated` has an orchestrator run answering it. A question that
-      # found no seat waits for the agent-run-blocked stall, which wakes the orchestrator; a
+      # `asked` waits for a seat; `seated` has a Lead run answering it. A question that
+      # found no seat waits for the agent-run-blocked stall, which wakes the Lead; a
       # stall fixer's, which that stall never times, waits for the next seat to free.
       lifecycle :status, default: "asked" do
         transition "Seat"     => "seated",    from: "asked"
@@ -3019,7 +3019,7 @@ Hecks.bluebook "Hecks" do
 
       command "Ask" do
         role "System"
-        goal "Record the question a blocked run asks the orchestrator"
+        goal "Record the question a blocked run asks the Lead"
 
         attribute :run,  QuestionRun, sets: true
         attribute :text, QuestionText, sets: true
@@ -3029,7 +3029,7 @@ Hecks.bluebook "Hecks" do
 
       command "Seat" do
         role "System"
-        goal "Record that an orchestrator run was seated to answer the question"
+        goal "Record that a Lead run was seated to answer the question"
 
         reference_to Question
 
@@ -3054,7 +3054,7 @@ Hecks.bluebook "Hecks" do
         emits "QuestionDropped"
       end
 
-      # The orchestrator's verb for a question whose answer is the owner's: it plans the work item
+      # The Lead's verb for a question whose answer is the owner's: it plans the work item
       # `needs an answer: <run>` with one [owner] line, which the Waiting-on-you panel lists, and
       # escalates the question, which frees its seat. Nobody answers the run in its place.
       command "Escalate" do
@@ -3087,11 +3087,11 @@ Hecks.bluebook "Hecks" do
         where(status: "asked", run: :run)
       end
 
-      policy "AskTheOrchestratorWhenBlocked" do
+      policy "AskTheLeadWhenBlocked" do
         on      "AgentRun.JobRead"
         root
         where   do
-          state == "blocked" && previous != state && (agent != "orchestrator" || run.start_with?("stall-")) &&
+          state == "blocked" && previous != state && (agent != "lead" || run.start_with?("stall-")) &&
             !detail.start_with?("[owner]") && !detail.start_with?("[review]")
         end
         trigger Question::Ask, with: { run: :run, text: :detail }
@@ -3099,12 +3099,12 @@ Hecks.bluebook "Hecks" do
 
       policy "OpenTheAnswerDesk" do
         on      "Question.QuestionAsked"
-        trigger AnswerDesk::Open, with: { desk: "orchestrator", run: :run }
+        trigger AnswerDesk::Open, with: { desk: "lead", run: :run }
       end
 
       policy "TakeAnAnswerSeat" do
         on      "Question.QuestionAsked"
-        trigger AnswerDesk::Take, with: { desk: "orchestrator", run: :run }
+        trigger AnswerDesk::Take, with: { desk: "lead", run: :run }
       end
 
       policy "SeatTheQuestion" do
@@ -3117,13 +3117,13 @@ Hecks.bluebook "Hecks" do
         trigger Question::Seat, with: { run: :run }
       end
 
-      # The answerer is an orchestrator run, its key minted, its `work` the run it answers. It is a
+      # The answerer is a Lead run, its key minted, its `work` the run it answers. It is a
       # root: its start sits deeper than the reaction cap counts from the job reading.
       policy "StartTheAnswererWhenSeated" do
         on      "Question.QuestionSeated"
         root
         trigger AgentRun::Dispatch,
-                with: { repo: ".", agent: "orchestrator", works_as: "answerer", work: :run,
+                with: { repo: ".", agent: "lead", works_as: "answerer", work: :run,
                         brief: "A run is blocked on a question for you: your run's work names it " \
                                "(AgentRun.running). Answer it with AgentRun.answer! under your standing rule " \
                                "answer-within-the-brief, or escalate it when the answer is the owner's. " \
@@ -3172,34 +3172,34 @@ Hecks.bluebook "Hecks" do
 
       policy "FreeTheSeatOfAClosedQuestion" do
         on      "Question.QuestionClosed"
-        trigger AnswerDesk::Free, with: { desk: "orchestrator" }
+        trigger AnswerDesk::Free, with: { desk: "lead" }
       end
 
       policy "FreeTheSeatOfAnEscalatedQuestion" do
         on      "Question.QuestionEscalated"
-        trigger AnswerDesk::Free, with: { desk: "orchestrator" }
+        trigger AnswerDesk::Free, with: { desk: "lead" }
       end
 
-      # The answerer closes with its word, as a coder closes with `submitted`: an orchestrator run
+      # The answerer closes with its word, as a coder closes with `submitted`: a Lead run
       # otherwise idles between beats and is never read finished.
       policy "RecordTheAnswerersEnd" do
         on      "AgentRun.JobRead"
         root
         where   do
-          state == "working" && listed == "idle" && resuming != true && previous != "done" && agent == "orchestrator" &&
+          state == "working" && listed == "idle" && resuming != true && previous != "done" && agent == "lead" &&
             (report.rstrip.end_with?("answered") || report.rstrip.end_with?("escalated"))
         end
         trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
       end
     end
 
-    # The seats of the orchestrator runs that answer questions: at most two at once, so a burst of
-    # blocked runs cannot start a crowd of orchestrators. A question that finds no seat waits for the
+    # The seats of the Lead runs that answer questions: at most two at once, so a burst of
+    # blocked runs cannot start a crowd of Leads. A question that finds no seat waits for the
     # agent-run-blocked stall, a stall fixer's for the next seat to free. The one desk is created by the first question; `last` names the
     # question that took the latest seat, so the first question, seated by `Open`, is not seated again
     # by `Take` whichever of the two reacts first.
     aggregate "AnswerDesk" do
-      description "The seats of the orchestrator runs that answer questions, at most two taken at once."
+      description "The seats of the Lead runs that answer questions, at most two taken at once."
 
       identified_by :desk
 

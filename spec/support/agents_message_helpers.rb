@@ -14,12 +14,12 @@ module AgentsMessageHelpers
   def boot_messages = (@agents_runtime = AgentsMemoryBoot.call(extra: PORTS))
 
   # Registers a hand-started session through the booted Agents bluebook.
-  def register_hand(run: "owner-orchestrator", session: "134d89bd-full", role: "orchestrator-owner")
+  def register_hand(run: "owner-lead", session: "134d89bd-full", role: "lead-owner")
     Hecks::Agents::HandRun.register!(run: { value: run }, session: { value: session }, role: { value: role })
   end
 
   # The runs the stand-in ledger holds, by key; every recipient the examples name is live.
-  def recipients = { "run-a" => live_run, "run-b" => live_run, "orchestrator" => live_run }
+  def recipients = { "run-a" => live_run, "run-b" => live_run, "lead" => live_run }
 
   # The session ids the stand-in listing shows.
   def listed_sessions = []
@@ -33,7 +33,7 @@ module AgentsMessageHelpers
                                                 listed: ->(id) { listed_sessions.include?(id) },
                                                 hand_runs: hand_runs && -> { hand_runs })
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { check }) do
-      Hecks::Agents::Message.send!(message: { value: key }, recipient: { value: to }, sender: { value: "orchestrator" },
+      Hecks::Agents::Message.send!(message: { value: key }, recipient: { value: to }, sender: { value: "lead" },
                                    kind: { value: kind }, body: { value: body }, in_reply_to: { value: reply })
     end
     Hecks::Agents::Message.find(key)

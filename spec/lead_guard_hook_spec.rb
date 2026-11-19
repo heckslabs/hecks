@@ -8,15 +8,15 @@ require "tmpdir"
 # The Bash guard hook, run against a scratch checkout whose `exe/hecks` is a stand-in: the stand-in
 # writes the words it was called with and answers as each example says, so the hook's forwarding and
 # its refusal when Hecks cannot answer are seen without booting Hecks.
-RSpec.describe "the orchestrator guard hook" do
+RSpec.describe "the Lead guard hook" do
   let(:root) { File.expand_path("..", __dir__) }
-  let(:dir) { Dir.mktmpdir("orchestrator_guard") }
+  let(:dir) { Dir.mktmpdir("lead_guard") }
 
   before do
     FileUtils.mkdir_p(File.join(dir, ".claude/hooks"))
     FileUtils.mkdir_p(File.join(dir, "exe"))
-    FileUtils.cp(File.join(root, ".claude/hooks/orchestrator_guard.sh"), File.join(dir, ".claude/hooks"))
-    File.write(File.join(dir, ".claude/hooks/guarded_roles"), "# Generated\norchestrator\n")
+    FileUtils.cp(File.join(root, ".claude/hooks/lead_guard.sh"), File.join(dir, ".claude/hooks"))
+    File.write(File.join(dir, ".claude/hooks/guarded_roles"), "# Generated\nlead\n")
   end
 
   after { FileUtils.remove_entry(dir) }
@@ -30,10 +30,10 @@ RSpec.describe "the orchestrator guard hook" do
   end
 
   # @return [Array(String, Integer)] what the hook wrote to stderr, and its exit status
-  def hook(command, role: "orchestrator")
+  def hook(command, role: "lead")
     input = JSON.generate(agent_type: role, tool_input: { command: command })
     env = { "CLAUDE_PROJECT_DIR" => dir, "HECKS_GUARD_LIMIT" => "1" }
-    _out, err, status = Open3.capture3(env, File.join(dir, ".claude/hooks/orchestrator_guard.sh"), stdin_data: input)
+    _out, err, status = Open3.capture3(env, File.join(dir, ".claude/hooks/lead_guard.sh"), stdin_data: input)
     [err, status.exitstatus]
   end
 
@@ -43,7 +43,7 @@ RSpec.describe "the orchestrator guard hook" do
     launcher
     hook("git status")
     expect(File.read(File.join(dir, "argv")).lines(chomp: true))
-      .to eq(["agents", "Role.guard", "role.value=orchestrator", "command.value=git status", "agent.value="])
+      .to eq(["agents", "Role.guard", "role.value=lead", "command.value=git status", "agent.value="])
   end
 
   it "lets an allowed command through" do
@@ -52,8 +52,8 @@ RSpec.describe "the orchestrator guard hook" do
   end
 
   it "relays a refusal" do
-    launcher(body: "orchestrator routes only: use the coder. Refused: cat x", code: 1)
-    expect(hook("cat x")).to eq(["orchestrator routes only: use the coder. Refused: cat x\n", 2])
+    launcher(body: "lead routes only: use the coder. Refused: cat x", code: 1)
+    expect(hook("cat x")).to eq(["lead routes only: use the coder. Refused: cat x\n", 2])
   end
 
   describe "when Hecks cannot answer" do
@@ -91,6 +91,6 @@ RSpec.describe "the orchestrator guard hook" do
   end
 
   it "is executable in the checkout, since settings.json skips a hook that is not" do
-    expect(File.executable?(File.join(root, ".claude/hooks/orchestrator_guard.sh"))).to be(true)
+    expect(File.executable?(File.join(root, ".claude/hooks/lead_guard.sh"))).to be(true)
   end
 end

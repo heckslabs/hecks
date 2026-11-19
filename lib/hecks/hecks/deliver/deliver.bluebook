@@ -1968,7 +1968,7 @@ Hecks.bluebook "Hecks" do
     # A train pull request whose CI never started: GitHub lists no check on it and the newest CI run
     # of its tip is absent or still queued (`awaiting_ci`), as when GitHub Actions is down. It is
     # recorded once the pull request has waited past the bound below, ten minutes, and that record
-    # opens the `ci-not-started` stall (StallWatch), filed once for the orchestrator under the pull
+    # opens the `ci-not-started` stall (StallWatch), filed once for the Lead under the pull
     # request's number. A later read that finds checks on a pull request past the bound records
     # that its CI started, which closes the stall if it was not filed yet.
     aggregate "TrainPrCi" do

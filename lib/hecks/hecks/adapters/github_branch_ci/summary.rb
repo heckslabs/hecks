@@ -7,7 +7,7 @@ module Hecks
     class GithubBranchCi
       # The report a coder reads of one run: how long it queued and took, the branch's own failed
       # jobs with the last lines of each log, and apart from them the jobs that failed on the
-      # branch's base too, with the word that a red main is the orchestrator's to fix.
+      # branch's base too, with the word that a red main is the Lead's to fix.
       class Summary
         # The failed log lines a report keeps of each job, from its end.
         LINES = 5
@@ -39,7 +39,7 @@ module Hecks
 
           ["inherited from main (run #{base[:run]} at #{base[:sha].to_s[0, 10]}):"] +
             inherited.map { |failure| "#{failure.name} [#{failure.examples.join(", ")}]" } +
-            ["main is red at the branch's base: hand off clean work; the red main's fix is the orchestrator's"]
+            ["main is red at the branch's base: hand off clean work; the red main's fix is the Lead's"]
         end
 
         def timing

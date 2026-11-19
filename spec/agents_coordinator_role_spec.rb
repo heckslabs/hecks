@@ -2,9 +2,9 @@ require "spec_helper"
 require_relative "../lib/hecks/agents/adapters/routing_guard"
 require_relative "support/coordinator_role_data"
 
-# The orchestrator is the pipeline's coordinator, declared as data in the Agents bluebook: its
+# The Lead is the pipeline's coordinator, declared as data in the Agents bluebook: its
 # routing rows refuse what the owner alone may do, and its role file names the question markers.
-RSpec.describe "the orchestrator as the coordinator role" do
+RSpec.describe "the Lead as the coordinator role" do
   include CoordinatorRoleData
 
   it "refuses claude stop and names AgentRun.answer!" do

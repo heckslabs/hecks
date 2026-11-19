@@ -104,7 +104,7 @@ Hecks.bluebook "Hecks" do
         member domain: "Agents", aggregate: "Verdict", checkout: "main",
                reason: "a verdict is delivered, retried or marked undeliverable by calls later than the one that judged"
         member domain: "Agents", aggregate: "Escalation", checkout: "main",
-               reason: "an exception is seated with the orchestrator by one call and closed by another"
+               reason: "an exception is seated with the Lead by one call and closed by another"
         member domain: "Agents", aggregate: "Turn", checkout: "main",
                reason: "a finished turn is read by the board and the next wake, in processes of their own"
         member domain: "Pipeline", aggregate: "Passage", checkout: "main",

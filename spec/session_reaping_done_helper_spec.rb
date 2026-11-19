@@ -9,7 +9,7 @@ require "support/reaping_fleet"
 module DoneHelperFleet
   SESSIONS = { "h-old" => ["reviewer:p-walk", 45], "h-new" => ["reviewer:p-two", 10],
                "owner" => [nil, 45], "pinned" => ["reviewer:p-pin", 45],
-               "orch" => ["orchestrator:stall-x", 45], "broken" => [:unreadable, 45] }.freeze
+               "orch" => ["lead:stall-x", 45], "broken" => [:unreadable, 45] }.freeze
 
   def jobs_dir = File.join(scratch, ".claude", "jobs")
 

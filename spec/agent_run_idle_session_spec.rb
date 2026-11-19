@@ -3,7 +3,7 @@ require_relative "support/stand_in_claude"
 
 # A session `claude agents` lists as idle after its closing words has finished its turn, though its
 # job still reads `working`. Through the booted Hecks domain: the next check ends the run `done`,
-# and a session still busy, or an orchestrator idle between beats, stays started. The stand-in
+# and a session still busy, or a Lead idle between beats, stays started. The stand-in
 # `claude` lists the session with the status a spec writes.
 RSpec.describe "AgentRun: a session idle after its closing words" do
   include_context "with a stand-in claude"
@@ -55,11 +55,11 @@ RSpec.describe "AgentRun: a session idle after its closing words" do
     expect(check("r-quiet-coder")).to include("status" => "started")
   end
 
-  it "leaves an idle orchestrator's run started" do
-    started("r-idle-orchestrator", "orchestrator")
+  it "leaves an idle Lead's run started" do
+    started("r-idle-lead", "lead")
     listed("idle")
     job("Beat done.")
 
-    expect(check("r-idle-orchestrator")).to include("status" => "started")
+    expect(check("r-idle-lead")).to include("status" => "started")
   end
 end

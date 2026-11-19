@@ -1,10 +1,10 @@
 require "spec_helper"
 
-# The orchestrator's routing as events: the check is handed the areas a Work item spans and the
+# The Lead's routing as events: the check is handed the areas a Work item spans and the
 # started items it overlaps, and the bluebook's rule decides. One area and no overlap is routed by
 # rule and no advice is asked; several areas, or any overlap, asks for advice; a check past the hop
 # limit is refused. The event log shows which policy fired, so the rule is seen, not assumed.
-RSpec.describe "the Agents orchestrator routing" do
+RSpec.describe "the Agents Lead routing" do
   def agents_root = File.join(InMemoryDomain::ROOT, "lib/hecks/agents")
 
   def boot_agents

@@ -11,7 +11,7 @@ module Hecks
       # What a boarding does when it is told to stop (its resident restarted, a person interrupted):
       # it records a fault, so the end is not silent, and refuses by name. The record is one JSON
       # file in the repository's common git directory, written whole and moved into place. The
-      # board and the orchestrator read it; the next boarding that carries a commit removes it.
+      # board and the Lead read it; the next boarding that carries a commit removes it.
       class Termination
         # The fault record's file name.
         FILE = "hecks-train-fault.json"

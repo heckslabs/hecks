@@ -201,8 +201,8 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     end
 
     it "names the run's role with --agent, ahead of the session id, so its MCP server narrows again" do
-      resume(answer: { value: "go on" }, agent: { value: "orchestrator" })
-      expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "[pipeline answer] go on"])
+      resume(answer: { value: "go on" }, agent: { value: "lead" })
+      expect(asked).to eq(["--agent", "lead", "--bg", "--resume", "abc123-0000-full", "--", "[pipeline answer] go on"])
     end
 
     it "names no agent for a run that has none, so the session resumes as it did before" do

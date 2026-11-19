@@ -44,7 +44,7 @@ RSpec.describe Hecks::Adapters::Driving::ReadOnlyQuestion do
     let(:described) { Hecks.describe(File.expand_path("../lib/hecks/hecks", __dir__)) }
     let(:polled) do
       [%w[tickets Work.undone], %w[agent_run.running], %w[agent_run.tidyable], %w[agents PlanReview.reviews],
-       %w[agents Role.guard role.value=coder], %w[agents Role.server_env role.value=orchestrator]]
+       %w[agents Role.guard role.value=coder], %w[agents Role.server_env role.value=lead]]
     end
 
     it "lists the questions the pipeline polls", :aggregate_failures do

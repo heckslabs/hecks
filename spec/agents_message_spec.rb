@@ -25,6 +25,6 @@ RSpec.describe "the Agents messages" do
 
   it "keeps the message a reply answers" do
     send_message
-    expect(send_message(key: "m2", to: "orchestrator", kind: "report", reply: "m1").in_reply_to.value).to eq("m1")
+    expect(send_message(key: "m2", to: "lead", kind: "report", reply: "m1").in_reply_to.value).to eq("m1")
   end
 end

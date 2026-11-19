@@ -5,7 +5,7 @@ require_relative "support/change_review_helpers"
 
 # The architect's review of a decision the Tickets store recorded: asked on the event, so retiring
 # the decision files removes only the path clause; an unsound decision names no coder, and its
-# findings stay on its row for the orchestrator to read.
+# findings stay on its row for the Lead to read.
 RSpec.describe "the architect's review of a recorded decision" do
   include_context "with a stand-in claude"
   include WakesCoderHelpers

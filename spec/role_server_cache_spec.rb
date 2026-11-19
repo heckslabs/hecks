@@ -34,16 +34,16 @@ RSpec.describe Hecks::RoleServerCache do
 
   def edit(name, text) = File.write(File.join(checkout, name), text)
 
-  def written = described_class.write(checkout, { "orchestrator" => ["dispatch.fill"], "closed" => [] })
+  def written = described_class.write(checkout, { "lead" => ["dispatch.fill"], "closed" => [] })
 
   it "misses until a table is written for this state" do
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(:miss)
+    expect(described_class.lookup(checkout, "lead")).to eq(:miss)
   end
 
   it "answers the commands a role's rows name" do
     written
 
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(["dispatch.fill"])
+    expect(described_class.lookup(checkout, "lead")).to eq(["dispatch.fill"])
   end
 
   it "answers an empty list for a role whose rows name no command, which is not permission" do
@@ -61,40 +61,40 @@ RSpec.describe Hecks::RoleServerCache do
   it "answers unrestricted for a checkout with no agents bluebook" do
     FileUtils.rm(File.join(checkout, "lib/hecks/agents/agents.bluebook"))
 
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(:unrestricted)
+    expect(described_class.lookup(checkout, "lead")).to eq(:unrestricted)
   end
 
   it "does not reuse a table after the agents bluebook changes" do
     written
     edit("lib/hecks/agents/agents.bluebook", "rows v2")
 
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(:miss)
+    expect(described_class.lookup(checkout, "lead")).to eq(:miss)
   end
 
   it "does not reuse a table after a command bluebook changes" do
     written
     edit("lib/hecks/hecks/commands.bluebook", "commands v2")
 
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(:miss)
+    expect(described_class.lookup(checkout, "lead")).to eq(:miss)
   end
 
   it "does not reuse a table after the version file changes" do
     written
     edit("lib/hecks/version.rb", "VERSION = 2")
 
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(:miss)
+    expect(described_class.lookup(checkout, "lead")).to eq(:miss)
   end
 
   it "does not trust a file other users can write" do
     File.chmod(0o666, written)
 
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(:miss)
+    expect(described_class.lookup(checkout, "lead")).to eq(:miss)
   end
 
   it "reads a file that is not a table as a miss" do
     File.write(written, "not json")
 
-    expect(described_class.lookup(checkout, "orchestrator")).to eq(:miss)
+    expect(described_class.lookup(checkout, "lead")).to eq(:miss)
   end
 
   it "writes a file only its owner can read" do

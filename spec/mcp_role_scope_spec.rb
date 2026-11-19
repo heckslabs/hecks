@@ -15,7 +15,7 @@ RSpec.describe "an MCP server that learns its restriction from the agent it serv
   let(:checkout) { Dir.mktmpdir("role-scope-checkout") }
   let(:cache_home) { Dir.mktmpdir("role-scope-cache") }
   let(:driving) { Hecks::Adapters::Driving }
-  let(:tables) { { "orchestrator" => ["order.create_pizza"], "closed" => [] } }
+  let(:tables) { { "lead" => ["order.create_pizza"], "closed" => [] } }
 
   before do
     build_checkout
@@ -54,14 +54,14 @@ RSpec.describe "an MCP server that learns its restriction from the agent it serv
 
   it "answers initialize and ping from a cached role without loading the framework", :aggregate_failures do
     cached
-    out, probe = served("orchestrator", {}, McpLightHelper::REQUESTS.first(2))
+    out, probe = served("lead", {}, McpLightHelper::REQUESTS.first(2))
     expect(out.lines.size).to eq(2)
     expect(probe[:framework]).to be(false)
   end
 
   it "serves a role with rows the reader tools and dispatch, and nothing else" do
     cached
-    out, = served("orchestrator")
+    out, = served("lead")
     expect(names(out)).to match_array(driving::McpScope::COMMAND_TOOLS)
   end
 
@@ -99,31 +99,31 @@ RSpec.describe "an MCP server that learns its restriction from the agent it serv
 
   it "still refuses an explicit setting that is wrong, whatever the agent" do
     cached
-    _, err, status = run_raw({ "HECKS_STOREHOUSE_ROOT" => checkout, "CLAUDE_CODE_AGENT" => "orchestrator",
+    _, err, status = run_raw({ "HECKS_STOREHOUSE_ROOT" => checkout, "CLAUDE_CODE_AGENT" => "lead",
                                "HECKS_SERVER_TOOLS" => "commands" })
     expect([status.exitstatus, err]).to match([2, /needs HECKS_SERVER_DOMAINS/])
   end
 
   it "serves no tool when the rows cannot be read, instead of every tool", :aggregate_failures do
-    out, probe = served("orchestrator")
+    out, probe = served("lead")
     expect(names(out)).to eq([])
     expect(probe[:framework]).to be(true)
   end
 
   it "refuses every call of a role whose rows cannot be read, naming why they could not be" do
-    out, = served("orchestrator", {}, call("state"))
+    out, = served("lead", {}, call("state"))
     expect(JSON.parse(out)["result"]["content"].first["text"]).to include("routing rows could not be read")
   end
 
   it "does not write a table it could not work out" do
-    served("orchestrator")
+    served("lead")
     expect(Dir.glob(File.join(cache_home, "hecks/role-servers/*.json"))).to eq([])
   end
 
   it "does not reuse a table after the agents bluebook changes" do
     cached
     File.write(File.join(checkout, "lib/hecks/agents/agents.bluebook"), "rows changed")
-    out, = served("orchestrator")
+    out, = served("lead")
     expect(names(out)).to eq([])
   end
 end

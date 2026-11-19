@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # What the question-answerer specs drive: a coder run whose job reads blocked on a question, the
-# orchestrator runs started for it, the coder's answer and the desk that caps those runs.
+# Lead runs started for it, the coder's answer and the desk that caps those runs.
 module QuestionAnswererHelpers
   def blocked_on(work, question)
     wait_as_coder(work)
@@ -10,16 +10,16 @@ module QuestionAnswererHelpers
     launch("agent_run.check!", "to=#{work}", "--wait")
   end
 
-  # A stall's fixer: an orchestrator run whose work is its own run, its job read blocked.
-  def orchestrator_blocked_on(run, question)
+  # A stall's fixer: a Lead run whose work is its own run, its job read blocked.
+  def lead_blocked_on(run, question)
     launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=fix",
-           "agent.value=orchestrator", "work.value=#{run}", "--wait")
+           "agent.value=lead", "work.value=#{run}", "--wait")
     blocks(run, question)
   end
 
   # The run started to answer a blocked stall fixer, its key minted by the answerer's start.
   def answerer_of_fixer(run)
-    orchestrator_blocked_on(run, "board fails to load in this checkout")
+    lead_blocked_on(run, "board fails to load in this checkout")
     answerers(run).first["run"]
   end
 

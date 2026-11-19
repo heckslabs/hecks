@@ -26,18 +26,18 @@ limit="${HECKS_GUARD_LIMIT:-30}"
 
 unanswered() {
   if [ -r "$guarded" ] && ! grep -qxF -- "$role" "$guarded"; then
-    echo "orchestrator_guard: Hecks could not answer ($1); $role is not guarded, so not blocking" >&2
+    echo "lead_guard: Hecks could not answer ($1); $role is not guarded, so not blocking" >&2
     exit 0
   fi
   case "$command" in "exe/hecks agents Role.guard" | "git status") exit 0 ;; esac
-  echo "orchestrator_guard: Role.guard could not answer for $role ($1), so only" \
+  echo "lead_guard: Role.guard could not answer for $role ($1), so only" \
     "\`exe/hecks agents Role.guard\` and \`git status\` run until it does: run the first to see the" \
     "error, repair the guard, or ask the owner. Refused: $command" >&2
   exit 2
 }
 
 cd "$dir" 2>/dev/null || unanswered "cannot enter $dir"
-out="$(HECKS_CALLER=hook:orchestrator_guard perl -e 'alarm shift; exec @ARGV or exit 127' "$limit" \
+out="$(HECKS_CALLER=hook:lead_guard perl -e 'alarm shift; exec @ARGV or exit 127' "$limit" \
   exe/hecks agents Role.guard "role.value=$role" "command.value=$command" "agent.value=$agent" 2>&1)"
 status=$?
 [ "$status" -eq 0 ] && exit 0

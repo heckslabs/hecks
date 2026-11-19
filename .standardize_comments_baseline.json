@@ -41,7 +41,7 @@
     "No verdict came within the review's time limit: the architect's run ended withou": 4,
     "The `HECKS_SERVER_*` variables that start a role's MCP server restricted to the ": 7,
     "The architect's review of a plan, asked by event instead of by prose. Each revie": 8,
-    "The exceptions that wake the orchestrator, and the only things that do. Each is ": 5,
+    "The exceptions that wake the Lead, and the only things that do. Each is one even": 5,
     "The pruner removes finished sessions. The bluebook gives: a pruner is woken only": 12,
     "What each role's agent file says, one row per role, lifted word for word from `.": 5,
     "Whether a role may run one Bash command itself. A role with routing rows runs on": 4
@@ -156,7 +156,7 @@
     "A session can die within seconds of its start (an agent that fails to load). Its": 4,
     "A session kept for its Work or its worktree that the listing shows `done` (`live": 7,
     "A session that finished its turn is listed `idle` while its job still reads `wor": 9,
-    "A session's question for the orchestrator: a job read blocked whose question beg": 5,
+    "A session's question for the Lead: a job read blocked whose question beg": 5,
     "A sweep does not roll the queue itself. Each check below records the session it ": 9,
     "A sweep's check that cannot read the job at all (`JobUnreadable`) finds no event": 6,
     "A verdict judged for a coder run that already finished cannot be delivered (`Ans": 5,
@@ -172,7 +172,7 @@
     "The fill that follows a reading. It runs after the reading is recorded, so it se": 8,
     "The machine's load, heard instead of asked. Each beat of the clock takes one rea": 8,
     "The mechanical cleanup. Every finished run is tidied in its own order (`AgentRun": 5,
-    "The seats of the orchestrator runs that answer questions: at most two at once, s": 5,
+    "The seats of the Lead runs that answer questions: at most two at once, so a burs": 5,
     "Whether a plan review the run asked for is open. A coder that asked for one ende": 8
   },
   "lib/hecks/hecks/deliver/deliver.bluebook": {

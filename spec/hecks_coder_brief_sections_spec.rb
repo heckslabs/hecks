@@ -34,8 +34,8 @@ RSpec.describe "the Coder brief's standing sections" do
                                          "reports by event")
   end
 
-  it "says a claim is verified by a reviewer run, never by the orchestrator" do
-    expect(section(:report)).to include("verified by a reviewer run, never by the orchestrator")
+  it "says a claim is verified by a reviewer run, never by the Lead" do
+    expect(section(:report)).to include("verified by a reviewer run, never by the Lead")
   end
 
   it "forbids the push, the mint and live databases" do

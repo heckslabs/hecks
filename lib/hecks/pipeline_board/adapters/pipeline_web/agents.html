@@ -69,10 +69,10 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .cards > .card { flex: 0 0 min(320px, 86vw); scroll-snap-align: start; }
 .cards > .unknown { flex: 1; }
 /* Each role's own colour, on its card, map node and tags; state keeps blue and amber. */
-[data-role="planner"] { --role: #7c3aed; } [data-role="orchestrator"] { --role: #0f8f84; }
+[data-role="planner"] { --role: #7c3aed; } [data-role="lead"] { --role: #0f8f84; }
 [data-role="architect"] { --role: #b5179e; } [data-role="coder"] { --role: #15803d; }
 [data-role="reviewer"] { --role: #d02752; }
-[data-role="orchestrator-owner"] { --role: #b45309; } [data-role="pruner"] { --role: #64748b; }
+[data-role="lead-owner"] { --role: #b45309; } [data-role="pruner"] { --role: #64748b; }
 .card { border-top: 3px solid var(--role, var(--axis)) !important;
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; display: grid; gap: 10px; align-content: start; }
 .card.busy { border-color: color-mix(in srgb, var(--signal) 55%, var(--border)); box-shadow: 0 0 0 3px var(--signal-soft); }
@@ -229,10 +229,10 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
         <rect class="ring" x="760" y="267" width="160" height="66" rx="10"/><rect class="box" x="760" y="267" width="160" height="66" rx="10"/>
         <rect class="code" x="772" y="283" width="34" height="34" rx="7"/><text class="code" x="789" y="304" text-anchor="middle">RV</text>
         <text class="name" x="816" y="296">Reviewer</text><text class="stat" x="816" y="314"></text></g>
-      <g class="node" data-role="orchestrator-owner" tabindex="0">
+      <g class="node" data-role="lead-owner" tabindex="0">
         <rect class="ring" x="800" y="142" width="200" height="66" rx="10"/><rect class="box" x="800" y="142" width="200" height="66" rx="10"/>
-        <rect class="code" x="812" y="158" width="34" height="34" rx="7"/><text class="code" x="829" y="179" text-anchor="middle">OO</text>
-        <text class="name" x="856" y="171">Orchestrator-Owner</text><text class="stat" x="856" y="189"></text></g>
+        <rect class="code" x="812" y="158" width="34" height="34" rx="7"/><text class="code" x="829" y="179" text-anchor="middle">LO</text>
+        <text class="name" x="856" y="171">Lead-Owner</text><text class="stat" x="856" y="189"></text></g>
       <g class="node" data-role="pruner" tabindex="0">
         <rect class="ring" x="760" y="372" width="160" height="66" rx="10"/><rect class="box" x="760" y="372" width="160" height="66" rx="10"/>
         <rect class="code" x="772" y="388" width="34" height="34" rx="7"/><text class="code" x="789" y="409" text-anchor="middle">PR</text>
@@ -293,7 +293,7 @@ const clock = (at) => (at ? new Date(at).toLocaleTimeString([], { hour: "2-digit
 // Each role's short code, its name, and the events it hears and sends; `you` marks one that asks a person.
 const ROLES = {
   planner: { code: "PL", name: "Planner", hears: ["PlanningRequested"], says: ["WorkPlanned"] },
-  "orchestrator-owner": { code: "OO", name: "Orchestrator-Owner", hears: [], says: [] },
+  "lead-owner": { code: "LO", name: "Lead-Owner", hears: [], says: [] },
   architect: { code: "AR", name: "Architect", hears: ["PlanReviewRequested"], says: ["PlanReviewed"] },
   coder: { code: "CO", name: "Coder", hears: ["WorkPlanned", "PlanReviewed", "SpecFailureJudged"], says: ["PlanReviewRequested", "WorkSubmitted", "QuestionSeated"] },
   reviewer: { code: "RV", name: "Reviewer", hears: ["SubmissionReviewRequested"], says: ["SpecFailureJudged"] },

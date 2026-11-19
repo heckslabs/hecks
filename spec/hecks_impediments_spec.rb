@@ -18,7 +18,7 @@ RSpec.describe "StallWatch impediments" do
   it "gives an impediment its source record, age, owner and help", :aggregate_failures do
     write_sources(ImpedimentLooks::STANDING)
 
-    expect(row_of("held-lock")).to include(subject: "hold-1", waited: 15, fixer: "orchestrator", filed: "", count: 1)
+    expect(row_of("held-lock")).to include(subject: "hold-1", waited: 15, fixer: "lead", filed: "", count: 1)
     expect(row_of("held-lock")[:detail]).to include("send_train.status")
   end
 

@@ -3,7 +3,7 @@ require_relative "support/stand_in_claude"
 require_relative "support/wakes_coder_helpers"
 require_relative "support/question_answerer_helpers"
 
-# A coder or a stall's fixer blocked on a question for the orchestrator gets one orchestrator run
+# A coder or a stall's fixer blocked on a question for the Lead gets one Lead run
 # that answers it, at most two such runs at once; an owner's question starts none and is left for
 # the owner, and an answerer's own block starts none.
 RSpec.describe "a coder blocked on a question" do
@@ -18,10 +18,10 @@ RSpec.describe "a coder blocked on a question" do
   prepend_before { @hecks = boot_hecks_in_memory }
   before { fake_runner(woken) }
 
-  it "starts one orchestrator run for the question", :aggregate_failures do
+  it "starts one Lead run for the question", :aggregate_failures do
     blocked_on("q-one", "[choose] A or B?")
     expect(answerers("q-one").size).to eq(1)
-    expect(answerers("q-one").first["agent"]).to eq("orchestrator")
+    expect(answerers("q-one").first["agent"]).to eq("lead")
   end
 
   it "starts no second run when the same block is read again" do
@@ -36,7 +36,7 @@ RSpec.describe "a coder blocked on a question" do
     expect(desk["seated"]).to eq(0)
   end
 
-  it "holds at most two orchestrator runs at once" do
+  it "holds at most two Lead runs at once" do
     %w[q-cap-1 q-cap-2 q-cap-3].each { |work| blocked_on(work, "[choose] A or B?") }
     expect(answerers.count { |row| row["work"].to_s.start_with?("q-cap-") }).to eq(2)
   end
@@ -88,7 +88,7 @@ RSpec.describe "a coder blocked on a question" do
   end
 
   it "starts an answerer for a stall fixer's block with no marker" do
-    orchestrator_blocked_on("stall-q-fixer", "board fails to load in this checkout")
+    lead_blocked_on("stall-q-fixer", "board fails to load in this checkout")
     expect(answerers("stall-q-fixer").size).to eq(1)
   end
 
@@ -100,7 +100,7 @@ RSpec.describe "a coder blocked on a question" do
   end
 
   it "leaves a stall fixer's owner question to the owner" do
-    orchestrator_blocked_on("stall-q-owner", "[owner] Tag and push 0.1.11?")
+    lead_blocked_on("stall-q-owner", "[owner] Tag and push 0.1.11?")
     expect(answerers("stall-q-owner")).to be_empty
   end
 end
