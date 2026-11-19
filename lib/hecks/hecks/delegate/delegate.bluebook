@@ -3155,7 +3155,7 @@ Hecks.bluebook "Hecks" do
         trigger Question::Escalate, with: { run: :work }
       end
 
-      # An answerer still working past the world's `answer_after_minutes` is out of time: it ends
+      # An answerer working past the reaping line's `answer_after_minutes` is out of time: it ends
       # `abandoned`, and its question goes to the owner once, as a blocked answerer's does.
       policy "EndTheOverdueAnswerer" do
         on      "AgentRun.JobRead"
