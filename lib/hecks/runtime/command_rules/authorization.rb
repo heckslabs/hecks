@@ -23,16 +23,17 @@ module Hecks
         #
         # @param command [Bluebook::Command] the command about to run
         # @param domain [String] name of the command's domain, whose provider answers the check
+        # @param verb [String, nil] the command's fully qualified verb, for the shadow line
         # @return [nil] when unchecked, unstated (shadow) or authorized
         # @raise [Runtime::Unauthorized] if the caller holds no grant of the role (identified
         #   caller) or its role string differs (unidentified caller)
         # @raise [Runtime::WiringError] if zero or several adapters implement the port
-        def refuse_role_mismatch(command, domain)
+        def refuse_role_mismatch(command, domain, verb: nil)
           roles = command.role_set
           return if roles.empty?
 
           caller = Caller.current
-          return note_unstated_caller(command, domain) unless caller
+          return note_unstated_caller(command, domain, verb) unless caller
           return if roles.any? { |role| role_held?(caller, role, domain) }
 
           raise Unauthorized, RefusalWording.render_site("Unauthorized", "role_mismatch",

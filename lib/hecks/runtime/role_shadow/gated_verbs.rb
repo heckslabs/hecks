@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../role_shadow"
+
 module Hecks
   module Runtime
     module RoleShadow
@@ -36,15 +38,18 @@ module Hecks
 
         def verbs_of(bluebook)
           bluebook.aggregates.flat_map do |aggregate|
-            prefix = "#{bluebook.name}::#{aggregate.hecks_name}"
-            aggregate.commands.map { |command| ["#{prefix}.#{command.hecks_name}", command.role_set] } +
-              entity_verbs(prefix, aggregate)
+            aggregate.commands.map do |command|
+              [RoleShadow.verb_for(bluebook.name, aggregate.hecks_name, command.hecks_name), command.role_set]
+            end + entity_verbs(bluebook.name, aggregate)
           end
         end
 
-        def entity_verbs(prefix, aggregate)
+        def entity_verbs(domain, aggregate)
           aggregate.entities.flat_map do |entity|
-            entity.commands.map { |command| ["#{prefix}.#{entity.hecks_name}.#{command.hecks_name}", command.role_set] }
+            entity.commands.map do |command|
+              names = [aggregate.hecks_name, entity.hecks_name, command.hecks_name]
+              [RoleShadow.verb_for(domain, *names), command.role_set]
+            end
           end
         end
       end

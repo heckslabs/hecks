@@ -12,10 +12,12 @@ module Hecks
       #
       # It lists every role-gated command (the launcher, the MCP door and specs dispatch with no
       # caller bound) and every policy and saga leg whose target is one (a reaction runs with the
-      # caller cleared, `Caller.reaction`). A target no loaded bluebook declares is listed as
-      # unresolved, never dropped. It lives beside `RoleShadow` because it reads the rule the
-      # runtime applies: the roles `CommandRules::Authorization` checks and the verbs the
-      # dispatcher routes. The report lists; it never refuses.
+      # caller cleared, `Caller.without(reacting: true)`). A target no loaded bluebook declares is
+      # listed as unresolved, never dropped. It lives beside `RoleShadow` because it reads the rule
+      # the runtime applies: the roles `CommandRules::Authorization` checks and the verbs the
+      # dispatcher routes. A policy's `acts_as` and a command's `policy_only` are not read, because
+      # the runtime does not apply them yet; the heading says so. The report lists; it never
+      # refuses.
       module Report
         # One line of the report.
         Row = Struct.new(:kind, :source, :verb, :roles, keyword_init: true) do
@@ -26,6 +28,10 @@ module Hecks
               .join(" ").rstrip
           end
         end
+
+        # The heading's second line: the declarations the runtime's rule does not read yet.
+        UNREAD_WORDS = "acts_as and policy_only are not read yet: the runtime does not apply them, " \
+                       "so a reaction or command that declares them is listed like any other"
 
         module_function
 
@@ -58,7 +64,7 @@ module Hecks
           heading = "role shadow report for #{directory}: #{counts.fetch(:command, 0)} role-gated commands, " \
                     "#{counts.fetch(:reaction, 0) + counts.fetch(:saga, 0)} reactions to one, " \
                     "#{counts.fetch(:unresolved, 0)} unresolved targets"
-          [heading, *rows.map(&:to_s)].join("\n")
+          [heading, UNREAD_WORDS, *rows.map(&:to_s)].join("\n")
         end
 
         def reaction_rows(bluebook, verbs)

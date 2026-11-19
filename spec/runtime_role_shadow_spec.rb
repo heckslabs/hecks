@@ -12,8 +12,8 @@ RSpec.describe Hecks::Runtime::RoleShadow do
 
   def pizzas = @pizzas ||= Hecks.boot(self.class.pizzas_dir)
 
-  def pizza_args
-    { name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } } }
+  def pizza_args(name = "Margherita")
+    { name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } } }
   end
 
   # The lines a block writes under `mode`, as an outside dispatch sees it: a launcher run of this
@@ -38,7 +38,15 @@ RSpec.describe Hecks::Runtime::RoleShadow do
     Thread.current[:hecks_reacting] = reacting
   end
 
-  def create_pizza = pizzas.dispatch_flat("Pizzas::Order.CreatePizza", **pizza_args)
+  def create_pizza(name = "Margherita") = pizzas.dispatch_flat("Pizzas::Order.CreatePizza", **pizza_args(name))
+
+  def unstated_count = pizzas.registry.unstated_caller_log[%w[Pizzas CreatePizza unstated]]
+
+  # Puts the process's mode and sink back; `lines_under` does too, this covers a block that raised.
+  def reset_shadow
+    described_class.install(:off)
+    described_class.write_to(nil)
+  end
 
   def gated_command = Struct.new(:hecks_name, :role_set).new("CreatePizza", ["Chef"])
 
@@ -50,11 +58,19 @@ RSpec.describe Hecks::Runtime::RoleShadow do
   end
 
   describe "a role-gated command dispatched with no caller" do
+    after { reset_shadow }
+
     it "logs the host's line under shadow and still runs the command", :aggregate_failures do
       lines = lines_under(:shadow) { expect(create_pizza.events.map(&:name)).to eq(["PizzaCreated"]) }
       expect(lines).to eq([{ "level" => "error", "msg" => "would_refuse_role", "verb" => "Pizzas::Order.CreatePizza",
                              "role" => "Anonymous", "actor_id" => nil, "refusals" => lines.first["refusals"] }])
       expect(lines.first["refusals"].first).to include("kind" => "Unauthorized")
+    end
+
+    it "logs a key once however often it is counted", :aggregate_failures do
+      lines = lines_under(:shadow) { %w[Margherita Marinara].each { |name| create_pizza(name) } }
+      expect(lines.size).to eq(1)
+      expect(unstated_count).to eq(2)
     end
 
     it "logs nothing when the mode is off" do
@@ -67,8 +83,10 @@ RSpec.describe Hecks::Runtime::RoleShadow do
   end
 
   describe "a reaction" do
+    after { reset_shadow }
+
     it "logs the host-internal shape with origin reaction" do
-      lines = lines_under(:shadow) { Hecks::Runtime::Caller.reaction { described_class.note(gated_command, "P::O.C") } }
+      lines = lines_under(:shadow) { Hecks::Runtime::Caller.without(reacting: true) { described_class.note(gated_command, "P::O.C") } }
       expect(lines.first).to include("origin" => "reaction", "verb" => "P::O.C", "roles" => ["Chef"])
     end
 
@@ -97,6 +115,10 @@ RSpec.describe Hecks::Runtime::RoleShadow do
 
     it "lists a policy whose target is role-gated" do
       expect(report).to match(/^reaction   Pizzas::OnPizzaPaymentReceived on .+ -> Pizzas::Order\.Purchase roles: Customer$/)
+    end
+
+    it "says under its heading that acts_as and policy_only are not read yet" do
+      expect(report.lines[1]).to start_with("acts_as and policy_only are not read yet")
     end
 
     it "counts what it lists in its heading" do
