@@ -7,7 +7,8 @@ require_relative "work_show/overlaps"
 module Hecks
   module Adapters
     # The `WorkShow` port's adapter for `Tickets::Work`: answers one work item as JSON, with the
-    # started work items whose claimed area meets its own and the interview and Point it cites.
+    # started work items whose claimed area meets its own, those that share a bluebook with it by
+    # sections, and the interview and Point it cites.
     #
     # `overlap` reads claimed areas only, by {AreaOverlap}; it does not read the files a branch
     # changes, so a fill that judges by those may skip an item this shows no overlap for. It judges
@@ -37,7 +38,7 @@ module Hecks
       def describe(record)
         area = StartedWork.words(fact(record, :area))
         texts(record, %i[work title status claimed_by])
-          .merge(area: area, overlap: overlap(fact(record, :work).to_s, area))
+          .merge(area: area, overlap: overlap(fact(record, :work).to_s, area), shares: shares(fact(record, :work).to_s, area))
           .merge(texts(record, %i[interview point]))
       end
 
@@ -45,6 +46,8 @@ module Hecks
       def texts(record, names) = names.to_h { |name| [name, fact(record, name).to_s] }
 
       def overlap(key, area) = Overlaps.new(StartedWork.items(@registry)).of(key, area)
+
+      def shares(key, area) = Overlaps.new(StartedWork.items(@registry)).shares(key, area)
 
       def fact(record, name) = StartedWork.value(record, name)
 
