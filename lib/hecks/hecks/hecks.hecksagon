@@ -7,6 +7,10 @@ Hecks.hecksagon "Hecks" do
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
      Coder Fixer PipelineBoard Pipeline Agents Triage]
     .each { |declaration| attaches declaration }
+  # Signalbox shares the Hecks bus (ADR 0222, phase 3b), so the clock's beat begins its pressure beat
+  # and the settled pressure is posted as the machine's one signal. It persists in Memory, as the
+  # overlay's default; its beats are each one launcher call's own.
+  attaches "Signalbox"
   # The repository verbs, vendored from Switchyard (ADR 0205).
   attaches "delivery", from: :vendor
   # An architect review asked for by event starts a session through AgentRun, keyed by the review
@@ -545,6 +549,17 @@ Hecks.hecksagon "Hecks" do
       attribute :beat, BeatKey
       answers "BeatTaken"
       refuses "BeatUntaken"
+    end
+  end
+
+  # Signalbox's pressure beat, begun once a clock beat (ADR 0222, phase 3b): Hecks conforms to
+  # the Signalbox it attaches, so the clock asks here and Signalbox hears no Hecks event. Refused
+  # when Signalbox is not attached.
+  Hecks::Heartbeat.port "Signalling" do
+    asks "Signal", to: Heartbeat do
+      attribute :beat, BeatKey
+      answers "PressureSignalled"
+      refuses "PressureUnsignalled"
     end
   end
 

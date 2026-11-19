@@ -52,6 +52,13 @@ RSpec.describe "the resident's concurrency" do
       server.send(:join_threads)
     end
 
+    it "marks that the resident took a caller, so a launcher can tell it slow from stuck" do
+      work_with { |caller| served << caller }
+      server.send(:enqueue, :quick)
+      Timeout.timeout(3) { served.pop }
+      expect(File.exist?(resident::Paths.taken("/checkout"))).to be(true)
+    end
+
     it "takes a second caller while the first is still being served" do
       serve_a_slow_caller_first
       expect(Timeout.timeout(3) { served.pop }).to eq(:quick)

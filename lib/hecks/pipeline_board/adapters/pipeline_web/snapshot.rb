@@ -54,7 +54,7 @@ module Hecks
             LoadHistory.stand(limit)
             LoadCauses.stand
             StandingSince.stand
-            LoadGuard.stand(limit)
+            LoadGuard.stand(limit, pressure: -> { PressureSignal.standing(registry) })
           end
         end
 
