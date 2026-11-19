@@ -25,11 +25,25 @@ RSpec.describe "StallWatch" do
     expect(keys("Tickets", "Work", :work)).to eq(%w[stall-plan-review-late])
   end
 
-  it "files a red train pull request nobody reran in 10 minutes, naming it" do
+  it "files a rerun train pull request that has not passed in 30 minutes, and none exhausted" do
     write_train_pr_tap
     detect("look-1")
 
-    expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-train-pr-red-silent-pr])
+    expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-train-pr-red-rerun-pr stall-train-pr-red-again-1])
+  end
+
+  it "files nothing for a rerun train pull request a later merge settled" do
+    write_train_pr_tap(["Hecks::SendTrain", "BranchPushed", "boarding-1", 20])
+    detect("look-1")
+
+    expect(keys("Hecks", "Stall", :stall)).to be_empty
+  end
+
+  it "still files a rerun train pull request when the only merge came before it failed" do
+    write_train_pr_tap(["Hecks::SendTrain", "BranchPushed", "boarding-1", 50])
+    detect("look-1")
+
+    expect(keys("Hecks", "Stall", :stall).size).to eq(2)
   end
 
   it "files a stall once, however many looks see it" do
