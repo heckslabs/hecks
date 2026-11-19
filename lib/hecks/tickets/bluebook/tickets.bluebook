@@ -281,9 +281,10 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, matches: :present
     end
 
-    # The Point of that interview a record came from, named as the interview names it.
+    # The Point of that interview a record came from, by the number the interview gives it.
     value_object "PointCitation" do
-      attribute :value, String, matches: :present
+      attribute :value, Integer
+      invariant("a point is numbered from one") { value.positive? }
     end
 
     # Four digits; a letter when a record was split (0054a); NNNN/NN for a record under a numbered
@@ -762,9 +763,10 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, matches: :present
     end
 
-    # The Point of that interview a record came from, named as the interview names it.
+    # The Point of that interview a record came from, by the number the interview gives it.
     value_object "PointCitation" do
-      attribute :value, String, matches: :present
+      attribute :value, Integer
+      invariant("a point is numbered from one") { value.positive? }
     end
 
     # A path prefix or glob a claim covers. Two areas overlap by `Hecks::Adapters::AreaOverlap`;
@@ -1431,6 +1433,16 @@ Hecks.bluebook "Tickets" do
     on       "Adr.AdrSuperseded"
     for_each "Work.UndoneUnder"
     trigger  Work::Lapse, with: { work: :work }
+  end
+
+  # An accepted decision Point of an interview is one draft decision record, numbered as the Point
+  # names it and citing the interview and Point (ADR 0194, decision 4). A store read from
+  # docs/decisions refuses the draft by name, so like LapseWorkWhenSuperseded this drafts only in a
+  # Memory boot; a number already drafted is refused, so a replayed interview drafts nothing twice.
+  policy "DraftAdrWhenDecisionAccepted" do
+    on      "Interview.PointAccepted"
+    where   { kind.value == "decision" }
+    trigger Adr::Draft, with: { adr: :record, title: :statement, interview: :reference, point: :number }
   end
 
   # Only a landing finishes a work item, never a submission, which a landing job may still refuse.
