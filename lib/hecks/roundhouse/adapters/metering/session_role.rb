@@ -6,7 +6,8 @@ module Hecks
       # The role Signalbox's laws count a session under (coder, helper, gate, orchestrator or
       # repair), or `person` for a session a person runs by hand, which is the person's own use and
       # not the pipeline's load. A dispatched session's run names its agent; an unrun background
-      # session is counted by its name, and is a helper unless it is a copy of the orchestrator seat.
+      # session is counted by its name, and is a helper unless it is a copy of the orchestrator
+      # seat.
       module SessionRole
         # Names an unrun session takes the orchestrator's seat under.
         SEAT = /\A(orchestrator|coordinator|handrun-orchestrator)/i
