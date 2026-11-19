@@ -34,7 +34,7 @@ RSpec.describe "the Agents fleet of sessions" do
 
   it "stops a listed session with claude stop and records it", :aggregate_failures do
     stopped = steer(:stop!, "aaaa1111")
-    expect(stopped.status).to eq("stopped")
+    expect(stopped.status).to eq("ended")
     expect(shell.commands.first[:command]).to eq(%w[claude stop aaaa1111])
   end
 
