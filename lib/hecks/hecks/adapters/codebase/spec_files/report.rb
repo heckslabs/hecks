@@ -29,17 +29,26 @@ module Hecks
           # @param endings [Array<Ending>] how each file ended
           # @param isolation [String] one of `SpecFiles::ISOLATIONS`
           # @param printed [String, nil] what the one shared process printed
-          def initialize(endings, isolation, printed: nil)
+          # @param note [String, nil] the pass^k lines, printed before the totals
+          def initialize(endings, isolation, printed: nil, note: nil)
             @endings = endings
             @isolation = isolation
             @printed = printed
+            @note = note
           end
+
+          # @param note [String, nil] the pass^k lines
+          # @return [Report] this report with the lines, which come before the totals
+          def noted(note) = Report.new(@endings, @isolation, printed: @printed, note: note)
+
+          # @return [Hash{String => Boolean}] each file, and whether it passed
+          def results = @endings.to_h { |one| [one.file, !one.failed] }
 
           # @return [Boolean] whether any file failed
           def failed? = @endings.any?(&:failed)
 
           # @return [String] the report, ending with the total example and failure counts
-          def to_s = [@printed, *details, table, verdict, totals].compact.join("\n\n")
+          def to_s = [@printed, *details, table, verdict, @note, totals].compact.join("\n\n")
 
           private
 
