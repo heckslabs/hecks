@@ -64,6 +64,11 @@ Hecks.hecksagon "Tickets" do
     end
   end
 
+  # The owner's charter as lines, read from the `CharterLine` rows and never written.
+  Tickets::Epic.port "Charter" do
+    answers_query "Charter"
+  end
+
   # One epic's members counted, read and never written.
   Tickets::Work.port "EpicProgress" do
     answers_query "EpicProgress"
