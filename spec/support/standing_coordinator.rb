@@ -37,6 +37,15 @@ module StandingCoordinatorHelpers
     sweep(beat)
   end
 
+  # The seat's run stops at the second fresh sweep and the session works again by the third.
+  # @return [Array] the third sweep's text and status
+  def fresh_stop_and_refill
+    job_reads("stopped")
+    fresh_sweep("beat-2")
+    job_reads("working")
+    fresh_sweep("beat-3")
+  end
+
   # @return [Integer] how many seat starts the wakes delivered, refused ones included
   def coordinators_started = reactions("StartTheStandingSeatWhenWoken").size
 
