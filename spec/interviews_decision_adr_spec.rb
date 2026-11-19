@@ -2,6 +2,23 @@ require "spec_helper"
 
 # Dispatches and reads of the decision-Point spec, over the registry its `runtime` binds.
 module InterviewsDecisionAdrSteps
+  # The bluebooks the spec boots together, under lib/hecks.
+  BLUEBOOKS = %w[coder/coder.bluebook coder/coder.hecksagon tickets/bluebook/tickets.bluebook
+                 tickets/bluebook/tickets.hecksagon interviews/interviews.bluebook
+                 interviews/interviews.hecksagon].freeze
+
+  # Loads Memory persistence, Interviews and Tickets into the registry and binds its dispatcher.
+  #
+  # @return [void]
+  def boot_runtime
+    Hecks.with_registry(registry) do
+      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+       InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
+      BLUEBOOKS.each { |file| Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks", file)) }
+    end
+    Hecks::Runtime::Loader.bind_runtime(dispatcher)
+  end
+
   # Opens the spec's one interview with its first exchange.
   #
   # @return [void]
@@ -45,21 +62,8 @@ end
 RSpec.describe "an accepted decision Point drafting a decision record" do
   include InterviewsDecisionAdrSteps
 
-  let(:root) { InMemoryDomain::ROOT }
   let(:registry) { Hecks::Runtime::Registry.new }
-
-  let(:runtime) do
-    Hecks.with_registry(registry) do
-      [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
-       InMemoryDomain::PRISM_ADAPTER].each { |file| Kernel.load(file) }
-      %w[coder/coder.bluebook coder/coder.hecksagon tickets/bluebook/tickets.bluebook tickets/bluebook/tickets.hecksagon
-         interviews/interviews.bluebook interviews/interviews.hecksagon].each do |file|
-        Kernel.load(File.join(root, "lib/hecks", file))
-      end
-    end
-    Hecks::Runtime::Loader.bind_runtime(dispatcher)
-  end
-
+  let(:runtime) { boot_runtime }
   let(:dispatcher) { Hecks::Runtime::Dispatcher.new(registry) }
 
   before { open_interview }
@@ -69,6 +73,11 @@ RSpec.describe "an accepted decision Point drafting a decision record" do
     settle(2, "work", decided_by: "owner")
     settle(3, "decision", decided_by: "owner", record: "9302")
     expect(drafts).to contain_exactly(["9301", "Point 1", "INT-D", 1], ["9302", "Point 3", "INT-D", 3])
+  end
+
+  it "drafts nothing for a decision Point accepted without a record number" do
+    settle(1, "decision", decided_by: "owner")
+    expect(drafts).to be_empty
   end
 
   it "keeps who decided a delegated Point and who delegated it" do
