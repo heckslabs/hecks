@@ -1394,12 +1394,10 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # A session the owner started by hand has no AgentRun, so a message to it would be refused. It
-  # registers itself here under a run key of its own choosing, and the `Recipients` port then
-  # finds it while `claude agents` lists its session. An AgentRun with the same key is found first.
-  # A stopgap: once AgentRun registers a hand-started session itself, this aggregate goes.
+  # The `Recipients` port finds a hand run while `claude agents` lists its session; an AgentRun
+  # with the same key is found first. A stopgap until AgentRun registers such a session itself.
   aggregate "HandRun" do
-    description "A session the owner started by hand, registered under a run key so a message to that key reaches it like a dispatched run's."
+    description "A session the owner started by hand, which has no AgentRun, registered under a run key so a message to that key reaches it like a dispatched run's."
 
     identified_by :run
 
@@ -1422,9 +1420,8 @@ Hecks.bluebook "Agents" do
       attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
     end
 
-    # A recorded registration is a finished fact: nothing acts on it, so it frees its key, and
-    # registering again (the same session, or a new one after a restart) replaces it. The earlier
-    # one stays readable as `<run>~<n>`, and a message to the key reaches the newest session.
+    # A recorded registration is a finished fact that frees its key: registering again replaces
+    # it, the earlier one kept as `<run>~<n>`, so a message reaches the newest session.
     lifecycle :status, default: "registering" do
       transition "Record" => "registered", from: "registering"
       mark :terminal, "registered"
