@@ -75,8 +75,9 @@ Hecks.bluebook "Interviews" do
 
     # The number a decision Point's draft record is opened as, four digits as docs/decisions numbers
     # them: the holder names it on accepting, since the participants know the record they write.
+    # The pattern is Tickets' AdrNumber, copied, so a malformed number is refused on accepting.
     value_object "RecordNumber" do
-      attribute :value, String, matches: :present
+      attribute :value, String, pattern: '\A[0-9]{4}[a-z]?(?:/[0-9]{2})?\z'
     end
 
     value_object "Tally" do
