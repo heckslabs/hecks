@@ -43,6 +43,7 @@ module Hecks
           ["Command", "idempotent"] => :idempotent_impl,
           ["Command", "mints_era"] => :mints_era_impl,
           ["Command", "policy_only"] => :policy_only_impl,
+          ["Command", "creates_or_acts"] => :creates_or_acts_impl,
           ["Command", "reference_to"] => :reference_to_impl,
           ["Command", "given"] => :given_impl,
           ["Command", "sets"] => :sets_impl,

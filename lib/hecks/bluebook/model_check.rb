@@ -5,6 +5,7 @@ require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
 require_relative "model_check/acts_as_checks"
+require_relative "model_check/creates_or_acts_checks"
 require_relative "model_check/context_checks"
 require_relative "model_check/context_map_checks"
 require_relative "model_check/ask_checks"
@@ -44,6 +45,7 @@ module Hecks
       extend SagaChecks
       extend PolicyChecks
       extend ActsAsChecks
+      extend CreatesOrActsChecks
       extend ContextChecks
       extend AskChecks
       extend ReactionDepthChecks

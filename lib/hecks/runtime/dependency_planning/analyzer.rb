@@ -79,12 +79,15 @@ module Hecks
             write_set:               sorted(writes),
             payload_read_set:        sorted(payload_reads),
             complete_state:          complete,
-            state_independent:       complete && state_reads.empty?,
+            state_independent:       complete && state_reads.empty? && !reads_occupant?,
             unresolved_dependencies: unresolved.to_a.sort.freeze
           ).freeze
         end
 
         def sorted(values) = values.to_a.sort.freeze
+
+        # A `creates_or_acts` command reads the record its identity names before it writes.
+        def reads_occupant? = command.creates? && command.creates_or_acts?
       end
     end
   end

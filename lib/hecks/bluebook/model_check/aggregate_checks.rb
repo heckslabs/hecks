@@ -49,7 +49,7 @@ module Hecks
         # @return [Array<Finding>] the size and command-surface findings, in that order
         def aggregate_findings(bluebook)
           [*large_aggregate_findings(bluebook), *no_command_surface_findings(bluebook),
-           *blank_result_findings(bluebook)]
+           *blank_result_findings(bluebook), *creates_or_acts_findings(bluebook)]
         end
 
         # @return [Finding, nil] the warning for an aggregate heavier than `limit`
