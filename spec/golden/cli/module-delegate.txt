@@ -35,6 +35,10 @@ commands:
     escalate!
 
 queries (nothing here changes anything):
+  AgentRun:
+    …
+    working
+    blocked
   Dispatch:
     …
     preview
