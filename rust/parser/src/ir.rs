@@ -129,6 +129,9 @@ pub struct Command {
     // `mints_era true`: the command's own record may be written through a boot whose shape no era
     // holds yet. Emitted as a boolean.
     pub mints_era: bool,
+    // A bare `policy_only` word: only a policy reaction may dispatch the command (ADR 0216).
+    // Emitted only when declared.
+    pub policy_only: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -322,6 +325,8 @@ pub struct Policy {
     pub expect_undelivered: bool,
     // A bare `root` word: the reaction runs at reaction depth zero. Emitted as a boolean.
     pub root: bool,
+    // `acts_as "System"`: the role the reaction dispatches as (ADR 0216). Emitted only when declared.
+    pub acts_as: Option<String>,
     // `where`/`for_each` (`PolicyBuilder`); named `where_clause`/`for_each_query` because `where`
     // is reserved. `policy_json` still emits the keys `where`/`for_each` and derives `where_ast`.
     pub where_clause: Option<String>,

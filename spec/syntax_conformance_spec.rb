@@ -149,6 +149,7 @@ RSpec.describe "the declared syntax" do
       provides_impl:          "BluebookBuilder's own real implementation, called by GenericDispatch's calls:",
       across_impl:            "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
       root_impl:              "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
+      acts_as_impl:           "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
       provenance_impl:        "the owning builder's own real implementation, called by GenericDispatch's calls:",
       formerly_known_as_impl: "the owning builder's own real implementation, called by GenericDispatch's calls:",
       acknowledges_impl:      "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
@@ -182,6 +183,7 @@ RSpec.describe "the declared syntax" do
       correlates_by_impl:     "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       created_by_impl:        "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       mints_era_impl:         "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
+      policy_only_impl:       "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       handles_impl:           "PortOperationBuilder's own real implementation, called by GenericDispatch's calls:",
       split_impl:             "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       tells_impl:             "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \
