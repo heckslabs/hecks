@@ -1700,12 +1700,9 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The wakes of the orchestrator: each exception that needs its judgment, and the standing seat's
-  # start when no orchestrator holds it (`Coordinator`). Each is one event, raised once per key: a
-  # second raise of the same key is refused as taken, so a stall, a cause or an incident wakes the
-  # orchestrator once. The key is the event's own field, which a policy can pass. Routine work
-  # (restore, grouping, assignment) is the Triage policies' and wakes nobody. Each wake carries the
-  # event and the standing rule it falls under.
+  # The wakes of the orchestrator: each exception that needs its judgment, and the standing seat
+  # left empty (`Coordinator`). Each is raised once per key, the event's own field; routine work
+  # (restore, grouping, assignment) is the Triage policies' and wakes nobody.
   aggregate "Escalation" do
     description "One wake of the orchestrator, for an exception that needs its judgment or for the standing seat left empty: the event it came from, the standing rule it falls under, and the brief its run reads."
 
@@ -1783,19 +1780,11 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The orchestrator's standing seat: one orchestrator session is always there to serve every run,
-  # and a missing one is started again by policy with no owner action. Each sweep of the sessions
-  # opens the seat once and starts a run into it while it is absent, so a lost orchestrator is
-  # replaced within one beat of the clock. The run is keyed by the sweep, so each start is a new run
-  # and the seat knows which run is its own: an orchestrator woken for one exception that ends
-  # leaves the seat alone. A run that ended idle (`done`) still holds the seat, since a message
-  # resumes it; one that stopped, failed, was declined or is gone empties it.
-  #
-  # A start that fails at once empties the seat at the next read, so a session that cannot start is
-  # tried once per beat; that is accepted, as a missing coordinator costs more than a refused start.
-  # The owner's `Pause` holds the seat empty; it does not stop a run already working.
+  # One orchestrator is always there: each sweep starts a run into the empty seat, keyed by the
+  # sweep, so a lost one is replaced within a beat. A start that fails at once is tried once a beat,
+  # which is accepted: a missing coordinator costs more than a refused start.
   aggregate "Coordinator" do
-    description "The orchestrator's standing seat: present while its run's session is there, absent when it stopped, failed, was declined or is gone (and the next sweep starts another), or paused by the owner."
+    description "The orchestrator's standing seat: present while its own run's session is there (idle between turns too, since a message resumes it), absent once that run stopped, failed, was declined or is gone, so the next sweep starts another, or paused by the owner, which does not stop a run already working. An orchestrator woken for one exception is not the seat's run, and its end leaves the seat alone."
 
     identified_by :role
 
