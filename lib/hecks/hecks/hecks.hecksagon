@@ -1439,7 +1439,6 @@ Hecks.hecksagon "Agents" do
   # RedeliverTheUnresumedVerdict), or gives it up once its tries are spent.
   subscribe "Hecks.SweepRequested"
   subscribe "Coder.WorkSubmitted"
-  subscribe "Pipeline.PassageVerified"
   subscribe "Tickets.AdrDrafted"
   subscribe "Tickets.AdrAccepted"
   subscribe "Tickets.AdrSuperseded"
@@ -1482,15 +1481,6 @@ Hecks.hecksagon "Agents" do
     on AgentRun::JobRead
     where { judgment != "" && previous != state }
     trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment }
-  end
-
-  # Main is green on a change: the release manager recommends promoting it. A person confirms.
-  translates "RecommendPromotionWhenVerified" do
-    on Passage::PassageVerified
-    trigger PromotionRecommendation::Recommend,
-            with: { change: :change, reasons: "main is green on this change", role: "release_manager", repo: ".",
-                    brief: "Main is green on this change. Recommend promote, revert or fix forward, with reasons. " \
-                           "Only recommend: the owner confirms any promotion on the board." }
   end
 
   # The architect's session closes with its verdict, or says it and goes idle; the run's key is the

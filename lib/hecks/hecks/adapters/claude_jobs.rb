@@ -120,7 +120,7 @@ module Hecks
 
       # The caller name the pipeline gave a session it launched ({SessionCaller}): the
       # `HECKS_CALLER` of the `env` in the `--settings` the job keeps among its `respawnFlags`,
-      # such as `release_manager:p-walk`. A session a person started by hand carries none.
+      # such as `reviewer:p-walk`. A session a person started by hand carries none.
       #
       # @param session [String] the session's id, which names its job's directory
       # @return [String] that name; empty when the job names none or cannot be read

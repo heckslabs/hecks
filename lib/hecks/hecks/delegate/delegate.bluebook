@@ -2555,14 +2555,6 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A recommended promotion starts the release manager's session under a minted key, so it never
-    # meets the reviewer's run for the same commit. It only recommends promote, revert or fix
-    # forward: promoting stays the owner's confirmed command on the board.
-    policy "StartTheReleaseManagerOnRecommendation" do
-      on      "PromotionRecommendation.PromotionRecommended"
-      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
-    end
-
     # A planning request starts the planner's session under a minted key, with the goal as its brief.
     # The planner drafts a plan and asks; it creates Work items only once the owner says so.
     policy "StartThePlannerOnPlanningRequest" do
