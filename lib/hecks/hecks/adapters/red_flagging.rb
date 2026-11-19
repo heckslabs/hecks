@@ -5,12 +5,14 @@ require_relative "console_capture"
 require_relative "red_flag_marker"
 require_relative "red_flag_report"
 require_relative "red_flag_survey"
+require_relative "red_wake_weighing"
 
 module Hecks
   module Adapters
     # The `Flagging` port's adapter for `RedFlag`: raises, notes, checks in to, admits a revert to
     # and lowers the red flag of a repository, reads its status, and surveys the latest CI run of
-    # main to raise or lower it. The flag is `RedFlagMarker`'s file; nothing else is touched.
+    # main to raise or lower it. The flag is `RedFlagMarker`'s file; nothing else is touched. For
+    # `RedWake` it weighs a wake of the orchestrator for a red main against that flag.
     class RedFlagging
       # The CI run id in a report such as `abc: CI run 12 failure; failed jobs: a, b`.
       RUN_ID = /run (\d+)/
@@ -82,6 +84,15 @@ module Hecks
       def status(**held)
         flag = marker(held).read
         { text: flag ? "#{RedFlagReport.new(flag).text}\n" : "main is not flagged\n" }
+      end
+
+      # Weighs a wake of the orchestrator for a red main ({RedWakeWeighing}).
+      #
+      # @param held [Hash] the `RedWake` record: `repo`, the directory the wake names
+      # @return [Hash{Symbol => Object}] `standing:`, `main_checkout:`, `flag:` and `run:`
+      # @raise [ConsoleCapture::Failure] when the directory is not a repository
+      def weigh(**held)
+        RedWakeWeighing.new(plain(held[:repo]) || checkout(held), **@tune.slice(:clock)).facts
       end
 
       private
