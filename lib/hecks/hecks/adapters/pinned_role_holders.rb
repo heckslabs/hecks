@@ -10,11 +10,12 @@ module Hecks
     # `AgentRun` bluebook can refuse a second session of the role by name. It reports facts:
     # whether a `PinnedRole` row names the run's role, the session that holds it, and a note.
     #
-    # A session holds a role when a started run whose `agent` or `works_as` is the role is bound to
-    # it, or when its listed name is the role, alone or followed by a separator and no further
-    # word (`ORCHESTRATOR`, `orchestrator 2`, `orchestrator-3`), so `orchestrator-owner` is
-    # another role. A session is live while `claude agents` lists it `busy`, or `working` or
-    # `blocked`; one idle between turns is not.
+    # A run's role is the part it plays: its `works_as`, else its `agent` (an answerer is an
+    # orchestrator agent working as `answerer`). A session holds a role when a started run of the
+    # role is bound to it, or when its listed name is the role, alone or followed by a separator
+    # and no further word (`ORCHESTRATOR`, `orchestrator 2`, `orchestrator-3`), so
+    # `orchestrator-owner` is another role. A session is live while `claude agents` lists it
+    # `busy`, or `working` or `blocked`; one idle between turns is not.
     class PinnedRoleHolders
       # The listed states of a session that is live whatever its status says.
       LIVE_STATES = %w[working blocked].freeze
@@ -55,10 +56,9 @@ module Hecks
 
       private
 
-      def pinned_role(held)
-        roles = Array(@pinned.call).map(&:to_s)
-        [value(held, :agent), value(held, :works_as)].find { |role| roles.include?(role) }.to_s
-      end
+      def pinned_role(held) = Array(@pinned.call).map(&:to_s).include?(role_of(held)) ? role_of(held) : ""
+
+      def role_of(record) = value(record, :works_as).then { |part| part.empty? ? value(record, :agent) : part }
 
       def holders(role)
         bound = bound_sessions(role)
@@ -67,7 +67,7 @@ module Hecks
 
       def bound_sessions(role)
         started = @runs.call.select { |run| value(run, :status) == "started" }
-        started.select { |run| [value(run, :agent), value(run, :works_as)].include?(role) }.map { |run| value(run, :session) }
+        started.select { |run| role_of(run) == role }.map { |run| value(run, :session) }
       end
 
       def live?(entry) = entry["status"].to_s == "busy" || LIVE_STATES.include?(entry["state"].to_s)

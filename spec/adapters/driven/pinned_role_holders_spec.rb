@@ -33,6 +33,14 @@ RSpec.describe Hecks::Adapters::PinnedRoleHolders do
     expect(holders([entry("b", "fleet", "blocked")], runs: runs).call(orchestrator)).to include(role_holder: "b")
   end
 
+  it "takes a run's part as its role, so an orchestrator agent working as answerer is not pinned", :aggregate_failures do
+    runs = [{ run: "a", status: "started", agent: "orchestrator", works_as: "answerer", session: "b" }]
+    found = holders([entry("b", "q-1", "working")], runs: runs)
+
+    expect(found.call(agent: "orchestrator", works_as: "answerer", session: "")).to eq(described_class::NONE)
+    expect(found.call(orchestrator)).to eq(described_class::NONE.merge(pinned_role: "orchestrator"))
+  end
+
   it "counts a session listed busy as live, whatever its state" do
     expect(holders([entry("a", "orchestrator-2", "done", status: "busy")]).call(orchestrator)).to include(role_holder: "a")
   end
