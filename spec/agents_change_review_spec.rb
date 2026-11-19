@@ -51,6 +51,13 @@ RSpec.describe "the architect's change review" do
     expect(run.slice("agent", "work").transform_values(&:to_s)).to eq("agent" => "architect", "work" => "")
   end
 
+  it "starts the architect's run from a submission, within the reaction depth" do
+    sha = branch_changing("lib/x/x.bluebook")
+    launch("coder", "Submission.submit!", "branch.value=w-change", "sha.value=#{sha}",
+           "checkout.value=#{scratch}", "clean.value=true", "--wait")
+    expect(running(git("rev-parse", "#{sha}^{tree}").strip)).not_to be_nil
+  end
+
   it "leaves the commit's own key to the reviewer's run" do
     sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
     expect(running(sha)).to be_nil
