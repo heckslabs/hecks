@@ -42,7 +42,25 @@ module Hecks
         [directory, Dispatching::Checkout.main(directory)].uniq.flat_map { |where| listed_in(where) }.uniq
       end
 
+      # @param directory [String] where a session would work
+      # @param agent [String, nil] the agent the session is to run as; nil for `claude`'s default
+      # @return [Hash{Symbol => Object}] `listed:` whether the agent is listed there, `note:` that
+      #   in words, naming the agents that are
+      # @raise [ConsoleCapture::Failure] as {#names} does
+      def listing(directory, agent)
+        return { listed: true, note: "no agent named: the session runs the default agent" } unless agent
+
+        names = names(directory)
+        { listed: names.include?(agent), note: unavailable(agent, directory, names) }
+      end
+
       private
+
+      def unavailable(agent, repo, names)
+        main = Dispatching::Checkout.main(repo)
+        where = main == repo ? repo : "#{repo} or the main checkout #{main}"
+        "agent #{agent} is not available in #{where}; available: #{names.join(", ")}"
+      end
 
       def listed_in(directory)
         said = probe(directory)
