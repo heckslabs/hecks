@@ -18,7 +18,7 @@ RSpec.describe "the Tickets Epic" do
     cli("work.assign!", "to=#{key}", "epic=#{epic}")
   end
 
-  def finish(*keys) = keys.each { |key| cli("work.finish!", "to=#{key}") }
+  def finish(*keys) = keys.each { |key| cli("work.finish!", "to=#{key}", "no_change.value=a verify") }
 
   def stored(name)
     aggregate = hecks.registry.bluebook("Tickets").aggregates.find { |declared| declared.hecks_name == name }

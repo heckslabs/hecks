@@ -24,7 +24,7 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
     plan("board/later", 2)
     plan("board/sooner", 1)
     plan("board/finished", 3)
-    cli("work.finish!", "to=board/finished")
+    cli("work.finish!", "to=board/finished", "no_change.value=a verify")
   end
 
   it "answers the undone Work items in plan order, as Work.Undone does" do
@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
 
   it "answers no open work, and no error, when every Work item is done" do
     plan("board/only", 1)
-    cli("work.finish!", "to=board/only")
+    cli("work.finish!", "to=board/only", "no_change.value=a verify")
     expect(open_slugs).to eq([])
   end
 
