@@ -8,7 +8,7 @@ require "hecks/hecks/adapters/git_train"
 # A second train boards while the first is still in CI: stacked on the open train's head, its own
 # pull request into main, and refused by name at two trains in flight. Against a local bare
 # repository and a clone of it; `gh` is a stub that lists the open train pull requests it is given.
-RSpec.describe "the push train stacking a second boarding on an open train", :io do
+RSpec.describe "the push train stacking a second boarding on an open train" do
   let(:scratch) { Dir.mktmpdir("hecks-stacked-train") }
   let(:work) { File.join(scratch, "work") }
   let(:gh_calls) { [] }
