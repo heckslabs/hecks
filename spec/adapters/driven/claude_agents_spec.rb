@@ -42,7 +42,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
     it "says a directory is there, that no agent named needs no look, and that no run holds the work" do
       expect(adapter.locate(repo: { value: scratch }))
-        .to eq(report: { value: "#{scratch} is a directory" }, listed: true,
+        .to eq(repo: { value: scratch }, report: { value: "#{scratch} is a directory" }, listed: true,
                note: "no agent named: the session runs the default agent",
                holder: "", holder_status: "", holder_agent: "", requester_agent: "")
     end
@@ -65,6 +65,12 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
       expect { adapter.locate(repo: { value: scratch }, agent: { value: "coder" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /listed no agents: something else/)
+    end
+
+    it "works in the main checkout of the repository it stands in when no directory is named" do
+      allow(Hecks::Adapters::Dispatching::Checkout).to receive(:main).and_return(scratch)
+
+      expect(adapter.locate).to include(repo: { value: scratch })
     end
 
     it "refuses a directory that is not there" do

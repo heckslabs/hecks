@@ -134,7 +134,7 @@ module Hecks
       # A domain's event log past a cursor, answered once, at the first entries or after `wait`.
       # Pass the answered `cursor` back as `since` to keep tailing.
       #
-      # @param domain [Hash, String] a domain directory, or a bluebook name such as `Tickets`
+      # @param domain [Hash, String, nil] a domain directory or bluebook name; Hecks when absent
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] how many entries were already seen; all when absent
       # @param from_now [Hash, Boolean, nil] skip what exists; answer only a cursor at its end
@@ -143,7 +143,7 @@ module Hecks
       # @param names [Hash, String, nil] event names to hand over, comma separated
       # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
-      def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil, names: nil)
+      def follow(domain: nil, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil, names: nil)
         registry = followed_registry(domain)
         entries = []
         cursor = stream(domain: domain, aggregate: aggregate, since: since, from_now: from_now,

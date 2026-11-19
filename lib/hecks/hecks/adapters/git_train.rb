@@ -19,6 +19,7 @@ require_relative "git_train/landings"
 require_relative "git_train/reverting"
 require_relative "git_train/landed_range"
 require_relative "git_train/termination"
+require_relative "git_train/standing"
 
 module Hecks
   module Adapters
@@ -36,6 +37,7 @@ module Hecks
     # only a branch that has lost the commit is refused.
     class GitTrain
       include Reading
+      include Standing
 
       # The lock's file, in the repository's common git directory.
       LOCK_FILE = "hecks-push-train.lock"
@@ -83,7 +85,7 @@ module Hecks
       #   boarded commit, the branch and the remote conflict, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
-        @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        @checkout = standing(held)
         fault = Termination.new(read("rev-parse", "--path-format=absolute", "--git-common-dir"), branch_of(held))
         fault.watch { in_turn { board(held, fault) } }
       end
@@ -96,7 +98,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no boarding is queued, or `gh` cannot read its PR
       def observe(**held)
         boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no queued boarding to observe"
-        checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        checkout = standing(held)
         answer = PullRequestBoarding::Observation.new(@runner, checkout).answer(boarded)
         answer.merge(checkout: { value: checkout }, boarded: { value: boarded })
       end
@@ -109,7 +111,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no boarding is named
       def landings(**held)
         boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no boarding to read landings of"
-        checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        checkout = standing(held)
         { landings: Landings.new(@git, checkout).list(boarded, "#{remote_of(held)}/main") }
       end
 
@@ -120,7 +122,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no landing is named or the revert is refused
       def revert(**held)
         culprit = plain(held[:culprit]) or raise ConsoleCapture::Failure, "no landing named to revert"
-        @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        @checkout = standing(held)
         answer = in_turn { Reverting.new(@git, @checkout).revert(culprit) }
         { reverted: { value: answer[:reverted] }, report: { value: answer[:report] } }
       end
@@ -215,12 +217,6 @@ module Hecks
           lock.flock(File::LOCK_EX)
           yield
         end
-      end
-
-      def toplevel(dir)
-        raise ConsoleCapture::Failure, "#{dir} is not a directory" unless File.directory?(dir)
-
-        read("rev-parse", "--show-toplevel", dir: dir)
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
