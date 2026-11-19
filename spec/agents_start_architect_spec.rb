@@ -68,7 +68,43 @@ RSpec.describe "a plan review request starting the architect's session" do
     request("w-judge", 1)
     close_job("Verdict: sound. Build it.")
     launch("agent_run.check!", "to=w-judge", "--wait")
-    expect(reactions("JudgeTheArchitectsVerdict").last[:delivered]).to be(true)
+    expect(reactions("JudgeTheForwardedVerdict").map { |r| r[:delivered] }).to include(true)
+  end
+
+  def verdict_of(run) = @hecks.registry.repository("Agents", @hecks.registry.bluebook("Agents").aggregate("Verdict")).find(run)
+
+  # The names of the events one check of a run records, in the order they were recorded.
+  def events_of_check(run)
+    before = @hecks.registry.event_log.size
+    launch("agent_run.check!", "to=#{run}", "--wait")
+    @hecks.registry.event_log.drop(before).map(&:name)
+  end
+
+  def review_and_check(work, text)
+    request(work, 1)
+    close_job(text)
+    events_of_check(work)
+  end
+
+  it "answers the requested review in the Agents domain before the coder is judged the verdict", :aggregate_failures do
+    names = review_and_check("w-stored", "Verdict: rethink. Start over.")
+    expect(reactions("AnswerTheRequestedReview").last[:delivered]).to be(true)
+    expect(names.index("PlanReviewed")).to be < names.index("VerdictJudged")
+    expect(verdict_of("w-stored")).not_to be_nil
+  end
+
+  # The review is asked again past its window, which ends it, before the verdict is read.
+  def answer_after_the_end(run)
+    request("w-late", 1, run: run)
+    launch("agents", "PlanReview.reask!", "to=#{run}", "work.value=w-late", "hops.value=1", "role.value=architect",
+           "repo.value=#{scratch}", "plan.value=review this plan as written", "now.value=4102444800", "--wait")
+    close_job("Verdict: sound. Build it.")
+    launch("agent_run.check!", "to=#{run}", "--wait")
+  end
+
+  it "judges no verdict for the coder when the review it answers had already ended" do
+    answer_after_the_end("r-late")
+    expect(verdict_of("r-late")).to be_nil
   end
 
   def hand_start(run, work)
@@ -82,6 +118,7 @@ RSpec.describe "a plan review request starting the architect's session" do
   it "records the verdict of a run no review row names, on the Work item the run serves", :aggregate_failures do
     hand_start("r-orphan", "w-orphan")
     expect(reactions("RecordTheVerdictWhenNoReviewWasAsked").last[:delivered]).to be(true)
+    expect(reactions("JudgeTheRecordedReview").last[:delivered]).to be(true)
     expect(launch("agents", "PlanReview.reviews").first.to_s).to include("r-orphan", "w-orphan", "rethink")
   end
 
