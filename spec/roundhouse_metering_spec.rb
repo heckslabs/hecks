@@ -103,4 +103,18 @@ RSpec.describe Hecks::Adapters::Metering do
   it "answers the Machine query as a JSON document" do
     expect(JSON.parse(metering.machine.fetch(:text))).to include("capacity_mb" => 36_864)
   end
+
+  it "reads the machine's load alone without listing a session or reading the process table" do
+    reads = { memsize: 1, perf_cores: 6, loadavg: "{ 7.02 15.23 20.46 }", vm_stat: "" }
+    alone = described_class.new(settings: { listing: -> { raise "listed" }, processes: -> { raise "ps" },
+                                            machine: -> { reads }, now: -> { now } })
+
+    expect(alone.load_facts).to eq(load: 702, cores: 6, taken_at: "2026-11-19T18:00:00Z")
+  end
+
+  it "answers no load when the load could not be read, never a calm 0" do
+    blank = described_class.new(settings: { machine: -> { { loadavg: "" } }, now: -> { now } })
+
+    expect(blank.load_facts[:load]).to be_nil
+  end
 end
