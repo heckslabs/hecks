@@ -52,6 +52,11 @@ RSpec.describe Hecks::Interviews::ConcludedRecord do
     expect(record).to include("citing [exchange 2](#exchange-2): Few ports. Supersedes point 1.")
   end
 
+  it "has a heading for each exchange a Point cites, so the link resolves" do
+    headings = record.scan(/^### (Exchange \d+)$/).flatten.map { |heading| heading.downcase.tr(" ", "-") }
+    expect(record.scan(/\]\(#(exchange-\d+)\)/).flatten.uniq).to eq(headings)
+  end
+
   it "keeps every exchange in the speaker's words, with its question", :aggregate_failures do
     expect(record).to include("### Exchange 1\n\n**owner:** Dissolve the tools directory.")
     expect(record).to include("### Exchange 2\n\n**Question:** Behind ports?\n\n**architect:** Yes, few of them.")

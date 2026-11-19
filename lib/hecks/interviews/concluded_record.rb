@@ -14,7 +14,8 @@ module Hecks
     # whose keeping is `committed` has a record; any other keeping, or none, is an outside expert's
     # and has no path, so a client's details never reach `docs/`.
     module ConcludedRecord
-      # The keeping of an interview of Hecks's own, whose record is committed.
+      # The keeping of an interview of Hecks's own, whose record is committed: one of the values
+      # the Keeping value object allows (lib/hecks/interviews/interviews.bluebook, `Keeping`).
       COMMITTED = "committed".freeze
       # Where the records sit, under the checkout.
       DIRECTORY = File.join("docs", "interviews").freeze
