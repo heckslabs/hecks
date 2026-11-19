@@ -10,6 +10,7 @@ require_relative "../../../rust_build/session_build"
 require_relative "../codebase/test_scope"
 require_relative "../machine_sampling/history"
 require_relative "rethinks"
+require_relative "meter_switch"
 
 module Hecks
   module Adapters
@@ -81,7 +82,7 @@ module Hecks
         # @param boots [BootBudget, nil] what the day's boots cost; the usage record's when nil
         def initialize(registry, load: nil, cpus: nil, cap: nil, boots: nil)
           @registry = registry
-          @load = load || -> { self.class.uptime_load }
+          @load = load || method(:read_load)
           @cpus = cpus || Etc.nprocessors
           @cap = cap
           @boots = boots || BootBudget.new
@@ -99,8 +100,13 @@ module Hecks
         # @return [Array<String>] the frozen areas and aggregates, empty when none is declared
         def frozen = Array(declared(FREEZE)[:areas]).map(&:to_s)
 
-        # @return [Float] the 1-minute load average now
+        # @return [Float] the 1-minute load average now: Roundhouse's meter with the Tickets world's
+        #   `metering.roundhouse` switch on, else `uptime`
         def load = @load.call.to_f
+
+        # @return [String] where the last {#load} was read: `roundhouse`, or `uptime` with the
+        #   switch off, a meter that could not read, or a stand-in load
+        def load_source = @load_source || "uptime"
 
         # @return [Integer] the CPU count
         attr_reader :cpus
@@ -189,6 +195,13 @@ module Hecks
         def nice = RustBuild::SessionBuild.nice_of(declared(SESSION))
 
         private
+
+        # The meter's load with the switch on and a reading taken, else `uptime`'s.
+        def read_load
+          metered = MeterSwitch.on?(@registry) && MeterSwitch.load
+          @load_source = metered ? "roundhouse" : "uptime"
+          metered || self.class.uptime_load
+        end
 
         def declared(verb) = @registry&.world("Tickets")&.for_verb(verb) || {}
       end
