@@ -28,6 +28,9 @@ module Hecks
         # What a name is compared without, so `quality_control` and `QualityControl` meet.
         NOT_ALNUM = /[^a-z0-9]/
 
+        # The places filed stall items may hold in all, started and chosen together.
+        STALL_PLACES = 1
+
         # A work item left waiting, and the reason.
         Skip = Struct.new(:key, :reason)
 
@@ -39,16 +42,15 @@ module Hecks
 
         # @param planned [Array<Item>] the planned work items, in plan order
         # @param started [Array<Item>] the started work items
-        # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
-        #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
-        #   `frozen:` (Array), `epic_wip:` (Integer, optional: most started items of one epic)
-        #   `headroom:`, `per_session:` (optional: the estimate reported), `urgent_reserve:` (red),
-        #   `paused:` and `budget:` (String, optional: why every work item waits), `rethinks:`
-        #   (callable, optional: answers why a work item waits for a person),
-        #   `waits:` (callable, optional: answers which unlanded work item an item waits on),
-        #   `exempt:` (callable, optional: whether a work item starts despite it), `root:` (String,
-        #   optional: the repository's top level) and `effective:` (callable, optional: the area an
-        #   item holds now, by {EffectiveArea})
+        # @param limits [Hash] `runs:` (callable: AgentRun states by run key) and `now:` (Time),
+        #   `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array), `epic_wip:`
+        #   (Integer: most started items of one epic), `headroom:` and `per_session:` (the estimate
+        #   reported), `urgent_reserve:` (red), `paused:` and `budget:` (String: why every work item
+        #   waits), `rethinks:` (callable: why a work item waits for a person), `waits:` (callable:
+        #   the unlanded work item an item waits on), `exempt:` (callable: whether a work item
+        #   starts despite it), `stall:` (callable: whether a key is a filed stall's item), `root:`
+        #   (String: the repository's top level) and `effective:` (callable: the area an item holds
+        #   now, by {EffectiveArea}); all but `cap:`, `load:`, `max_load:` and `frozen:` optional
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
@@ -105,8 +107,8 @@ module Hecks
 
         def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped(item)
 
-        # What the item's own place holds it: its area or its epic.
-        def limit_reason(item) = frozen_reason(item) || epic_reason(item) || overlap_reason(item)
+        # What the item's own place holds it: its area, its epic, or the one stall place.
+        def limit_reason(item) = frozen_reason(item) || epic_reason(item) || stall_reason(item) || overlap_reason(item)
 
         # A spent boot budget holds back every work item but the ones `exempt:` names, so the fix
         # of a red main still starts.
@@ -150,6 +152,16 @@ module Hecks
 
           count = holders.count { |other| other.epic == item.epic }
           "skipped: held: epic #{item.epic} already has #{count} started" if count >= limit
+        end
+
+        # Filed stall items, started or chosen by this fill, hold at most {STALL_PLACES} places, so
+        # a run of stalls never takes the room a priority-now fix needs.
+        def stall_reason(item)
+          stall = @limits[:stall]
+          return unless stall&.call(item.key)
+
+          held = holders.select { |other| stall.call(other.key) }
+          "skipped: held: stall #{held.first.key} already holds the one stall place" if held.size >= STALL_PLACES
         end
 
         def overlap_reason(item)
