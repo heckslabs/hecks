@@ -1,0 +1,46 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+
+# `x.nil?` is false for a missing value in a rule, so a guard that stops on it never stops. Rules
+# refuse it at load and name `== nil`. The refusal is a Ruby load-time check; the Rust evaluator
+# still reads `x.nil?` as an ordinary lookup (`rust/host/core/src/expr_json.rs`).
+RSpec.describe "A rule that tests a value with nil?" do
+  let(:ast_json) { Hecks::Bluebook::Expression::AstJson }
+
+  def refuse(canonical)
+    ast = ast_json.emit_predicate(canonical)
+    ast_json.refuse_unresolvable_lookups!(ast, owner: "Run", word: "given")
+  end
+
+  it "is refused, and the message names == nil" do
+    expect { refuse("tries.nil? || tries.value < 3") }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /Write `tries == nil` instead/)
+  end
+
+  it "is refused under a negation", :aggregate_failures do
+    expect { refuse("!ended_at.nil? && ended_at.value == 0") }.to raise_error(Hecks::Bluebook::DSL::Malformed, /nil\?/)
+    expect { refuse("run.verdict.nil?") }.to raise_error(Hecks::Bluebook::DSL::Malformed, /run\.verdict == nil/)
+  end
+
+  it "is asked by no bluebook in the corpus" do
+    lines = Dir[File.expand_path("../lib/**/*.bluebook", __dir__)].flat_map { |path| File.readlines(path) }
+    expect(lines.grep(/\.nil\?/)).to be_empty
+  end
+
+  it "is let through in frozen era text, which a shape ledger entry cannot rewrite" do
+    shadowed = Hecks::Bluebook::MetaValidator.while_shadow_parsing { refuse("tries.nil?") }
+    expect(shadowed).to be_a(Hash)
+  end
+
+  it "lets the == nil test through" do
+    expect(refuse("tries == nil || tries.value < 3")).to be_a(Hash)
+  end
+
+  # The Rust evaluator answers the same three cases (`a_missing_value_equals_nil_as_ruby_answers`).
+  it "answers .value == nil true for a missing or empty value and false for a set one" do
+    answers = [{ x: nil }, { x: { value: nil } }, { x: { value: 3 } }]
+              .map { |state| Hecks::Bluebook::Expression::Evaluator.call("x.value == nil", state) }
+    expect(answers).to eq([true, true, false])
+  end
+end

@@ -1083,6 +1083,25 @@ mod tests {
     }
 
     #[test]
+    fn a_missing_value_equals_nil_as_ruby_answers() {
+        // A rule tests a missing value with `x.value == nil`, never `x.nil?`; Ruby answers the
+        // same three cases in spec/expression_nil_test_refused_spec.rb.
+        let test = eq(
+            json!({"op":"lookup","path":["x","value"]}),
+            json!({"op":"nil"}),
+        );
+        assert_eq!(run(test.clone(), json!({"x": null})), Ok(Value::Bool(true)));
+        assert_eq!(
+            run(test.clone(), json!({"x": {"value": null}})),
+            Ok(Value::Bool(true))
+        );
+        assert_eq!(
+            run(test, json!({"x": {"value": 3}})),
+            Ok(Value::Bool(false))
+        );
+    }
+
+    #[test]
     fn a_one_field_object_reads_as_its_value_and_a_wider_one_stays_an_object() {
         assert_eq!(
             run(lookup_of("x"), json!({"x": {"value": 7}})),

@@ -57,8 +57,10 @@ module Hecks
         # What a `lookup` path can never contain: a call's parentheses, or an argument list's
         # commas and spaces.
         #
-        # A bare `?` is deliberately not in the set: `x.nil?` also parses as a lookup, loads, and
-        # evaluates without raising, and real bluebooks declare it.
+        # A bare `?` is not in the set, because `x.nil?` is refused by name instead
+        # (`nil_test_message`): it is false for a missing value in a rule, so a guard that relies
+        # on it never stops. The refusal is a Ruby load-time check; the Rust evaluator still reads
+        # the form as an ordinary lookup.
         UNRESOLVABLE_PATH = /[(),\s]/
         private_constant :UNRESOLVABLE_PATH
 
@@ -66,17 +68,29 @@ module Hecks
         # It would parse as a `lookup` of an attribute that cannot exist and fail on first dispatch.
         #
         # @raise [Bluebook::DSL::Malformed] if a `lookup` path contains a parenthesis, comma or
-        #   space
+        #   space, or ends in `nil?`
         def refuse_unresolvable_lookups!(ast, owner:, word:)
           return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
 
           each_node(ast) do |node|
             expression = unresolvable_path(node)
-            next unless expression
-
-            raise DSL::Malformed, unresolvable_message(owner, word, expression)
+            raise DSL::Malformed, unresolvable_message(owner, word, expression) if expression
+            raise DSL::Malformed, nil_test_message(owner, word, node["path"]) if nil_test?(node)
           end
           ast
+        end
+
+        # @param node [Hash] one AST node
+        # @return [Boolean] whether it is a `lookup` whose last segment is `nil?`
+        def nil_test?(node)
+          node["op"] == "lookup" && node["path"].is_a?(::Array) && node["path"].last == "nil?"
+        end
+
+        # @return [String] the refusal for a rule that asks `nil?` of a value
+        def nil_test_message(owner, word, path)
+          subject = path[0...-1].join(".")
+          "#{owner}'s #{word} uses \"#{subject}.nil?\", which is false for a missing value in a " \
+            "rule. Write `#{subject} == nil` instead, or `#{subject}.value == nil` for a value object"
         end
 
         # @param node [Hash] one AST node
