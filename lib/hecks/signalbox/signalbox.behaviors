@@ -3,7 +3,7 @@ Hecks.behaviors "Signalbox" do
 
   # Given is each test's setup and the readings in its input; When is the command; Then is the
   # expectation. The machine is the owner's M3 Pro: 36 GB, of which 28 GB is the pipeline's supply.
-  loads "signalbox.bluebook", "signalbox.hecksagon"
+  loads "../../../spec/fixtures/signalbox/signalbox.hecksagon", "signalbox.bluebook", "signalbox.ports.hecksagon"
 
   # ---- Law 1: conservation ----
 
@@ -434,41 +434,120 @@ Hecks.behaviors "Signalbox" do
 
   # ---- Shadow (phase 2): what Signalbox would have decided, beside what Delegate did ----
 
-  # Each time Delegate fills, sheds or reaps, Signalbox records its own ruling on the same subject
-  # and acts on nothing. One ruling stands per function and subject, revised when either side changes.
+  # On each pressure beat Signalbox hears Delegate's last fill and shed and records its own ruling
+  # on each, and acts on nothing. Each beat's ruling has its own key, so none is revised in place.
   test "shadow: a ruling records Signalbox's refusal beside Delegate's start" do
     tests "Record", on: "Ruling"
-    input ruling: { value: "fill:pipeline-board-tiles" }, function: { value: "fill" }, subject: { value: "pipeline-board-tiles" },
-          delegate: { value: "start" }, decision: { value: "refuse" },
-          law: { value: "a session's expected draw fits the headroom" }, band: { value: "tight" }, headroom: { value: 900 },
-          agrees: { value: "no" }
+    input ruling: { value: "beat-1:fill" }, function: { value: "fill" }, subject: { value: "pipeline-board-tiles" },
+          delegate: { value: "start" }, decision: { value: "wait" },
+          law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is short" },
+          load: { value: 3397 }, headroom: { value: 900 }, agrees: { value: "no" }
     expect emits: ["RulingRecorded"], agrees: "no"
-  end
-
-  test "shadow: a ruling Delegate and Signalbox agree on" do
-    tests "Record", on: "Ruling"
-    input ruling: { value: "shed:shedding" }, function: { value: "shed" }, subject: { value: "shedding" },
-          delegate: { value: "none" }, decision: { value: "none" }, law: { value: "the shedding breaker is under its rating" },
-          band: { value: "normal" }, headroom: { value: 9000 }, agrees: { value: "yes" }
-    expect emits: ["RulingRecorded"], agrees: "yes"
   end
 
   test "shadow: a ruling names its function" do
     tests "Record", on: "Ruling"
-    input ruling: { value: "start:coder-1" }, function: { value: "start" }, subject: { value: "coder-1" },
-          delegate: { value: "start" }, decision: { value: "admit" }, law: { value: "every law holds" },
-          band: { value: "normal" }, headroom: { value: 9000 }, agrees: { value: "yes" }
+    input ruling: { value: "beat-1:start" }, function: { value: "start" }, subject: { value: "coder-1" },
+          delegate: { value: "start" }, decision: { value: "start" }, law: { value: "every law holds" },
+          load: { value: 700 }, headroom: { value: 9000 }, agrees: { value: "yes" }
     expect refused: "a ruling is on a fill, a shed or a reap"
   end
 
-  test "shadow: a ruling is revised when the next pass decides otherwise" do
-    tests "Revise", on: "Ruling"
-    setup "Signalbox::Ruling.Record", ruling: { value: "reap:4c1d2e3f" }, function: { value: "reap" }, subject: { value: "4c1d2e3f" },
-          delegate: { value: "keep: its run has not finished" }, decision: { value: "keep" }, law: { value: "its fuse holds" },
-          band: { value: "normal" }, headroom: { value: 9000 }, agrees: { value: "yes" }
-    input ruling: "reap:4c1d2e3f", delegate: { value: "keep: its run has not finished" }, decision: { value: "reap" },
-          law: { value: "a session past its time rating blows its own fuse" }, band: { value: "tight" }, headroom: { value: 5000 },
-          agrees: { value: "no" }
-    expect emits: ["RulingRevised"], decision: "reap", agrees: "no"
+  test "shadow: hearing Delegate's fill and shed records one ruling on each" do
+    tests "Hear", on: "Shadow"
+    input shadow: { value: "beat-1" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-1:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-1:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect emits: %w[DelegateHeard RulingRecorded RulingRecorded]
+  end
+
+  test "shadow: a quiet machine agrees with Delegate's start and its sparing" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-2" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-2:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-2:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 0
+  end
+
+  test "shadow: Delegate starts a coder while the load is short, and Signalbox would have it wait" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-3" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 3397 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-3:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-3:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
+    expect count: 1
+  end
+
+  test "shadow: Delegate leaves a coder waiting that the headroom has room for" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-4" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-4:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "wait" }, shed_ruling: { value: "beat-4:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 1
+  end
+
+  test "shadow: Delegate sheds while pressure is not short, which Signalbox would not" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-5" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-5:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-5:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
+    expect count: 1
+  end
+
+  test "shadow: memory under the floor is short: sparing every coder disagrees, as starting one does" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-6" }, headroom: { value: 1000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-6:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-6:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 2
+  end
+
+  test "shadow: a fill with nothing planned is not ruled on" do
+    tests "Signalbox::Ruling.Shadowed", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-7" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-7:fill" },
+          fill_subject: { value: "nothing-planned" }, fill_delegate: { value: "none" }, shed_ruling: { value: "beat-7:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 1
+  end
+
+  # ---- The pressure beat: one look, cleared only from the main checkout's current view ----
+
+  # The looks are replayed by spec/fixtures/signalbox/adapters/replayed_looking.adapter, by beat.
+  test "the beat: a quiet machine's look from main is cleared, published and ruled on" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-quiet" }
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead
+                     PressureEased DelegateHeard RulingRecorded RulingRecorded]
+  end
+
+  test "the beat: the helper storm's look puts the machine in the short band" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-storm" }
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead PressureFellShort
+                     DelegateHeard RulingRecorded RulingRecorded]
+  end
+
+  test "the beat: a look from a copy behind main is not cleared, so nothing is published" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-worktree" }
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded]
+  end
+
+  test "the beat: a machine that cannot be read faults the beat" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-unread" }
+    expect emits: %w[BeatBegun BeatUnlooked BeatFaulted], status: "unlooked"
+  end
+
+  test "the beat: the headroom is the capacity less what is in use less the person's reserve" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-quiet" }
+    expect headroom: 8209
   end
 end

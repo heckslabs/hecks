@@ -50,9 +50,10 @@ module Hecks
             loadavg: sysctl("vm.loadavg"), vm_stat: out("vm_stat") }
         end
 
-        # @return [Hash{String => Hash}] each session id's run: `run:`, `agent:`, `works_as:`, `work:`
+        # @return [Hash{String => Hash}] each session id's run: `run:`, `agent:`, `works_as:` and
+        #   `work:`
         def runs
-          aggregate = @registry&.bluebook("Hecks")&.aggregates&.find { |candidate| candidate.hecks_name == "AgentRun" }
+          aggregate = agent_run
           return {} unless aggregate
 
           @registry.repository("Hecks", aggregate).all.each_with_object({}) do |run, held|
@@ -72,6 +73,12 @@ module Hecks
         end
 
         private
+
+        # The Hecks domain's AgentRun aggregate, when the registry holds the Hecks domain.
+        def agent_run
+          bluebook = @registry&.bluebook("Hecks")
+          bluebook&.aggregates&.find { |candidate| candidate.hecks_name == "AgentRun" }
+        end
 
         def ran(run)
           { run: value(run, :run), agent: value(run, :agent), works_as: value(run, :works_as), work: value(run, :work) }

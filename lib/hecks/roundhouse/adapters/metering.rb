@@ -16,6 +16,9 @@ module Hecks
       SECONDS_PER_MINUTE = 60
       MS_PER_SECOND = 1000
 
+      # What `claude agents` lists of a session, each as text.
+      LISTED = { id: "id", session: "sessionId", name: "name", kind: "kind", state: "state", status: "status" }.freeze
+
       # @param registry [Runtime::Registry, nil] whose AgentRun ledger names each session's run
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins for the outside, each a callable: `listing:` (the listed
@@ -49,8 +52,7 @@ module Hecks
         @rows ||= begin
           table = ProcessTable.new(@processes.call)
           runs = @runs.call
-          Array(@listing.call).select { |entry| entry["pid"] && table.running?(entry["pid"]) }
-                              .map { |entry| row(entry, table.tree(entry["pid"]), runs[entry["sessionId"].to_s]) }
+          live(table).map { |entry| row(entry, table.tree(entry["pid"]), runs[entry["sessionId"].to_s]) }
         end
       end
 
@@ -59,21 +61,36 @@ module Hecks
       #   cores), `sessions` and `taken_at`
       def machine_facts
         gauge = MachineGauge.new(@machine.call)
-        person, pipeline = rows.partition { |row| row[:role] == "person" }
-        { capacity_mb: gauge.capacity_mb, used_mb: gauge.used_mb, drawn_mb: pipeline.sum { |row| row[:memory_mb] },
-          person_mb: person.sum { |row| row[:memory_mb] }, load: gauge.load, cores: gauge.cores, sessions: rows.size,
-          taken_at: stamp(@now.call) }
+        { capacity_mb: gauge.capacity_mb, used_mb: gauge.used_mb, **draws, load: gauge.load, cores: gauge.cores,
+          sessions: rows.size, taken_at: stamp(@now.call) }
       end
 
       private
 
+      # The listed sessions whose own process is still running.
+      def live(table) = Array(@listing.call).select { |entry| entry["pid"] && table.running?(entry["pid"]) }
+
+      # `drawn_mb`, what the pipeline's sessions draw, and `person_mb`, what a person's own do.
+      def draws
+        person, pipeline = rows.partition { |row| row[:role] == "person" }
+        { drawn_mb: pipeline.sum { |row| row[:memory_mb] }, person_mb: person.sum { |row| row[:memory_mb] } }
+      end
+
       def row(entry, tree, run)
+        { **LISTED.transform_values { |field| entry[field].to_s }, **of_run(entry, run), **tree.to_h, **times(entry) }
+      end
+
+      # The role, part, Work item and run a session's AgentRun names.
+      def of_run(entry, run)
+        { role: SessionRole.of(entry, run), works_as: SessionRole.works_as(run), item: item_of(run),
+          run: run ? run[:run].to_s : "" }
+      end
+
+      # When the session started and last did something, and the minutes since each.
+      def times(entry)
         started = Time.at(entry["startedAt"].to_i / MS_PER_SECOND).utc
         active = @activity.call(entry)
-        { id: entry["id"].to_s, session: entry["sessionId"].to_s, name: entry["name"].to_s, kind: entry["kind"].to_s,
-          state: entry["state"].to_s, status: entry["status"].to_s, role: SessionRole.of(entry, run),
-          works_as: SessionRole.works_as(run), item: item_of(run), run: run ? run[:run].to_s : "", **tree.to_h,
-          started_at: stamp(started), last_activity: active ? stamp(active) : "",
+        { started_at: stamp(started), last_activity: active ? stamp(active) : "",
           age_minutes: minutes_since(started), idle_minutes: minutes_since(active || started) }
       end
 

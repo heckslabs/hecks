@@ -10,7 +10,7 @@ require "hecks/roundhouse/adapters/metering"
 RSpec.describe Hecks::Adapters::Metering do
   let(:now) { Time.utc(2026, 11, 19, 18, 0, 0) }
 
-  # pid, ppid, rss in KB, %cpu, command
+  # pid, ppid, resident memory in kilobytes, %cpu, command
   let(:ps) do
     <<~PS
       100     1  512000  12.5 claude --agent coder
@@ -38,17 +38,14 @@ RSpec.describe Hecks::Adapters::Metering do
     ]
   end
 
-  let(:runs) do
-    { "aaaa1111-full" => { run: "signalbox-phase-2-shadow", agent: "coder", works_as: "", work: "signalbox-phase-2-shadow" } }
-  end
-
-  let(:machine_reads) do
-    { memsize: 38_654_705_664, perf_cores: 6, loadavg: "{ 33.97 35.28 28.52 }",
-      vm_stat: "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages active:   759487.\n" \
-               "Pages wired down:   320011.\nPages occupied by compressor:   230127.\n" }
-  end
-
   let(:metering) do
+    run = { run: "signalbox-phase-2-shadow", agent: "coder", works_as: "", work: "signalbox-phase-2-shadow" }
+    runs = { "aaaa1111-full" => run }
+    machine_reads = {
+      memsize: 38_654_705_664, perf_cores: 6, loadavg: "{ 33.97 35.28 28.52 }",
+      vm_stat: "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages active:   759487.\n" \
+               "Pages wired down:   320011.\nPages occupied by compressor:   230127.\n"
+    }
     described_class.new(settings: { listing: -> { listing }, processes: -> { ps }, runs: -> { runs },
                                     machine: -> { machine_reads }, now: -> { now },
                                     activity: ->(entry) { entry["sessionId"] == "aaaa1111-full" ? now - 120 : nil } })
