@@ -311,6 +311,10 @@ queries (nothing here changes anything):
   CiLook:
     …
     unrecorded
+  AgentRun:
+    …
+    working
+    blocked
   Dispatch:
     …
     preview
