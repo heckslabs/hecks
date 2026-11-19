@@ -2147,11 +2147,15 @@ Hecks.bluebook "Hecks" do
     # Resuming an idle session with an answer stops it and wakes it again, and the stop runs the
     # session's own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
     # reading carries beside `previous`) is that stop, so it ends nothing; the next check reads the
-    # woken session, or the stopped one once the answer was refused.
+    # woken session, or the stopped one once the answer was refused. The orchestrator's standing seat
+    # read `done` is idle, not ended: it keeps the seat and a message resumes it.
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
       root
-      where   { (state == "done" || (state == "stopped" && resuming != true)) && reviewing != true && previous != state }
+      where   do
+        ((state == "done" && run != "orchestrator-seat") || (state == "stopped" && resuming != true)) &&
+          reviewing != true && previous != state
+      end
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
@@ -2631,8 +2635,21 @@ Hecks.bluebook "Hecks" do
     # standing rule all-hands-on-red is weighed against main's red flag first (`RedWake`).
     policy "StartTheCoordinatorWhenWoken" do
       on      "Escalation.CoordinatorWoken"
-      where   { rule != "all-hands-on-red" }
+      where   { rule != "all-hands-on-red" && event != "StandingCoordinatorStarted" }
       trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
+    end
+
+    # The standing seat's start is one run under the seat's own key, whichever sweep woke it: a
+    # started run keeps its key, so a second start is refused by name while the seat's session is
+    # working, blocked or idle, from any process, and the key frees only once that run has ended.
+    # The sweep that woke it is its parent. A root: the start sits past the reaction cap of a sweep.
+    policy "StartTheStandingSeatWhenWoken" do
+      on      "Escalation.CoordinatorWoken"
+      root
+      where   { rule != "all-hands-on-red" && event == "StandingCoordinatorStarted" }
+      trigger AgentRun::Dispatch,
+              with: { run: "orchestrator-seat", parent: :escalation, repo: :repo, brief: :brief, agent: :role,
+                      works_as: "orchestrator-seat" }
     end
 
     # A linked worktree keeps its runs in Memory, so a session it started would be reaped by
