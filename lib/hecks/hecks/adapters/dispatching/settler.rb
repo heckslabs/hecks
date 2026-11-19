@@ -22,7 +22,8 @@ module Hecks
         #   older than its minutes is asked to retire; `sessions:` (`#quiet?(session)`) answers
         #   whether `claude` lists a session stopped or not at all: with it, an old started run
         #   whose session is quiet is asked to retire on the normal path too; `orphans:` (an
-        #   {OrphanedWork}) names the started items that hold a place with no run behind them
+        #   {OrphanedWork}) names the started items that hold a place with no run behind them;
+        #   `stall:` (`#call(key)`) answers whether a work item is a filed stall's item
         def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc }, **rule)
           @gone = rule[:gone]
           @work_items = work_items
@@ -32,6 +33,7 @@ module Hecks
           @landed = rule[:landed]
           @sessions = rule[:sessions]
           @orphans = rule[:orphans]
+          @stall = rule[:stall]
         end
 
         # @return [Array<String>] one line for each work item settled, empty when none was
@@ -91,9 +93,16 @@ module Hecks
           yield_ended(key, condition)
         end
 
+        # A stall item's move is the session itself and lands no branch, so a session that ended
+        # done finishes it; yielded, the fill would start it again on every roll. A finished stall
+        # item is never filed again, because the tap holds its stall key (`Standing#filed?`).
+        def finish_stall(key) = "#{@launcher.finish(key)}: a stall item whose session ended done"
+
         def finish_landed(key, sha) = "#{@launcher.finish(key)}: landed as #{sha[0, 9]}, finishing instead"
 
         def yield_ended(key, condition)
+          return finish_stall(key) if condition == "done" && @stall&.call(key)
+
           reason = condition == "done" ? "its session ended done with no landing or submission" : "its session ended #{condition}"
           line = @launcher.yield_back(item_of(key), reason)
           condition == "done" ? "#{line}\n#{@launcher.report_unlanded(key)}" : line
