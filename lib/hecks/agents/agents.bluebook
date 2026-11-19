@@ -1981,12 +1981,13 @@ Hecks.bluebook "Agents" do
 
     lifecycle :status, default: "requested" do
       mark :failure, "refused"
-      transition "RecordStop"   => "stopped", from: "requested"
+      # A stop `claude` carried out is `ended`: the session ended, and the steering did not fail.
+      transition "RecordStop"   => "ended", from: "requested"
       transition "RecordResume" => "resumed", from: "requested"
       transition "Decline"      => "refused", from: "requested"
-      mark :terminal, "stopped", "resumed", "refused"
+      mark :terminal, "ended", "resumed", "refused"
       # A steering that ended frees the session's key, so the same session is stopped or resumed again.
-      mark :reusable, "stopped", "resumed", "refused"
+      mark :reusable, "ended", "resumed", "refused"
     end
 
     command "Stop" do
