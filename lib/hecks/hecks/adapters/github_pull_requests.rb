@@ -6,6 +6,7 @@ require_relative "console_capture"
 require_relative "github_pull_requests/train_sweep"
 require_relative "github_pull_requests/train_reopen"
 require_relative "github_pull_requests/check_failures"
+require_relative "github_pull_requests/closing"
 
 module Hecks
   module Adapters
@@ -19,6 +20,8 @@ module Hecks
     class GithubPullRequests
       # A pull request number: digits only.
       NUMBER = /\A\d+\z/
+
+      include Closing
 
       # @return [#call, nil] the `gh` runner an adapter the runtime builds uses, answering
       #   `[stdout, stderr, success]`; the real `gh` when nil. A spec replaces it.
@@ -175,7 +178,7 @@ module Hecks
       # Refuses a pull request that is not open, so a merged or closed one is never edited.
       def ensure_open!(number)
         state = JSON.parse(gh!("pr", "view", number, "--json", "state"))["state"]
-        raise ConsoleCapture::Failure, "pull request ##{number} is not open (#{state}); only an open one is edited" unless
+        raise ConsoleCapture::Failure, "pull request ##{number} is not open (#{state}); only an open one is changed" unless
           state == "OPEN"
       end
 
