@@ -42,7 +42,7 @@ RSpec.describe "the kind a Work yield records" do
     start
     yield_with("yield_kind.value=transient", "retry_at.value=2026-11-01T09:05:00Z", "yield_count.value=2")
     cli("work.start!", "to=k", "claimed_by.value=s", "claimed_at.value=2026-11-01T09:10:00Z")
-    cli("work.finish!", "to=k")
+    cli("work.finish!", "to=k", "no_change.value=a verify")
   end
 
   it "forgets its yields when the work item is finished", :aggregate_failures do

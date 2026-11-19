@@ -272,7 +272,7 @@ RSpec.describe "a red main reverting its one bad merge" do
 
   def finished_work_item(key)
     run_cli("Work.plan!", "work.value=#{key}", "title.value=planned", "detail.value=d")
-    run_cli("Work.finish!", "to=#{key}")
+    run_cli("Work.finish!", "to=#{key}", "no_change.value=a verify")
   end
 
   it "plans the culprit's finished work item again, as now", :aggregate_failures do

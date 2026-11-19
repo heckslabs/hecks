@@ -47,7 +47,7 @@ RSpec.describe "a failed gate run, filed by its cause" do
 
   it "plans a finished cause again with the new run's refusal", :aggregate_failures do
     red_gate("cause-run-4", %w[model_check])
-    @hecks.dispatch_flat("Tickets::Work.Finish", work: "gate-quick-model_check")
+    @hecks.dispatch_flat("Tickets::Work.Finish", work: "gate-quick-model_check", no_change: "a verify")
     red_gate("cause-run-5", %w[model_check])
 
     expect(undone("gate-quick-model_check").map { |row| row["detail"] }).to match([end_with("cause-run-5")])
