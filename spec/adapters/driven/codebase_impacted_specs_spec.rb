@@ -66,6 +66,17 @@ RSpec.describe Hecks::Adapters::Codebase::ImpactedSpecs do
     expect(impacted.call(base: "main")).to include("nothing impacted; nothing run")
   end
 
+  it "says so first when the base is HEAD itself" do
+    expect(impacted.call(base: "feature", dry: true)).to start_with("warning: base feature is HEAD itself")
+  end
+
+  it "says nothing of HEAD when the base is another commit" do
+    write("lib/widget.rb", "class Widget; end\n")
+    git("add", "-A")
+    git("commit", "-m", "widget")
+    expect(dry).not_to include("is HEAD itself")
+  end
+
   it "caps the specs and says how many were left out", :aggregate_failures do
     write("docs/guide.md", "# guide\n")
     write("lib/widget.rb", "class Widget; end\n")

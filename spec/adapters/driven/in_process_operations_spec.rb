@@ -299,7 +299,7 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
   # The scratch Shelf domain stands in for the Hecks domain, so a bare word is read as its names.
   describe "#follow by a bluebook name" do
     before do
-      stub_const("Hecks::Adapters::InProcessOperations::DomainNames::HOME", @dir)
+      stub_const("Hecks::Adapters::InProcessOperations::DomainNames::HECKS_DOMAIN", @dir)
       shelved = Hecks::Runtime::Event.new(name: "Shelved", aggregate: "Shelf::Book", id: "Dune", payload: {}, occurred_at: "now")
       allow(adapter).to receive(:event_repository).and_return(double(events: [shelved]))
     end
@@ -315,6 +315,12 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     it "boots the home domain for a name, never a directory of that name" do
       allow(adapter).to receive(:boot).and_call_original
       adapter.follow(domain: "Shelf")
+      expect(adapter).to have_received(:boot).with(@dir).once
+    end
+
+    it "follows the Hecks domain when no domain is named" do
+      allow(adapter).to receive(:boot).and_call_original
+      adapter.follow
       expect(adapter).to have_received(:boot).with(@dir).once
     end
 
