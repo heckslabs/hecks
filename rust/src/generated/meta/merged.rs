@@ -1948,6 +1948,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             if let Some(v) = &args.mints_era {
                                 v.check_invariants()?;
                             }
+                            if let Some(v) = &args.policy_only {
+                                v.check_invariants()?;
+                            }
                             if let Some(v) = &args.from {
                                 v.check_invariants()?;
                             }
@@ -2021,6 +2024,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.mints_era {
+                                v.check_invariants()?;
+                            }
+                            if let Some(v) = &args.policy_only {
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.from {
@@ -4508,6 +4514,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             if let Some(v) = &args.root {
                                 v.check_invariants()?;
                             }
+                            if let Some(v) = &args.acts_as {
+                                v.check_invariants()?;
+                            }
                             if let Some(v) = &args.r#where {
                                 v.check_invariants()?;
                             }
@@ -4580,6 +4589,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.root {
+                                v.check_invariants()?;
+                            }
+                            if let Some(v) = &args.acts_as {
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.r#where {
@@ -8711,6 +8723,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "provenance",
             "idempotent",
             "mints_era",
+            "policy_only",
             "from",
             "position",
         ],
@@ -8790,6 +8803,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "target_domain",
             "expect_undelivered",
             "root",
+            "acts_as",
             "where",
             "for_each",
             "position",
