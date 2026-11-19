@@ -1240,14 +1240,16 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The orchestrator. Routing is a rule first: a Work item with no conflict is routed at once and no
-  # agent is asked. Only a conflicting item asks for advice, and that ask carries the hop limit.
+  # The orchestrator. Routing is a rule first: a Work item with no conflict is routed at once. The
+  # check takes measured facts, never a verdict; the two policies below are the rule, and one passes.
   aggregate "Routing" do
-    description "One Work item's routing: checked for a conflict, routed by rule when there is none, and sent for advice when there is."
+    description "One Work item's routing: checked for a conflict from the areas it spans and the started items it overlaps (Tickets Work.Show), routed by rule when there is none, and sent for advice, under the hop limit, when there is."
 
     identified_by :work
 
     attribute :work, WorkKey
+    attribute :areas, AreaCount, optional: true
+    attribute :overlaps, OverlapCount, optional: true
     attribute :conflict, Conflict, optional: true
     attribute :hops, HopCount, optional: true
 
@@ -1256,6 +1258,13 @@ Hecks.bluebook "Agents" do
       invariant("a routing names its Work item") { !value.to_s.empty? }
     end
 
+    # How many areas the Work item's claim spans; more than one is a conflict.
+    value_object "AreaCount", Integer
+
+    # How many started work items' claimed areas meet this one's; any is a conflict.
+    value_object "OverlapCount", Integer
+
+    # "yes" when the check found a conflict, "no" when it found none, set by the step that followed.
     value_object "Conflict", String
 
     value_object "HopCount", Integer
@@ -1270,13 +1279,14 @@ Hecks.bluebook "Agents" do
     # What the orchestrator is asked: the Work item and the conflict, in words.
     value_object "BriefText", String
 
-    # `conflict` is "yes" when the item spans several areas or overlaps another session's.
+    # The facts a conflict is read from: the areas the item spans and the started items it overlaps.
     command "Check" do
       role "System"
       goal "Check one Work item for a conflict before routing it"
 
       attribute :work, WorkKey, sets: true
-      attribute :conflict, Conflict, sets: true
+      attribute :areas, AreaCount, sets: true
+      attribute :overlaps, OverlapCount, sets: true
       attribute :hops, HopCount, sets: true
       # The key the orchestrator's run takes when the check finds a conflict: without it no session could start.
       attribute :advice, AdviceKey
@@ -1294,7 +1304,7 @@ Hecks.bluebook "Agents" do
       goal "Route a Work item that has no conflict, by rule"
 
       reference_to Routing
-      attribute :conflict, Conflict
+      attribute :conflict, Conflict, default: "no", sets: true
       attribute :hops, HopCount
 
       emits "WorkRouted"
@@ -1305,7 +1315,10 @@ Hecks.bluebook "Agents" do
       goal "Ask the orchestrator role for advice on a Work item that conflicts"
 
       reference_to Routing
-      attribute :conflict, Conflict
+      attribute :conflict, Conflict, default: "yes", sets: true
+      # The facts the conflict was found from, so the advice request says why it was asked.
+      attribute :areas, AreaCount
+      attribute :overlaps, OverlapCount
       attribute :hops, HopCount
       attribute :advice, AdviceKey, optional: true
       attribute :role, RoleRef, optional: true
@@ -1315,15 +1328,17 @@ Hecks.bluebook "Agents" do
       emits "DispatchAdviceRequested"
     end
 
+    # A Work item that spans one area and meets no started item's claim is routed by rule.
     policy "RouteWhenNoConflict" do
       on      "Routing.WorkChecked"
-      where   { conflict.value == "no" }
-      trigger Routing::Route, with: { conflict: :conflict, hops: :hops }
+      where   { areas.value <= 1 && overlaps.value == 0 }
+      trigger Routing::Route, with: { hops: :hops }
     end
 
+    # One that spans several areas, or meets a started item's claim, asks the orchestrator.
     policy "AskAdviceWhenConflict" do
       on      "Routing.WorkChecked"
-      where   { conflict.value == "yes" }
+      where   { areas.value > 1 || overlaps.value > 0 }
       trigger Routing::AskAdvice, with: {}
     end
   end
