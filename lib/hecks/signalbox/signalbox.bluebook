@@ -1,0 +1,583 @@
+# Signalbox decides how the machine's compute is spent, by the five laws of ADR 0222: one budget,
+# one pressure signal, local response, admission by headroom, and every session closing its circuit.
+# It decides only; Roundhouse starts, meters, rests and reaps the sessions it names.
+
+Hecks.bluebook "Signalbox" do
+  vision "The machine's compute is one budget: every session is admitted by headroom, answers one pressure signal by its own rule, and is protected smallest breaker first."
+
+  supporting
+
+  # Law 2. The one pressure signal: headroom against capacity, in a band. A band eases only once
+  # headroom passes the target by the gap, so a reading near the target never flips it.
+  aggregate "Pressure" do
+    description "A machine's pressure signal: its capacity, the last headroom read against the target, and the band it puts the machine in."
+    created_by "Pressure.open!"
+
+    identified_by :pressure
+
+    attribute :pressure, Key
+    attribute :capacity, Megabytes
+    attribute :headroom, Signed, optional: true
+    attribute :target,   Megabytes, optional: true
+    attribute :floor,    Megabytes, optional: true
+    attribute :gap,      Megabytes, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of memory is not negative") { !value.negative? }
+    end
+
+    # Headroom goes below zero when the draw passes the supply.
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    value_object "Seconds" do
+      attribute :value, Integer, default: 0
+      invariant("a duration is not negative") { !value.negative? }
+    end
+
+    lifecycle :band, default: "normal" do
+      mark :rests, "normal", "tight", "short", "dark"
+      transition "Tighten" => "tight",  from: %w[normal tight short dark]
+      transition "Trip"    => "short",  from: %w[normal tight short dark]
+      transition "Ease"    => "normal", from: %w[normal tight short dark]
+      transition "Darken"  => "dark",   from: %w[normal tight short dark]
+    end
+
+    command "Open" do
+      role "System"
+      goal "Start a machine's pressure signal with the capacity its sessions share"
+
+      attribute :pressure, Key, sets: true
+      attribute :capacity, Megabytes, sets: true
+
+      emits PressureOpened
+    end
+
+    # A reading names the marks it is judged against, so every part reads the same signal.
+    command "Read" do
+      role "System"
+      goal "Publish one current reading of headroom against the target, the floor and the gap"
+
+      reference_to Pressure
+      attribute :headroom,    Signed, sets: true
+      attribute :target,      Megabytes, sets: true
+      attribute :floor,       Megabytes, sets: true
+      attribute :gap,         Megabytes, sets: true
+      attribute :age,         Seconds
+      attribute :stale_after, Seconds
+
+      given("a reading is published only while it is current") { age.value <= stale_after.value }
+
+      emits PressureRead
+    end
+
+    command "Tighten" do
+      role "System"
+      goal "Put the machine in the tight band: headroom is under the target"
+
+      reference_to Pressure
+
+      emits PressureTightened
+    end
+
+    command "Trip" do
+      role "System"
+      goal "Put the machine in the short band: headroom is under the floor"
+
+      reference_to Pressure
+
+      emits PressureFellShort
+    end
+
+    command "Ease" do
+      role "System"
+      goal "Put the machine back in the normal band: headroom is past the target by the gap"
+
+      reference_to Pressure
+
+      emits PressureEased
+    end
+
+    # Anti-islanding: with no current reading the signal goes dark and no part acts on it.
+    command "Darken" do
+      role "System"
+      goal "Put the machine in the dark band: no current reading of it exists"
+
+      reference_to Pressure
+      attribute :age,         Seconds
+      attribute :stale_after, Seconds
+
+      given("the signal goes dark only when its reading is stale") { age.value > stale_after.value }
+
+      emits PressureDarkened
+    end
+  end
+
+  # Laws 1, 4 and 5, with merit order. A session starts only on an admission, and every given
+  # below is one reason it waits. No cap is set: the sessions that fit are the cap.
+  aggregate "Admission" do
+    description "One session admitted to draw on the machine: its role, owner, purpose, end condition, expected draw and fuse."
+    created_by "Admission.admit!"
+
+    identified_by :admission
+
+    attribute :admission,    Key
+    attribute :role,         Role
+    attribute :tier,         Tier
+    attribute :owner,        Label
+    attribute :purpose,      Label
+    attribute :ends_when,    Label
+    attribute :draw,         Megabytes
+    attribute :fuse,         Megabytes
+    attribute :fuse_minutes, Minutes
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    # Law 5: no session is unlabeled. Its owner, purpose and end condition say something.
+    value_object "Label" do
+      attribute :value, String
+      invariant("a session names its owner, its purpose and its end condition") { !value.to_s.strip.empty? }
+    end
+
+    value_object "Role" do
+      attribute :value, String
+      invariant("a role is coder, helper, gate, orchestrator or repair") do
+        value == "coder" || value == "helper" || value == "gate" || value == "orchestrator" || value == "repair"
+      end
+    end
+
+    value_object "Tier" do
+      attribute :value, String
+      invariant("a tier is urgent, normal or low") { value == "urgent" || value == "normal" || value == "low" }
+    end
+
+    value_object "Band" do
+      attribute :value, String
+      invariant("a band is normal, tight, short or dark") do
+        value == "normal" || value == "tight" || value == "short" || value == "dark"
+      end
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of memory is not negative") { !value.negative? }
+    end
+
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    value_object "Minutes" do
+      attribute :value, Integer, default: 0
+      invariant("a duration is not negative") { !value.negative? }
+    end
+
+    value_object "Seconds" do
+      attribute :value, Integer, default: 0
+      invariant("a duration is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    # An admission rests until Roundhouse reports its session ended; its own fuse bounds it.
+    lifecycle :status, default: "admitted" do
+      mark :rests, "admitted"
+      mark :terminal, "closed"
+      transition "Close" => "closed", from: "admitted"
+    end
+
+    command "Admit" do
+      role "System"
+      goal "Admit one session whose expected draw fits the headroom, in merit order, under every law"
+
+      attribute :admission,      Key, sets: true
+      attribute :role,           Role, sets: true
+      attribute :tier,           Tier, sets: true
+      attribute :owner,          Label, sets: true
+      attribute :purpose,        Label, sets: true
+      attribute :ends_when,      Label, sets: true
+      attribute :draw,           Megabytes, sets: true
+      attribute :fuse,           Megabytes, sets: true
+      attribute :fuse_minutes,   Minutes, sets: true
+      attribute :asked_by,       Word
+      attribute :switch,         Word
+      attribute :met,            Word
+      attribute :band,           Band
+      attribute :headroom,       Signed
+      attribute :age,            Seconds
+      attribute :stale_after,    Seconds
+      attribute :started,        Count
+      attribute :ramp,           Count
+      attribute :coders,         Count
+      attribute :helpers,        Count
+      attribute :share,          Count
+      attribute :outranked,      Count
+      attribute :seats,          Count
+      attribute :unused_servers, Count
+      attribute :curtailed,      Count
+
+      given("nothing is admitted while the owner's switch is off") { switch.value == "on" }
+      given("a session is admitted only from a current view") { role.value == "repair" || age.value <= stale_after.value }
+      given("only the repair seat is admitted while the signal is dark") { band.value != "dark" || role.value == "repair" }
+      given("a helper does not start a helper") { asked_by.value != "helper" }
+      given("a session is not started for a purpose already met") { met.value != "yes" }
+      given("a session's expected draw fits the headroom") { draw.value <= headroom.value }
+      given("only an urgent coder is admitted while pressure is short") do
+        band.value != "short" || (role.value == "coder" && tier.value == "urgent")
+      end
+      given("at most the ramp step starts in one ramp window") { started.value < ramp.value }
+      given("helpers stay within their share of the coders") do
+        role.value != "helper" || helpers.value * 100 < coders.value * share.value
+      end
+      given("the waiting job with the most value per unit of compute goes first") { outranked.value.zero? }
+      given("one orchestrator seat at most") { role.value != "orchestrator" || seats.value.zero? }
+      given("a session starts only the MCP servers its role uses") { unused_servers.value.zero? }
+      given("no coder starts in an area whose finished work is refused at landing") do
+        role.value != "coder" || tier.value == "urgent" || curtailed.value.zero?
+      end
+      given("a session's fuse is rated above its expected draw") { fuse.value > draw.value }
+      given("a session's fuse has a time rating") { fuse_minutes.value.positive? }
+
+      emits SessionAdmitted
+    end
+
+    command "Close" do
+      role "System"
+      goal "Close the admission when its session has ended, which returns its draw to the headroom"
+
+      reference_to Admission
+
+      emits AdmissionClosed
+    end
+  end
+
+  # Law 3, droop control. Each session answers the band by its own rule, with no orchestrator in
+  # the loop: the policies below are the whole table, and exactly one answers each ask.
+  aggregate "Response" do
+    description "One session's answer to the band: keep running, defer its heavy steps, finish and leave, or wait its turn."
+    created_by "Response.ask!"
+
+    identified_by :response
+
+    attribute :response, Key
+    attribute :session,  SessionKey
+    attribute :role,     Role
+    attribute :tier,     Tier
+    attribute :band,     Band
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    # A Roundhouse session, named by value: the two bluebooks share no store.
+    value_object "SessionKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Role" do
+      attribute :value, String
+      invariant("a role is coder, helper, gate, orchestrator or repair") do
+        value == "coder" || value == "helper" || value == "gate" || value == "orchestrator" || value == "repair"
+      end
+    end
+
+    value_object "Tier" do
+      attribute :value, String
+      invariant("a tier is urgent, normal or low") { value == "urgent" || value == "normal" || value == "low" }
+    end
+
+    value_object "Band" do
+      attribute :value, String
+      invariant("a band is normal, tight, short or dark") do
+        value == "normal" || value == "tight" || value == "short" || value == "dark"
+      end
+    end
+
+    lifecycle :status, default: "asked" do
+      mark :rests, "asked"
+      mark :terminal, "running", "deferring", "leaving", "waiting"
+      transition "Run"   => "running",   from: "asked"
+      transition "Defer" => "deferring", from: "asked"
+      transition "Leave" => "leaving",   from: "asked"
+      transition "Wait"  => "waiting",   from: "asked"
+    end
+
+    command "Ask" do
+      role "System"
+      goal "Ask how one session answers the band the signal is in"
+
+      attribute :response, Key, sets: true
+      attribute :session,  SessionKey, sets: true
+      attribute :role,     Role, sets: true
+      attribute :tier,     Tier, sets: true
+      attribute :band,     Band, sets: true
+
+      emits ResponseAsked
+    end
+
+    command "Run" do
+      role "System"
+      goal "Keep the session running"
+
+      reference_to Response
+      attribute :session, SessionKey
+
+      emits ResponseRan
+    end
+
+    command "Defer" do
+      role "System"
+      goal "Have the coder defer its heavy steps (gates, builds, full spec runs) until pressure eases"
+
+      reference_to Response
+      attribute :session, SessionKey
+
+      emits ResponseDeferred
+    end
+
+    command "Leave" do
+      role "System"
+      goal "Have the helper finish what it holds and leave"
+
+      reference_to Response
+      attribute :session, SessionKey
+
+      emits ResponseLeft
+    end
+
+    command "Wait" do
+      role "System"
+      goal "Hold the gate in its turn until pressure eases"
+
+      reference_to Response
+      attribute :session, SessionKey
+
+      emits ResponseWaited
+    end
+  end
+
+  # Protection coordination: a session's fuse (rank 1), the helpers' share (2), shedding (3) and the
+  # whole-machine fuse (4). A breaker trips past its rating, once no smaller one can act.
+  aggregate "Breaker" do
+    description "One breaker in the protection order: its level, its rating, whether it has tripped, and the session it shed."
+    created_by "Breaker.install!"
+
+    identified_by :breaker
+
+    attribute :breaker, Key
+    attribute :level,   Level
+    attribute :rating,  Amount
+    attribute :shed,    SessionKey, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SessionKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Level" do
+      attribute :value, String
+      invariant("a breaker is a fuse, the helper share, shedding or the machine fuse") do
+        value == "fuse" || value == "helpers" || value == "shedding" || value == "machine"
+      end
+    end
+
+    # What a breaker is rated in: megabytes, helpers, sessions or boot minutes, by its level.
+    value_object "Amount" do
+      attribute :value, Integer, default: 0
+      invariant("a rating is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :state, default: "closed" do
+      mark :rests, "closed", "open"
+      transition "Trip"  => "open",   from: "closed"
+      transition "Shed"  => "open",   from: "open"
+      transition "Reset" => "closed", from: "open"
+    end
+
+    command "Install" do
+      role "System"
+      goal "Install one breaker at its level with its rating"
+
+      attribute :breaker, Key, sets: true
+      attribute :level,   Level, sets: true
+      attribute :rating,  Amount, sets: true
+
+      emits BreakerInstalled
+    end
+
+    command "Trip" do
+      role "System"
+      goal "Trip the breaker: its load passed its rating and no smaller breaker can still act"
+
+      reference_to Breaker
+      attribute :load,          Amount
+      attribute :smaller_ready, Count
+
+      given("a breaker trips only past its rating") { load.value > rating.value }
+      given("a larger breaker waits while a smaller one can still act") { smaller_ready.value.zero? }
+
+      emits BreakerTripped
+    end
+
+    # The shedding breaker rests one coder at a time, lowest merit first, never an urgent one.
+    command "Shed" do
+      role "System"
+      goal "Name the coder the tripped shedding breaker rests"
+
+      reference_to Breaker
+      attribute :shed,         SessionKey, sets: true
+      attribute :tier,         Word
+      attribute :lower_ranked, Count
+
+      given("only the shedding breaker sheds") { level.value == "shedding" }
+      given("an urgent coder is never shed") { tier.value != "urgent" }
+      given("the lowest value per unit of compute is shed first") { lower_ranked.value.zero? }
+
+      emits BreakerShed
+    end
+
+    command "Reset" do
+      role "System"
+      goal "Close the breaker again once the load is back under its rating by the gap"
+
+      reference_to Breaker
+      attribute :load, Amount
+      attribute :gap,  Amount
+
+      given("a breaker resets only once the load is under its rating by the gap") do
+        load.value + gap.value <= rating.value
+      end
+
+      emits BreakerReset
+    end
+  end
+
+  # Anti-islanding: a part (a beat, the train copy, an overlay writer) asks before it acts on
+  # shared state, and is refused when its view is behind main, missing local files, or stale.
+  aggregate "Clearance" do
+    description "One clearance for a part to act on shared state from the view it holds."
+    created_by "Clearance.grant!"
+
+    identified_by :clearance
+
+    attribute :clearance, Key
+    attribute :part,      Word
+    attribute :head,      Word
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Seconds" do
+      attribute :value, Integer, default: 0
+      invariant("a duration is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    command "Grant" do
+      role "System"
+      goal "Clear a part to act on shared state, only from a current view"
+
+      attribute :clearance,   Key, sets: true
+      attribute :part,        Word, sets: true
+      attribute :head,        Word, sets: true
+      attribute :main,        Word
+      attribute :missing,     Count
+      attribute :age,         Seconds
+      attribute :stale_after, Seconds
+
+      given("a part acts on shared state only from the head of main") { head.value == main.value }
+      given("a part acts only with every local file the main checkout has") { missing.value.zero? }
+      given("a part acts only from a current view") { age.value <= stale_after.value }
+
+      emits ClearanceGranted
+    end
+  end
+
+  policy "TripWhenHeadroomFallsUnderTheFloor" do
+    on      "Pressure.PressureRead"
+    where   { headroom.value < floor.value }
+    trigger Pressure::Trip, with: { pressure: :pressure }
+  end
+
+  policy "TightenWhenHeadroomFallsUnderTheTarget" do
+    on      "Pressure.PressureRead"
+    where   { headroom.value >= floor.value && headroom.value < target.value }
+    trigger Pressure::Tighten, with: { pressure: :pressure }
+  end
+
+  # Between the target and the target plus the gap no policy answers, so the band holds: hysteresis.
+  policy "EaseOnlyPastTheTargetByTheGap" do
+    on      "Pressure.PressureRead"
+    where   { headroom.value >= target.value + gap.value }
+    trigger Pressure::Ease, with: { pressure: :pressure }
+  end
+
+  policy "EverySessionRunsInNormalPressure" do
+    on      "Response.ResponseAsked"
+    where   { band.value == "normal" }
+    trigger Response::Run, with: { response: :response, session: :session }
+  end
+
+  policy "UrgentCodersAndSeatsKeepRunning" do
+    on      "Response.ResponseAsked"
+    where   do
+      band.value != "normal" &&
+        ((role.value == "coder" && tier.value == "urgent") || role.value == "orchestrator" || role.value == "repair")
+    end
+    trigger Response::Run, with: { response: :response, session: :session }
+  end
+
+  policy "LowerTierCodersDeferHeavySteps" do
+    on      "Response.ResponseAsked"
+    where   { band.value != "normal" && role.value == "coder" && tier.value != "urgent" }
+    trigger Response::Defer, with: { response: :response, session: :session }
+  end
+
+  policy "HelpersFinishAndLeave" do
+    on      "Response.ResponseAsked"
+    where   { band.value != "normal" && role.value == "helper" }
+    trigger Response::Leave, with: { response: :response, session: :session }
+  end
+
+  policy "GatesWaitTheirTurn" do
+    on      "Response.ResponseAsked"
+    where   { band.value != "normal" && role.value == "gate" }
+    trigger Response::Wait, with: { response: :response, session: :session }
+  end
+end
