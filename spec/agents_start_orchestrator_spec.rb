@@ -2,9 +2,10 @@ require "spec_helper"
 require_relative "support/stand_in_claude"
 
 # A conflicting Work item asks the orchestrator for advice, and that event starts its session
-# through AgentRun. A stand-in `claude` starts the session, so no real one runs: the spec shows the
-# advice request becomes a run keyed by the routing request, and a check with no conflict starts
-# nothing.
+# through AgentRun. The check is handed facts (the areas the item spans, the started items it
+# overlaps) and the bluebook's rule finds the conflict. A stand-in `claude` starts the session, so
+# no real one runs: the spec shows the advice request becomes a run keyed by the routing request,
+# and a check with no conflict starts no orchestrator.
 RSpec.describe "an advice request starting the orchestrator's session" do
   include_context "with a stand-in claude"
 
@@ -14,34 +15,39 @@ RSpec.describe "an advice request starting the orchestrator's session" do
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
-  def check(work, conflict, hops: 1)
-    launch("agents", "Routing.check!", "work.value=#{work}", "conflict.value=#{conflict}", "hops.value=#{hops}",
-           "advice.value=advice-#{work}", "role.value=orchestrator", "repo.value=#{scratch}",
+  def check(work, overlaps, hops: 1, areas: 1)
+    launch("agents", "Routing.check!", "work.value=#{work}", "areas.value=#{areas}", "overlaps.value=#{overlaps}",
+           "hops.value=#{hops}", "advice.value=advice-#{work}", "role.value=orchestrator", "repo.value=#{scratch}",
            "brief.value=Work item #{work} conflicts", "--wait").first.to_s
   end
 
   def running = launch("agent_run.running").first.to_s
 
-  it "starts the orchestrator's run, keyed by the routing request", :aggregate_failures do
-    check("w-conflict", "yes")
+  it "starts the orchestrator's run for an overlapping Work item, keyed by the routing request", :aggregate_failures do
+    check("w-conflict", 1)
     expect(running).to include("advice-w-conflict")
     expect(running).to include("orchestrator")
   end
 
+  it "starts the orchestrator's run for a Work item that spans several areas" do
+    check("w-wide", 0, areas: 2)
+    expect(running).to include("advice-w-wide")
+  end
+
   it "starts no run for a Work item with no conflict" do
-    check("w-clear", "no")
+    check("w-clear", 0)
     expect(running).not_to include("advice-w-clear")
   end
 
   it "refuses a check that names no advice key, by name", :aggregate_failures do
-    refused = launch("agents", "Routing.check!", "work.value=w-keyless", "conflict.value=yes", "hops.value=1",
-                     "role.value=orchestrator", "repo.value=#{scratch}", "brief.value=x", "--wait").first.to_s
+    refused = launch("agents", "Routing.check!", "work.value=w-keyless", "areas.value=2", "overlaps.value=0",
+                     "hops.value=1", "role.value=orchestrator", "repo.value=#{scratch}", "brief.value=x", "--wait").first.to_s
     expect(refused).to include("advice")
     expect(running).not_to include("w-keyless")
   end
 
   it "starts no run for a check at the hop limit", :aggregate_failures do
-    expect(check("w-stop", "yes", hops: 3)).to include("under the hop limit")
+    expect(check("w-stop", 1, hops: 3)).to include("under the hop limit")
     expect(running).not_to include("advice-w-stop")
   end
 end
