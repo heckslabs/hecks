@@ -400,9 +400,6 @@
   "lib/hecks/site/bluebook/site.ports.hecksagon": {
     "The port Site declares, for every hecksagon that attaches the bluebook (`Blueboo": 6
   },
-  "lib/hecks/sme/bluebook/sme.bluebook": {
-    "SME: learn a business from the people who know it (ADR 0088).": 6
-  },
   "lib/hecks/tenancy/bluebook/tenancy.hecksagon": {
     "The one seam where Deploy's \"Tenant\" (a validated request) becomes Tenancy's \"Te": 7
   },

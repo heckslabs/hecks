@@ -29,7 +29,6 @@ lib/hecks/language/world:17.1
 lib/hecks/quality_control:33.1
 lib/hecks/rails_app:6.6
 lib/hecks/site:17.9
-lib/hecks/sme:15.3
 lib/hecks/tenancy:10.3
 lib/hecks/tickets:19.9
 qa/stress_domains/case_escalation:18.0
