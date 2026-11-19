@@ -113,7 +113,7 @@ Hecks.world "Hecks" do
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
                        renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take" },
                        names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
-                                "interview" => "launch.interview", "package.check" => "registry.check",
+                                "package.check" => "registry.check",
                                 "agent_run.check_all" => "session_sweep.check_all",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
@@ -124,7 +124,7 @@ Hecks.world "Hecks" do
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun
                                       SyntaxBootCache LocalOverlay],
-                       newcomer: %w[launch.init launch.interview operation.open_console],
+                       newcomer: %w[launch.init operation.open_console],
                        everyday: %w[operation.run operation.open_console gate_run.gate
                                     test_suite_run.run_changed test_suite_run.run_spec_example
                                     test_suite_run.run_spec_files test_suite_run.run_impacted_specs
@@ -132,5 +132,5 @@ Hecks.world "Hecks" do
                                     codebase.search],
                        bluebooks: %w[Delivery Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
-                       memory_commands: %w[console init interview]
+                       memory_commands: %w[console init]
 end
