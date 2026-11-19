@@ -75,9 +75,9 @@ Hecks.bluebook "Interviews" do
 
     # The number a decision Point's draft record is opened as, four digits as docs/decisions numbers
     # them: the holder names it on accepting, since the participants know the record they write.
-    # The pattern is Tickets' AdrNumber, copied, so a malformed number is refused on accepting.
+    # Tickets' AdrNumber pattern, copied, or empty when a Point names none; malformed is refused.
     value_object "RecordNumber" do
-      attribute :value, String, pattern: '\A[0-9]{4}[a-z]?(?:/[0-9]{2})?\z'
+      attribute :value, String, pattern: '\A(?:[0-9]{4}[a-z]?(?:/[0-9]{2})?)?\z'
     end
 
     value_object "Tally" do
@@ -124,7 +124,8 @@ Hecks.bluebook "Interviews" do
         attribute :decided_by,   Speaker, optional: true, sets: true
         attribute :delegated_by, Speaker, optional: true, sets: true
         # A decision Point names the record it is drafted as; Tickets drafts it on PointAccepted.
-        attribute :record,       RecordNumber, optional: true, sets: true
+        # Empty when none is named, so PointAccepted always carries it for the policy to read.
+        attribute :record,       RecordNumber, optional: true, sets: true, default: { value: "" }
 
         emits "PointAccepted"
       end
