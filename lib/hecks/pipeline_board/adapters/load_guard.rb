@@ -2,6 +2,7 @@
 
 require "fiddle"
 require "time"
+require "hecks/signalbox/adapters/pressure_signal"
 
 module Hecks
   module Adapters
@@ -9,7 +10,9 @@ module Hecks
       # Whether the machine is too loaded for the board to add to it: the 1-minute load average
       # against the limit a fill stops at (the Tickets world's `dispatch_max_load`). While it is,
       # {Probe} starts no program and {Snapshot} reads at the slower `loaded_refresh_seconds`. The
-      # load is read with no child process, so asking never adds to what it measures.
+      # load is read with no child process, so asking never adds to what it measures. While the
+      # owner has `signalbox_pressure` drive it and Signalbox's signal is current, the machine is
+      # loaded in the short band instead, and the load average is not compared.
       class LoadGuard
         # Where Linux keeps the load averages.
         PROC = "/proc/loadavg"
@@ -23,8 +26,9 @@ module Hecks
           # calls it once; the limit is the one number a fill stops at.
           #
           # @param limit [Numeric] the load above which the machine counts as loaded
+          # @param pressure [#call] answers Signalbox's current signal, nil while it does not drive
           # @return [LoadGuard]
-          def stand(limit) = self.shared = new(limit: -> { limit })
+          def stand(limit, pressure: -> {}) = self.shared = new(limit: -> { limit }, pressure: pressure)
 
           # @return [Boolean] whether a guard stands and says the machine is loaded
           def loaded? = shared ? shared.loaded? : false
@@ -61,31 +65,40 @@ module Hecks
         # @param limit [#call] answers the load above which the machine counts as loaded
         # @param load [#call] answers the 1-minute load average
         # @param now [#call] answers the current time
-        def initialize(limit:, load: self.class.method(:reading), now: -> { Time.now.utc })
+        # @param pressure [#call] answers Signalbox's current signal, nil while it does not drive
+        def initialize(limit:, load: self.class.method(:reading), now: -> { Time.now.utc }, pressure: -> {})
           @limit = limit
           @load = load
           @now = now
+          @pressure = pressure
           @since = nil
         end
 
-        # @return [Boolean] whether the load is above the limit now
+        # @return [Boolean] whether the machine is loaded now: in the short band while the signal
+        #   drives, else the load above the limit
         def loaded?
-          over = @load.call.to_f > @limit.call.to_f
+          signal = @pressure.call
+          over = signal ? PressureSignal.short?(signal) : @load.call.to_f > @limit.call.to_f
           @since = over ? (@since || @now.call) : nil
           over
         end
 
-        # @return [Hash, nil] `load`, `limit` and `since` (when it rose above the limit) while the
-        #   machine is loaded; nil otherwise
+        # @return [Hash, nil] `load`, `limit` and `since` (when it became loaded), and `pressure`
+        #   while the signal drives, while the machine is loaded; nil otherwise
         def standing
           return unless loaded?
 
-          { load: @load.call.to_f.round(1), limit: @limit.call.to_f.round(1), since: @since.iso8601 }
+          signal = @pressure.call
+          shown = { load: @load.call.to_f.round(1), limit: @limit.call.to_f.round(1), since: @since.iso8601 }
+          signal ? shown.merge(pressure: PressureSignal.said(signal)) : shown
         end
 
         # @param program [String] what was not run
         # @return [String] why, as a reader's section shows it
         def refusal(program)
+          signal = @pressure.call
+          return "#{program} not run: #{PressureSignal.said(signal)}" if signal
+
           "#{program} not run: load #{@load.call.to_f.round(1)} is above #{@limit.call.to_f.round(1)}"
         end
       end
