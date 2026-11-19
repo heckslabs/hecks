@@ -46,7 +46,8 @@ module Hecks
       end
 
       # @param session [Hash, String] the session to stop
-      # @return [Hash{Symbol => Hash}] `report:` the session stopped and the run that holds it
+      # @return [Hash{Symbol => Hash}] `report:` the session stopped, and `run:` the key of the run
+      #   that holds it (empty when none does)
       # @raise [ConsoleCapture::Failure] naming why the session was not stopped
       def halt(session:, **)
         entry = listed(plain(session))
@@ -54,12 +55,13 @@ module Hecks
         raise ConsoleCapture::Failure, "session #{entry["id"]} holds the pinned role #{role}: it is never stopped" if role
 
         run!("stop", entry["id"].to_s)
-        { report: { value: "stopped session #{entry["id"]} (#{entry["name"]}), #{run_text(entry)}" } }
+        answer("stopped session #{entry["id"]} (#{entry["name"]}), #{run_text(entry)}", entry)
       end
 
       # @param session [Hash, String] the session to resume
       # @param name [Hash, String] the name it is resumed under
-      # @return [Hash{Symbol => Hash}] `report:` the session resumed, its name and its run
+      # @return [Hash{Symbol => Hash}] `report:` the session resumed and its name, and `run:` the
+      #   key of the run that holds it (empty when none does)
       # @raise [ConsoleCapture::Failure] naming why the session was not resumed
       def revive(session:, name:, **)
         entry = listed(plain(session))
@@ -67,10 +69,12 @@ module Hecks
 
         full = full_id(entry)
         run!("--bg", "--resume", full, "-n", plain(name), chdir: @transcripts.directory(full))
-        { report: { value: "resumed session #{entry["id"]} as #{plain(name)}, #{run_text(entry)}" } }
+        answer("resumed session #{entry["id"]} as #{plain(name)}, #{run_text(entry)}", entry)
       end
 
       private
+
+      def answer(report, entry) = { report: { value: report }, run: { value: @ledger.run_of(full_id(entry))&.first.to_s } }
 
       def mentions(words)
         newest_first(@listing.entries.filter_map { |entry| mention(entry, words) }).map(&:last)
