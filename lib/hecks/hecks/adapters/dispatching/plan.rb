@@ -31,6 +31,9 @@ module Hecks
         # The places filed stall items may hold in all, started and chosen together.
         STALL_PLACES = 1
 
+        # The pause the load's crossing sets ({Settings#paused}), which an expedited item passes.
+        LOAD_PAUSE = "skipped: paused by load (LoadRoseAbove)"
+
         # A work item left waiting, and the reason.
         Skip = Struct.new(:key, :reason)
 
@@ -45,9 +48,10 @@ module Hecks
         # @param limits [Hash] `runs:` (callable: AgentRun states by run key) and `now:` (Time),
         #   `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array), `epic_wip:`
         #   (Integer: most started items of one epic), `headroom:` and `per_session:` (the estimate
-        #   reported), `urgent_reserve:` (red), `paused:` and `budget:` (String: why every work item
-        #   waits), `rethinks:` (callable: why a work item waits for a person), `waits:` (callable:
-        #   the unlanded work item an item waits on), `exempt:` (callable: whether a work item
+        #   reported), `urgent_reserve:` (red), `cpus:` (the load an expedited item may start
+        #   under), `paused:` and `budget:` (String: why every work item waits), `rethinks:`
+        #   (callable: why a work item waits for a person), `waits:` (callable: the unlanded work
+        #   item an item waits on), `exempt:` (callable: whether a work item
         #   starts despite it), `stall:` (callable: whether a key is a filed stall's item), `root:`
         #   (String: the repository's top level) and `effective:` (callable: the area an item holds
         #   now, by {EffectiveArea}); all but `cap:`, `load:`, `max_load:` and `frozen:` optional
@@ -105,7 +109,26 @@ module Hecks
           Parking.reason(item, runs: @limits[:runs] || -> { {} }, now: @limits[:now] || Time.now.utc)
         end
 
-        def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped(item)
+        def stop_reason(item)
+          return expedite_stop(item) if WorkItems.expedited?(item)
+
+          @limits[:paused] || budget_reason(item) || overloaded(@limits[:max_load]) || capped(item)
+        end
+
+        # An expedited item passes the boot budget, a pause by load and the load limit (ADR 0224):
+        # memory low, a load over the CPU count, or another expedited item still holds it.
+        def expedite_stop(item)
+          pause = @limits[:paused]
+          held = pause unless pause == LOAD_PAUSE
+          held || overloaded(@limits.fetch(:cpus, @limits[:max_load])) || expedite_held(item)
+        end
+
+        # The one place outside the cap is {WorkSlots}' rule; this names its holder.
+        def expedite_held(item)
+          return unless WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: 0)
+
+          "skipped: held: #{holders.find { |other| WorkItems.expedited?(other) }.key} holds the one expedite place"
+        end
 
         # What the item's own place holds it: its area, its epic, or the one stall place.
         def limit_reason(item) = frozen_reason(item) || epic_reason(item) || stall_reason(item) || overlap_reason(item)
@@ -117,10 +140,10 @@ module Hecks
         end
 
         # The backstop: the load average alone refuses a fill, whatever the events said.
-        def overloaded
-          return unless @limits[:load] > @limits[:max_load]
+        def overloaded(limit)
+          return unless @limits[:load] > limit
 
-          "skipped: load #{@limits[:load].round(1)} > #{@limits[:max_load].round(1)}"
+          "skipped: load #{@limits[:load].round(1)} > #{limit.round(1)}"
         end
 
         # The cap and the red reserve are held by {WorkSlots}, the rule the `WorkLimits` port
@@ -135,9 +158,12 @@ module Hecks
         # A fill never starts more items than the cap has free places, a red one included; the red
         # reserve is spent only when no place is free. {WorkSlots} still holds the reserve itself.
         def no_free_place?
-          free = @limits[:cap] - @started.size
-          free.positive? && @chosen.size >= free
+          free = @limits[:cap] - in_cap(@started)
+          free.positive? && in_cap(@chosen) >= free
         end
+
+        # The items that take a place under the cap: an expedited one takes the place outside it.
+        def in_cap(items) = items.count { |other| !WorkItems.expedited?(other) }
 
         def frozen_reason(item)
           hit = @limits[:frozen].find { |name| item.area.any? { |word| squash(word).include?(squash(name)) } }

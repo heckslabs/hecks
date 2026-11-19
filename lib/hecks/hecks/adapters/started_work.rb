@@ -23,11 +23,13 @@ module Hecks
         bluebook&.aggregates&.find { |candidate| candidate.hecks_name == "Work" }
       end
 
-      # @return [Hash, nil] the work item's key and area, nil unless the work item is started
+      # @return [Hash, nil] the work item's key, title, area and priority, nil unless the work item
+      #   is started
       def item(record)
         return unless value(record, :status) == "started"
 
-        { key: value(record, :work).to_s, title: value(record, :title).to_s, area: words(value(record, :area)) }
+        { key: value(record, :work).to_s, title: value(record, :title).to_s, area: words(value(record, :area)),
+          priority: value(record, :priority).to_s }
       end
 
       # @return [Array<String>] the areas of a list of Word values

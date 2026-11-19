@@ -113,7 +113,7 @@ module Hecks
         #   last reading left the load above its mark ("paused by load") or memory low; else nil
         def paused
           standing = MachineSampling::History.new(@registry).states
-          return "skipped: paused by load (LoadRoseAbove)" if standing[:load] == "above"
+          return Plan::LOAD_PAUSE if standing[:load] == "above"
 
           "skipped: memory low (MemoryLow)" if standing[:memory] == "low"
         end

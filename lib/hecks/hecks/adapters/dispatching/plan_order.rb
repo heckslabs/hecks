@@ -3,22 +3,26 @@
 module Hecks
   module Adapters
     class Dispatching
-      # The order planned work items are listed in: a red one first, then one whose last yield a
+      # The order planned work items are listed in: a red one first, then an expedited one, then
+      # one whose last yield a
       # fill restarts first, then one of priority `now`, then a filed stall, then the rest. A stall
       # never ranks ahead of priority-now work, so it cannot take the free places an urgent fix
       # needs. Inside a group the order is the priority, then the epic's tier, then the plan step,
       # then the key. It is mixed into
-      # {WorkItems}, whose `find`, `red?` and `first_kinds` it uses.
+      # {WorkItems}, whose `find`, `red?`, `expedited?` and `first_kinds` it uses.
       module PlanOrder
+        # The urgency of an expedited work item: after a red one, ahead of everything else.
+        EXPEDITED = 1
+
         # The urgency of a planned work item whose last yield a fill restarts first.
-        RESTARTED = 1
+        RESTARTED = 2
 
         # The urgency of a planned work item of priority `now` that is not a filed stall.
-        URGENT = 2
+        URGENT = 3
 
         # The urgency of a filed stall's item, after red, restarted and priority-now work: the
         # last urgency a roll starts by itself.
-        STALLED = 3
+        STALLED = 4
 
         # @param key [String] a work item's key
         # @return [Boolean] whether it is a filed stall's item: its key starts `stall-<kind>-` for a
@@ -37,6 +41,7 @@ module Hecks
 
         def urgency(item, marks)
           return 0 if red?(item)
+          return EXPEDITED if expedited?(item)
           return STALLED if marks[:stalls].any? { |prefix| item.key.start_with?(prefix) }
           return RESTARTED if marks[:first].include?(item.yield_kind.to_s)
 

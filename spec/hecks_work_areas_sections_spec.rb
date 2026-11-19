@@ -12,7 +12,12 @@ RSpec.describe Hecks::Adapters::WorkAreas, "#check_area" do
 
   it "starts a work item on another section of a bluebook a started one holds" do
     said = areas.check_area(work: "adds-coder", area: ["lib/x/x.bluebook#Coder"])
-    expect(said.dig(:output, :value)).to eq("adds-coder holds lib/x/x.bluebook#Coder")
+    expect(said.dig(:output, :value)).to start_with("adds-coder holds lib/x/x.bluebook#Coder")
+  end
+
+  it "names the started work item it shares the bluebook with, and that item's sections" do
+    said = areas.check_area(work: "adds-coder", area: ["lib/x/x.bluebook#Coder"])
+    expect(said.dig(:output, :value)).to end_with("; shares lib/x/x.bluebook with adds-brief (Brief)")
   end
 
   it "refuses a work item that claims the section a started one holds" do
