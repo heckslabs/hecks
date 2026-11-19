@@ -4,7 +4,7 @@ require "socket"
 require "json"
 require_relative "accept_loop"
 require_relative "act_route"
-require_relative "deep_links"
+require_relative "path_links"
 require_relative "frame"
 
 module Hecks
@@ -12,7 +12,8 @@ module Hecks
     module PipelineBoard
       # A small HTTP/1.1 server on the loopback address and nothing else. It answers the pages,
       # scripts and JSON listed in `SERVED`, the deep links of {DeepLinks} (the board page under
-      # `/runs/<run>`, the Events page under `/trains/<run>`, their JSON under `/api`) and the
+      # `/runs/<run>`, the Events page under `/trains/<run>`, their JSON under `/api`), another
+      # project's planning page under `/plan/<name>` ({ProjectPlans}) and the
       # `/api/events` stream,
       # and refuses the rest.
       # The one write it takes is `POST /api/act`, a JSON body naming one step the app passes to
@@ -109,8 +110,8 @@ module Hecks
           return post(socket, path, headers) if verb == "POST" && path == ActRoute::PATH
           return reply(socket, 405, "text/plain", "method not allowed", "Allow" => "GET") unless verb == "GET"
 
-          deep = DeepLinks.match(path)
-          return reply(socket, *DeepLinks.answer(@app, deep)) if deep
+          linked = PathLinks.answer(@app, path)
+          return reply(socket, *linked) if linked
           return reply(socket, 404, "text/plain", "not found") unless SERVED.key?(path) || path == "/api/events"
 
           route(socket, path)
