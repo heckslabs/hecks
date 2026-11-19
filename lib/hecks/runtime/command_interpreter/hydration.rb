@@ -20,6 +20,8 @@ module Hecks
         # `reference_to` acts on a record that must already exist, however complete its payload,
         # as the Rust kernel's `Hydrate::Act` does; only a creating command may build one.
         def hydrate_for(ctx)
+          return hydrate_created_or_found(ctx) if creates_or_acts?(ctx.command)
+
           if ctx.command.creates? && ctx.plan.complete_state?
             ctx.plan.state_independent? ? hydrate_complete_state(ctx) : hydrate_prior_or_initial(ctx)
           elsif legacy_implicit_creation?(ctx)
@@ -27,6 +29,20 @@ module Hecks
           else
             hydrate_existing(ctx)
           end
+        end
+
+        # Whether a creating command acts on the record its identity already names.
+        def creates_or_acts?(command) = command.creates? && command.creates_or_acts?
+
+        # A `creates_or_acts` command: the record its identity names, acted on as `Hydrate::Act`
+        # would, or a fresh one when nothing answers to it. The model check keeps it off an
+        # aggregate that frees ended ids, so no occupant is archived.
+        def hydrate_created_or_found(ctx)
+          id = creation_identity(ctx)
+          ctx.archiving = nil
+          found = ctx.repository.find(id)
+          ctx.acting_on_occupant = !found.nil?
+          found ? found.dup : fresh_instance(ctx, id)
         end
 
         # The record an acting command names, by route or by the identity its arguments carry.

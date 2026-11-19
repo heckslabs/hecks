@@ -212,6 +212,11 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "and its first real users are miette_tools' internal commands, outside this " \
                                            "checkout (ADR 0216); hecks' own commands take it from the shadow report " \
                                            "(role-migrate-hecks). Exercised by spec/role_unstated_vocabulary_spec.rb.",
+    "creates_or_acts (Command)"         =>
+                                           "its first real use is Interview.Record in lib/hecks/interviews/" \
+                                           "interviews.bluebook (ADR 0194, decision 5), outside the scanned corpus. " \
+                                           "Exercised by spec/creates_or_acts_spec.rb, the Interviews behaviors and " \
+                                           "the kernel's Hydrate::CreateOrAct guard tests.",
     "acts_as (Policy)"                  =>
                                            "the same as policy_only: the role a reaction runs as is read by the dispatch " \
                                            "check still to come, and hecks' own reactions take it in role-migrate-hecks. " \

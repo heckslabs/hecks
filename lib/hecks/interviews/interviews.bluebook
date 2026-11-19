@@ -149,21 +149,25 @@ Hecks.bluebook "Interviews" do
       mark :terminal, "concluded"
     end
 
-    # Opens the interview with its first exchange. A later turn appending to the same interview
-    # waits on a command that creates its record or acts on the one that exists; until then this
-    # command only opens, so its `given` cannot yet be false.
+    # Opens the interview and appends each later turn (ADR 0194, decision 5). Subject and keeping
+    # are the opening turn's: a later turn leaves them out, and one that states them is not read,
+    # since a rule cannot compare an argument with the stored field it is named like.
     command "Record" do
       role "Maintainer"
       goal "Keep a turn of the conversation: who spoke, what was asked and what was said"
+      creates_or_acts
 
       attribute :reference, Reference
-      attribute :subject,   Subject
-      attribute :keeping,   Keeping
+      attribute :subject,   Subject,  optional: true
+      attribute :keeping,   Keeping,  optional: true
       attribute :speaker,   Speaker
       attribute :answer,    Answer
       attribute :question,  Question, optional: true
 
       given("turns are recorded only while the interview is open") { status == "open" }
+      given("an interview opens with its subject and how it is kept") do
+        !exchanges.empty? || (subject.set? && keeping.set?)
+      end
 
       sets :exchanges, append: { speaker: :speaker, answer: :answer, question: :question }
 
@@ -220,7 +224,8 @@ Hecks.bluebook "Interviews" do
 
       reference_to Interview
 
-      # Cannot be false while Record only opens with an exchange; ADR 0194 decision 3 asks for it.
+      # Every Record appends an exchange, so this cannot be false yet; ADR 0194 decision 3 asks
+      # for it.
       given("an interview that recorded nothing has not happened") { exchanges.size.positive? }
       given("every point is accepted, rejected or superseded before the interview ends") { open_points.value.zero? }
 

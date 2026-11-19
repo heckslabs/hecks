@@ -7514,6 +7514,16 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "creates_or_acts",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "CommandText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "from",
           "optional": true,
           "pattern": null,
@@ -7619,6 +7629,16 @@
               "default": null,
               "list": false,
               "name": "policy_only",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "CommandText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "creates_or_acts",
               "optional": true,
               "pattern": null,
               "relationship": null,
@@ -7739,6 +7759,15 @@
                 "name": "policy_only"
               },
               "target": "policy_only"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "creates_or_acts"
+              },
+              "target": "creates_or_acts"
             },
             {
               "op": "set",
@@ -9644,6 +9673,36 @@
               [
                 "calls",
                 "policy_only_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "creates_or_acts"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "creates_or_acts"
+              ],
+              [
+                "calls",
+                "creates_or_acts_impl"
               ]
             ],
             [

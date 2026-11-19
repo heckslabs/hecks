@@ -77,6 +77,15 @@ Hecks.bluebook "CommandReference" do
       reference_to Meter
       emits "MeterRecalled"
     end
+
+    command "Log" do
+      # OPENS THE METER its serial names, or writes on the one already there.
+      creates_or_acts
+      attribute :serial, Serial
+      attribute :note,   Mark
+      sets :marks, append: { note: :note }
+      emits "MeterLogged"
+    end
   end
 
   # A SEPARATE AGGREGATE, purely for `delegates_to` — it needs a NESTED
@@ -346,6 +355,31 @@ meter.commands.find { |c| c.hecks_name == "Install" }.policy_only?  # => false
 ```
 
 The refusal itself is the runtime's to make, at dispatch; this word is what it reads.
+
+## creates_or_acts
+
+<!-- generated:begin word=creates_or_acts -->
+`creates_or_acts` — fills `creates_or_acts`
+<!-- generated:end -->
+
+Declares that a creating command acts on the record its identity already names, instead of
+refusing it as taken. When nothing answers to the identity the command creates the record, as any
+creating command does; when a record does, the command hydrates it, as one with `reference_to`
+would, and its givens, `sets` and emits run against it. Only the creating turn assigns the
+attributes named like the aggregate's own: a later turn's are not read. Ruby's hydration and the
+Rust kernel's `Hydrate::CreateOrAct` both honour it. It takes no argument, and the IR carries it
+as `creates_or_acts: true` only on a command that says it:
+
+```ruby
+meter = runtime.registry.bluebook("CommandReference").aggregate("Meter")
+meter.commands.find { |c| c.hecks_name == "Log" }.creates_or_acts?      # => true
+meter.commands.find { |c| c.hecks_name == "Install" }.creates_or_acts?  # => false
+```
+
+The model check refuses it on a command that declares `reference_to`, which never creates, and on
+an aggregate whose lifecycle marks a state `:reusable`, where an ended occupant would be archived
+in Ruby and acted on in Rust. `Interview.Record` (ADR 0194, decision 5) opens an interview with its
+first exchange and appends each later one this way.
 
 ## reference_to
 

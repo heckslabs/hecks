@@ -98,6 +98,12 @@ module Hecks
         # @return [true]
         def policy_only_impl = @policy_only = true
 
+        # Declares that this creating command acts on the record its identity names when one is
+        # there, and creates it when none is.
+        #
+        # @return [true]
+        def creates_or_acts_impl = @creates_or_acts = true
+
         # Declares the aggregate this command acts on (with no `as:`), or a cross-reference to
         # another aggregate (with `as:`).
         #
@@ -226,7 +232,7 @@ module Hecks
         def declared_effects
           { mutations: @mutations, emits: @emits, references: @references, from: @from,
             provenance: @provenance, idempotent: @idempotent || false, mints_era: @mints_era || false,
-            policy_only: @policy_only || false }
+            policy_only: @policy_only || false, creates_or_acts: @creates_or_acts || false }
         end
       end
     end
