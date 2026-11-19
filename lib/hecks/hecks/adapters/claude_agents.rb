@@ -78,18 +78,20 @@ module Hecks
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
       # the named agent. With no agent named the session runs `claude`'s default, so nothing is
-      # asked.
+      # asked. A run that names no directory works in the main checkout of the repository the
+      # process stands in, and the answer records it.
       #
-      # @param held [Hash] the `AgentRun` record: `repo`, and `agent` when one is named
-      # @return [Hash{Symbol => Object}] `report:` that the directory is there, `listed:` whether
-      #   the agent is listed, `note:` that in words, naming the agents that are, and the
-      #   {WorkHolder}'s facts about another run on the same work
+      # @param held [Hash] the `AgentRun` record: `repo` when one is named, and `agent` when one is
+      # @return [Hash{Symbol => Object}] `repo:` the directory, `report:` that it is there,
+      #   `listed:` whether the agent is listed, `note:` that in words, naming the agents that
+      #   are, and the {WorkHolder}'s facts about another run on the same work
       # @raise [ConsoleCapture::Failure] when it is not a directory, or `claude` names no agents
       def locate(**held)
-        repo = plain(held[:repo])
+        repo = plain(held[:repo]) || Dispatching::Checkout.main(Dir.pwd)
         raise ConsoleCapture::Failure, "#{repo} is not a directory" unless File.directory?(repo.to_s)
 
-        { report: { value: "#{repo} is a directory" }, **@agents.listing(repo, plain(held[:agent])), **@holder.call(held) }
+        { repo: { value: repo }, report: { value: "#{repo} is a directory" }, **@agents.listing(repo, plain(held[:agent])),
+          **@holder.call(held) }
       end
 
       # Starts a background session in the directory, with the brief as its first prompt.

@@ -57,8 +57,8 @@ module Hecks
         # @return [SpecFiles] runs spec files and records each one's result in the trial log
         def files(tree) = SpecFiles.new(tree, trials: Trials.new)
 
-        # @param args [Hash] `base` (`main` when absent), `cap`, `dry`, `isolation`, `example`
-        #   and the run's variables
+        # @param args [Hash] `base` (`origin/main` when absent), `cap`, `dry`, `isolation`,
+        #   `example` and the run's variables
         # @param tree [Tree] the checkout
         # @return [String] the mapping and, unless dry, how each spec file ended
         def impacted(args, tree)
@@ -70,7 +70,7 @@ module Hecks
         # @param args [Hash] the `TestSuiteRun` record's plain fields
         # @return [Hash] what `ImpactedSpecs#call` takes, each absent field at its default
         def impacted_options(args)
-          { base: args[:base] || "main", cap: args[:cap] || ImpactedSpecs::DEFAULT_CAP, dry: args[:dry] == true,
+          { base: args[:base] || "origin/main", cap: args[:cap] || ImpactedSpecs::DEFAULT_CAP, dry: args[:dry] == true,
             isolation: args[:isolation] || "process", example: args[:example], env: RunOptions.spec_env(args),
             tags: args[:tags] }
         end

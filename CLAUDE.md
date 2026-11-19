@@ -47,6 +47,14 @@ A session that needs its own checkout uses `git worktree add`, and retires it wi
 `git worktree remove`. Any git operation an agent needs is allowed, through plain git or through a
 `hecks` command that performs it; use the command when one exists, since it carries the repo's own checks.
 
+**A command knows where it stands.** Every command resolves the checkout from the directory it
+runs in: the primary checkout of that repository (`git rev-parse --git-common-dir`), or the worktree
+holding the branch it acts on (`main` is the primary's). Pass no `checkout=`, `repo=` or `domain=`
+path for Landing, LinkedTree, `SendTrain.board!`, `AgentRun.dispatch!` or `Operation.follow`; a path
+you do pass overrides the resolution. A linked worktree loads the primary's local overlay, so it
+reads and writes the same stores; where it cannot, a write the primary persists is sent to the primary
+or refused by name, never put in Memory. `run_impacted_specs!` compares with `origin/main`.
+
 **Discarding a branch.** `exe/hecks Landing.retire! --confirm` removes a worktree whose work is on `main`.
 `exe/hecks Landing.discard! reason.value=… --confirm` removes one whose commits `main` lacks, and an
 agent runs it only when the owner explicitly asks for that branch, never on its own work: the standing
