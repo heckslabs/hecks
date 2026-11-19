@@ -92,10 +92,11 @@ Hecks.bluebook "Hecks" do
         emits PushRehearsalDeclined
       end
 
-      # Read only: how far local main is ahead of origin/main, how old the oldest unpushed commit
-      # is, and how the last rehearsal ended. It fetches nothing and pushes nothing.
+      # Read only: how far local main is ahead of and behind origin/main, the unpushed commits by
+      # subject and age, the last train origin/main carried, and how the last rehearsal ended. It
+      # fetches nothing and pushes nothing.
       query "Due" do
-        description "Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last quick rehearsal's result."
+        description "Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last quick rehearsal's result; then the commits main is behind and when origin/main last moved, each unpushed commit's subject and age, and the last train (origin/main's tip)."
         attribute :checkout, Word, optional: true
         returns Document
       end
