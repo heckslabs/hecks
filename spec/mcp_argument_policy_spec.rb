@@ -7,8 +7,8 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
   # Names that carry data and reach nothing outside the domain's own files.
   PLAIN_ARGUMENTS = %w[
     agent aggregates arguments at body budget budget_minutes cap check clean commits context copy crate
-    declaration_cache days dry dry_run email environment era example exclude expert fills format full_gate
-    gate inner isolation iterations kind lane landed list_shards message name named new_name no_ai now number only
+    declaration_cache days dry dry_run email environment era example exclude fills format full_gate
+    gate inner isolation iterations kind lane landed list_shards message name named new_name now number only
     opened_by opens outcome owner package pairs_shape parallel persist_regressions pin profile pulled pushed reason
     rehearsal_verdict
     report required resuming retried revert role run runs scope seed_start seeds session shard stage state stdout
