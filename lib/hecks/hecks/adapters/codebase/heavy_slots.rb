@@ -5,6 +5,7 @@ require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
 require_relative "memory_wait"
+require_relative "response_wait"
 require_relative "slot_queue"
 require_relative "slot_text"
 require_relative "slot_wait"
@@ -22,10 +23,10 @@ module Hecks
       # A place is a kernel `flock` on one of `cap` files under the cache directory, so a holder
       # that dies, even killed, frees its place at once and none is ever held for a dead process.
       # Waiting never counts toward a job's own time bounds, and nothing running is stopped. A job
-      # waits while memory is low first ({MemoryWait}); while it holds a place, its children's
-      # workers are held to the world's `spec_workers` (`PARALLEL_PROCESSOR_COUNT`, which RuboCop
-      # reads, unless already set). A job does not wait in CI or when `HELD` says a parent started
-      # it, or once it gave up; a rejoining waiter keeps its place ({SlotWait}).
+      # first waits on memory or its kind's answer to pressure ({ResponseWait.before}); holding a
+      # place, its children's workers are held to `spec_workers` (`PARALLEL_PROCESSOR_COUNT`, read
+      # by RuboCop, unless set). A job does not wait in CI or when `HELD` says a parent started it,
+      # or once it gave up; a rejoining waiter keeps its place ({SlotWait}).
       class HeavySlots
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
@@ -66,10 +67,13 @@ module Hecks
         # @param root [String] the hecks checkout whose world sets the cap
         # @param job [String] the job's class
         # @yieldreturn [String] the job's report
-        # @return [String] the report, after the line that names the wait when there was one
+        # @return [String] the report, after the line that names the wait when there was one; for
+        #   a helper's job the pressure sends home, the line that says it was not started
         def self.admitted(root, job, &)
           report, note = held(root, job, &)
           note.empty? ? report : "#{note}\n#{report}"
+        rescue ResponseWait::Left => e
+          "not started: #{e.message}"
         end
 
         # Runs a job of a checkout in a place, for a job whose answer is not a report.
@@ -79,7 +83,7 @@ module Hecks
         # @return [Array(Object, String)] what the block returned, and the wait to name: empty when
         #   it took a place at once
         def self.held(root, job, &)
-          new(cap: cap_of(root), memory: MemoryWait.of(root), workers: SpecWorkers.count(root)).hold(job, &)
+          new(cap: cap_of(root), memory: ResponseWait.before(root), workers: SpecWorkers.count(root)).hold(job, &)
         end
 
         # @param base [#[]] the environment
@@ -127,9 +131,7 @@ module Hecks
 
         private
 
-        def bypass?
-          !@base[HELD].to_s.empty? || !@base["CI"].to_s.empty?
-        end
+        def bypass? = !@base[HELD].to_s.empty? || !@base["CI"].to_s.empty?
 
         # @return [Array(File, String), Array(nil, String)] the place taken and the wait's note;
         #   no place when the places cannot be opened or the wait gave up
