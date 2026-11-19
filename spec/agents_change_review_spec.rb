@@ -4,8 +4,8 @@ require_relative "support/wakes_coder_helpers"
 require_relative "support/change_review_helpers"
 
 # The architect's review of a submitted change: asked when the branch changed a bluebook, a
-# hecksagon or a decision file, or when its paths cannot be read, or when a decision is recorded;
-# passed otherwise; cleared when sound, and sent back to the coder of the Work item when not.
+# hecksagon or a decision file, or when its paths cannot be read; passed otherwise; cleared when
+# sound, and sent back to the coder of the Work item when not.
 RSpec.describe "the architect's change review" do
   include_context "with a stand-in claude"
   include WakesCoderHelpers
@@ -34,6 +34,11 @@ RSpec.describe "the architect's change review" do
     expect(status(sha)).to eq("unasked")
   end
 
+  it "passes a change without refusing the request it does not need" do
+    sha = branch_changing("lib/x/x.rb")
+    expect(consider(sha).last).to eq(Hecks::Adapters::Driving::ExitStatus::ANSWERED)
+  end
+
   it "ends a review whose paths cannot be read as unread, never passed" do
     branch_changing("lib/x/x.rb")
     consider("0" * 40)
@@ -49,11 +54,6 @@ RSpec.describe "the architect's change review" do
   it "leaves the commit's own key to the reviewer's run" do
     sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
     expect(running(sha)).to be_nil
-  end
-
-  it "asks the architect about a decision the Tickets store recorded" do
-    launch("tickets", "Adr.draft!", "adr.value=0300", "title.value=A decision", "--wait")
-    expect(status("0300")).to eq("asked")
   end
 
   it "clears a change the architect judged sound" do
