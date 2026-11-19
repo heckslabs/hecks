@@ -4,6 +4,7 @@ require "digest"
 require "fileutils"
 require "hecks/cache_dir"
 require_relative "../git"
+require_relative "../checkout_gate"
 require_relative "../console_capture"
 require_relative "../bounded_capture"
 require_relative "copy_lock"
@@ -40,6 +41,13 @@ module Hecks
           done = @git.capture("rev-parse", "--verify", "--quiet", "#{ref}^{commit}", chdir: @checkout)
           done.ok? ? done.out.strip : nil
         end
+
+        # A hecks checkout's commit holds the hecks launcher; a project built on the hecks gem
+        # (one that lands through the same Landing) does not, and has no main integration here.
+        #
+        # @param ref [String] a commit
+        # @return [Boolean] whether the commit tracks the launcher (`CheckoutGate::LAUNCHER`)
+        def launcher?(ref) = @git.capture("cat-file", "-e", "#{ref}:#{CheckoutGate::LAUNCHER}", chdir: @checkout).ok?
 
         # @return [String] the commit local main is at
         # @raise [ConsoleCapture::Failure] when the checkout has no main
