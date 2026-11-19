@@ -1,8 +1,4 @@
 # Interviews: work begins in a conversation, and the conversation is kept (ADR 0194).
-#
-# An interview holds what was said, turn by turn, and the Points it established: each Point is a
-# kind in the participants' own word, a statement, the exchange it cites, and a state. Concluding
-# needs at least one exchange and no Point left open.
 Hecks.bluebook "Interviews" do
   vision "Work begins in a conversation: an interview keeps every exchange, and the Points the participants proposed, accepted, rejected or superseded, so whatever follows can cite where it came from."
   supporting
@@ -82,12 +78,10 @@ Hecks.bluebook "Interviews" do
       invariant("a tally is not negative") { !value.negative? }
     end
 
-    # The one open unit of what an interview establishes. A correction is a new Point naming the one
-    # it replaces in `supersedes`; the replaced Point is settled by its own command. Nothing ties
-    # the two together, by design: a replaced Point left proposed still counts as open, so the
-    # interview cannot conclude until it is superseded or rejected.
+    # A correction names the Point it replaces in `supersedes`, and the replaced Point is settled by
+    # its own command. Nothing ties the two by design: a replaced Point left proposed stays open.
     entity "Point" do
-      description "A point the interview establishes: its kind, its statement, the exchange it cites, and whether it was accepted, rejected or superseded."
+      description "The one open unit of what an interview establishes: its kind, its statement, the exchange it cites, and whether it was accepted, rejected or superseded."
 
       identified_by :number
 
