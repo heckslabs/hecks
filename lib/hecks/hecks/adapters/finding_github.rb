@@ -2,7 +2,6 @@
 
 require "open3"
 require_relative "../../indifferent_key"
-require_relative "finding_github/switch"
 
 module Hecks
   module Adapters
@@ -11,8 +10,9 @@ module Hecks
     #
     # Nothing is opened until a repository is named, by the `repository` setting or the
     # `HECKS_FINDINGS_REPO` environment variable (`owner/name`); without one every ask is refused,
-    # and the runtime records the refusal on the finding. An ask that needs the issue before one
-    # was opened is refused the same way, so a finding never blocks on GitHub.
+    # and the runtime records the refusal on the finding, so a finding never blocks on GitHub. An
+    # ask that needs the issue of a finding that has none is answered with
+    # {NO_ISSUE} and calls nothing: there is nothing to drive, so nothing failed.
     class FindingGithub
       # Raised when `gh` cannot file or find the finding's issue.
       class Error < RuntimeError; end
@@ -20,17 +20,18 @@ module Hecks
       # The environment variable that names the repository when no setting does.
       REPOSITORY_VARIABLE = "HECKS_FINDINGS_REPO"
 
+      # The line an ask on a finding with no issue answers, telling it apart from a real action.
+      NO_ISSUE = "no GitHub issue to drive"
+
       # The end of an issue's URL, capturing its number.
       ISSUE_NUMBER = %r{/issues/(\d+)\z}
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `repository:` names the `owner/name` to drive
       # @param root [String, nil] unused
-      # @param registry [Runtime::Registry, nil] whose Tickets world holds the `github_issues`
-      #   switch
+      # @param registry [Runtime::Registry, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @repository = settings[:repository]
-        @registry = registry
       end
 
       # Opens an issue for the finding the runtime hands over (its whole held state).
@@ -38,10 +39,8 @@ module Hecks
       # @param held [Hash] the finding's fields; `title` and `body` are value objects or strings
       # @return [Hash{Symbol => Hash}] `issue_number:` of the new issue, the shape
       #   `Finding.RecordIssue` takes
-      # @raise [Error] when the run-finding switch is off, no repository is named, `gh` exits
-      #   non-zero, or prints no issue URL
+      # @raise [Error] when no repository is named, `gh` exits non-zero, or prints no issue URL
       def open_issue(**held)
-        Switch.guard!(held, @registry)
         out = gh("issue", "create", "--title", plain(held[:title]).to_s, "--body", plain(held[:body]).to_s)
         number = Text.last_lines(out, 1)[ISSUE_NUMBER, 1]
         raise Error, "gh issue create printed no issue URL: #{out.strip.inspect}" unless number
@@ -54,9 +53,9 @@ module Hecks
       # @param held [Hash] the finding's fields
       # @return [Hash{Symbol => Hash}] `output:` the line that says what was done
       def label_issue(**held)
-        labels = [["kind", held[:kind]], ["severity", held[:severity]]]
-                 .map { |name, field| "#{name}:#{plain(field)}" unless plain(field).to_s.empty? }.compact
+        labels = labels_of(held)
         return said("no kind or severity to label") if labels.empty?
+        return said(NO_ISSUE) unless issue?(held)
 
         gh("issue", "edit", issue(held), "--add-label", labels.join(","))
         said("labelled #{labels.join(", ")}")
@@ -67,6 +66,8 @@ module Hecks
       # @param held [Hash] the finding's fields
       # @return [Hash{Symbol => Hash}] `output:` the line that says what was done
       def comment_on_issue(**held)
+        return said(NO_ISSUE) unless issue?(held)
+
         gh("issue", "comment", issue(held), "--body", "A fix is proposed in ##{plain(held[:fix_pr_number])}")
         said("commented with the fix")
       end
@@ -76,6 +77,8 @@ module Hecks
       # @param held [Hash] the finding's fields, `status` among them
       # @return [Hash{Symbol => Hash}] `output:` the line that says what was done
       def close_issue(**held)
+        return said(NO_ISSUE) unless issue?(held)
+
         reason = plain(held[:status]) == "dismissed" ? "not planned" : "completed"
         gh("issue", "close", issue(held), "--reason", reason)
         said("closed as #{reason}")
@@ -86,6 +89,8 @@ module Hecks
       # @param held [Hash] the finding's fields
       # @return [Hash{Symbol => Hash}] `output:` the line that says what was done
       def reopen_issue(**held)
+        return said(NO_ISSUE) unless issue?(held)
+
         gh("issue", "reopen", issue(held))
         said("reopened")
       end
@@ -109,12 +114,14 @@ module Hecks
         raise Error, "no repository named: set the `repository` setting or #{REPOSITORY_VARIABLE} to owner/name"
       end
 
-      def issue(held)
-        number = plain(held[:issue_number])
-        raise Error, "the finding has no GitHub issue yet" if number.to_s.empty?
-
-        number.to_s
+      def labels_of(held)
+        [["kind", held[:kind]], ["severity", held[:severity]]]
+          .map { |name, field| "#{name}:#{plain(field)}" unless plain(field).to_s.empty? }.compact
       end
+
+      def issue?(held) = !plain(held[:issue_number]).to_s.empty?
+
+      def issue(held) = plain(held[:issue_number]).to_s
 
       def said(line) = { output: { value: line } }
 

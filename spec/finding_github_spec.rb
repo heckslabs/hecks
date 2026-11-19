@@ -51,6 +51,13 @@ RSpec.describe Hecks::Adapters::FindingGithub do
     expect(calls).to eq([gh_call("issue", "close", "7", "--reason", "not planned")])
   end
 
+  it "answers a lifecycle ask on a finding with no issue, and calls nothing", :aggregate_failures do
+    stub_gh
+
+    expect(adapter.close_issue(status: { value: "resolved" })).to eq(output: { value: "no GitHub issue to drive" })
+    expect(calls).to be_empty
+  end
+
   it "refuses every ask when no repository is named, and calls nothing", :aggregate_failures do
     stub_gh
     stub_const("ENV", ENV.to_h.except(described_class::REPOSITORY_VARIABLE))
