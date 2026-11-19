@@ -183,16 +183,10 @@ Hecks.bluebook "Coder" do
     end
   end
 
-  # The coder side only submits. `Submit` asks that a branch at a commit be handed to QA and
-  # maintenance; it lands nothing and pushes nothing. The TurnFacts port measures whether an answer
-  # to the coder whose Work item the branch is named for is still unread, and `Accept` hands the
-  # branch in only when none is: a coder does not land past a message it has not read. The event
-  # `WorkSubmitted(branch, sha, checkout)` that `Accept` emits is the contract those policies read:
-  # the reviewer works in the checkout it names. A coder run that ends done with a report whose
-  # last word is `submitted` submits by itself (`SubmitWhenTheCoderSaysSubmitted` in the Hecks
-  # hecksagon), with the branch, commit and cleanliness git reports in the run's checkout.
+  # `Accept` emits `WorkSubmitted(branch, sha, checkout)`, the contract QA and maintenance read.
+  # A coder run whose report ends `submitted` submits by itself (`SubmitWhenTheCoderSaysSubmitted`).
   aggregate "Submission" do
-    description "One branch at one commit, handed to QA and maintenance to land."
+    description "One branch at one commit, handed to QA and maintenance to land once no answer to its coder is unread; it lands and pushes nothing itself."
 
     identified_by :branch
 
@@ -279,9 +273,6 @@ Hecks.bluebook "Coder" do
   # coder that still holds its started Work item, asks the pipeline nothing and has landed nothing
   # is held: the hook hands the refusal to the model instead of ending the turn. A submitted or
   # yielded Work item is no longer started, so submitting is what lets the turn end.
-  #
-  # A coder with an answer or a verdict it has not read is held too, whatever its closing message
-  # says: a turn that ends before the message is in its context ends without it.
   #
   # The bluebook reads no ledger, git or transcript: the TurnFacts port measures and judges nothing,
   # and the policies below judge what it measured. A turn that cannot be measured ends, so a
@@ -538,11 +529,9 @@ Hecks.bluebook "Coder" do
     ask :measure_turn, with: { run: :run }
   end
 
-  # An answer to the coder is unread when it waits in the session's inbox (`inbox`), is on its way
-  # to the session (`resuming`), or is a verdict judged for its Work item and not yet delivered
-  # (`pending`). The session's own Stop hook hands an inbox answer over at this same stop, so the
-  # hold is what puts it in the coder's context; `again` lets the next end go, so a verdict nobody
-  # delivers never traps the session.
+  # Unread: an answer in the session's inbox, on its way (`resuming`), or a verdict judged and not
+  # delivered (`pending`). The Stop hook hands an inbox answer over at this stop; `again` lets the
+  # next end go, so a verdict nobody delivers never traps the session.
   policy "HoldTheCoderWithAnUnreadAnswer" do
     on      "Turn.TurnMeasured"
     where   { role == "coder" && again != true && (inbox == true || resuming == true || pending == true) }
@@ -552,12 +541,11 @@ Hecks.bluebook "Coder" do
                              "read with exe/hecks agents PlanReview.reviews. Act on it, then end your turn." }
   end
 
-  # The one rule for a coder with nothing unread. `role` is the part the run plays, `held` whether
-  # its Work item is still started, `landed` whether its branch landed since the item started,
-  # `reviewing` whether a plan review it asked for is open, `question` the first line of its closing
-  # message that begins with a bracket, and `word` that message's last word. A question to the
-  # pipeline begins with one of the five markers of the brief's rules; `blocked` and `submitted`
-  # are a coder's two closing words.
+  # The one rule. `role` is the part the run plays, `held` whether its Work item is still started,
+  # `landed` whether its branch landed since the item started, `reviewing` whether a plan review it
+  # asked for is open, `question` the first line of its closing message that begins with a bracket,
+  # and `word` that message's last word. A question to the pipeline begins with one of the five
+  # markers of the brief's rules; `blocked` and `submitted` are a coder's two closing words.
   policy "HoldTheCoderWhoHandedNothingIn" do
     on      "Turn.TurnMeasured"
     where   do
@@ -599,10 +587,8 @@ Hecks.bluebook "Coder" do
     ask :measure_submitter, with: { branch: :branch, sha: :sha, checkout: :checkout }
   end
 
-  # A submission waits on an answer still in the coder's inbox (`inbox`) or on its way to it
-  # (`resuming`). Both clear by themselves: the session's PostToolUse hook hands the inbox over
-  # after the very call that was withheld, and every answer ends `Answered` or `Unanswered`. A
-  # verdict not yet delivered is not the coder's to read, so it does not withhold a submission.
+  # Both clear by themselves: the PostToolUse hook hands the inbox over after the withheld call,
+  # and every answer ends `Answered` or `Unanswered`. An undelivered verdict is not the coder's.
   policy "WithholdTheSubmissionWhileUnread" do
     on      "Submission.SubmitterMeasured"
     where   { inbox == true || resuming == true }
