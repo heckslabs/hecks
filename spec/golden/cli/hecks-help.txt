@@ -1,447 +1,447 @@
-Hecks — What this install is, what version it runs, and whether its grammar cache can be trusted.
+Hecks —
   hecks 7.1.0
 
   hecks <command>! [name=value …]       do something
   hecks <query> [name=value …]          read something, written bare
 
 everyday:
-  Operation.run!                    Dispatch a verb or a step list against a domain and keep what it…
-  Operation.open_console!           Open an interactive console on a domain (also: console!)
-  GateRun.gate!                     Run every check of a stage, or the ones named, and keep whether the…
-  TestSuiteRun.run_changed!         Run the specs that the files changed since a git ref map to, in a folder
-  TestSuiteRun.run_spec_example!    Run one spec file filtered to one example, through the test runner in…
-  TestSuiteRun.run_spec_files!      Run several spec files in one launcher boot, each in a new process or…
-  TestSuiteRun.run_impacted_specs!  Map the branch's changed files to the specs they touch and run them, or…
-  Build.build_host!                 Build the Rust host for a domain, with its wasm and IR, ready to copy…
-  Shipment.ship!                    Start the gate-and-board saga for a branch: ask its checkout's gate,…
-  SendTrain.board!                  Push this checkout's branch once the push ahead of it lands, unless…
-  Codebase.search                   The lines of the checkout's text files that match a pattern, as…
+  Operation.run!
+  Operation.open_console!
+  GateRun.gate!
+  TestSuiteRun.run_changed!
+  TestSuiteRun.run_spec_example!
+  TestSuiteRun.run_spec_files!
+  TestSuiteRun.run_impacted_specs!
+  Build.build_host!
+  Shipment.ship!
+  SendTrain.board!
+  Codebase.search
 
 commands:
   LocalOverlay:
-    One write of a checkout's machine-local overlay from the kept rows: written, current, or refused.
-    write!                        Write a checkout's machine-local overlay so it keeps every row its copy needs, and nothing more
+    …
+    write!
   Build:
-    One build of a domain for the Rust host, or a check of that build against Ruby.
-    project_rust!                 Generate a domain's Rust source for the Rust host
-    build_wasm!                   Compile a domain to a WASI module a runtime such as wasmtime can run
-    prune_rust!                   Free the disk Rust builds hold, in gone worktrees and stale cache
-    build_parser!                 Build the hecks-parse binary the bluebook parser specs run, from rust/parser
-    build_host!                   Build the Rust host for a domain, with its wasm and IR, ready to copy into an image
-    build_browser_wasm!           Compile a domain to an ES module a browser can import
-    check_conformance!            Replay a script through Ruby and a Rust build of the domain and compare what each did
-    fuzz_conformance!             Replay generated sequences through Ruby and a Rust build of the domain and compare them
-    check_coverage_allowlist!     Check that every rule excusing a Rust coverage gap still excuses a real one
+    …
+    project_rust!
+    build_wasm!
+    prune_rust!
+    build_parser!
+    build_host!
+    build_browser_wasm!
+    check_conformance!
+    fuzz_conformance!
+    check_coverage_allowlist!
   RegenerationRun:
-    One regeneration of every corpus domain's committed Rust output, or the check that it is current.
-    regenerate_corpus!            Regenerate the Rust output of every corpus domain or the ones named, or with check only compare it
-    project_ci_gates!             Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them
-    project_ci_pipeline!          Project the CiWorkflows rows into their workflow files, or with check only compare them
-    project_lanes!                Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets
-    project_agent_roles!          Write .claude/agents from the RoleFile rows of the Role aggregate, or with check only compare them
-    project_tools_doc!            Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them
-    project_glossary!             Write a bluebook's Ubiquitous Language glossary into its domain's glossary folder, or with check only compare it
-    decide_ci_gate!               Say whether this run's change touches what a CiGate row guards, as the gated job's detector
+    …
+    regenerate_corpus!
+    project_ci_gates!
+    project_ci_pipeline!
+    project_lanes!
+    project_agent_roles!
+    project_tools_doc!
+    project_glossary!
+    decide_ci_gate!
   KernelRun:
-    One projection of the Rust kernel's capability enums, or one measure of their coverage.
-    project_kernel_capabilities!  Project the capability enums the hand-written Rust kernel is matched against
-    measure_kernel_coverage!      Check that every capability the grammar admits has its hand-written kernel file
+    …
+    project_kernel_capabilities!
+    measure_kernel_coverage!
   GateRun:
-    One run of a stage's checks: every check of the stage, or the ones named.
-    gate!                         Run every check of a stage, or the ones named, and keep whether the gate is green
+    …
+    gate!
   ModelCheckRun:
-    One static analysis over domains' models, and what it found: a check's history.
-    model_check!                  Check domains for dead states and unreachable steps, and keep the verdict
+    …
+    model_check!
   ConformanceRun:
-    One check that the engines, the reference docs and the argument gates agree with the language.
-    check_engine_agreement!       Check that the query engines route every comparator through the one shared implementation
-    measure_doc_coverage!         Check that every live word of the language has prose and a running example in the reference
-    check_shape_ledger!           Check that no bluebook's storage shape moved in a way that is neither additive nor covered by a translation edge, and rewrite the ledger when confirmed
-    check_command_names!          Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
-    check_workflow_pagination!    Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
-    argument_gate_matrix!         Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
+    …
+    check_engine_agreement!
+    measure_doc_coverage!
+    check_shape_ledger!
+    check_command_names!
+    check_workflow_pagination!
+    argument_gate_matrix!
   StyleRun:
-    One check or fix of comment style, or one document written with its keys in order.
-    check_comments!               List every comment that breaks the Ruby style guide
-    fix_comments!                 Rewrite the mechanical Ruby comment violations
-    shorten_value_objects!        Rewrite every bluebook value object block that only wraps one plain value as the shorthand
-    write_comment_baseline!       Record every long comment block as tolerated, for lib/hecks unless paths are named
-    check_comments_unchanged!     Prove an edit was comment-only: no file's code differs from the ref
-    check_rust_comments!          List every comment that breaks the Rust style guide
-    fix_rust_comments!            Rewrite the mechanical Rust comment violations
-    canonicalise!                 Write a JSON document with every object's keys sorted
+    …
+    check_comments!
+    fix_comments!
+    shorten_value_objects!
+    write_comment_baseline!
+    check_comments_unchanged!
+    check_rust_comments!
+    fix_rust_comments!
+    canonicalise!
   InspectionRun:
-    One inspection of the Ruby by flog, flay, reek or rubycritic.
-    flog!                         Rank the Ruby methods by complexity, worst first
-    flay!                         Find Ruby code that is copied or nearly copied
-    reek!                         List the design smells in the Ruby
-    rubycritic!                   Write the combined quality report, with git churn
+    …
+    flog!
+    flay!
+    reek!
+    rubycritic!
   Audit:
-    One walk of a domain's journal chain from its latest seal, and whether every digest held.
-    verify!                       Walk a domain's journal chain from its latest seal and say whether it was altered
+    …
+    verify!
   AgentRun:
-    One brief handed to a background Claude session: started and tracked, or refused with the reason.
-    dispatch!                     Hand one brief to a background Claude session working in a directory
-    check!                        Read the state a started session's job is in, and record it when it changed
-    tidy!                         Remove the finished session of one run, unless it is still working, a coder waiting on a person, or taken over
-    release!                      Review a kept run at the next reap, without waiting for its retry time
-    answer!                       Answer a session that has not ended: deliver to a working one, resume an idle one
-    retire!                       Close a started run whose session is gone, so the ledger stops listing it as started
+    …
+    dispatch!
+    check!
+    tidy!
+    release!
+    answer!
+    retire!
   SessionSweep:
-    One check of every started run's session: each change of state is recorded on its run.
-    check_all!                    Check every run whose session was started and is not known to have ended (also: agent_run.check_all!)
+    …
+    check_all!
   Dispatch:
-    One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
-    fill!                         Choose the planned Work items that start a session now and, with confirm, start them; without it, say what would start
-    settle!                       Check the started sessions and finish the Work item of each that is done, or yield the Work item of one that stopped
+    …
+    fill!
+    settle!
   MergeWindow:
-    One merge window: opened to let a train merge without competing work, closed when it has merged or by hand.
-    open!                         Open a merge window: pause the fill and quiet the pipeline until the window closes
-    close!                        Close the merge window so the fill runs again
+    …
+    open!
+    close!
   PlainSession:
-    A Claude session started outside a dispatched run, which the operator may remove once it is finished.
-    remove!                       Remove a finished session that waits on nobody
-    retire!                       Retire a session bound to no run, so the fleet does not settle and re-claim it
+    …
+    remove!
+    retire!
   SessionCleanup:
-    One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
-    remove_safe!                  Remove the sessions of dispatched runs that finished done and are safe to remove, and report each one kept with the reason; refused without confirm
+    …
+    remove_safe!
   Question:
-    One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's.
-    escalate!                     Hand a seated question to the owner, unanswered, and free its seat
+    …
+    escalate!
   Restoration:
-    The changed files of a checkout that already match origin/main, restored, or declined with the reason.
-    make!                         Restore each changed file of a checkout that already matches origin/main, and leave every other file alone
+    …
+    make!
   ShallowCheck:
-    CI's failing checks run in a depth-1 clone of a branch: passed or skipped, or refused with the spec and its first failure line.
-    run!                          Run CI's failing checks in a depth-1 clone of a branch when it changes something they read, refusing with the spec and its first failure line
-    switch!                       Turn the shallow check on or off for the whole repository
+    …
+    run!
+    switch!
   EarlyCi:
-    One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head.
-    request!                      Ask CI to check a coder's branch at its head, pushed as ci/<branch>, before the coder hands it off
-    retry!                        Ask CI again for the branch at its new head, after a red run or a run that could not be read
+    …
+    request!
+    retry!
   SendTrain:
-    One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
-    board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
-    survey!                       List every checkout under a directory whose branch has commits its remote does not
-    watch!                        Look at each queued boarding's pull request, and record any that merged or ended with failed checks
+    …
+    board!
+    survey!
+    watch!
   PushOutcome:
-    How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
-    record!                       Record how one boarding of the push train ended, in the checkout that boarded it
+    …
+    record!
   Shipment:
-    One request to gate, land and board a branch: the gate-and-board saga starts on it.
-    ship!                         Start the gate-and-board saga for a branch: ask its checkout's gate, land on main, board the push train
-    rejudge!                      Ask the checkout's gate to judge a shipment again, after a gate that refused it
+    …
+    ship!
+    rejudge!
   Integration:
-    One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended.
-    advance!                      Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one
-    schedule!                     Ask for the launchd job that beats the clock once a minute to be written and loaded; unconfirmed, it says what it would write
-    unschedule!                   Ask for the launchd job that beats the clock to be unloaded and removed; unconfirmed, it says what it would remove
-    verify!                       Verify a landed commit in a clean detached copy of local main: the quick gate, the specs its changes touch, the command names, the CI pipeline and the generated corpus
-    board!                        Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval
-    observe!                      Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running
+    …
+    advance!
+    schedule!
+    unschedule!
+    verify!
+    board!
+    observe!
   ReviewRequest:
-    One pull request opened or squash-merged on GitHub, and what GitHub answered.
-    open!                         Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
-    take!                         Squash-merge an open pull request by its number; never with an admin override
-    edit!                         Edit the title or body of an open pull request by its number; never its branch, merge or state
+    …
+    open!
+    take!
+    edit!
   BoardingHold:
-    One hold of local main for a boarding: held, or refused.
-    hold!                         Hold local main for the boarding of the commit it names now: landings onto main are refused until a release or the window ends
+    …
+    hold!
   BoardingRelease:
-    One lifting of the hold on local main: released, or refused.
-    release!                      Lift the hold on local main, whoever took it; a lift with nothing held is a no-op
+    …
+    release!
   Relief:
-    The plan that frees space: which command frees each kind of owner, and which subjects are never touched.
-    plan!                         Say what would free space and by which command, changing nothing
-    relieve!                      Run the automatic relief rows, merged worktrees and done runs, at the high level only
+    …
+    plan!
+    relieve!
   Cache:
-    A rebuildable cache by kind, what rebuilds it and what a cold cache costs.
-    clear!                        Free one kind of cache, never unasked; a cache in a protected reading's worktree (live, pinned, unpushed or dirty) is declined by name
+    …
+    clear!
   LanguageRun:
-    One change to the language's own tables, or one reading of where its words stand.
-    project_model!                Project the model's holding half from the language that declares it
-    project_vocabulary!           Project the language's closed sets into the vocabulary
-    project_rust_vocabulary!      Project the vocabulary tables into the Rust kernel, one enum a table
-    project_refusal_wording!      Project the refusal template table, a second name of ProjectRustVocabulary
-    project_reserved_names!       Project the Rust and Cargo reserved words into the codegen and build crates
-    project_parser_table!         Project the Rust parser's keyword table
-    project_phrase_table!         Project the Rust parser's sentence table from the Sentence bluebook's phrase rows
-    project_bootstrap_table!      Project the DSL's bootstrap-window fallbacks from the keyword rows
-    project_field_hints!          Project the host's form-field hints
-    project_expression_tables!    Project the expression machinery's operator and normalisation tables
-    project_reference!            Regenerate the DSL reference from the Syntax bluebook, keeping the committed prose
-    propose!                      Enter a keyword row, proposed: it reaches no projection until admitted
-    admit!                        Move a proposed keyword row to admitted
-    deprecate!                    Move an admitted keyword row to deprecated
-    retire!                       Move a deprecated or admitted keyword row to retired
-    rename!                       Respell a keyword row; the old spelling keeps parsing
-    propose_argument!             Enter an argument row of a keyword, proposed
-    admit_argument!               Move a proposed argument row to admitted
-    deprecate_argument!           Move an admitted argument row to deprecated
-    retire_argument!              Move a deprecated or admitted argument row to retired
+    …
+    project_model!
+    project_vocabulary!
+    project_rust_vocabulary!
+    project_refusal_wording!
+    project_reserved_names!
+    project_parser_table!
+    project_phrase_table!
+    project_bootstrap_table!
+    project_field_hints!
+    project_expression_tables!
+    project_reference!
+    propose!
+    admit!
+    deprecate!
+    retire!
+    rename!
+    propose_argument!
+    admit_argument!
+    deprecate_argument!
+    retire_argument!
   CodemodRun:
-    One rewrite of the example bluebooks by a codemod, or the rehearsal of it.
-    hoist_local_givens!           Hoist a given that several commands of one owner repeat into one owner-level given
-    drop_implicit_append_fields!  Drop an attribute line that only repeats what an append target element declares
-    move_former_name!             Move an aggregate's formerly_known_as out of the bluebook into the world's stored_as
+    …
+    hoist_local_givens!
+    drop_implicit_append_fields!
+    move_former_name!
   ScriptRun:
-    One named one-off script the checkout runs, planned or applied; the body is a tool.
-    plan_script!                  Show what a named one-off script would change, writing nothing
-    apply_script!                 Carry out a named one-off script's changes, only when confirmed
+    …
+    plan_script!
+    apply_script!
   GithubWebhook:
-    One listener for GitHub's signed webhook deliveries on a local port of its own, until it is stopped.
-    serve!                        Listen on 127.0.0.1 for GitHub's signed webhook deliveries until stopped, recording each one the pipeline follows
+    …
+    serve!
   LedgerFile:
-    The SQLite file the AgentRun records live in, and the request to give its free pages back.
-    reclaim!                      Give the free pages of the AgentRun file back with a VACUUM, only when the file is quiet
+    …
+    reclaim!
   SchemaRevision:
-    One change to a domain's journal of eras, and how it ended: a store's upkeep.
-    hold_first!                   Hold the first era of a domain that holds none, as its first boot would
-    rename_domain!                Move a renamed domain's held eras and journal from its former name to its current name
-    merge_tail!                   Interleave the old world's writes since the cut into the live head, by their ordinals
-    reattest!                     Freeze an era's held text as it now stands, after a person has read it
-    backfill_projections!         Store the shape every held era froze with, for the eras that predate it
-    compact!                      Delete the journal entries a Postgres or Sqlite aggregate has already projected
-    compact_heki!                 Empty a Heki aggregate's journal, keeping the snapshot
-    write_translation!            Write the one translation edge that leads the latest held era to the current shape
-    reconcile!                    Write the translation edges that lead every domain's latest held era to its current shape
-    mint_held!                    Mint the Hecks domain's next era when its shape moved, before the push train writes
-    release_mint!                 Mint a domain's next era once for a release, and move the shape ledger to the released shapes
+    …
+    hold_first!
+    rename_domain!
+    merge_tail!
+    reattest!
+    backfill_projections!
+    compact!
+    compact_heki!
+    write_translation!
+    reconcile!
+    mint_held!
+    release_mint!
   RehearsalRun:
-    One rehearsal of a domain's next era against a copy of its data: what a mint would do, and what it would refuse.
-    request!                      Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome
+    …
+    request!
   Operation:
-    One thing an operator ran against a domain, and how it ended.
-    run!                          Dispatch a verb or a step list against a domain and keep what it reported
-    refresh_projections!          Bring every read-model projection of a domain up to date now
-    redrive_outbox!               Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled
-    abandon_outbox_row!           Settle one stalled outbox row as failed without running it: subject.value is the domain, row.value its delivery id or uuid
-    run_behaviors!                Run a domain's behavior tests and keep the verdict
-    open_console!                 Open an interactive console on a domain (also: console!)
-    smoke_test!                   Dispatch one synthesized call per command and report of a wired domain
-    smoke_http!                   Check that a running service refuses bad signatures and accepts a good one
-    bootstrap_admin!              Admit the first administrator of a domain's membership bluebook and grant them access
+    …
+    run!
+    refresh_projections!
+    redrive_outbox!
+    abandon_outbox_row!
+    run_behaviors!
+    open_console!
+    smoke_test!
+    smoke_http!
+    bootstrap_admin!
   Host:
-    A running rust/host, and the version and era it last reported.
-    check_era!                    Ask a running host which era it reports, and keep whether it is one that should be running
-    recheck!                      Ask a host already checked which era it reports now
+    …
+    check_era!
+    recheck!
   QaQuiesce:
-    One hold or release of the QA quiet marker: held, released, or refused.
-    hold!                         Quiet QA for a mint window: every tick step refuses to start while the marker is fresh
-    release!                      End a mint window: remove the QA quiet marker, which another owner's marker survives without force
+    …
+    hold!
+    release!
   RedFlag:
-    One request against main's red flag: raised, noted, checked in to, lowered, or refused.
-    check_in!                     Say who is helping with the red flag and what they take (a red-* Work item or a cause), so nobody fixes the same thing twice
-    sync!                         Read main's newest CI run on GitHub and raise or lower the red flag to match it
+    …
+    check_in!
+    sync!
   PushRehearsal:
-    One dry run of the push against local main: green or red per stage, or refused when it could not run.
-    rehearse!                     Run the push's stages against local main without pushing, and say pass or fail for each
+    …
+    rehearse!
   PublishingRun:
-    One release of the gem, or the rehearsal of it: judged by the facts, then carried out.
-    publish!                      Tag the merged release commit, publish the gem, and get the client package published
-    publish_gem!                  Build the gem and push it to the gem registry, with the key the vault holds
+    …
+    publish!
+    publish_gem!
   PromotionRun:
-    One move of a lane onto a commit, or the rehearsal of it: judged by the facts, then carried out.
-    watch!                        Fault when a lane has stood behind the lane it follows for longer than its Lane row allows
-    promote!                      Move a lane onto a commit that has passed every required check, or with no --confirm rehearse the move
+    …
+    watch!
+    promote!
   Registry:
-    A bluebook registry repository: packages versioned in it and released as tags.
-    release!                      Tag a package of this registry at the version its bluebook.yml carries (also: package.release!)
+    …
+    release!
   Package:
-    One package of the bluebook registry, vendored into a project and pinned.
-    vendor!                       Pin a package of the bluebook registry into this project, at a release or a commit
-    revendor!                     Pin a package that was vendored before again, for the newest release or the same one
+    …
+    vendor!
+    revendor!
   Server:
-    One server opened on a checkout, until it is stopped.
-    present!                      Serve the banking example's rendered forms and views on a local port until stopped
-    compose!                      Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped
-    preview!                      Serve one directory of static files, such as a website, on a local port until stopped
-    serve_query_ir_mcp!           Serve the IR queries to an MCP client over stdio until it closes
-    serve_mcp!                    Serve the storehouse bus to an MCP client over stdio until it closes (also: mcp!)
+    …
+    present!
+    compose!
+    preview!
+    serve_query_ir_mcp!
+    serve_mcp!
   Board:
-    One pipeline board served from the Hecks registry, until it is stopped.
-    serve!                        Show the pipeline board on 127.0.0.1 until stopped, with every bluebook attached to Hecks on its wiring page
+    …
+    serve!
   Launch:
-    A way into the framework opened for a project: its launchers, or an MCP server.
-    project_cli!                  Write a command-line launcher beside each domain of this project
-    init!                         Write the stub files of a new domain
-    project_rails!                Write the controllers and routes a Rails app drives its domain through
-    interview!                    Hold an interview with a subject matter expert and draft a first domain from it
+    …
+    project_cli!
+    init!
+    project_rails!
+    interview!
   TestSuiteRun:
-    One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
-    run_spec_example!             Run one spec file filtered to one example, through the test runner in this process
-    run_spec_files!               Run several spec files in one launcher boot, each in a new process or all in one, and report each file
-    run_impacted_specs!           Map the branch's changed files to the specs they touch and run them, or list them when dry
-    run_suite!                    Run every spec of a folder through the test runner in this process
-    run_changed!                  Run the specs that the files changed since a git ref map to, in a folder
-    stress_concurrency!           Rerun the thread-safety specs under many seeds, several processes at a time
-    run_cargo_tests!              Run the cargo tests of the host, the parser or the JSON fuzzer, with the seed counts their fuzzers take
-    clear_caches!                 Delete the on-disk syntax-boot and verdict caches, so the next boot builds and judges afresh
-    regenerate_legacy_fixtures!   Regenerate the persistence legacy fixtures through the real adapters
-    rewrite_ir_golden!            Rewrite the frozen IR of the language bluebooks that spec/ir_golden_spec.rb pins, once their source moved
-    seed_semantics_corpus!        Fill the expected outcome of every semantics fixture that lacks one, or re-seed one
-    write_io_parallel_spec_list!  Write the committed list of the spec files a tag filter selects
+    …
+    run_spec_example!
+    run_spec_files!
+    run_impacted_specs!
+    run_suite!
+    run_changed!
+    stress_concurrency!
+    run_cargo_tests!
+    clear_caches!
+    regenerate_legacy_fixtures!
+    rewrite_ir_golden!
+    seed_semantics_corpus!
+    write_io_parallel_spec_list!
   FuzzRun:
-    One fuzz sweep or benchmark, and how it ended; and the generated sequences it replays.
-    fuzz!                         Fuzz a domain with generated sequences and keep whether anything broke a property
-    mutate!                       Mutate a domain's rules and keep whether its checks noticed each change
-    bench!                        Measure command throughput and latency for each target, and keep the report
+    …
+    fuzz!
+    mutate!
+    bench!
   Dial:
-    One turn of a machine-local setting, turned or refused.
-    turn!                         Set one turnable setting of this machine to a value inside its bounds
+    …
+    turn!
 
 queries (nothing here changes anything):
   Build:
-    One build of a domain for the Rust host, or a check of that build against Ruby.
-    rust_coverage           Whether each construct of a generated module has a routed Rust implementation.
+    …
+    rust_coverage
   CorpusRun:
-    One look at the corpus and the language's IR, or one server opened on them.
-    rust_domains            The feature and directory of every domain with a Rust feature.
-    regen_order             The directories regeneration walks, in the order it walks them.
-    corpus_rust_coverage    Whether every generated Rust module is routed by its domain.
-    generated_key           The content hash of what regenerating the named domains reads: the generator and each domain's own sources.
-    ir_constructs           The structural diff of each IR construct from its meta-domain.
-    ir_duplicates           The rules declared more than once across the corpus.
-    ir_impact               Which propagation touchpoints of a construct's field already show it.
+    …
+    rust_domains
+    regen_order
+    corpus_rust_coverage
+    generated_key
+    ir_constructs
+    ir_duplicates
+    ir_impact
   StyleRun:
-    One check or fix of comment style, or one document written with its keys in order.
-    report_comments         The Ruby comment violations, as summary tables, a list or JSON.
-    report_rust_comments    The Rust comment violations, as summary tables, a list or JSON.
+    …
+    report_comments
+    report_rust_comments
   CiLook:
-    One look at the CI runs GitHub lists for main and for the train's pull requests, for what is not recorded yet: a run seen for the first time, and a run seen completed after it was seen going.
-    unrecorded              The CI runs GitHub lists for main and for the train's pull requests in a state no record holds yet: an attempt seen going for the first time, or seen completed, with its jobs.
+    …
+    unrecorded
   Dispatch:
-    One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
-    preview                 What a filling would start now and why each other waits, read without filling: the same report as `Fill`, with no record and no start.
+    …
+    preview
   Machine:
-    One reading of the machine, and the crossings of a mark that it heard.
-    busiest                 Which process classes use the CPU and whose child they are: each class's count, summed CPU percentage and the background session whose shell owns it, busiest first.
+    …
+    busiest
   SessionCleanup:
-    One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
-    removable               Every Claude session with whether it is safe to remove and, when not, why: no dispatched run holds it, its run is not finished done, it is not listed done, a person spoke in it, or its own worktree has uncommitted files or commits origin lacks.
+    …
+    removable
   AnswerDesk:
-    The seats of the orchestrator runs that answer questions, at most two taken at once.
-    desks                   The desk and how many of its seats are taken.
+    …
+    desks
   Workspace:
-    A look at how this copy of Hecks is set up: its settings, its stores and whether it can run here.
-    settings                What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
-    doctor                  Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
-    where                   Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
+    …
+    settings
+    doctor
+    where
   LandingPace:
-    A measure of the landings a ledger recorded: how many a day, and how long a change waited.
-    pace                    Landings per UTC day over the last days (14 unless given), the refusals, and the wait from ready to landed as median, 90th percentile and longest.
+    …
+    pace
   ReviewRequest:
-    One pull request opened or squash-merged on GitHub, and what GitHub answered.
-    status                  The state of one pull request on GitHub: its number, state, URL and checks, as text.
-    timeline                Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first.
+    …
+    status
+    timeline
   BoardingHold:
-    One hold of local main for a boarding: held, or refused.
-    status                  Whether local main is held for a boarding: the commit, owner, reason and age, or that the hold expired or is absent.
+    …
+    status
   LanguageRun:
-    One change to the language's own tables, or one reading of where its words stand.
-    word_status             Where every word of the language stands: the ones not simply admitted, and the renamed.
+    …
+    word_status
   SyntaxBootCache:
-    The grammar bluebooks' on-disk boot cache, keyed by a digest of the bluebooks it was built from.
-    stale                   Every cache whose grammar changed under it and is not yet rebuilt.
+    …
+    stale
   Codebase:
-    A read of the checkout's text files, answered without changing anything.
-    search                  The lines of the checkout's text files that match a pattern, as path:line: text.
-    read_source             The numbered lines of one file of the checkout, whole or from one line to another.
-    outline                 What a file declares, by line: each construct of a bluebook, each definition of Ruby.
-    declaration             Where a named construct is declared across the corpus, as path:from-to, with its text on request.
+    …
+    search
+    read_source
+    outline
+    declaration
   Index:
-    A full-text index over the records the repository keeps (work items, findings, decisions), answered without a model and without changing them.
-    find                    The best matches for some words among work items, findings and decisions, as kind, id and a one-line snippet, ten at most; a kind narrows it to one sort of record.
+    …
+    find
   GithubEvent:
-    One GitHub webhook delivery the pipeline follows: its kind and action, the pull request, head commit and branch, the conclusion or status, and the run or check name, when the payload has them.
-    since                   The GitHub deliveries recorded after a cursor, oldest first: pass the newest one's received stamp back as the next cursor, or 0 for every one.
+    …
+    since
   SchemaRevision:
-    One change to a domain's journal of eras, and how it ended: a store's upkeep.
-    scaffold_translation    The edge file that would lead the latest held era to the current shape.
-    audit_translation       The audit of the edge that leads the latest held era to the current shape.
-    compose_translation     The one edge write_translation would write, and the stale edges it would delete.
-    reconcile_plan          The dry run of SchemaRevision.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
-    attestation             An era's held text as it now stands, and whether it still matches its digest.
-    compaction              What compacting the domain's journals would delete, without deleting it.
-    boot_status             The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.
-    boot_resolution         What a boot would resolve for each bluebook under a domain directory, from its own database: status, held label, current label, ordinal and reason.
-    sqlite_status           The SQLite databases a domain's worlds name, read-only: per aggregate table the columns the aggregate declares and the table lacks (added on the next open), the columns it keeps that the aggregate no longer declares, and the tables no aggregate maps to.
-    event_trace             Per recorded event: the policies that listen to it and what became of each delivery (delivered, refused with its reason, pending, claimed, failed, or no record), the events nobody listens to, and the policies whose event never occurred.
-    projection_audit        Every era of each bluebook under a domain directory whose stored hash is not the hash of its stored projection: domain, ordinal, stored hash and recomputed hash.
-    mint_plan               Runs every guard a mint runs against the live store, read-only and in seconds: the era resolution and decision, the edge checks, the coverage check, the translation audit (Ruby only; parity needs the full rehearsal), the watermark rule, the world's flags and markers, and the freshness of a rehearsal ref when one is passed.
+    …
+    scaffold_translation
+    audit_translation
+    compose_translation
+    reconcile_plan
+    attestation
+    compaction
+    boot_status
+    boot_resolution
+    sqlite_status
+    event_trace
+    projection_audit
+    mint_plan
   Seal:
-    The head a domain's journal chain had when the rows before it were compacted away.
-    latest                  The newest seal a domain holds.
+    …
+    latest
   Operation:
-    One thing an operator ran against a domain, and how it ended.
-    follow                  A domain's persisted event log past a cursor, for tailing it call by call.
-    feed                    The event tap past a sequence number, filtered by aggregate and event name.
+    …
+    follow
+    feed
   Introspection:
-    A look at a booted domain, answered by the runtime without changing anything.
-    ir                      The IR a domain's boot produces, as JSON: what golden specs pin and an era hashes.
-    shape                   The storage shape an era's label is minted from: a bluebook file or a directory of them.
-    stores                  Every aggregate's current records, or one aggregate's, or one record: the head, not the journal.
-    history                 Every journal entry a domain's append-only adapters hold: the whole write history.
-    statements              A bluebook's declared facts, as plain English sentences.
-    undo                    The command that undoes a declared command, from the bluebook's compensations, or that none is declared.
-    narrate                 A domain read back in English, whole or for one aggregate.
-    relationships           How the contexts a domain holds depend on each other: shared kernel, customer/supplier, anti-corruption layer, subscription.
-    context_map             A domain's declared context map drawn as a Mermaid diagram beside its wiring, with what holding the wiring to the map finds.
-    world_skeleton          A starting .world for a domain: the settings and secrets its bound adapters declare, with no secret's value.
-    docs                    A domain's usage document, whole or for one aggregate.
-    project_diagrams        A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written.
-    glossary                A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written.
+    …
+    ir
+    shape
+    stores
+    history
+    statements
+    undo
+    narrate
+    relationships
+    context_map
+    world_skeleton
+    docs
+    project_diagrams
+    glossary
   QaQuiesce:
-    One hold or release of the QA quiet marker: held, released, or refused.
-    status                  Whether QA is quiesced: the marker's owner, reason and age, or that it is stale or absent.
+    …
+    status
   RedFlag:
-    One request against main's red flag: raised, noted, checked in to, lowered, or refused.
-    status                  Whether main is flagged: the flag, its commit, red time, failed jobs and who is helping.
+    …
+    status
   PushRehearsal:
-    One dry run of the push against local main: green or red per stage, or refused when it could not run.
-    due                     Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last quick rehearsal's result.
+    …
+    due
   Release:
-    One gem version: the record of what is running and what was shipped.
-    shipped                 Every version that was tagged, published and verified.
+    …
+    shipped
   Registry:
-    A bluebook registry repository: packages versioned in it and released as tags.
-    check                   Judge every package against its latest release: a changed package needs a newer version and a changelog entry. (also: package.check)
-    digest                  Print a package's content digest and shape labels, as its bluebook.lock records them. (also: package.digest)
+    …
+    check
+    digest
   Package:
-    One package of the bluebook registry, vendored into a project and pinned.
-    verify                  Check every vendored package against its bluebook.lock, then describe them as the manifest a client image carries.
+    …
+    verify
   StallWatch:
-    One look at the event tap for opening events whose closing event has not come.
-    unclosed                The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited.
-    impediments             Every opening line of every stall kind still open past its kind's minutes and within its window, filed or not: its run not ended, its subject not settled, its closing line not come.
-    abandoned               The filed stalls, opened within their kind's window, whose run has ended or whose subject has settled since they opened and which no look has closed yet, each with the ending or settling line as its reason; a filed stall whose line has closed is one too.
+    …
+    unclosed
+    impediments
+    abandoned
   TestSuiteRun:
-    One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
-    shard_specs             The spec files one group of a runtime-balanced split runs.
-    list_io_parallel_specs  The spec files with an example a tag filter selects.
-    record_pattern_cases    The expected match results of the pattern cases, as JSON.
+    …
+    shard_specs
+    list_io_parallel_specs
+    record_pattern_cases
   FuzzRun:
-    One fuzz sweep or benchmark, and how it ended; and the generated sequences it replays.
-    generate_sequence       One generated, valid dispatch sequence for a domain, as a script `hecks run` replays.
-    promotion_lag           How many promotion runs faulted after standing behind, for each lane.
-    releases_by_state       How many releases stand in each state.
+    …
+    generate_sequence
+    promotion_lag
+    releases_by_state
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery         Take finished work onto local main.
-  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
-  governance       Organizational authority is explicit, reviewable, and historically explainable.
-  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
-  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
-  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
-  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
-  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
-  bluebook         The bluebook language, declared in itself.
+  delivery
+  deploy
+  governance
+  tenancy
+  site
+  tickets
+  composer
+  quality_control
+  bluebook
   hecksagon
   world
-  adapter          The .adapter language, declared in itself.
-  port             The .port language, declared in itself.
+  adapter
+  port
   translation
-  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+  expression
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the internal commands and queries

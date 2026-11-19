@@ -1,89 +1,89 @@
-deliver — Take finished work into the shared line.
+deliver —
 
   hecks <Aggregate.command>! [name=value …]    do something
   hecks <Aggregate.query> [name=value …]       read something
 
 everyday:
-  Shipment.ship!    Start the gate-and-board saga for a branch: ask its checkout's gate,…
-  SendTrain.board!  Push this checkout's branch once the push ahead of it lands, unless…
+  Shipment.ship!
+  SendTrain.board!
 
 commands:
   Restoration:
-    The changed files of a checkout that already match origin/main, restored, or declined with the reason.
-    make!        Restore each changed file of a checkout that already matches origin/main, and leave every other file alone
+    …
+    make!
   ShallowCheck:
-    CI's failing checks run in a depth-1 clone of a branch: passed or skipped, or refused with the spec and its first failure line.
-    run!         Run CI's failing checks in a depth-1 clone of a branch when it changes something they read, refusing with the spec and its first failure line
-    switch!      Turn the shallow check on or off for the whole repository
+    …
+    run!
+    switch!
   EarlyCi:
-    One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head.
-    request!     Ask CI to check a coder's branch at its head, pushed as ci/<branch>, before the coder hands it off
-    retry!       Ask CI again for the branch at its new head, after a red run or a run that could not be read
+    …
+    request!
+    retry!
   SendTrain:
-    One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
-    board!       Push this checkout's branch once the push ahead of it lands, unless that push already carried it
-    survey!      List every checkout under a directory whose branch has commits its remote does not
-    watch!       Look at each queued boarding's pull request, and record any that merged or ended with failed checks
+    …
+    board!
+    survey!
+    watch!
   PushOutcome:
-    How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
-    record!      Record how one boarding of the push train ended, in the checkout that boarded it
+    …
+    record!
   Shipment:
-    One request to gate, land and board a branch: the gate-and-board saga starts on it.
-    ship!        Start the gate-and-board saga for a branch: ask its checkout's gate, land on main, board the push train
-    rejudge!     Ask the checkout's gate to judge a shipment again, after a gate that refused it
+    …
+    ship!
+    rejudge!
   Integration:
-    One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended.
-    advance!     Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one
-    schedule!    Ask for the launchd job that beats the clock once a minute to be written and loaded; unconfirmed, it says what it would write
-    unschedule!  Ask for the launchd job that beats the clock to be unloaded and removed; unconfirmed, it says what it would remove
-    verify!      Verify a landed commit in a clean detached copy of local main: the quick gate, the specs its changes touch, the command names, the CI pipeline and the generated corpus
-    board!       Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval
-    observe!     Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running
+    …
+    advance!
+    schedule!
+    unschedule!
+    verify!
+    board!
+    observe!
   ReviewRequest:
-    One pull request opened or squash-merged on GitHub, and what GitHub answered.
-    open!        Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
-    take!        Squash-merge an open pull request by its number; never with an admin override
-    edit!        Edit the title or body of an open pull request by its number; never its branch, merge or state
+    …
+    open!
+    take!
+    edit!
   BoardingHold:
-    One hold of local main for a boarding: held, or refused.
-    hold!        Hold local main for the boarding of the commit it names now: landings onto main are refused until a release or the window ends
+    …
+    hold!
   BoardingRelease:
-    One lifting of the hold on local main: released, or refused.
-    release!     Lift the hold on local main, whoever took it; a lift with nothing held is a no-op
+    …
+    release!
 
 queries (nothing here changes anything):
   Workspace:
-    A look at how this copy of Hecks is set up: its settings, its stores and whether it can run here.
-    settings  What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
-    doctor    Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
-    where     Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
+    …
+    settings
+    doctor
+    where
   LandingPace:
-    A measure of the landings a ledger recorded: how many a day, and how long a change waited.
-    pace      Landings per UTC day over the last days (14 unless given), the refusals, and the wait from ready to landed as median, 90th percentile and longest.
+    …
+    pace
   ReviewRequest:
-    One pull request opened or squash-merged on GitHub, and what GitHub answered.
-    status    The state of one pull request on GitHub: its number, state, URL and checks, as text.
-    timeline  Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first.
+    …
+    status
+    timeline
   BoardingHold:
-    One hold of local main for a boarding: held, or refused.
-    status    Whether local main is held for a boarding: the commit, owner, reason and age, or that the hold expired or is absent.
+    …
+    status
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery         Take finished work onto local main.
-  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
-  governance       Organizational authority is explicit, reviewable, and historically explainable.
-  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
-  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
-  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
-  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
-  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
-  bluebook         The bluebook language, declared in itself.
+  delivery
+  deploy
+  governance
+  tenancy
+  site
+  tickets
+  composer
+  quality_control
+  bluebook
   hecksagon
   world
-  adapter          The .adapter language, declared in itself.
-  port             The .port language, declared in itself.
+  adapter
+  port
   translation
-  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+  expression
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the internal commands and queries
