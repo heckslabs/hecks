@@ -7,7 +7,9 @@ require "hecks/hecks/adapters/bounded_capture"
 # where it is (as spec_progress.rb does for an example) and then sleeps past the bound.
 RSpec.describe Hecks::Adapters::BoundedCapture do
   let(:dir) { Dir.mktmpdir("bounded-capture") }
-  let(:capture) { described_class.new(seconds: 1, setting: "spec_bounds.file_seconds") }
+  # The bound for a program that ends by itself. It counts from the spawn too, so it leaves a
+  # loaded shard's ruby the same room to boot as the hanging program's.
+  let(:capture) { described_class.new(seconds: 3, setting: "spec_bounds.file_seconds") }
 
   # The bound for the fake program that hangs. It counts from the spawn, so on a loaded shard a
   # 1-second bound can pass before ruby has booted, written its pid file and printed "started";
