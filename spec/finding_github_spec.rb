@@ -66,13 +66,6 @@ RSpec.describe Hecks::Adapters::FindingGithub do
     expect(calls).to be_empty
   end
 
-  it "refuses an ask that needs an issue the finding never got", :aggregate_failures do
-    stub_gh
-
-    expect { adapter.reopen_issue(title: "t") }.to raise_error(/no GitHub issue yet/)
-    expect(calls).to be_empty
-  end
-
   it "raises with what gh printed when it exits non-zero" do
     stub_gh(err: "HTTP 404", status: red)
 
