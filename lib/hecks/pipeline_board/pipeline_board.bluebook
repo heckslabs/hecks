@@ -252,6 +252,22 @@ Hecks.bluebook "PipelineBoard" do
       member name: "integration_runs_shown",  value: 8
     end
 
+    # A project that keeps a board of its own: its name, and its checkout, a directory beside the
+    # Hecks checkout. Where the project's Tickets store is kept is named only by that checkout's
+    # own local world, which the board reads and never boots. The row with no checkout is the
+    # board's own project, the one `/plan` shows; `/plan/<name>` shows another's.
+    value_object "ProjectBoard" do
+      attribute :name,     String
+      attribute :checkout, String
+
+      member name: "Hecks",       checkout: ""
+      member name: "Shorts",      checkout: "shorts"
+      member name: "MietteTools", checkout: "miette_tools"
+      member name: "Miette2",     checkout: "miette2"
+      member name: "Aayss",       checkout: "aayss"
+      member name: "Library",     checkout: "embryonaut_library"
+    end
+
     # A tile the board pushes as HTML, and the aggregates it reads. A journal line carries the
     # aggregate of its event, so any event of a read aggregate makes the server recompute the tile,
     # and a changed render is pushed. A tile names no event: a new event of a read aggregate needs
@@ -489,6 +505,12 @@ Hecks.bluebook "PipelineBoard" do
 
     query "OpenWork" do
       description "The Work items that are not done: slug, status and area."
+      returns Document
+    end
+
+    query "ProjectWork" do
+      description "A project's epics and undone Work items, read from its own Tickets store without booting the project: `undone` by the rule of the Tickets bluebook's `Work.Undone`. A name no ProjectBoard row holds, or a store that cannot be found or read, answers `unknown: <reason>`."
+      attribute :project, String
       returns Document
     end
 

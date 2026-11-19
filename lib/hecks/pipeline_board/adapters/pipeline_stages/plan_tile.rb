@@ -16,6 +16,14 @@ module Hecks
         # @return [Hash] the planning page's reading, or `{unknown: reason}`
         def plan_tile = guard { plan_reading }
 
+        # Another project's planning tile: its epics and undone items, read from its own store.
+        # The sessions, the fill, the plan reviews and the train are the board's own project's,
+        # so none is shown beside another's work.
+        #
+        # @param name [String] a `ProjectBoard` name
+        # @return [Hash] the reading, or `{unknown: reason}`
+        def project_plan_tile(name) = guard { project_plan_reading(name) }
+
         # The plan's counts as the Tickets events keep them: no Work item is read to answer it.
         #
         # @param running [Array<String>] the slugs of Work items a session runs
@@ -50,6 +58,14 @@ module Hecks
           PipelineBoard::PlanReading.build(items: items, epics: @tickets.epics, sessions: plan_sessions(items),
                                            reviews: plan_reviews(items), fill: plan_fill, train: train_tile, now: @now.call,
                                            flow: guard { @tickets.work_times })
+        end
+
+        def project_plan_reading(name)
+          read = JSON.parse(@tickets.project_work(project: name)[:text], symbolize_names: true)
+          return read if read.key?(:unknown)
+
+          PipelineBoard::PlanReading.build(items: read[:items], epics: read[:epics], sessions: [], reviews: [],
+                                           fill: { would_start: [], skipped: [] }, train: nil, now: @now.call, flow: nil)
         end
 
         def plan_sessions(items)
