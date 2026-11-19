@@ -111,6 +111,22 @@ RSpec.describe "the orchestrator routing guard" do
     end
   end
 
+  # Quoted text is literal to the shell, so it is not chaining; this reaches git and gh reads too,
+  # where the rows still decide.
+  describe "a listed verb whose quoted argument holds a shell character" do
+    ['"answer.value=Take it; no push | < > & done."', "'answer.value=a; $(b)'", '"answer.value=say \"x\"; go"'].each do |arg|
+      it "allows #{arg}" do
+        expect(verdict("exe/hecks AgentRun.answer! to=x #{arg} --wait")).to eq(text: "allowed")
+      end
+    end
+
+    ['"a $(rm x)"', '"a `rm x`"', 'x\" ; rm x ; "', "x\\' ; rm x ; '", '"a; b', "x; y"].each do |arg|
+      it "refuses #{arg}" do
+        expect(refusal("exe/hecks AgentRun.answer! to=x #{arg}")).to include("Refused:")
+      end
+    end
+  end
+
   describe "a read-only git or gh call" do
     %w[status log diff].each do |verb|
       it "allows git #{verb}" do
