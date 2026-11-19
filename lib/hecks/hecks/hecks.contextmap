@@ -46,6 +46,8 @@ Hecks.context_map "Hecks" do
   relate "Agents"   => "Hecks", as: :shared_kernel, accepted_findings: { context_cycle: "stood before context cycles were refused" }
   relate "Coder"    => "Agents", as: :anti_corruption_layer
   relate "Pipeline" => "Agents", as: :anti_corruption_layer
+  # Agents' hecksagon asks the architect when a decision is recorded, from the Tickets events.
+  relate "Tickets"  => "Agents", as: :anti_corruption_layer
 
   # Coder's hecksagon translates the Hecks domain's `JobRead` of a finished coder run into its own
   # `Submission.Submit`, so Hecks' AgentRun model stays out of Coder's. Hecks attaches Coder as well,
