@@ -3136,10 +3136,9 @@ Hecks.bluebook "Hecks" do
                                "End your turn with the word answered or escalated." }
       end
 
-      # An answerer that blocks cannot answer from the ledger, the code or a standing rule, and a
-      # clear no is an answer: its run ends `abandoned` at the first blocked read after its start
-      # was read, one already blocked too, the question it waited on kept as the detail, so it never
-      # holds a session or a seat while it waits. It fires once: `Check` reads only a started run.
+      # A blocked answerer cannot answer, and a clear no is an answer: it ends `abandoned` at its
+      # first blocked read after its start was read, its question kept as the detail, so it never
+      # holds a session or a seat while it waits.
       policy "EndTheAnswererThatCannotAnswer" do
         on      "AgentRun.JobRead"
         root
