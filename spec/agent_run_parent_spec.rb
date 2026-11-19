@@ -54,4 +54,10 @@ RSpec.describe "an AgentRun's parent run" do
            "clean.value=true", "--wait")
     expect(running("abc7001")).to include("parent" => "p-branch")
   end
+
+  it "starts a submission's reviewer run with no parent when the submission names an empty Work item" do
+    launch("agents", "SubmissionReview.request!", "submission.value=abc7002", "work.value=", "hops.value=1",
+           "role.value=reviewer", "repo.value=#{scratch}", "brief.value=judge abc7002", "--wait")
+    expect(running("abc7002")).to include("run" => "abc7002").and(satisfy { |row| row["parent"].nil? })
+  end
 end
