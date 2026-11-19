@@ -2213,6 +2213,18 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         disambiguator: "",
     },
     KeywordSeed {
+        word: "creates_or_acts",
+        context: "Command",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "creates_or_acts",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordSeed {
         word: "reference_to",
         context: "Command",
         body: "none",
@@ -2518,6 +2530,7 @@ impl KeywordSeed {
                     "idempotent",
                     "mints_era",
                     "policy_only",
+                    "creates_or_acts",
                     "reference_to",
                     "given",
                     "sets",
@@ -3629,6 +3642,7 @@ pub struct Command {
     pub idempotent: Option<CommandText>,
     pub mints_era: Option<CommandText>,
     pub policy_only: Option<CommandText>,
+    pub creates_or_acts: Option<CommandText>,
     pub from: Option<CommandText>,
     pub position: Option<Position>,
 }
@@ -3692,6 +3706,11 @@ impl crate::kernel::Fielded for Command {
                 .or(Some(Field::Value(Value::Nil))),
             "policy_only" => self
                 .policy_only
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
+            "creates_or_acts" => self
+                .creates_or_acts
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
@@ -3830,6 +3849,12 @@ impl Command {
                     .map_or(crate::kernel::Json::Null, |v| v.to_json()),
             ),
             (
+                "creates_or_acts".to_string(),
+                self.creates_or_acts
+                    .as_ref()
+                    .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+            ),
+            (
                 "from".to_string(),
                 self.from
                     .as_ref()
@@ -3960,6 +3985,10 @@ impl Command {
                 Some(&crate::kernel::Json::Null) | None => None,
                 Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?),
             },
+            creates_or_acts: match v.get("creates_or_acts") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?),
+            },
             from: match v.get("from") {
                 Some(&crate::kernel::Json::Null) | None => None,
                 Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?),
@@ -4059,6 +4088,11 @@ impl crate::kernel::Fielded for DeclareArgs {
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
+            "creates_or_acts" => self
+                .creates_or_acts
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
             "from" => self
                 .from
                 .as_ref()
@@ -4097,6 +4131,7 @@ pub struct DeclareArgs {
     pub idempotent: Option<CommandText>,
     pub mints_era: Option<CommandText>,
     pub policy_only: Option<CommandText>,
+    pub creates_or_acts: Option<CommandText>,
     pub from: Option<CommandText>,
     pub position: Option<Position>,
 }
@@ -4128,6 +4163,9 @@ pub fn dispatch_declare(
         v.check_invariants()?;
     }
     if let Some(v) = &args.policy_only {
+        v.check_invariants()?;
+    }
+    if let Some(v) = &args.creates_or_acts {
         v.check_invariants()?;
     }
     if let Some(v) = &args.from {
@@ -4178,6 +4216,7 @@ pub fn dispatch_declare(
                         idempotent: args.idempotent.clone(),
                         mints_era: args.mints_era.clone(),
                         policy_only: args.policy_only.clone(),
+                        creates_or_acts: args.creates_or_acts.clone(),
                         from: args.from.clone(),
                         position: args.position.clone(),
                     }),
@@ -4207,6 +4246,7 @@ pub fn dispatch_declare(
                         idempotent: args.idempotent.clone(),
                         mints_era: args.mints_era.clone(),
                         policy_only: args.policy_only.clone(),
+                        creates_or_acts: args.creates_or_acts.clone(),
                         from: args.from.clone(),
                         position: args.position.clone(),
                     }),
@@ -4231,6 +4271,7 @@ pub fn dispatch_declare(
             record.idempotent = args.idempotent.clone();
             record.mints_era = args.mints_era.clone();
             record.policy_only = args.policy_only.clone();
+            record.creates_or_acts = args.creates_or_acts.clone();
             record.from = args.from.clone();
             record.position = args.position.clone();
             Ok(())
@@ -4299,6 +4340,12 @@ impl DeclareArgs {
                         .map_or(crate::kernel::Json::Null, |v| v.to_json()),
                 ),
                 (
+                    "creates_or_acts".to_string(),
+                    self.creates_or_acts
+                        .as_ref()
+                        .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+                ),
+                (
                     "from".to_string(),
                     self.from
                         .as_ref()
@@ -4336,6 +4383,7 @@ impl DeclareArgs {
             "idempotent",
             "mints_era",
             "policy_only",
+            "creates_or_acts",
             "from",
             "position",
             "id",
@@ -4357,6 +4405,7 @@ impl DeclareArgs {
                         "idempotent",
                         "mints_era",
                         "policy_only",
+                        "creates_or_acts",
                         "from",
                         "position",
                     ],
@@ -4385,6 +4434,7 @@ impl DeclareArgs {
                         "idempotent",
                         "mints_era",
                         "policy_only",
+                        "creates_or_acts",
                         "from",
                         "position",
                     ],
@@ -4486,6 +4536,13 @@ impl DeclareArgs {
         if let Some(v) = &policy_only {
             v.check_invariants()?;
         }
+        let creates_or_acts = match v.get("creates_or_acts") {
+            Some(crate::kernel::Json::Null) | None => None,
+            Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?),
+        };
+        if let Some(v) = &creates_or_acts {
+            v.check_invariants()?;
+        }
         let from = match v.get("from") {
             Some(crate::kernel::Json::Null) | None => None,
             Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?),
@@ -4510,6 +4567,7 @@ impl DeclareArgs {
             idempotent,
             mints_era,
             policy_only,
+            creates_or_acts,
             from,
             position,
         })
@@ -4538,6 +4596,7 @@ impl DeclareArgs {
             "idempotent",
             "mints_era",
             "policy_only",
+            "creates_or_acts",
             "from",
             "position",
             "id",
@@ -4560,6 +4619,7 @@ impl DeclareArgs {
                             "idempotent",
                             "mints_era",
                             "policy_only",
+                            "creates_or_acts",
                             "from",
                             "position",
                         ],
@@ -4594,6 +4654,7 @@ impl DeclareArgs {
                             "idempotent",
                             "mints_era",
                             "policy_only",
+                            "creates_or_acts",
                             "from",
                             "position",
                         ],
@@ -7211,5 +7272,5 @@ impl NeedArgs {
 /// This aggregate's state, or one of its events' payloads, as a caller is answered with
 /// it: each single-field value object as its bare field (the shape a command takes it in).
 pub fn present(state: crate::kernel::Json) -> crate::kernel::Json {
-    match state { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "aggregate" => v, "entity_id" => v, "name" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "role" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "roles" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "audience" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "goal" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "emits" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "references" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "attributes" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "name" => v, "type" => v, "list" => v, "optional" => v, "pattern" => v, "default" => v, "admits" => v, "relationship" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "givens" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "description" => v, "canonical" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "ensures" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "description" => v, "canonical" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "needs" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "fact").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "mutations" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "target" => v, "op" => v, "field" => v, "kind" => v, "source" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "provenance" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "idempotent" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "mints_era" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "policy_only" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "from" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "position" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "type" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "list" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "optional" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pattern" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "default" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "admits" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "relationship" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "points_at" => v, "description" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "canonical" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "target" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "op" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "field" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "kind" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "source" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "root" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "announces" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "allowed" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "addressed" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "fact" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }
+    match state { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "aggregate" => v, "entity_id" => v, "name" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "role" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "roles" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "audience" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "goal" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "emits" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "references" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "attributes" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "name" => v, "type" => v, "list" => v, "optional" => v, "pattern" => v, "default" => v, "admits" => v, "relationship" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "givens" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "description" => v, "canonical" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "ensures" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "description" => v, "canonical" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "needs" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "fact").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "mutations" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "target" => v, "op" => v, "field" => v, "kind" => v, "source" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "provenance" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "idempotent" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "mints_era" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "policy_only" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "creates_or_acts" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "from" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "position" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "type" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "list" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "optional" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pattern" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "default" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "admits" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "relationship" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "points_at" => v, "description" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "canonical" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "target" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "op" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "field" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "kind" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "source" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "root" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "announces" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "allowed" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "addressed" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "fact" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }
 }

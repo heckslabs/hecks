@@ -69,6 +69,9 @@ module Hecks
         # `policy_only` is held as text like `idempotent`, and emitted as a boolean.
         def policy_only?(row) = text(row[:policy_only]).to_s == "true"
 
+        # `creates_or_acts` is held as text like `policy_only`, and emitted as a boolean.
+        def creates_or_acts?(row) = text(row[:creates_or_acts]).to_s == "true"
+
         # Kept as raw text, not decoded: this feeds `Assembly::Marks#where_clause`,
         # which decodes it via `read` — decoding here first would strip a kwarg
         # reference's colon, indistinguishable after from a same-named literal.

@@ -164,6 +164,10 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "reads it until the dispatch check of role-refuse-unstated does, so no fuzzed " \
                                            "sequence can reach what it changes. spec/role_unstated_vocabulary_spec.rb and " \
                                            "spec/parser_parity_spec.rb hold its declaration and parse",
+    "Command#creates_or_acts"           => "a creating command that acts on the record its identity already names; " \
+                                           "the fuzzer draws fresh identities, so no fuzzed sequence reaches the act " \
+                                           "half. spec/creates_or_acts_spec.rb holds both halves and Build." \
+                                           "check_conformance compares them",
     "Policy#acts_as"                    => "the role a reaction dispatches its trigger as (ADR 0216); nothing reads it " \
                                            "until the dispatch check of role-refuse-unstated does. spec/" \
                                            "role_unstated_vocabulary_spec.rb, spec/model_check_acts_as_spec.rb and " \

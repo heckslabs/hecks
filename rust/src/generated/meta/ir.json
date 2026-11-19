@@ -7521,6 +7521,16 @@
           "relationship": null
         },
         {
+          "name": "creates_or_acts",
+          "type": "CommandText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "from",
           "type": "CommandText",
           "list": false,
@@ -8473,6 +8483,36 @@
               [
                 "calls",
                 "policy_only_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "creates_or_acts"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "creates_or_acts"
+              ],
+              [
+                "calls",
+                "creates_or_acts_impl"
               ]
             ],
             [
@@ -10489,6 +10529,16 @@
               "relationship": null
             },
             {
+              "name": "creates_or_acts",
+              "type": "CommandText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "from",
               "type": "CommandText",
               "list": false,
@@ -10598,6 +10648,15 @@
               "source": {
                 "kind": "argument",
                 "name": "policy_only"
+              }
+            },
+            {
+              "target": "creates_or_acts",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "creates_or_acts"
               }
             },
             {

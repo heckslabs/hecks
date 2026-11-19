@@ -132,6 +132,9 @@ pub struct Command {
     // A bare `policy_only` word: only a policy reaction may dispatch the command (ADR 0216).
     // Emitted only when declared.
     pub policy_only: bool,
+    // A bare `creates_or_acts` word: a creating command acts on the record its identity already
+    // names instead of refusing it as taken. Emitted only when declared.
+    pub creates_or_acts: bool,
 }
 
 #[derive(Debug, Clone, Default)]
