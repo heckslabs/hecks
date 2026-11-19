@@ -299,6 +299,12 @@ Hecks.hecksagon "Hecks" do
       answers "BranchCiAnswered"
       refuses "BranchCiRefused"
     end
+
+    asks "BranchCiClose", to: EarlyCi do
+      attribute :run, RunKey
+      answers "BranchCiClosed"
+      refuses "BranchCiCloseRefused"
+    end
   end
 
   Hecks::ShallowCheck.port "ShallowChecks" do
