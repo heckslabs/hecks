@@ -37,11 +37,13 @@ on:
   # (.github/actions/check-attestation) and must write nothing (`github.workflow` below).
   workflow_call:
 
-# Cancels a superseded PR run. Never cancels a push to main: promotion reads the checks of
-# every main commit, and a cancelled run reports none.
+# Cancels a superseded PR run, and with it the reusable workflows it calls, which have no group
+# of their own (spec/ci_workflow_concurrency_spec.rb). Never cancels a push to main, a merge_group
+# run or a train/ pull request: promotion reads the checks of every main commit, a train's run
+# decides its landing, and a cancelled run reports none.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'train/') }}
 
 jobs:
   # Aggregator that keeps `rspec` a RequiredCheck name (Vocabulary bluebook); the work is in
