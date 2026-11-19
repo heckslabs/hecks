@@ -13,6 +13,7 @@ RSpec.describe Hecks::Adapters::DoneOffMain do
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-done-off-main")) }
 
   before do
+    @registry = registry_double
     git("init", "-b", "main")
     commit("README")
   end
@@ -39,13 +40,21 @@ RSpec.describe Hecks::Adapters::DoneOffMain do
     git("merge", "--no-ff", "-m", "merge #{name}", name) if merged
   end
 
-  def item(key, status) = { work: key, status: status }
+  # A work item; a done one records a no-change reason unless the example says otherwise.
+  def item(key, status, no_change: "a verify") = { work: key, status: status, no_change: no_change }
+
+  def landed_landing(branch)
+    landing = Struct.new(:hecks_name).new("Landing")
+    allow(@registry).to receive(:bluebook).with("Delivery").and_return(Struct.new(:aggregates).new([landing]))
+    landed = Struct.new(:all).new([{ status: "landed", branch: branch }])
+    allow(@registry).to receive(:repository).with("Hecks", landing).and_return(landed)
+  end
 
   def sweep(*items, root: dir)
-    registry = registry_double
-    allow(registry).to receive(:repository).and_return(Struct.new(:all).new(items))
-    allow(Hecks::Adapters::StartedWork).to receive(:work_aggregate).and_return(Object.new)
-    described_class.new(registry: registry, settings: { root: root }).done_off_main
+    work = Object.new
+    allow(@registry).to receive(:repository).with("Tickets", work).and_return(Struct.new(:all).new(items))
+    allow(Hecks::Adapters::StartedWork).to receive(:work_aggregate).and_return(work)
+    described_class.new(registry: @registry, settings: { root: root }).done_off_main
   end
 
   it "lists the branch of a done item whose tip main lacks", :aggregate_failures do
@@ -66,8 +75,17 @@ RSpec.describe Hecks::Adapters::DoneOffMain do
     expect(sweep(item("open", "started"))).to eq(text: "")
   end
 
-  it "leaves out a done item with no branch" do
+  it "leaves out a done item with no branch that records why it lands nothing" do
     expect(sweep(item("nobranch", "done"))).to eq(text: "")
+  end
+
+  it "lists a done item no landing names and that records no reason, as key - -" do
+    expect(sweep(item("bare", "done", no_change: ""))).to eq(text: "bare - -\n")
+  end
+
+  it "leaves out a done item a landed landing names" do
+    landed_landing("bare")
+    expect(sweep(item("bare", "done", no_change: ""))).to eq(text: "")
   end
 
   it "names the item by the branch without a leading qa/" do

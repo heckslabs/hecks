@@ -65,11 +65,11 @@ RSpec.describe "the Work queue" do
     expect(run_cli("work.next_planned").first["work"]).to eq("work/free")
   end
 
-  it "finishes the step a submitted branch names" do
+  it "leaves a step open when its finish names no landing on main and no reason" do
     plan("work/submitted", step: 1)
     state = run_cli("work.finish!", "to=work/submitted").fetch("state")
 
-    expect(state["status"]).to eq("done")
+    expect(state["status"]).to eq("planned")
   end
 
   it "refuses a submission whose branch names no step, by naming Work" do
@@ -80,7 +80,7 @@ RSpec.describe "the Work queue" do
 
   it "finishes a step when its branch lands, and not when its branch is submitted", :aggregate_failures do
     expect(policy_named("FinishWhenWorkSubmitted")).to be_nil
-    expect(policy_named("FinishWorkWhenBranchLanded").trigger_command).to eq("Work.Finish")
+    expect(policy_named("CloseWorkWhenBranchLanded").trigger_command).to eq("Work.Close")
   end
 
   it "plans a refused landing's step again for the first two refusals and drops it on the third", :aggregate_failures do
