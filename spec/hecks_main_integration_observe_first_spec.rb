@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/hecks_launcher_stub"
 require_relative "support/rest_pull_view"
 
 # A verified run that waits on an earlier push boards in the advance that sees the push turn
@@ -47,7 +48,9 @@ RSpec.describe "an advance observes the pushed run before it boards the run behi
   def open_repository
     git("init", "--bare", "-b", "main", File.join(dir, "origin.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "origin.git"), repo, chdir: dir)
-    git("commit", "--allow-empty", "-m", "start")
+    HecksLauncherStub.place(repo)
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
     git("push", "-q", "origin", "main")
   end
 

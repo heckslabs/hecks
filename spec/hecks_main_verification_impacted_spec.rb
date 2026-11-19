@@ -4,6 +4,7 @@ require "json"
 require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/main_verification"
+require_relative "support/hecks_launcher_stub"
 
 # A verification of a landed commit runs the quick gate, and, while the shallow check is off, the
 # specs the landings since the last verified commit touch; a green one records the commit. The
@@ -20,6 +21,7 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check with the shallow check
     git("init", "-q", "--bare", "-b", "main", File.join(dir, "remote.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "remote.git"), repo, chdir: dir)
     git("checkout", "-q", "-B", "main")
+    HecksLauncherStub.place(repo)
     commit(repo, "README")
     git("push", "-q", "origin", "main")
     described_class.runner = method(:fake_run)

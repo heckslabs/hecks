@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/hecks_launcher_stub"
 
 # A red main reverts its one bad merge by policy: a verification that fails twice is searched for
 # its first bad merge, the bluebook decides (revert, park or acquit), the red flag holds landings
@@ -49,7 +50,9 @@ RSpec.describe "a red main reverting its one bad merge" do
     git("clone", "-q", File.join(dir, "origin.git"), repo, chdir: dir)
     git("config", "user.name", "t")
     git("config", "user.email", "t@t")
-    git("commit", "--allow-empty", "-m", "start")
+    HecksLauncherStub.place(repo)
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
     git("push", "-q", "origin", "main")
   end
 
