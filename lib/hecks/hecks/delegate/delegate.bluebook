@@ -2016,12 +2016,9 @@ Hecks.bluebook "Hecks" do
       ask     :start, with: { run: :run }
     end
 
-    # A pinned role (a `PinnedRole` row of the Agents bluebook's `Role`) has at most one live
-    # session: a run of the role is declined before a session starts while another live session
-    # holds it, bound to a started run of the role or listed under its name, and the refusal
-    # names that session. Only the owner stops the extra session. `Begin` records a session
-    # already started and is not guarded, so two dispatches located at the same moment can both
-    # start: the rule is checked at each dispatch and answer, not held under a lock.
+    # A pinned role (Agents `PinnedRole`) has one live session: a run of it is declined while another
+    # holds it, naming that session for the owner to stop. `Begin` is not guarded, so two dispatches
+    # located at once can both start: the rule is checked per dispatch and answer, not under a lock.
     policy "RecordTheHeldRole" do
       on      "AgentRun.RepoLocated"
       where   { listed != false && role_holder != "" && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") }
@@ -2331,10 +2328,9 @@ Hecks.bluebook "Hecks" do
       ask     :resume, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
     end
 
-    # A pinned role's run is not answered while another live session holds the role: an answer
-    # would wake a second session of it. A fork an answer's resume started (`ResumedAsFork`) leaves
-    # the old session live too, so every later answer is refused, by name, until the owner stops
-    # one. A verdict is kept waiting and sent again (`Unresumed`), as a refused resume is.
+    # A pinned role's run is not answered while another live session holds the role. A fork
+    # (`ResumedAsFork`) leaves the old session live, so answers are refused until the owner stops
+    # one; a verdict is kept waiting and sent again (`Unresumed`).
     policy "RefuseTheAnswerOfAHeldRole" do
       on      "AgentRun.SessionPresent"
       where   { role_holder != "" && verdict == "" }
