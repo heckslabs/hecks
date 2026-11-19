@@ -6,12 +6,14 @@ require_relative "claude_closing_message"
 require_relative "claude_jobs"
 require_relative "dispatching/work_items"
 require_relative "dispatching/landed_since"
+require_relative "unread_answers"
 
 module Hecks
   module Adapters
-    # The `TurnFacts` port's adapter for `Coder::Turn`: what is true of a run whose session is
-    # ending a turn. It reads the run, the Work item the run serves, a landing of that item's
-    # branch since it started, and the session's closing message.
+    # The `TurnFacts` port's adapter for `Coder::Turn` and `Coder::Submission`: what is true of a
+    # run whose session is ending a turn, or whose branch is submitted. It reads the run, the Work
+    # item the run serves, a landing of that item's branch since it started, the session's closing
+    # message, and the answers bound for the run that it has not read ({UnreadAnswers}).
     #
     # It reads and judges nothing: whether the turn may end is the Coder bluebook's. A run it
     # cannot find is refused, and the bluebook ends that turn.
@@ -30,20 +32,35 @@ module Hecks
         @closing = closing
         @jobs = jobs
         @landed = landed || method(:landed_since)
+        @unread = UnreadAnswers.new(registry: registry)
       end
 
       # @param held [Hash] the Turn: `run` the key of the run, and `again`
       # @return [Hash{Symbol => Object}] `role:` the part the run plays, `held:` whether its Work
       #   item is started, `landed:` whether its branch landed since then, `reviewing:` whether a
       #   plan review it asked for is open, `again:` as the turn holds it, `question:` the first
-      #   line of the closing message that begins with a bracket, and `word:` its last word
+      #   line of the closing message that begins with a bracket, `word:` its last word, and
+      #   `inbox:`, `resuming:` and `pending:` as {UnreadAnswers#of} reads them
       # @raise [ConsoleCapture::Failure] when no started run has that key
       def measure_turn(**held)
         key = plain(held[:run]).to_s
         run = started_run(key)
         raise ConsoleCapture::Failure, "no started run is named #{key}" unless run
 
-        run_facts(run).merge(work_facts(run, key), words(field(run, :session).to_s), again: plain(held[:again]) == true)
+        run_facts(run).merge(work_facts(run, key), words(field(run, :session).to_s), @unread.of(run, work_of(run, key)),
+                             again: plain(held[:again]) == true)
+      end
+
+      # @param held [Hash] the Submission: `branch`, the Work item's key a coder run serves
+      # @return [Hash{Symbol => Boolean}] `inbox:` and `resuming:` of the started coder run that
+      #   serves the branch's Work item, as {UnreadAnswers#of} reads them
+      # @raise [ConsoleCapture::Failure] when no started coder run serves that branch
+      def measure_submitter(**held)
+        branch = plain(held[:branch]).to_s
+        run = rows("Hecks", "AgentRun").reverse.find { |entry| submitter?(entry, branch) }
+        raise ConsoleCapture::Failure, "no started coder run serves #{branch}" unless run
+
+        @unread.of(run, branch).slice(:inbox, :resuming)
       end
 
       private
@@ -53,10 +70,17 @@ module Hecks
         { role: role, reviewing: field(run, :reviewing) == true }
       end
 
-      # The Work item is the one the run names, else the one its key names.
       def work_facts(run, key)
-        work = field(run, :work).to_s.then { |named| named.empty? ? key : named }
+        work = work_of(run, key)
         { held: status_of(work) == "started", landed: !@landed.call(work, field(run, :repo)).to_s.empty? }
+      end
+
+      # The Work item is the one the run names, else the one its key names.
+      def work_of(run, key) = field(run, :work).to_s.then { |named| named.empty? ? key : named }
+
+      def submitter?(run, branch)
+        field(run, :status) == "started" && run_facts(run)[:role] == "coder" &&
+          work_of(run, field(run, :run).to_s) == branch
       end
 
       # The closing message as the transcript holds it, else the tail the job keeps.
