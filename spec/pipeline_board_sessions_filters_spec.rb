@@ -19,6 +19,14 @@ RSpec.describe "the Sessions page filters" do
     expect(page.scan("all.filter(visible)").size).to eq(2)
   end
 
+  it "nests each run under the run that dispatched it, in the table and the highlight alike" do
+    expect(page.scan("nestByParent(all.filter(visible))").size).to eq(2)
+  end
+
+  it "counts the runs another run fanned out" do
+    expect(page).to include('all.filter((s) => s.parent).length + " fanned out"')
+  end
+
   it "builds the role group from the declared roles" do
     expect(page).to include("lastState.roles.map((r) => r.name)")
   end
