@@ -11,7 +11,8 @@ module RunResultHelpers
     "a blocked report"                       => ["done", "Result: blocked\nblocked", "blocked"],
     "a bare stopped"                         => ["stopped", "stopped", "unstated"],
     "failing host tests with no result code" => ["done", "148 host test fails", "unstated"],
-    "the closing word blocked alone"         => ["done", "blocked", "unstated"]
+    "the closing word blocked alone"         => ["done", "blocked", "unstated"],
+    "a report naming two codes"              => ["done", "Result: verified\nResult: blocked", "unstated"]
   }.freeze
 
   # The coder's job reads `state` with its closing report, and one check reads it.
