@@ -6,8 +6,8 @@ module Hecks
       # The checkout's `turned.local.world`: the settings turned from a command, one line a verb
       # under the world it belongs to. It is gitignored and loads after every other local world of
       # the domain (the local files load in name order), so a line here is the value that stands.
-      # A turn changes only its own verb's line: {#replace} reads the lines the file holds now, under
-      # a lock on the file, so a turn never writes back a copy another turn has since changed.
+      # A turn changes only its own verb's line: {#replace} reads the lines the file holds now,
+      # under a lock, so a turn never writes back a stale copy of another turn's line.
       class TurnedFile
         NAME = "turned.local.world"
         # The line that opens a world's block, and a verb's line inside one.
@@ -61,7 +61,7 @@ module Hecks
           text.include?(".") ? Float(text) : Integer(text, 10)
         end
 
-        # @return [Hash{String => Hash{String => String}}] each world's verb lines as the file holds them
+        # @return [Hash{String => Hash{String => String}}] each world's verb lines, as held
         def lines
           return {} unless File.exist?(@path)
 
@@ -87,7 +87,8 @@ module Hecks
           end
         end
 
-        # Runs the block holding an exclusive lock on the file's directory, so no lock file is left behind; turns queue behind it.
+        # Runs the block holding an exclusive lock on the file's directory; turns queue behind it
+        # and no lock file is left behind.
         def locked(&)
           return yield if @locked
 
