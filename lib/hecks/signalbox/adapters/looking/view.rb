@@ -8,7 +8,8 @@ module Hecks
     class Looking
       # The view a beat looks from: the copy's head, the tip of its repository's `main`, and how
       # many of the main checkout's machine-local files (`*.local.hecksagon`, `*.local.world`)
-      # the copy lacks or holds with other content. It reads git and the file system and judges nothing: Clearance's givens do.
+      # the copy lacks or holds with other content. It reads git and the file system and judges
+      # nothing: Clearance's givens do.
       class View
         # The machine-local files a copy needs to read the same stores as the main checkout.
         LOCAL = ["**/*.local.hecksagon", "**/*.local.world"].freeze
