@@ -10,9 +10,12 @@ module Hecks
       # the lead, the one work item the fill starts; it carries the others as its members and holds
       # the union of their areas, so the cap and the area guard reason about one session.
       #
-      # The lead is the first in plan order, so the group's priority is its highest member's. A
-      # member still waiting on an unlanded dependency is left out, and the members past the cap
-      # stay planned: they overlap the lead's area, so they wait for its landing, the next batch.
+      # The lead is the first in plan order, so the group's priority is its highest member's, unless
+      # a work item of the group already leads members committed on its branch (a batch sent back
+      # to the plan for load): that one leads again, the first of them in plan order when there are
+      # several, so the batch resumes on the branch that holds those commits. A member still waiting
+      # on an unlanded dependency is left out, and the members past the cap stay planned: they
+      # overlap the lead's area, so they wait for its landing, the next batch.
       class Batching
         # The prefix of an `only` that names a group rather than a key.
         PREFIX = "group:"
@@ -46,7 +49,7 @@ module Hecks
         # @param planned [Array<Plan::Item>] the planned work items, in plan order
         # @return [Array<Plan::Item>] the lead with its members, or none when nothing overlaps
         def call(planned)
-          batch = planned.select { |item| member?(item) }.first(@cap)
+          batch = resumed_first(planned.select { |item| member?(item) }, planned).first(@cap)
           return [] if batch.empty?
 
           lead, *members = batch
@@ -54,6 +57,13 @@ module Hecks
         end
 
         private
+
+        # The group with a work item that leads committed members moved to the front.
+        def resumed_first(group, planned)
+          leads = planned.map { |item| item.batch.to_s }.reject(&:empty?)
+          resuming = group.find { |item| leads.include?(item.key) }
+          resuming ? [resuming, *(group - [resuming])] : group
+        end
 
         def member?(item)
           item.batch.to_s.empty? && !@waits&.call(item) && AreaOverlap.first_overlap([@path], item.area, root: @root)

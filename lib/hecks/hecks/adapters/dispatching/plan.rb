@@ -25,10 +25,11 @@ module Hecks
 
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
-        # `batch` is the lead whose batch holds it; a lead a fill starts for a group carries the
-        # work items it builds as `batched` and the `group` it was asked for ({Batching}).
+        # `batch` is the lead whose batch holds it, and `batch_commit` its commit on the lead's
+        # branch once built; a lead a fill starts for a group carries the work items it builds as
+        # `batched` and the `group` it was asked for ({Batching}).
         Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, :priority,
-                          :epic, :batch, :batched, :group, keyword_init: true)
+                          :epic, :batch, :batch_commit, :batched, :group, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)
