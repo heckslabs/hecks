@@ -74,7 +74,7 @@ module Hecks
       # @param fixture [Hash] the parsed fixture: `domain` and `steps`
       # @param full [Boolean] also freeze queries, sagas, dry runs, reactions (conformance)
       # @return [Hash{String => Array}] its `"expect"` block: refusals, instances, events, and
-      #   with `full` the {CONFORMANCE_KEYS}
+      #   with `full` the {CONFORMANCE_KEYS}, otherwise `cross_domain` and `sagas` when the run had any
       def expectation_for(root, fixture, full: false)
         result = Hecks::Fuzzing::Replay.call(File.join(root, fixture["domain"]), fixture["steps"], identity: fixture["identity"])
         expect = {
@@ -82,7 +82,19 @@ module Hecks
           "instances" => roundtrip(result[:instances]),
           "events"    => without_timestamps(result[:events])
         }
-        full ? expect.merge!(conformance_expectation(result)) : expect.merge(cross_domain_expectation(result))
+        full ? expect.merge!(conformance_expectation(result)) : expect.merge(optional_expectation(result))
+      end
+
+      # @api private
+      # @return [Hash{String => Array}] the `cross_domain` and `sagas` a run had any of
+      def optional_expectation(result) = cross_domain_expectation(result).merge(saga_expectation(result))
+
+      # @api private
+      # @return [Hash{String => Array}] `sagas` (the saga log, in order) when the run logged any,
+      #   otherwise empty
+      def saga_expectation(result)
+        log = roundtrip(result[:sagas] || [])
+        log.empty? ? {} : { "sagas" => log }
       end
 
       # @api private

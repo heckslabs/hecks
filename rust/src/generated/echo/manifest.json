@@ -58,6 +58,77 @@
     "routed": true
   },
   {
+    "kind": "aggregate",
+    "id": "Echo::Fuse",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Lay",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Arm",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Prime",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Unprime",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Strike",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Spark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Hiss",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Glow",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Burn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Blow",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Fuse.Scrap",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "policy",
     "id": "Echo::PingAgain",
     "generated": true,
@@ -66,6 +137,36 @@
   {
     "kind": "policy",
     "id": "Echo::FlickerAgain",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Echo::SparkOnStrike",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Echo::HissOnSpark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Echo::GlowOnHiss",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Echo::BurnOnGlow",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Echo::Charge",
     "generated": true,
     "routed": true
   },
