@@ -103,11 +103,16 @@ module Hecks
         end
 
         # Whether the kind's `not_about` prefix names the subject or the branch its opening line
-        # links: a stall item, and a stall session's own landing, are never one.
+        # links: a stall item, and a stall session's own landing, are never one. A subject the
+        # kind's `exempt` list names exactly is never one either: a standing run waits by design.
         def about?(kind, subject, branch)
           prefix = kind[:not_about].to_s
-          !prefix.empty? && [subject, branch.to_s].any? { |name| name.start_with?(prefix) }
+          exempt?(kind, subject) || (!prefix.empty? && [subject, branch.to_s].any? { |name| name.start_with?(prefix) })
         end
+
+        def exempt?(kind, subject) = exempt_subjects(kind).include?(subject)
+
+        def exempt_subjects(kind) = kind[:exempt].to_s.split(",").map(&:strip)
 
         # `stall-<kind>-<subject>`; past {KEY_LIMIT} characters the tail is a digest of the whole.
         def key(kind, subject)
