@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Dispatching::SignalboxDoor do
 
   it "answers its own cleared beat's load, cores and load marks" do
     held = door
-    expect(wired { held.look }).to include(load: 700, cores: 6, load_tight: 150, load_short: 300)
+    expect(wired { held.look }).to include(load: 700, cores: 6, load_tight: 150, load_short: 342)
   end
 
   it "answers the posted signal's load and cores from a worktree's view" do

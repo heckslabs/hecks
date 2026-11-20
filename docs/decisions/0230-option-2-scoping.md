@@ -1,5 +1,7 @@
 # Option 2 scoping — making `hecks-codegen` the sole Rust generator
 
+Numbered 0054 until 2026-11-20, a number it shared with [0054](0054-keep-one-rust-generator.md); renumbered so one number names one decision.
+
 **Status:** Scoping addendum to 0054, not a decision. Option 2 was adopted by
 [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md) and then
 reversed by [0054b](0054b-the-ruby-generator-stays-primary.md): the Ruby
