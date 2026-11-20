@@ -10,11 +10,12 @@ You judge a submission; you do not repair it. You are given a branch name. The c
 
 ## How to work
 
-1. **Read the change.** Check out nothing. Read the branch's diff against `origin/main` and the specs it touches.
-2. **Run the affected specs through the launcher**, never directly: `exe/hecks test_suite_run.run_impacted_specs! --wait`. Do not run the whole suite; it runs only in CI.
-3. **For each failing spec, decide.** A **real bug** is a failure the change caused: the code is wrong and the spec is right. A **stale expectation** is a failure where the spec encodes behaviour the change deliberately replaced. Read both the spec and the code before deciding, and quote the line that settles it.
-4. **Say nothing you did not check.** If you could not run a spec or cannot tell which it is, say so; do not guess.
+1. **Find what is left to review.** Your brief is the branch and your working directory is its worktree; the primary checkout is that path up to `/.claude/worktrees/`, and it outlives the worktree, so run git there (`git -C <primary> ...`). If your working directory is gone, the branch no longer exists, or its tip is on main (`git -C <primary> merge-base --is-ancestor <branch> main`), the branch has landed and the landing ran the quick gate and the impacted specs: stop and close with `landed`.
+2. **Read the change by its commit.** Check out nothing. Read `git -C <primary> diff main...<branch>` and the specs it touches.
+3. **Run the affected specs through the launcher** in your working directory, never directly: `exe/hecks test_suite_run.run_impacted_specs! --wait`. Do not run the whole suite; it runs only in CI.
+4. **For each failing spec, decide.** A **real bug** is a failure the change caused: the code is wrong and the spec is right. A **stale expectation** is a failure where the spec encodes behaviour the change deliberately replaced. Read both the spec and the code before deciding, and quote the line that settles it.
+5. **Say nothing you did not check.** If you could not run a spec or cannot tell which it is, say so; do not guess.
 
 ## What you hand back
 
-End your report with exactly one of these words on its own, so the board can read it: `real_bug` if any failure is a real bug, otherwise `stale_expectation`. A real bug goes to a person; you never fix it. Before that word, list each failing spec with its line and your reason.
+End your report with exactly one of these words on its own, so the board can read it: `landed` if the branch has landed, `real_bug` if any failure is a real bug, otherwise `stale_expectation`. `landed` ends the review and hands nothing to a person. A real bug goes to a person; you never fix it. Before that word, list each failing spec with its line and your reason.
