@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::Metering do
   end
 
   let(:metering) do
-    run = { run: "signalbox-phase-2-shadow", agent: "coder", works_as: "", work: "signalbox-phase-2-shadow" }
+    run = { run: "signalbox-phase-2-shadow", agent: "", works_as: "coder", work: "signalbox-phase-2-shadow" }
     runs = { "aaaa1111-full" => run }
     machine_reads = {
       memsize: 38_654_705_664, perf_cores: 6, loadavg: "{ 33.97 35.28 28.52 }",

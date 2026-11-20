@@ -61,6 +61,37 @@ RSpec.describe "creating over an occupied id" do
     expect(ticket_ids).to eq(["T1", "T1~1"])
   end
 
+  # Another writer reopens T1 after hydration read it closed, just before the write.
+  def reopen_behind_hydration
+    adapter = repository("Ticket").instance_variable_get(:@adapter)
+    allow(adapter).to receive(:atomic_put).and_wrap_original do |original, entry, **options|
+      adapter.find("T1")[:status] = "open"
+      original.call(entry, **options)
+    end
+  end
+
+  # `Issue` sets every field, so it saves through the adapter's atomic put.
+  def issue_ticket(title) = runtime.dispatch_flat("OccupantReuse::Ticket.Issue", code: { value: "T1" }, title: { value: title })
+
+  it "archives a closed occupant through the adapter's atomic put", :aggregate_failures do
+    open_ticket
+    close_ticket
+    issue_ticket("issued")
+
+    expect([ticket_ids, repository("Ticket").find("T1~1")[:title].to_h]).to eq([["T1", "T1~1"], { value: "first" }])
+    expect(repository("Ticket").find("T1")[:title].to_h).to eq(value: "issued")
+  end
+
+  it "refuses a live record that took the id after hydration read it closed, and archives nothing",
+     :aggregate_failures do
+    open_ticket
+    close_ticket
+    reopen_behind_hydration
+
+    expect { issue_ticket("late") }.to raise_error(Hecks::Runtime::AlreadyExists)
+    expect([ticket_ids, repository("Ticket").find("T1")[:title].to_h]).to eq([["T1"], { value: "first" }])
+  end
+
   it "refuses an occupant of an aggregate with no lifecycle" do
     runtime.dispatch_flat("OccupantReuse::Note.Write", slug: { value: "n" })
 

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "effective_area"
+require_relative "batch_ground"
 
 module Hecks
   module Adapters
@@ -40,9 +41,13 @@ module Hecks
         # A line for each chosen work item whose area is a top-level package directory.
         def area_warnings(plan) = plan.chosen.filter_map { |item| PackageRoots.warning(item) }
 
-        # @return [EffectiveArea, nil] the reader for the checkout, a stand-in's when it names one
+        # The reader of the ground each started work item holds: its branch's ({EffectiveArea}, a
+        # stand-in's when it names one), held by {BatchGround} to the members its batch has left.
+        #
+        # @return [BatchGround, nil] the reader for the checkout, nil when none is named
         def effective_for(repo)
-          @standins[:effective] || (repo.to_s.empty? ? nil : EffectiveArea.new(repo))
+          branch = @standins[:effective] || (repo.to_s.empty? ? nil : EffectiveArea.new(repo))
+          branch && BatchGround.new(branch, root: Plan::REPOSITORY)
         end
       end
     end

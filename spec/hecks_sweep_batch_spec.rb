@@ -90,11 +90,11 @@ RSpec.describe "sweep batches" do
     expect(text).to include("a sweep item names the paths it edits")
   end
 
-  it "refuses to enlist an item that is not a sweep item" do
+  it "refuses to enlist an item in a batch it does not name" do
     tickets("work.plan!", "work.value=code", "title.value=Code")
-    text = cli_text("tickets", "work.enlist!", "to=code", "batch.value=sweep-batch-1")
+    text = cli_text("tickets", "work.enlist!", "to=code", "batch.value=")
 
-    expect(text).to include("only a sweep item joins a batch")
+    expect(text).to include("a batch is named by its work item")
   end
 
   it "refuses to enlist an item already in a batch" do

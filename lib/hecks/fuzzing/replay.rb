@@ -113,3 +113,5 @@ module Hecks
     end
   end
 end
+
+require_relative "replay/engine"
