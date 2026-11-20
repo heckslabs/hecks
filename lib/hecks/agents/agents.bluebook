@@ -2126,6 +2126,14 @@ Hecks.bluebook "Agents" do
       where(submission: :submission)
     end
 
+    # The clean verdicts given on one work item's commits: a work item that was redone can hold more
+    # than one. A red episode's `work` binds it (`RecordTheMissedReview`).
+    query "CleanOfWork" do
+      description "Every clean verdict on one work item's submitted commits."
+      attribute :work, WorkKey
+      where(work: :work, judgment: "clean")
+    end
+
     # Which domains and bluebooks a commit touches is a fact of its git checkout.
     policy "ReadTheSubmissionScope" do
       on      "SubmissionReview.SubmissionReviewRequested"
@@ -2177,6 +2185,119 @@ Hecks.bluebook "Agents" do
       trigger SubmissionReview::Decline, with: { submission: :submission, reason: :refusal }
     end
 
+  end
+
+  # A clean verdict is a claim that the change is safe to land. A red main whose search reverts the
+  # landing of the same work item (Deliver's `RedEpisode`, keyed by the branch less its step) shows
+  # the claim was wrong: the review missed what CI caught. The miss is kept per verdict, so a tier
+  # whose misses are high is visible; the reopened work item (Tickets) carries the finding.
+  aggregate "ReviewMiss" do
+    description "One clean verdict a red main later contradicted: the verdict's commit, tier, hops and evidence, beside the reverted landing, its spec and the episode that found it."
+
+    identified_by :submission
+
+    attribute :submission, MissedCommit
+    attribute :work,       WorkKey
+    attribute :tier,       TierWord, optional: true
+    attribute :hops,       HopCount, optional: true
+    attribute :evidence,   list_of(EvidenceRun), optional: true
+    attribute :episode,    EpisodeKey
+    attribute :culprit,    Fact, optional: true
+    attribute :spec,       Fact, optional: true
+    attribute :example,    Fact, optional: true
+    attribute :finding,    Fact, optional: true
+
+    # The commit the clean verdict judged, which keys its review and so the miss.
+    value_object "MissedCommit" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "WorkKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The verdict's review tier, `full` or `verify_only`, as its review recorded it.
+    value_object "TierWord", String
+
+    value_object "HopCount", Integer
+
+    # One run the clean verdict cited, as its review counted it.
+    value_object "EvidenceRun" do
+      attribute :kind,      String
+      attribute :run,       String
+      attribute :subject,   String
+      attribute :status,    String
+      attribute :scenarios, Integer
+    end
+
+    # The red episode's run, which found the culprit.
+    value_object "EpisodeKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A fact the episode reports: the reverted merge, its failing spec and example, its finding line.
+    value_object "Fact", String
+
+    # A verdict is a miss once: a second episode of a redone work item finds the record and is
+    # refused as taken, so the miss keeps the episode that found it first.
+    command "Record" do
+      role "System"
+      goal "Record that a red main reverted the landing of a work item a clean verdict had passed"
+
+      reference_to SubmissionReview, as: :review
+      attribute :submission, MissedCommit, sets: true
+      attribute :work,       WorkKey, sets: true
+      attribute :tier,       TierWord, optional: true, sets: true
+      attribute :hops,       HopCount, optional: true, sets: true
+      attribute :evidence,   list_of(EvidenceRun), optional: true, sets: true
+      attribute :episode,    EpisodeKey, sets: true
+      attribute :culprit,    Fact, optional: true, sets: true
+      attribute :spec,       Fact, optional: true, sets: true
+      attribute :example,    Fact, optional: true, sets: true
+      attribute :finding,    Fact, optional: true, sets: true
+
+      emits "ReviewMissed"
+    end
+
+    query "Misses" do
+      description "Every clean verdict a red main contradicted, by commit: its tier, hops, evidence and the episode, culprit and spec that showed the miss."
+      order_by :submission
+    end
+
+    query "InTier" do
+      description "The review misses of one tier, by commit."
+      attribute :tier, TierWord
+      where(tier: :tier)
+    end
+
+    # Each clean verdict of the reverted work item is a miss; a work item never reviewed records none.
+    policy "RecordTheMissedReview" do
+      on       "RedEpisode.EpisodeReverting"
+      root
+      where    { work.value.to_s != "" }
+      for_each "SubmissionReview.CleanOfWork"
+      trigger  ReviewMiss::Record, with: { review: :review, submission: :submission, work: :work, tier: :tier,
+                                           hops: :hops, evidence: :evidence, episode: :run, culprit: :culprit,
+                                           spec: :spec, example: :example, finding: :finding }
+    end
+  end
+
+  # How many clean verdicts a red main contradicted, per review tier. Read beside
+  # `CleanVerdictsByTier`: the misses over the clean verdicts is a tier's miss rate. It understates
+  # the rate, since the clean verdicts count work that never landed too.
+  read_model "MissesByTier" do
+    description "How many clean verdicts a red main contradicted, per review tier; read beside CleanVerdictsByTier, the rate understates misses, since clean verdicts of work that never landed count too."
+    include ReviewMiss
+    group_by :tier
+    count
+  end
+
+  read_model "CleanVerdictsByTier" do
+    description "How many clean verdicts the reviewer gave, per review tier, landed or not."
+    include SubmissionReview
+    where(judgment: "clean")
+    group_by :tier
+    count
   end
 
   # A finding goes to a coder on the same branch, never to a person. Each fix is a new tip, gated and
