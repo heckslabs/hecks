@@ -59,10 +59,9 @@ Hecks.bluebook "Hecks" do
         # `settled_by` does: "boarded-on-origin", the commit the opening line links as `boarded`
         # is on origin/main (a merge the tap never recorded). The adapter refuses any other value.
         attribute :settled_read,      String
-        # How the row's stall is cleared, one path each: "item" (or empty, the default) by its stall
-        # item, which a look files and whose fix is the row's move; "help" by a call for help
-        # (`HelpWanted`), for a block that needs judgment. A look files no stall for a "help" row and
-        # only lists it among the impediments. The adapter refuses any other value.
+        # How the stall is cleared, one path each: "item" (or empty) by its stall item, which a look
+        # files and the row's move fixes; "help" by a call for help (`HelpWanted`), for a block that
+        # needs judgment, which a look only lists. The adapter refuses any other value.
         attribute :cleared_by,        String
         # "kind" lists every open line of the row as one impediment, the oldest line's, with how
         # many lines it stands for; empty lists one per subject.
