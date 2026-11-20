@@ -34,6 +34,15 @@ hour, and every rescue hid why, so the refusal carried no line at all.
    standing for the owner and CI.
 5. **"One revert per episode" is read from git.** The fact is a revert commit in the first-parent range,
    so a new process reads it too; the Memory aggregate records the decision, it does not hold the guard.
+   A second culprit in the range opens its own episode (amended 2026-11-20): the guard parks a merge a
+   revert already undid (the wrong merge was blamed), not any later break. A merge no revert undid is
+   reverted as a new episode, keyed by the revert's own verification run. `GitTrain::Reverting` writes
+   the spec and example the merge turned red into the revert commit's message
+   (`Hecks-Reverted-Spec`, `Hecks-Reverted-Example` trailers) and `Repository#reverts` reads them back,
+   a hand revert having none. The adapter also reports `revert_count`; the bluebook's
+   `ParkWhenTheRangeHoldsTheMostReverts` parks a range that already holds three, so the safety limit
+   stays. Naming a same-file second break needs the failing example of the failed verification as the
+   probe; that is the follow-up work item `probe-the-failed-verifications-own-example`.
 6. **The refusal always says something.** A failure the run is parked on carries a line naming the first
    bad merge and spec, or `no first bad merge: <reason>`. The head moving no longer stops the search: the
    merges between two fixed commits do not change.
