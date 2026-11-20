@@ -44,6 +44,9 @@ module Hecks
           launcher = launcher_for(held)
           minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
           plan.chosen.each_with_index.map do |item, index|
+            waiting = waiting_outcome(item)
+            next waiting if waiting
+
             launched(launcher, item) do
               outcome(*launcher.attempt(item, held: holding(plan, index), minutes: minutes,
                                               limit: machine.spec_files_limit, **asked_of(item)))
