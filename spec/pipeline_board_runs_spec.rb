@@ -59,8 +59,8 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
   end
 
   it "answers the live store's undone Work items as its open work" do
-    open = JSON.parse(tickets_from_live_store.open_work[:text])
-    expect(open.map { |item| item["slug"] }).to eq(["w1"])
+    open = tickets_from_live_store.open_work
+    expect(open.map { |item| item[:slug] }).to eq(["w1"])
   end
 
   it "reads the landed branches from the live store" do

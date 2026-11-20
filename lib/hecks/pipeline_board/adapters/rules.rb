@@ -15,7 +15,7 @@ module Hecks
       # Standing alone, the bluebook beside these adapters is described once and kept.
       module Rules
         BLUEBOOK_DIR = File.expand_path("..", __dir__)
-        TABLES = %w[Verdict Setting Tile Finding StaleStatus ActionRule CycleStage HealthCheck ProjectBoard].freeze
+        TABLES = %w[Verdict Setting Tile Finding StaleStatus ActionRule CycleStage HealthCheck ProjectBoard StuckKind].freeze
 
         module_function
 
@@ -25,8 +25,16 @@ module Hecks
         # @return [void]
         def use(registry)
           bluebook = registry.respond_to?(:bluebooks) ? registry.bluebooks["PipelineBoard"] : nil
-          @tables = tables_of(bluebook) if bluebook
+          return unless bluebook
+
+          @tables = tables_of(bluebook)
+          @fields = fields_of(bluebook)
         end
+
+        # @param name [String] a value object of the bluebook that an answer is shaped as, such
+        #   as `"Reading"`
+        # @return [Array<Symbol>] the fields it declares, in the order they are written
+        def fields(name) = (@fields ||= fields_of(described)).fetch(name)
 
         # @param name [String] a value object of the bluebook, such as `"Verdict"`
         # @return [Array<Hash{Symbol => Object}>] its declared rows, in the order they are written
@@ -91,9 +99,17 @@ module Hecks
           end
         end
 
+        def fields_of(bluebook)
+          aggregate = bluebook.aggregates.find { |candidate| candidate.hecks_name == "PipelineBoard" }
+          aggregate.value_objects.to_h { |object| [object.hecks_name, object.attributes.map { |held| held.name.to_sym }] }
+        end
+
+        # The bluebook beside these adapters, described once and kept.
         def described
-          registry = BootLock.exclusive(wait: BootLock::WAIT_SECONDS) { Hecks.describe(BLUEBOOK_DIR).registry }
-          registry.bluebooks.fetch("PipelineBoard")
+          @described ||= begin
+            registry = BootLock.exclusive(wait: BootLock::WAIT_SECONDS) { Hecks.describe(BLUEBOOK_DIR).registry }
+            registry.bluebooks.fetch("PipelineBoard")
+          end
         end
       end
     end

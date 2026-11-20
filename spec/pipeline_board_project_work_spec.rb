@@ -19,7 +19,16 @@ RSpec.describe Hecks::Adapters::PipelineTickets, "#project_work" do
   before { ProjectBoardFixture.checkout(projects, works: works) }
   after { FileUtils.rm_rf(projects) }
 
-  def read(name) = JSON.parse(tickets.project_work(project: { value: name })[:text], symbolize_names: true)
+  def read(name) = tickets.project_plan(name)
+
+  it "answers the project as WorkLine rows when it is asked as a query" do
+    expect(tickets.project_work(project: { value: "Shorts" }).map { |row| row[:slug] }).to eq(%w[sooner later])
+  end
+
+  it "refuses the query, with the reason, for a name no ProjectBoard row holds" do
+    expect { tickets.project_work(project: "Nowhere") }
+      .to raise_error(Hecks::Adapters::PipelineBoard::Unavailable, /no project board is named Nowhere/)
+  end
 
   it "answers another project's undone items in plan order, by the Work.Undone rule" do
     expect(read("Shorts")[:items].map { |item| item[:slug] }).to eq(%w[sooner later])

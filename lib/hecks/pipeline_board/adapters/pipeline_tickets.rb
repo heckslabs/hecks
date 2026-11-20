@@ -3,6 +3,7 @@
 require "json"
 require_relative "probe"
 require_relative "live_store"
+require_relative "rows"
 require_relative "pipeline_tickets/run_detail"
 require_relative "pipeline_tickets/stopped_runs"
 require_relative "pipeline_tickets/finished_times"
@@ -50,10 +51,13 @@ module Hecks
         @projects_dir = settings[:projects_dir]
       end
 
-      # @return [Hash{Symbol => String}] `text:` the open work items as JSON: slug, status, area,
-      #   and
-      #   who claimed each and when
-      def open_work = { text: JSON.generate(undone) }
+      # @return [Array<Hash>] the open Work items as `WorkLine` rows: slug, status, area, who
+      #   claimed each and when, and where it stands in the plan
+      def open_work = PipelineBoard::Rows.of("WorkLine", undone)
+
+      # @return [Array<Hash>] the open Work items as the page and the plan read them
+      # @raise [PipelineBoard::Unavailable] when the store holds no Work items here
+      def undone_work = undone
 
       # @return [Array<Hash>] each Epic with its title, outcome, tier and how many members are done
       #   or dropped; none when the Tickets domain holds no epic

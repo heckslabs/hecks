@@ -47,8 +47,11 @@ module Hecks
           (@plan_summary ||= PipelineBoard::PlanSummary.new).catch_up(:work, events[:work]).catch_up(:epic, events[:epic])
         end
 
+        # A reader's own rows as plain data, as the page reads them.
+        def plain(rows) = JSON.parse(JSON.generate(rows), symbolize_names: true)
+
         def plan_reading
-          items = JSON.parse(@tickets.open_work[:text], symbolize_names: true)
+          items = plain(@tickets.undone_work)
           reading = plan_built(items)
           held = plan_summary(running: reading[:strip][:running].map { |row| row[:slug] })
           held ? reading.merge(summary: held.except(:first_epics)) : reading
@@ -61,7 +64,7 @@ module Hecks
         end
 
         def project_plan_reading(name)
-          read = JSON.parse(@tickets.project_work(project: name)[:text], symbolize_names: true)
+          read = plain(@tickets.project_plan(name))
           return read if read.key?(:unknown)
 
           PipelineBoard::PlanReading.build(items: read[:items], epics: read[:epics], sessions: [], reviews: [],
@@ -69,7 +72,7 @@ module Hecks
         end
 
         def plan_sessions(items)
-          rows = JSON.parse(@jobs.sessions[:text], symbolize_names: true)
+          rows = plain(@jobs.rows)
           PipelineBoard::OwnerQueue.mark(rows, items, ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root))
         end
 
