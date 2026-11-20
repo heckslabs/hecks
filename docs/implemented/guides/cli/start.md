@@ -44,6 +44,6 @@ Every command and query this module lists for a person, generated from its blueb
 A way into the framework opened for a project: its launchers, or an MCP server.
 
 - `hecks Launch.project_cli! [<domains>]`: Write a command-line launcher beside each domain of this project
-- `hecks Launch.init! <name> [adapter=] [dir=]`: Write the stub files of a new domain
+- `hecks init! <name> [adapter=] [dir=]`: Write the stub files of a new domain
 - `hecks Launch.project_rails! [<dir>]`: Write the controllers and routes a Rails app drives its domain through
 <!-- generated:end cli -->
