@@ -20,6 +20,15 @@ module Hecks
         # its report line.
         BLANKS = /\s+/
 
+        # A line the Ruby interpreter writes, such as `version.rb:3: warning: already initialized
+        # constant`. It is never a command's cause, so a reason leaves it out as it leaves out a
+        # boot notice. `BootNotices` names only the runtime's own lines, so this one is read here.
+        RUBY_WARNING = /\A\S+:\d+: warning: /
+
+        # The words of the lifecycle's refusal (the `transition_blocked` refusal in
+        # `vocabulary.rb`): its stable code, then the field and the status the record already holds.
+        LIFECYCLE_REFUSED = "[LifecycleRefused]"
+
         # @param result [Shell::Result] the command's output and status
         # @param reaches [String, nil] the status the command's record holds when it did its part,
         #   or nil when only a clean exit counts
@@ -49,6 +58,15 @@ module Hecks
         #   that carries notices after their divider gives only its own words.
         def reason = told.gsub(BLANKS, " ")[0, LIMIT]
 
+        # @param current [String] a status
+        # @return [Boolean] whether the lifecycle refused the command because its record already
+        #   holds that status, as a second `Work.start!` on a started item is refused
+        def refused_at?(current)
+          return false if ok?
+
+          lines(@result.err).any? { |line| line.include?(LIFECYCLE_REFUSED) && line.include?(" is #{current}, ") }
+        end
+
         # @return [Hash, nil] the record the command printed, nil when it printed none
         def printed
           text = @result.out[JSON_OBJECT]
@@ -74,9 +92,14 @@ module Hecks
         def told
           return BootNotices.cause(refusal) if refusal
 
-          own = [BootNotices.split(@result.err).first, @result.out.strip].find { |text| !text.empty? }
-          own || BootNotices.cause(@result.err)
+          own = [BootNotices.split(unwarned).first, @result.out.strip].find { |text| !text.empty? }
+          own || BootNotices.cause(unwarned)
         end
+
+        # The command's stderr without the interpreter's warnings.
+        def unwarned = lines(@result.err).join("\n")
+
+        def lines(text) = text.to_s.each_line(chomp: true).grep_v(RUBY_WARNING)
       end
     end
   end
