@@ -80,6 +80,7 @@ module Hecks
         "codegen_drift"       => CODEGEN,
         "rust_fmt"            => RUST,
         "command_names"       => SOURCE + %w[.claude/settings.json],
+        "remedy_names"        => LIBRARY + SPEC + %w[spec/remedy_names_spec.rb rust/host/src/**/*.rs],
         "workflow_pagination" => LIBRARY + %w[.github/**/*],
         "role_files"          => LIBRARY + %w[.claude/agents/**/*],
         "role_world_list"     => LIBRARY + SPEC + %w[spec/agents_role_rows_spec.rb .claude/agents/**/*]
