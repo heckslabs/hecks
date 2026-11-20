@@ -3374,6 +3374,15 @@ Hecks.bluebook "Agents" do
                                          brief: "A red main's revert was refused (a dirty or off-main checkout, or a failed git revert), so the red flag stands with no revert. Report the refusal on the event to the owner, under your standing rule all-hands-on-red." }
     end
 
+    # A fill that has started nothing for a quarter of an hour while work waits and there is room
+    # is the orchestrator's to read: the brief names the reason, the reading and the governing
+    # setting, and the stall's own start time keys the wake, so each stall wakes once.
+    policy "WakeWhenTheFillStalls" do
+      on      "FillWatch.FillStalled"
+      trigger Escalation::Raise, with: { escalation: :since, event: "FillStalled", rule: "rely-on-events", role: "orchestrator", repo: ".",
+                                         brief: :detail }
+    end
+
     policy "WakeWhenABatchHoldsARelease" do
       on      "Incident.IncidentOpened"
       where   { releases.value > 0 }

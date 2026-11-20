@@ -49,10 +49,20 @@ module Hecks
         text = @recorded.call.to_s
         raise PipelineBoard::Unavailable, NONE_RECORDED if text.empty?
 
-        parse(text)
+        parse(text).merge(stalled: stalled)
       end
 
       private
+
+      # What the newest standing `FillWatch` says of a stalled fill (its reason, how long it has
+      # held and what governs it), or nil while the fill flows or no watch is recorded.
+      def stalled
+        watch = @store.records("Hecks", "FillWatch").reverse.find { |record| StartedWork.value(record, :standing).to_i == 1 }
+        watch && "#{StartedWork.value(watch, :held_minutes)} minutes, #{StartedWork.value(watch, :reason)}; " \
+                 "#{StartedWork.value(watch, :reading)}; governed by #{StartedWork.value(watch, :governed_by)}"
+      rescue PipelineBoard::Unavailable
+        nil
+      end
 
       # The report of the newest `Roll` that holds one, or nil when the store has none.
       def recorded_report = newest_first.find { |report| HEADER.match?(report.lines.first.to_s) }

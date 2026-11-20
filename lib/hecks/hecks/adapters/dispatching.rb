@@ -26,6 +26,7 @@ require_relative "dispatching/pending"
 require_relative "dispatching/planned_cache"
 require_relative "dispatching/wake"
 require_relative "dispatching/rolls"
+require_relative "dispatching/fill_looks"
 require_relative "dispatching/rethinks"
 require_relative "dispatching/launching"
 require_relative "dispatching/shedding"
@@ -48,6 +49,7 @@ module Hecks
     # default is a dry run, which writes nothing.
     class Dispatching
       include Rolls
+      include FillLooks
       include Launching
       include Shedding
       include Narrowing
