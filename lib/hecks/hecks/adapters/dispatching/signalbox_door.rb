@@ -37,7 +37,8 @@ module Hecks
         # Each fact a look answers, by the `Beat` field it is read from.
         BEAT_FIELDS = { headroom: :headroom, floor: :floor, gap: :gap, age: :age, stale_after: :stale_after,
                         draw: :coder_draw, memory_pressure_level: :memory_pressure_level,
-                        metered_draw: :metered_draw }.freeze
+                        metered_draw: :metered_draw, load: :load, cores: :cores, load_tight: :load_tight,
+                        load_short: :load_short }.freeze
 
         # @return [SignalboxDoor] the process's one door, booted on first use
         def self.shared = @shared ||= new
@@ -55,9 +56,10 @@ module Hecks
         # @param meter [#call, nil] answers the machine facts the beat looks at; nil leaves the
         #   Signalbox's own meter in charge, which meters no coder's draw
         # @return [Hash] the beat's `headroom`, the world's marks and draws, the kernel's
-        #   `memory_pressure_level`, the `metered_draw` and the `band` its Pressure stands in; the
-        #   posted signal's band, headroom and age when the beat was not cleared; the dark band when
-        #   neither holds a current reading
+        #   `memory_pressure_level`, the `metered_draw`, the `load` on its `cores` with the load
+        #   marks, and the `band` its Pressure stands in; the posted signal's band, headroom, load,
+        #   cores and age when the beat was not cleared; the dark band when neither holds a current
+        #   reading
         def look(meter: nil)
           key = "admission-#{SecureRandom.hex(6)}"
           Looking::Meter.handing(meter) { runtime.dispatch("Signalbox::Beat.Begin", with: { beat: { value: key } }) }

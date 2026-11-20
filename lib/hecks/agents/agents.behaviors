@@ -221,4 +221,14 @@ Hecks.behaviors "Agents" do
            run: { value: "acc7-acceptance-1" }, result: { value: "passed" }
     expect refused: "the attested reference is one of the work item's references"
   end
+
+  test "Record keeps a clean verdict's miss with the episode that found it" do
+    tests "Record", on: "ReviewMiss"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "miss1" }, hops: { value: 1 },
+           work: { value: "w-miss1" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-miss1" }
+    input  review: "miss1", submission: { value: "miss1" }, work: { value: "w-miss1" }, tier: { value: "full" },
+           hops: { value: 1 }, episode: { value: "ep-miss1" }, culprit: { value: "m1" }, spec: { value: "spec/a_spec.rb" }
+    expect emits: ["ReviewMissed"]
+  end
 end

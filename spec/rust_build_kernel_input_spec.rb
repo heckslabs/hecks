@@ -54,6 +54,16 @@ RSpec.describe Hecks::RustBuild::KernelInput do
     expect(tables["query_needs"].keys & tables["needs"].keys).to eq([])
   end
 
+  it "builds the tables from an IR hash as from the file that holds it" do
+    expect(described_class.tables_of(KernelInputFixtures.lease_clock)).to eq(described_class.tables_for(domain))
+  end
+
+  it "adds a second domain's IR to the tables it is given" do
+    first = described_class.tables_of(KernelInputFixtures.lease_clock)
+    tables = described_class.tables_of(KernelInputFixtures.nested_pieces, first)
+    expect(tables["defaults"].keys).to include("LeaseClock::Lease.Reap", "#{board}.Retitle")
+  end
+
   it "sends each table only when it has an entry", :aggregate_failures do
     expect(described_class.build(domain, steps).keys).to eq(%w[steps defaults needs query_needs])
     expect(described_class.build("examples/pizzas", steps).keys).to eq(["steps"])
