@@ -1627,7 +1627,7 @@ Hecks.hecksagon "Coder" do
     on AgentRun::JobRead
     root
     where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
-    trigger Submission::Submit, with: { on_branch: :on_branch, sha: :sha, checkout: :checkout, clean: :clean }
+    trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
   end
 end
 
@@ -1662,7 +1662,7 @@ Hecks.hecksagon "Delivery" do
 
   translates "FindWorkWhenBranchLanded" do
     on      Landing::BranchLanded
-    ask     :find_landed_work, with: { on_branch: :on_branch, landed: :landed }
+    ask     :find_landed_work, with: { branch: :branch, landed: :landed }
   end
 
   subscribe "Coder.WorkSubmitted"
@@ -1673,7 +1673,7 @@ Hecks.hecksagon "Delivery" do
   translates "LandWhenWorkIsSubmitted" do
     on      Submission::WorkSubmitted
     root
-    trigger Landing::Submit, with: { run: :sha, checkout: :checkout, on_branch: :on_branch, confirm: true }
+    trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
   end
 
   # GitHub merges the train's pull request in a merge commit local main does not hold yet, so

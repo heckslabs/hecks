@@ -35,7 +35,7 @@ attribute :checkout, Switch, optional: true
 attribute :report,   Report, optional: true
 attribute :refusal,  Report, optional: true
 # Where the run ran, as the examine answers it: a linked worktree, its branch, and the name of the
-# check (`conformance-<operation>`) a filed failure is keyed by. Only filed operations answer them.
+# check (`conformance-<operation>`) a failure is keyed by. Every run is examined with them.
 attribute :linked,   Switch, optional: true
 attribute :on_branch, Report, optional: true
 attribute :check_name, Report, optional: true
