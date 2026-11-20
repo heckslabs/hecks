@@ -155,6 +155,57 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[PressureRead PressureEased PressurePosted], band: "normal"
   end
 
+  # The probe of 2026-11-19 22:55-23:25: the headroom read 2.1 to 4.5 GB while the OS read its
+  # memory pressure normal (level 1) on every pass. The OS's level is memory's second input.
+  test "the OS's normal level keeps memory normal with headroom under the floor" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 2100 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 1 }
+    expect emits: %w[PressureRead PressureEased PressurePosted], band: "normal"
+  end
+
+  test "an unread OS level leaves the headroom marks to judge memory, as before" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 2100 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 0 }
+    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+  end
+
+  test "the OS's warning level tightens the band whatever the headroom" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 2 }
+    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+  end
+
+  test "the OS's warning level with headroom under the floor is short, and only short" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 2100 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 2 }
+    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+  end
+
+  test "the OS's critical level puts the machine in the short band whatever the headroom" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 4 }
+    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+  end
+
+  test "the OS's normal level does not ease a load past its tight mark" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 2100 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
+    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+  end
+
   # ---- Law 3: local response ----
 
   test "law 3: in normal pressure every session runs" do
@@ -293,6 +344,61 @@ Hecks.behaviors "Signalbox" do
           share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
           floor: { value: 3072 }, gap: { value: 2048 }
     expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  # The probe's reading: pressure level 1 with 3 GB of headroom admits a normal-tier coder.
+  test "the OS's normal level admits a lower-tier coder whose draw fits, without the gap" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-os-1" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "admission-reads-memory-as-the-os-does" }, purpose: { value: "admit at normal pressure" },
+          ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 3072 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }, memory_pressure_level: { value: 1 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  # Accepted (architect, 2026-11-20): at the OS's normal level the draw fitting the headroom is the
+  # memory bound left, so a coder is admitted with the headroom under the floor; the ramp paces it.
+  test "the OS's normal level admits a coder with the headroom under the floor while its draw fits" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-os-2" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "admission-reads-memory-as-the-os-does" }, purpose: { value: "admit at normal pressure" },
+          ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 2100 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }, memory_pressure_level: { value: 1 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  test "the OS's normal level still holds a coder whose draw does not fit the headroom" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-os-3" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "admission-reads-memory-as-the-os-does" }, purpose: { value: "admit at normal pressure" },
+          ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 1000 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }, memory_pressure_level: { value: 1 }
+    expect refused: "a session's expected draw fits the headroom"
+  end
+
+  test "an unread OS level holds a lower-tier coder at 3 GB of headroom, as before" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-os-0" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "admission-reads-memory-as-the-os-does" }, purpose: { value: "admit at normal pressure" },
+          ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 3072 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }
+    expect refused: "a lower-tier session leaves the gap above the floor after its draw"
   end
 
   test "an urgent coder whose draw fits is admitted without the gap" do
@@ -712,6 +818,42 @@ Hecks.behaviors "Signalbox" do
     expect count: 2
   end
 
+  test "shadow: under the floor at the OS's normal level, starting a coder and sparing every one both agree" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-8" }, headroom: { value: 2100 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 1 }, draw: { value: 1536 },
+          fill_ruling: { value: "beat-8:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" },
+          shed_ruling: { value: "beat-8:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 0
+  end
+
+  test "shadow: the OS's critical level is short: starting a coder and sparing every one both disagree" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-9" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 4 }, draw: { value: 1536 },
+          fill_ruling: { value: "beat-9:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" },
+          shed_ruling: { value: "beat-9:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 2
+  end
+
+  test "shadow: the OS's critical level is short: waiting and shedding both agree" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-10" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 4 }, draw: { value: 1536 },
+          fill_ruling: { value: "beat-10:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "wait" },
+          shed_ruling: { value: "beat-10:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
+    expect count: 0
+  end
+
+  test "shadow: under the floor at the OS's normal level, waiting and shedding both disagree" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-11" }, headroom: { value: 2100 }, floor: { value: 3072 }, load: { value: 700 },
+          cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 1 }, draw: { value: 1536 },
+          fill_ruling: { value: "beat-11:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "wait" },
+          shed_ruling: { value: "beat-11:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
+    expect count: 2
+  end
+
   test "shadow: a fill with nothing planned is not ruled on" do
     tests "Signalbox::Ruling.Shadowed", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-7" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
@@ -761,5 +903,19 @@ Hecks.behaviors "Signalbox" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-quiet" }
     expect coders_fit: 5, gates_fit: 3
+  end
+
+  # Roundhouse metered the live coders at a median of 1,100 MB: that is the coder's draw, so the
+  # 8,209 MB fits seven; the world's 1,536 MB stands in only while no coder is metered.
+  test "the beat: a coder's draw is the metered median when the meter has one" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-metered" }
+    expect coder_draw: 1100, coders_fit: 7, memory_pressure_level: 1
+  end
+
+  test "the beat: a coder's draw is the world's while no coder is metered" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-quiet" }
+    expect coder_draw: 1536, metered_draw: 0
   end
 end
