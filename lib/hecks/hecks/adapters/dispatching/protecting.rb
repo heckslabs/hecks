@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/roundhouse/adapters/metering"
+require "hecks/hecks/adapters/claude_session_listing"
 require_relative "signalbox_door"
 
 module Hecks
@@ -79,11 +80,15 @@ module Hecks
           @readings ||= { "helpers" => helper_reading, "machine" => machine_reading }.compact
         end
 
+        # Coders and helpers alike are counted only while their session has not ended: a session
+        # listed stopped, done or failed whose process lingers neither loads nor rates the share.
         def helper_reading
-          roles = @sessions.call.map { |session| session[:role].to_s }
+          roles = @sessions.call.reject { |session| ended?(session) }.map { |session| session[:role].to_s }
           share = (@door.setting("breakers")[:helpers_percent] || SHARE_PERCENT).to_i
           { load: roles.count("helper"), rating: roles.count("coder") * share / 100 }
         end
+
+        def ended?(session) = ClaudeSessionListing::ENDED.include?(session[:state].to_s)
 
         def machine_reading
           return unless @budget && boot_reading && !boot_reading.capped

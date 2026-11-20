@@ -4,6 +4,7 @@ require "json"
 require_relative "metering/process_table"
 require_relative "metering/machine_gauge"
 require_relative "metering/session_role"
+require_relative "metering/session_runs"
 require_relative "metering/live_reads"
 require_relative "metering/ended_rows"
 require_relative "metering/copy_reads"
@@ -85,7 +86,7 @@ module Hecks
         @rows ||= begin
           table = ProcessTable.new(@processes.call)
           runs = @runs.call
-          live(table).map { |entry| row(entry, table.tree(entry["pid"]), runs[entry["sessionId"].to_s]) }
+          live(table).map { |entry| row(entry, table.tree(entry["pid"]), SessionRuns.of(runs, entry)) }
         end
       end
 
