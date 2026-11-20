@@ -43,6 +43,8 @@ module Hecks
       # admits (ADR 0222). Each boots alone from its own directory.
       signalbox:  "lib/hecks/signalbox",
       roundhouse: "lib/hecks/roundhouse",
+      # The Docs domain: a documentation page made of regions, each with where its words come from.
+      docs:       "lib/hecks/docs",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:   "examples/*/vendor/embryonaut_bluebooks/*"
