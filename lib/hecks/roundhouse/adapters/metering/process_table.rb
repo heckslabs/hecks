@@ -15,7 +15,7 @@ module Hecks
         Tree = Struct.new(:memory_mb, :cpu, :processes, :mcp_servers, keyword_init: true)
 
         # The command lines of the two MCP servers a session in this repository starts.
-        MCP = %r{hecks/tools/mcp'|serve_query_ir_mcp}
+        MCP = %r{hecks/adapters/driving/mcp/stdio_entry'|query_ir_mcp/stdio_entry'|serve_query_ir_mcp}
 
         # One `ps` line: pid, ppid, rss, %cpu, then the command with its spaces.
         LINE = /\A\s*(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+)\s+(.*)\z/

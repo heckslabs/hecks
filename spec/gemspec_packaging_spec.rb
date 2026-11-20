@@ -3,7 +3,7 @@ require "bundler"
 require "fileutils"
 require "open3"
 require "tmpdir"
-require "hecks/tools/console"
+require "hecks/hecks/adapters/terminal/console"
 require_relative "../lib/hecks/hecks/adapters/rust_workspace"
 
 # Both checks below walk the same glob-derived sources `Hecks::Framework.members`
@@ -30,8 +30,9 @@ RSpec.describe "gem packaging" do
     "rust/host/src/lib.rs"          => ""
   }.freeze
 
-  PACKAGED_SUBCOMMANDS = ["run", "ir", "stores", "model_check", "smoke_test", "project_diagrams",
-                          "project_cli", "mcp"].freeze
+  PACKAGED_SUBCOMMANDS = ["hecks/hecks/adapters/operation_run", "hecks/hecks/adapters/in_process_boot",
+                          "hecks/tools/model_check", "hecks/tools/smoke_test", "hecks/tools/project_diagrams",
+                          "hecks/hecks/adapters/local_files", "hecks/adapters/driving/mcp/stdio_entry"].freeze
 
   LOAD_ONLY_HECKS = <<~RUBY.freeze
     require "hecks"
@@ -163,7 +164,7 @@ RSpec.describe "gem packaging" do
   # The program that requires the framework and every packaged subcommand, then names any feature
   # that loaded from outside `dir`.
   def packaged_load_script(dir)
-    requires = PACKAGED_SUBCOMMANDS.map { |name| "require \"hecks/tools/#{name}\"" }.join("\n")
+    requires = PACKAGED_SUBCOMMANDS.map { |path| "require \"#{path}\"" }.join("\n")
     <<~RUBY
       require "hecks"
       #{requires}
@@ -197,7 +198,7 @@ RSpec.describe "gem packaging" do
 
     it "ships the pizzas example `hecks console!` opens when given no domain, and not its glossary", :aggregate_failures,
        :process do
-      opened = Hecks::Tools::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
+      opened = Hecks::Adapters::Terminal::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
 
       expect(gemspec.files).to include(*opened)
       expect(gemspec.files.grep(%r{\Aexamples/pizzas/glossary/})).to be_empty

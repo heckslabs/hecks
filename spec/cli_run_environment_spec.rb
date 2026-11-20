@@ -1,19 +1,13 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/tools/run"
+require "hecks/hecks/adapters/operation_run"
 
 # `hecks run` saves through whatever the domain binds, and `HECKS_ENVIRONMENT` only changes that
 # for a domain that ships the overlay. A name with no overlay must be said, not ignored.
-RSpec.describe Hecks::Tools::Run, ".warn_unmatched_environment" do
+RSpec.describe Hecks::Adapters::OperationRun, ".unmatched_environment" do
   let(:dir) { Dir.mktmpdir }
 
-  around do |example|
-    saved = ENV.fetch("HECKS_ENVIRONMENT", nil)
-    example.run
-  ensure
-    ENV["HECKS_ENVIRONMENT"] = saved
-    FileUtils.rm_rf(dir)
-  end
+  after { FileUtils.rm_rf(dir) }
 
   def write_overlay(name)
     FileUtils.mkdir_p(File.join(dir, "environments"))
@@ -21,22 +15,17 @@ RSpec.describe Hecks::Tools::Run, ".warn_unmatched_environment" do
   end
 
   it "names an environment the domain has no overlay for" do
-    ENV["HECKS_ENVIRONMENT"] = "memory"
-
-    expect { described_class.warn_unmatched_environment(dir) }
-      .to output(/HECKS_ENVIRONMENT=memory has no overlay in .*environments/).to_stderr
+    expect(described_class.unmatched_environment(dir,
+                                                 "memory")).to match(/HECKS_ENVIRONMENT=memory has no overlay in .*environments/)
   end
 
   it "stays quiet when the domain ships the overlay" do
-    ENV["HECKS_ENVIRONMENT"] = "memory"
     write_overlay("memory")
 
-    expect { described_class.warn_unmatched_environment(dir) }.not_to output.to_stderr
+    expect(described_class.unmatched_environment(dir, "memory")).to be_nil
   end
 
   it "stays quiet when no environment is named" do
-    ENV["HECKS_ENVIRONMENT"] = " "
-
-    expect { described_class.warn_unmatched_environment(dir) }.not_to output.to_stderr
+    expect(described_class.unmatched_environment(dir, " ")).to be_nil
   end
 end

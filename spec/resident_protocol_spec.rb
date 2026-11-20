@@ -1,7 +1,7 @@
 require "spec_helper"
 require "stringio"
 require "tmpdir"
-require "hecks/tools/project_cli"
+require "hecks/hecks/adapters/local_files/project_cli"
 require "hecks/adapters/driving/resident/client"
 require "hecks/adapters/driving/resident/fingerprint"
 
@@ -159,7 +159,7 @@ RSpec.describe "the resident's protocol" do
 
   describe "which launchers carry the probe" do
     def launcher(**options)
-      Hecks::Tools::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli", **options)
+      Hecks::Adapters::LocalFiles::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli", **options)
     end
 
     it "is in the first lines of an executable launcher, before the gems are chosen", :aggregate_failures do

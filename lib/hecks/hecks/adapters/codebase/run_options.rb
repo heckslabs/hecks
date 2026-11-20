@@ -3,8 +3,7 @@
 module Hecks
   module Adapters
     module Codebase
-      # What a spec run's arguments become: the variables the specs read, and the flags a stress run
-      # takes.
+      # What a spec run's arguments become: the variables the specs read.
       # A person names them in a request, so they never set them in a shell.
       module RunOptions
         module_function
@@ -19,17 +18,6 @@ module Hecks
             "HECKS_ENVIRONMENT" => args[:environment],
             "HECKS_NO_DECLARATION_CACHE" => ("1" if args[:declaration_cache] == false) }.compact
         end
-
-        # @param args [Hash] `runs`, `parallel` and `seed_start`
-        # @return [Array<String>] the script's flags for those that are named
-        def stress_flags(args)
-          { "--runs" => :runs, "--parallel" => :parallel, "--seed-start" => :seed_start }
-            .filter_map { |flag, name| [flag, args[name].to_s] if args[name] }.flatten
-        end
-
-        # @param args [Hash] `fixture`, perhaps absent
-        # @return [Hash{String => String}] the variable that names the one fixture to re-seed
-        def seed_env(args) = args[:fixture] ? { "SEED" => args[:fixture] } : {}
       end
     end
   end

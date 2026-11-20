@@ -3,8 +3,8 @@
 require "fileutils"
 require_relative "console_capture"
 require_relative "rails_app_files"
-require "hecks/tools/project_cli"
-require "hecks/tools/domain_stub"
+require "hecks/domain_stub"
+require_relative "local_files/project_cli"
 
 module Hecks
   module Adapters
@@ -21,7 +21,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
       # Writes a command-line launcher beside each domain of the current directory, or beside the
-      # named ones, through `Hecks::Tools::ProjectCli`. A launcher is a generated file that only
+      # named ones, through `ProjectCli`. A launcher is a generated file that only
       # points at its domain, so an existing one is replaced and nothing else is touched.
       #
       # @param held [Hash] the `Launch` record: `domains` (comma separated paths under the current
@@ -29,16 +29,11 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `output:` one line per launcher written
       # @raise [ConsoleCapture::Failure] when no launcher was written
       def write(**held)
-        domains = Text.comma_list(plain(held[:domains]))
-        text = ConsoleCapture.answer do
-          Tools::ProjectCli.call(domains, program: "hecks project_cli", root: Dir.pwd, remove_stale_bin: false)
-        end
-        unless text.include?("->")
-          reason = text.strip.empty? ? "no domain found" : text.strip
-          raise ConsoleCapture::Failure, "no launcher written: #{reason}"
-        end
+        outcome = launchers(Text.comma_list(plain(held[:domains])))
+        raise ConsoleCapture::Failure, outcome.text unless outcome.ok?
+        raise ConsoleCapture::Failure, "no launcher written: #{outcome.text.strip}" if outcome.written.empty?
 
-        { output: { value: text } }
+        { output: { value: outcome.text } }
       end
 
       # Writes the stub files of a new domain (ADR 0087) into the named directory, or into the
@@ -76,10 +71,22 @@ module Hecks
 
       private
 
+      # @param domains [Array<String>] domain paths under the current directory; every one when
+      #   empty
+      # @return [ProjectCli::Outcome] what was written and what could not be
+      # @raise [ConsoleCapture::Failure] when a path leaves the current directory or none is found
+      def launchers(domains)
+        outcome = ProjectCli.call(domains, program: "hecks project_cli", root: Dir.pwd, remove_stale_bin: false)
+        outcome.notes << "no domain found" if outcome.written.empty? && outcome.text.strip.empty?
+        outcome
+      rescue ProjectCli::Error => e
+        raise ConsoleCapture::Failure, e.message
+      end
+
       # The directory the stub is written into: the named one, or the snake-cased name under the
       # current directory.
       def stub_target(held)
-        File.expand_path(plain(held[:dir]) || Tools::DomainStub.directory(plain(held[:name])), Dir.pwd)
+        File.expand_path(plain(held[:dir]) || DomainStub.directory(plain(held[:name])), Dir.pwd)
       end
 
       # Warns that a service written inside the hecks clone is not one to deploy from there.
@@ -101,7 +108,7 @@ module Hecks
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
       def stub_files(name, adapter)
-        Tools::DomainStub.files(name: name, adapter: adapter)
+        DomainStub.files(name: name, adapter: adapter)
       rescue ArgumentError => e
         raise ConsoleCapture::Failure, e.message
       end

@@ -1,5 +1,5 @@
 require "json"
-require_relative "../../tools/mcp"
+require_relative "mcp/stdio_entry"
 require_relative "mcp/tool_definitions"
 require_relative "mcp/loading"
 require_relative "mcp_scope"
@@ -48,7 +48,7 @@ module Hecks
         module_function
 
         def serve
-          McpStdioGuard.warn!(server: Tools::Mcp::SERVER, notes: warning_notes)
+          McpStdioGuard.warn!(server: SERVER, notes: warning_notes)
           $stdout.sync = true
 
           $stdin.each_line { |line| answer_line(line.strip) }
@@ -134,7 +134,7 @@ module Hecks
 
         def initialize_result(_params)
           { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} },
-            serverInfo: { name: Tools::Mcp::SERVER, version: "1.1.0" } }
+            serverInfo: { name: SERVER, version: "1.1.0" } }
         end
 
         # The tools this server's scope permits, each presented with the command guide.

@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require "hecks/tools/run"
 require_relative "console_capture"
+require_relative "operation_run"
 
 module Hecks
   module Adapters
     # The `Running` port's adapter for `CatcherCare`: requests the Catcher's drain and then its
-    # detection, as `Operation.run!` does, through `Tools::Run` against the Catcher's directory.
+    # detection, as `Operation.run!` does, through `OperationRun` against the Catcher's directory.
     # It only requests them: the Catcher chains their outcomes itself, so an answer means both were
     # requested, and a refusal of either is refused by name.
     class CatcherRunning
@@ -36,7 +36,7 @@ module Hecks
       private
 
       def run(argv)
-        ConsoleCapture.answer_apart { Tools::Run.call(argv, program: "hecks run") }
+        OperationRun.run_noticed(argv)
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
