@@ -1,16 +1,18 @@
 require "spec_helper"
-require "hecks/tools/project_cli"
+require "hecks/hecks/adapters/local_files/project_cli"
 require "tmpdir"
 require "fileutils"
 
 # `hecks project_cli` checks and writes the launchers; a domain it cannot read must fail the
 # check, and nothing a domain or its world names may end a string literal in the launcher.
-RSpec.describe Hecks::Tools::ProjectCli do
+RSpec.describe Hecks::Adapters::LocalFiles::ProjectCli do
   let(:root) { Dir.mktmpdir("project_cli") }
 
   after { FileUtils.rm_rf(root) }
 
-  def call(*argv) = described_class.call(argv, program: "hecks project_cli", root: root, remove_stale_bin: false)
+  def call(*paths, check: false)
+    described_class.call(paths, program: "hecks project_cli", root: root, check: check, remove_stale_bin: false)
+  end
 
   def write_domain(path, name: "Shelf")
     FileUtils.mkdir_p(File.join(root, path))
@@ -19,39 +21,21 @@ RSpec.describe Hecks::Tools::ProjectCli do
                "Hecks.hecksagon #{name.inspect} do\n  persisted_by \"Memory\"\nend\n")
   end
 
-  def quietly
-    $stdout = StringIO.new
-    $stderr = StringIO.new
-    yield
-    [$stdout.string, $stderr.string]
-  ensure
-    $stdout = STDOUT
-    $stderr = STDERR
-  end
-
-  describe "--check" do
-    it "exits 1 for a path that is not a domain, instead of passing", :aggregate_failures do
-      expect { quietly { call("--check", "nowhere") } }.to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
+  describe "a check" do
+    it "fails a path that is not a domain, instead of passing" do
+      expect(call("nowhere", check: true).failed).to eq(["nowhere"])
     end
 
-    it "exits 1 for a launcher that is missing, and 0 once it is written", :aggregate_failures do
+    it "fails a launcher that is missing, and passes once it is written", :aggregate_failures do
       write_domain("shelf")
 
-      expect { quietly { call("--check", "shelf") } }.to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
-      quietly { call("shelf") }
-      expect { quietly { call("--check", "shelf") } }.not_to raise_error
+      expect(call("shelf", check: true).drifted).to eq(["shelf"])
+      call("shelf")
+      expect(call("shelf", check: true)).to be_ok
     end
 
-    it "does not take a mistyped flag for a domain path", :aggregate_failures do
-      _, err = quietly { expect { call("--chek", "shelf") }.to raise_error(SystemExit) }
-
-      expect(err).to include("unknown option --chek")
-    end
-
-    it "refuses a domain path that leaves the root", :aggregate_failures do
-      _, err = quietly { expect { call("--check", "../elsewhere") }.to raise_error(SystemExit) }
-
-      expect(err).to include("is outside")
+    it "refuses a domain path that leaves the root" do
+      expect { call("../elsewhere", check: true) }.to raise_error(described_class::Error, /is outside/)
     end
   end
 

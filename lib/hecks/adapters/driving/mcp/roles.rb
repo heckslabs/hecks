@@ -50,7 +50,7 @@ module Hecks
 
           private
 
-          def base_scope = (@base_scope ||= McpScope.start!(server: Tools::Mcp::SERVER))
+          def base_scope = (@base_scope ||= McpScope.start!(server: Mcp::SERVER))
 
           # [role, what the cache holds for it], or nil when a setting or no agent decides.
           def agent_lookup

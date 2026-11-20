@@ -14,8 +14,8 @@ RSpec.describe Hecks::Adapters::Metering do
   let(:ps) do
     <<~PS
       100     1  512000  12.5 claude --agent coder
-      101   100  204800   3.0 ruby -I lib -e require 'hecks/tools/mcp'; Hecks::Tools::Mcp.call(ARGV) --
-      102   100  102400   1.5 ruby -I lib -e require 'hecks/tools/serve_query_ir_mcp'; Hecks::Tools::ServeQueryIrMcp.call(ARGV) --
+      101   100  204800   3.0 ruby -I lib -e require 'hecks/adapters/driving/mcp/stdio_entry'; Hecks::Adapters::Driving::Mcp.serve_stdio(ARGV) --
+      102   100  102400   1.5 ruby -I lib -e require 'hecks/query_ir_mcp/stdio_entry'; Hecks::QueryIrMcp.serve_stdio(ARGV) --
       103   101   10240   0.5 git status
       200     1  307200   0.5 claude
       300     1  409600   2.0 claude

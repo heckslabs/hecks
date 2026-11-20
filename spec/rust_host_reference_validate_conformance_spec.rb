@@ -1,6 +1,6 @@
 require "json"
 require "open3"
-require "hecks/tools/seed_semantics_corpus"
+require "hecks/hecks/adapters/codebase/test_suite/semantics_seeding"
 require "hecks/projector/exporter"
 require_relative "support/conformance_corpus"
 
