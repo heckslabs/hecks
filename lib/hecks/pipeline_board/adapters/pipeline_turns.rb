@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "pipeline_turns/block"
+require_relative "pipeline_stages/stuck_rows"
 
 module Hecks
   module Adapters
@@ -45,7 +46,8 @@ module Hecks
         # @return [Hash] one stuck row of a turn, as the fields of a `StuckItem`
         def stuck_item(row)
           said = row.transform_keys(&:to_s)
-          STUCK.to_h { |field| [field.to_sym, said[field].to_s] }
+          item = STUCK.to_h { |field| [field.to_sym, said[field].to_s] }
+          item.merge(StuckRows.sorted(item[:kind], said["waits_on"]))
         end
 
         # @param turns [Array<Hash>] from `finished`

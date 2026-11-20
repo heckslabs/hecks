@@ -7,6 +7,8 @@ require_relative "../../../check_conclusion"
 require_relative "stopped_row"
 require_relative "overdue_row"
 require_relative "integration_runs"
+require_relative "room_rows"
+require_relative "../load_guard"
 
 module Hecks
   module Adapters
@@ -21,9 +23,15 @@ module Hecks
         # @param now [Time] the time the stages are read at
         # @return [Array<Hash>] `name`, `state`, `count` and `detail` for each stage
         def build(data, now)
-          [*alerts(data, now), work(data[:counts]), sessions(data[:sessions]), local(data[:local]),
+          [*alerts(data, now), *starting(data), local(data[:local]),
            IntegrationRuns.row(data[:integration], now), train(data[:train], now), ci(data[:ci_runs]),
            promote(data[:stable]), release(data[:release])]
+        end
+
+        # The rows about work starting: the Work items, the sessions, Signalbox's signal and the
+        # last fill.
+        def starting(data)
+          [work(data[:counts]), sessions(data[:sessions]), RoomRows.signal(LoadGuard.signal), RoomRows.fill(data[:fill])]
         end
 
         # The rows built only while something needs a person: the stopped runs overdue, the red
