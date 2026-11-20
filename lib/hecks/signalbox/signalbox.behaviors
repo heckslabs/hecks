@@ -153,7 +153,7 @@ Hecks.behaviors "Signalbox" do
 
   # The probe of 2026-11-20 06:29: a load of 19.47 on the six performance cores read short at the
   # old 300 mark while memory had room for three coders. Against the 342 mark (the fill's old guard
-  # of 20.5) it is tight, and a lower-tier coder is admitted.
+  # of 20.5) it is tight, and tight holds a lower-tier coder's start while a gate still starts.
   test "the 06:29 reading: a load of 19.47 on six cores is tight, not short, under the 342 mark" do
     tests "Read", on: "Pressure"
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
@@ -163,7 +163,7 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
   end
 
-  test "the 06:29 reading: a lower-tier coder is admitted in the tight band with room for three" do
+  test "the 06:29 reading: a lower-tier coder is not started in the tight band, though memory has room for three" do
     tests "Admit", on: "Admission"
     input admission: { value: "sim-properties-independent" }, role: { value: "coder" }, tier: { value: "normal" },
           owner: { value: "delegate" }, purpose: { value: "sim-properties-independent" },
@@ -172,6 +172,33 @@ Hecks.behaviors "Signalbox" do
           band: { value: "tight" }, headroom: { value: 6879 }, floor: { value: 3072 }, gap: { value: 2048 },
           memory_pressure_level: { value: 1 }, age: { value: 0 }, stale_after: { value: 120 }, started: { value: 0 },
           ramp: { value: 1 }, coders: { value: 0 }, helpers: { value: 0 }, share: { value: 0 }, outranked: { value: 0 },
+          seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "no lower-tier coder or helper starts while pressure is tight"
+  end
+
+  test "an urgent coder is started in the tight band" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "red-fix" }, role: { value: "coder" }, tier: { value: "urgent" },
+          owner: { value: "delegate" }, purpose: { value: "red-fix" },
+          ends_when: { value: "the branch lands or the item yields" }, draw: { value: 474 }, fuse: { value: 4096 },
+          fuse_minutes: { value: 240 }, asked_by: { value: "delegate" }, switch: { value: "on" }, met: { value: "no" },
+          band: { value: "tight" }, headroom: { value: 6879 }, floor: { value: 3072 }, gap: { value: 2048 },
+          memory_pressure_level: { value: 1 }, age: { value: 0 }, stale_after: { value: 120 }, started: { value: 0 },
+          ramp: { value: 1 }, coders: { value: 7 }, helpers: { value: 0 }, share: { value: 0 }, outranked: { value: 0 },
+          seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  # A gate finishes work in flight, so tight pressure does not hold its start.
+  test "a landing's gate is started in the tight band" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "landing-gate" }, role: { value: "gate" }, tier: { value: "normal" },
+          owner: { value: "landing" }, purpose: { value: "sim-properties-independent" },
+          ends_when: { value: "the gate ends" }, draw: { value: 2560 }, fuse: { value: 6144 },
+          fuse_minutes: { value: 20 }, asked_by: { value: "landing" }, switch: { value: "on" }, met: { value: "no" },
+          band: { value: "tight" }, headroom: { value: 6879 }, floor: { value: 3072 }, gap: { value: 2048 },
+          memory_pressure_level: { value: 1 }, age: { value: 0 }, stale_after: { value: 120 }, started: { value: 0 },
+          ramp: { value: 1 }, coders: { value: 7 }, helpers: { value: 0 }, share: { value: 0 }, outranked: { value: 0 },
           seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
     expect emits: ["SessionAdmitted"], status: "admitted"
   end
@@ -267,10 +294,34 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[ResponseAsked ResponseRan], status: "running"
   end
 
-  test "a lower-tier coder defers its heavy steps when pressure is tight" do
+  # The probe of 2026-11-20 09:13-09:30: a load of 17 to 27 on 12 cores kept pressure tight with
+  # 7 items in flight, and holding their heavy jobs cut landings while starts rose. Tight holds
+  # starts instead (`Admission`); the work in flight runs.
+  test "the 09:13 probe: pressure tight, 7 items in flight, the item at its landing spec run is not held" do
+    tests "Ask", on: "Response"
+    input response: { value: "item-7-landing-at-0913" }, session: { value: "landing:item-7" }, role: { value: "gate" },
+          tier: { value: "normal" }, band: { value: "tight" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
+  test "the 09:13 probe: a coder at its last spec run is not held when pressure is tight" do
+    tests "Ask", on: "Response"
+    input response: { value: "coder-2-at-0913" }, session: { value: "coder-2" }, role: { value: "coder" },
+          tier: { value: "low" }, band: { value: "tight" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
+  test "a lower-tier coder defers its heavy steps when pressure is short" do
     tests "Ask", on: "Response"
     input response: { value: "coder-2-at-0930" }, session: { value: "coder-2" }, role: { value: "coder" },
-          tier: { value: "low" }, band: { value: "tight" }
+          tier: { value: "low" }, band: { value: "short" }
+    expect emits: %w[ResponseAsked ResponseDeferred], status: "deferring"
+  end
+
+  test "a lower-tier coder defers its heavy steps while the signal is dark" do
+    tests "Ask", on: "Response"
+    input response: { value: "coder-2-at-0935" }, session: { value: "coder-2" }, role: { value: "coder" },
+          tier: { value: "normal" }, band: { value: "dark" }
     expect emits: %w[ResponseAsked ResponseDeferred], status: "deferring"
   end
 
@@ -288,10 +339,17 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[ResponseAsked ResponseWaited], status: "waiting"
   end
 
-  test "a low-tier gate waits its turn when pressure is tight" do
+  test "a low-tier gate runs when pressure is tight" do
     tests "Ask", on: "Response"
     input response: { value: "landing-gate-at-0932" }, session: { value: "landing-gate" }, role: { value: "gate" },
           tier: { value: "low" }, band: { value: "tight" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
+  test "a gate waits its turn while the signal is dark" do
+    tests "Ask", on: "Response"
+    input response: { value: "landing-gate-at-0936" }, session: { value: "landing-gate" }, role: { value: "gate" },
+          tier: { value: "normal" }, band: { value: "dark" }
     expect emits: %w[ResponseAsked ResponseWaited], status: "waiting"
   end
 
@@ -379,12 +437,12 @@ Hecks.behaviors "Signalbox" do
     expect refused: "a lower-tier session leaves the gap above the floor after its draw"
   end
 
-  test "a lower-tier coder that leaves the gap above the floor is admitted in the tight band" do
+  test "a lower-tier coder that leaves the gap above the floor is admitted" do
     tests "Admit", on: "Admission"
     input admission: { value: "coder-gap-2" }, role: { value: "coder" }, tier: { value: "normal" },
           owner: { value: "signalbox-admits-by-headroom" }, purpose: { value: "admit by headroom" }, ends_when: { value: "the branch lands" },
           draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
-          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 7000 }, age: { value: 0 },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 7000 }, age: { value: 0 },
           stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
           share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
           floor: { value: 3072 }, gap: { value: 2048 }
@@ -421,14 +479,14 @@ Hecks.behaviors "Signalbox" do
   end
 
   # The reopened probe of 2026-11-20 05:30: 9086 - 3072 floor - 2048 gap leaves 3966 MB, room for
-  # coders at the 397 MB Roundhouse metered; with the band not short a lower-tier coder is admitted.
-  test "the 05:30 reading admits a coder: 9086 MB, draw 397 metered, floor 3072, gap 2048, level 1" do
+  # coders at the 397 MB Roundhouse metered; once its load eases (10.55 was tight, which holds a start) a lower-tier coder is admitted.
+  test "the 05:30 memory reading admits a coder in the normal band: 9086 MB, draw 397 metered, floor 3072, gap 2048, level 1" do
     tests "Admit", on: "Admission"
     input admission: { value: "coder-os-0530" }, role: { value: "coder" }, tier: { value: "normal" },
           owner: { value: "admission-reads-memory-as-the-os-does" }, purpose: { value: "admit at normal pressure" },
           ends_when: { value: "the branch lands" },
           draw: { value: 397 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
-          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 9086 }, age: { value: 0 },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9086 }, age: { value: 0 },
           stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
           share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
           floor: { value: 3072 }, gap: { value: 2048 }, memory_pressure_level: { value: 1 }
@@ -827,6 +885,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: hearing Delegate's fill and shed records one ruling on each" do
     tests "Hear", on: "Shadow"
     input shadow: { value: "beat-1" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-1:fill" },
           fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-1:shed" },
           shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
@@ -836,15 +895,38 @@ Hecks.behaviors "Signalbox" do
   test "shadow: a quiet machine agrees with Delegate's start and its sparing" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-2" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-2:fill" },
           fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-2:shed" },
           shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
     expect count: 0
   end
 
+  # The 09:13 probe's load: 17.00 on six cores is past the tight mark (9.00), under the short one.
+  test "shadow: Delegate starts a coder while the load is tight, and Signalbox would have it wait" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-12" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 1700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
+          cores: { value: 6 }, load_short: { value: 342 }, draw: { value: 1536 }, fill_ruling: { value: "beat-12:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-12:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 1
+  end
+
+  test "shadow: Delegate starts a coder while memory is under its target, and Signalbox would have it wait" do
+    tests "Signalbox::Ruling.Disagreements", kind: :query
+    setup "Signalbox::Shadow.Hear", shadow: { value: "beat-13" }, headroom: { value: 5000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
+          cores: { value: 6 }, load_short: { value: 342 }, draw: { value: 1536 }, fill_ruling: { value: "beat-13:fill" },
+          fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-13:shed" },
+          shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
+    expect count: 1
+  end
+
   test "shadow: Delegate starts a coder while the load is short, and Signalbox would have it wait" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-3" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 3397 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-3:fill" },
           fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-3:shed" },
           shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
@@ -854,6 +936,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: Delegate leaves a coder waiting that the headroom has room for" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-4" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-4:fill" },
           fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "wait" }, shed_ruling: { value: "beat-4:shed" },
           shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
@@ -863,6 +946,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: Delegate sheds while pressure is not short, which Signalbox would not" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-5" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-5:fill" },
           fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-5:shed" },
           shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
@@ -872,6 +956,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: memory under the floor is short: sparing every coder disagrees, as starting one does" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-6" }, headroom: { value: 1000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-6:fill" },
           fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" }, shed_ruling: { value: "beat-6:shed" },
           shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
@@ -881,6 +966,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: under the floor at the OS's normal level, starting a coder and sparing every one both agree" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-8" }, headroom: { value: 2100 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 1 }, draw: { value: 1536 },
           fill_ruling: { value: "beat-8:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" },
           shed_ruling: { value: "beat-8:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
@@ -890,6 +976,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: the OS's critical level is short: starting a coder and sparing every one both disagree" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-9" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 4 }, draw: { value: 1536 },
           fill_ruling: { value: "beat-9:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "start" },
           shed_ruling: { value: "beat-9:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }
@@ -899,6 +986,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: the OS's critical level is short: waiting and shedding both agree" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-10" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 4 }, draw: { value: 1536 },
           fill_ruling: { value: "beat-10:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "wait" },
           shed_ruling: { value: "beat-10:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
@@ -908,6 +996,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: under the floor at the OS's normal level, waiting and shedding both disagree" do
     tests "Signalbox::Ruling.Disagreements", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-11" }, headroom: { value: 2100 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, memory_pressure_level: { value: 1 }, draw: { value: 1536 },
           fill_ruling: { value: "beat-11:fill" }, fill_subject: { value: "pipeline-board-tiles" }, fill_delegate: { value: "wait" },
           shed_ruling: { value: "beat-11:shed" }, shed_subject: { value: "load-7" }, shed_delegate: { value: "shed" }
@@ -917,6 +1006,7 @@ Hecks.behaviors "Signalbox" do
   test "shadow: a fill with nothing planned is not ruled on" do
     tests "Signalbox::Ruling.Shadowed", kind: :query
     setup "Signalbox::Shadow.Hear", shadow: { value: "beat-7" }, headroom: { value: 9000 }, floor: { value: 3072 }, load: { value: 700 },
+          target: { value: 6144 }, load_tight: { value: 150 },
           cores: { value: 6 }, load_short: { value: 300 }, draw: { value: 1536 }, fill_ruling: { value: "beat-7:fill" },
           fill_subject: { value: "nothing-planned" }, fill_delegate: { value: "none" }, shed_ruling: { value: "beat-7:shed" },
           shed_subject: { value: "load-7" }, shed_delegate: { value: "none" }

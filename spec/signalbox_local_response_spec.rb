@@ -16,16 +16,26 @@ RSpec.describe Hecks::Adapters::LocalResponse do
     Hecks::Adapters::Codebase::SessionKind.of(base, job)
   end
 
-  it "has a lower-tier coder defer its heavy steps when pressure is tight" do
-    expect(table.answer(**kind("coder:item-7"), band: "tight")).to eq("deferring")
+  # The probe of 2026-11-20 09:13: pressure tight with 7 items in flight. Tight holds starts, never
+  # the heavy jobs of work in flight.
+  it "does not hold the item at its landing spec run when pressure is tight" do
+    expect(table.answer(**kind("landing:item-7", HECKS_HEAVY_KIND: "landing"), band: "tight")).to eq("running")
+  end
+
+  it "does not hold a coder's spec run when pressure is tight" do
+    expect(table.answer(**kind("coder:item-7"), band: "tight")).to eq("running")
+  end
+
+  it "has a lower-tier coder defer its heavy steps when pressure is short" do
+    expect(table.answer(**kind("coder:item-7"), band: "short")).to eq("deferring")
   end
 
   it "has a dispatched helper finish and leave when pressure is short" do
     expect(table.answer(**kind("reviewer:p-walk"), band: "short")).to eq("leaving")
   end
 
-  it "has a landing's gate wait its turn when pressure is tight" do
-    expect(table.answer(**kind("landing:item-7", HECKS_HEAVY_KIND: "landing"), band: "tight")).to eq("waiting")
+  it "has a landing's gate wait its turn when pressure is short" do
+    expect(table.answer(**kind("landing:item-7", HECKS_HEAVY_KIND: "landing"), band: "short")).to eq("waiting")
   end
 
   it "keeps an urgent landing's gate running when pressure is short" do
