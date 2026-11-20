@@ -10,12 +10,15 @@ module Hecks
     # rather than calling `Open3` itself. The command is an argument list, never a string for a
     # shell to split, so nothing a caller passes is interpreted.
     class Shell
-      # What a program said and how it ended.
+      # What a program said and how it ended. Each stream is labelled UTF-8 whatever the caller's
+      # locale, so a launchd job without one reads the same text a terminal does. A stream that is
+      # not valid UTF-8 (a binary file `git show` printed) keeps its exact bytes as `BINARY`
+      # instead: joining it to UTF-8 text that is not ASCII raises `Encoding::CompatibilityError`.
       #
       # @!attribute [r] out
-      #   @return [String] what it wrote to stdout
+      #   @return [String] what it wrote to stdout, UTF-8 when valid and binary otherwise
       # @!attribute [r] err
-      #   @return [String] what it wrote to stderr
+      #   @return [String] what it wrote to stderr, UTF-8 when valid and binary otherwise
       # @!attribute [r] status
       #   @return [Process::Status] how it ended
       Result = Struct.new(:out, :err, :status) do
@@ -62,11 +65,18 @@ module Hecks
         readers = nil
         Thread.handle_interrupt(Object => :immediate) do
           stdin.close
-          readers = [out, err].map { |io| Thread.new { io.read }.tap { |thread| thread.report_on_exception = false } }
+          readers = [out, err].map { |io| Thread.new { text(io) }.tap { |thread| thread.report_on_exception = false } }
           Result.new(*readers.map(&:value), waiter.value)
         end
       ensure
         settle(waiter, readers)
+      end
+
+      # The stream's bytes, read without transcoding, as UTF-8 when they are valid UTF-8.
+      def text(io)
+        io.binmode
+        read = io.read.force_encoding(Encoding::UTF_8)
+        read.valid_encoding? ? read : read.force_encoding(Encoding::BINARY)
       end
 
       def settle(waiter, readers)

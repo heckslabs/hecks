@@ -1,5 +1,9 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
+# A spec reads text as UTF-8 whatever locale started it, as the launcher does: a run under launchd
+# has no `LANG` or `LC_ALL`, and Ruby would otherwise read files and pipes as `US-ASCII`.
+Encoding.default_external = Encoding::UTF_8
+
 if ENV["COVERAGE"]
   require "simplecov"
   SimpleCov.start do
