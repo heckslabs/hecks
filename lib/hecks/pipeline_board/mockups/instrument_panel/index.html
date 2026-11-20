@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline board: instrument panel (mock-up)</title>
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<header class="top">
+  <div class="title">
+    <span class="label">Pipeline board</span>
+    <span class="read" id="read">reading…</span>
+  </div>
+  <div class="switch" role="group" aria-label="Which state the panel draws">
+    <button type="button" id="mode-real" aria-pressed="true">Real state</button>
+    <button type="button" id="mode-bad" aria-pressed="false">Staged bad day</button>
+  </div>
+</header>
+
+<p class="notice" id="staged-notice" hidden>Staged bad day. Every reading on this page is invented, to show the panel when things are wrong.</p>
+<p class="failure" id="failure" hidden></p>
+<div id="red-main"></div>
+
+<main>
+  <section aria-labelledby="h-strip">
+    <h2 id="h-strip"></h2>
+    <div class="strip" id="strip"></div>
+    <div id="fill"></div>
+  </section>
+
+  <section aria-labelledby="h-stuck">
+    <h2 id="h-stuck"></h2>
+    <div class="groups" id="stuck"></div>
+  </section>
+
+  <section aria-labelledby="h-line">
+    <h2 id="h-line"></h2>
+    <div class="track" id="line"></div>
+  </section>
+
+  <section aria-labelledby="h-day">
+    <h2 id="h-day"></h2>
+    <div class="day" id="day"></div>
+    <div id="day-list"></div>
+  </section>
+
+  <section id="rest"></section>
+</main>
+
+<footer>
+  A design mock-up, hand-built to be judged and then thrown away. It reads the board on :4747 and changes nothing.
+  A reading marked <span class="tag">staged</span> is invented, because no query answers it yet.
+</footer>
+
+<script src="staged.js"></script>
+<script src="panel.js"></script>
+</body>
+</html>

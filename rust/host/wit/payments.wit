@@ -1,0 +1,75 @@
+package hecks:adapters@0.1.0;
+
+/// The shapes a payments adapter takes and answers: the four calls a host makes to a business's
+/// own Stripe account.
+interface stripe {
+  /// The account a call is made as: the processor's base URL, the key the host chose for this
+  /// call, and the API version to pin, when the call pins one. The host sets the base URL from
+  /// its own configuration, never from a tenant's input.
+  record account {
+    base-url: string,
+    api-key: string,
+    api-version: option<string>,
+  }
+
+  /// Why the account could not be read.
+  variant account-refusal {
+    /// The processor does not recognise the key (401).
+    key-refused,
+    /// The processor could not be reached.
+    unreachable,
+    /// The processor answered but would not say (any other refusal).
+    declined,
+  }
+
+  /// The webhook endpoint to create: where events go, its description and the events it sends.
+  record webhook-request {
+    url: string,
+    description: string,
+    events: list<string>,
+  }
+
+  /// A created webhook endpoint: its id and the signing secret the processor shows only once.
+  record endpoint {
+    id: string,
+    secret: string,
+  }
+
+  /// Why a webhook endpoint was not created.
+  variant webhook-refusal {
+    /// The key may not create webhook endpoints (401 or 403).
+    permission,
+    /// Anything else: unreachable, refused, or an answer without an id and a secret.
+    other,
+  }
+
+  /// One embedded checkout session for one registration.
+  record session-request {
+    price-cents: s64,
+    currency: string,
+    product-name: string,
+    registration-id: string,
+    expires-at: s64,
+  }
+
+  /// The session the browser opens: its id and the client secret Stripe.js is given.
+  record embedded-session {
+    session-id: string,
+    client-secret: string,
+  }
+}
+
+/// A payments adapter: reaches the processor only through `http-out`, with the key the host
+/// hands each call. It holds the request shapes and the mapping of the processor's answers.
+world payments-adapter {
+  import http-out;
+  use stripe.{account, account-refusal, webhook-request, endpoint, webhook-refusal};
+  use stripe.{session-request, embedded-session};
+  /// The business's name as the processor has it, `none` when it has none.
+  export read-account: func(account: account) -> result<option<string>, account-refusal>;
+  export create-webhook: func(account: account, request: webhook-request) -> result<endpoint, webhook-refusal>;
+  /// Whether the processor confirmed it removed the endpoint.
+  export delete-webhook: func(account: account, endpoint-id: string) -> bool;
+  /// The session, or why not, naming the processor's own message and never a key.
+  export create-checkout-session: func(account: account, request: session-request) -> result<embedded-session, string>;
+}

@@ -28,7 +28,7 @@ module Hecks
         def flagged? = !@flag.nil?
 
         # @return [Integer, nil] the index of the newest green run in the window, or nil
-        def green_index = @runs.rindex { |run| run[:conclusion] == "success" }
+        def green_index = @runs.rindex { |run| Hecks::CheckConclusion.clean?(run[:conclusion]) }
 
         # @return [String, nil] the sha of the newest green run in the window
         def last_green = green_index && @runs[green_index][:sha]

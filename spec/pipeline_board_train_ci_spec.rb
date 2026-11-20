@@ -18,21 +18,21 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_ci_runs" do
     described_class.new(settings: { gh: ->(*) { raise "gh asked" }, seats: -> { seats }, ttl: 0 })
   end
 
-  def rows(subject) = JSON.parse(subject.train_ci_runs[:text])
+  def rows(subject) = subject.train_ci_runs
 
   it "leaves out a rerun, whose wall time is not the run's", :aggregate_failures do
     found = rows(adapter(record(1), record(2), record(2, attempt: 3, wall_minutes: 40.0), record(9, lane: "main")))
-    expect(found.map { |row| row["id"] }).to eq([1, 2])
-    expect(found.last["wall_minutes"]).to eq(5.0)
+    expect(found.map { |row| row[:id] }).to eq([1, 2])
+    expect(found.last[:wall_minutes]).to eq(5.0)
   end
 
   it "shows the failed jobs of a failed run" do
-    expect(rows(adapter(record(3, conclusion: "failure", failed_jobs: 1))).first["failed_jobs"]).to eq(1)
+    expect(rows(adapter(record(3, conclusion: "failure", failed_jobs: 1))).first[:failed_jobs]).to eq(1)
   end
 
   it "names the slowest job of the latest completed train run" do
     jobs = JSON.generate([{ name: "a", minutes: 1.0 }, { name: "b", minutes: 3.0 }])
-    slow = JSON.parse(adapter(record(4, jobs: jobs)).train_slowest_jobs[:text])
-    expect(slow.map { |job| job["name"] }).to eq(%w[b a])
+    slow = adapter(record(4, jobs: jobs)).train_slowest_jobs
+    expect(slow.map { |job| job[:name] }).to eq(%w[b a])
   end
 end

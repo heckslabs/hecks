@@ -1,0 +1,8 @@
+# Stripe payments as a Wasm component (rust/adapters/stripe, world `payments-adapter`). The Rust
+# host runs stripe.wasm for a deploy whose hecksagon says `charged_by "Stripe"`, granting it only
+# requests to Stripe's API; the host keeps the keys and hands each call the one it chose.
+Hecks.adapter "Stripe" do
+  port    "payments"
+  runs    "stripe.wasm"
+  imports :http_out, hosts: ["api.stripe.com"]
+end

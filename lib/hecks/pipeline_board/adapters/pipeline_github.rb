@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "cache"
+require_relative "rows"
 require_relative "pipeline_github/train_flakes"
 require_relative "pipeline_github/ci_records"
 require_relative "pipeline_github/pull_checks"
@@ -35,41 +36,47 @@ module Hecks
       end
 
       # @param limit [Hash, Integer, nil] how many runs (20 when none is named)
-      # @return [Hash{Symbol => String}] `text:` the runs, oldest first, as JSON
+      # @return [Array<Hash>] the runs, oldest first, as `CiRun` rows
       # @raise [PipelineBoard::Unavailable] when no run is recorded
       def ci_runs(limit: nil)
-        { text: JSON.generate(recorded_runs("main", count(limit, 20))) }
+        PipelineBoard::Rows.of("CiRun", recorded_runs("main", count(limit, 20)))
       end
 
       # @param limit [Hash, Integer, nil] how many jobs (8 when none is named)
-      # @return [Hash{Symbol => String}] `text:` the last completed run's slowest jobs as JSON
+      # @return [Array<Hash>] the last completed run's slowest jobs as `JobTime` rows
       # @raise [PipelineBoard::Unavailable] when no run is recorded
-      def slowest_jobs(limit: nil)
-        { text: JSON.generate(recorded_slowest("main", count(limit, 8))) }
-      end
+      def slowest_jobs(limit: nil) = job_times(slowest("main", count(limit, 8)))
+
+      # @param lane [String] `main` or `train`
+      # @param limit [Integer] how many jobs
+      # @return [Array<Hash>] the last completed run's slowest jobs, as the CI record holds them
+      # @raise [PipelineBoard::Unavailable] when no run is recorded with its jobs
+      def slowest(lane, limit = 8) = recorded_slowest(lane, limit)
+
+      # @param limit [Integer] how many flakes
+      # @return [Hash] `flakes`, `window_days`, `reaches_back` and `unreadable`, as the page reads
+      #   them
+      # @raise [PipelineBoard::Unavailable] when no train run is recorded
+      def flakes(limit = 5) = flake_document(limit)
 
       # @param limit [Hash, Integer, nil] how many runs (20 when none is named)
-      # @return [Hash{Symbol => String}] `text:` the first-attempt CI runs of train pull requests,
-      #   oldest first, as JSON; reruns are left out
+      # @return [Array<Hash>] the first-attempt CI runs of train pull requests, oldest first, as
+      #   `CiRun` rows; reruns are left out
       # @raise [PipelineBoard::Unavailable] when no run is recorded
       def train_ci_runs(limit: nil)
-        { text: JSON.generate(recorded_runs("train", count(limit, 20))) }
+        PipelineBoard::Rows.of("CiRun", recorded_runs("train", count(limit, 20)))
       end
 
       # @param limit [Hash, Integer, nil] how many jobs (8 when none is named)
-      # @return [Hash{Symbol => String}] `text:` the slowest jobs of the latest completed train run
+      # @return [Array<Hash>] the slowest jobs of the latest completed train run as `JobTime` rows
       # @raise [PipelineBoard::Unavailable] when no run is recorded
-      def train_slowest_jobs(limit: nil)
-        { text: JSON.generate(recorded_slowest("train", count(limit, 8))) }
-      end
+      def train_slowest_jobs(limit: nil) = job_times(slowest("train", count(limit, 8)))
 
       # @param limit [Hash, Integer, nil] how many flakes (5 when none is named)
-      # @return [Hash{Symbol => String}] `text:` the items that failed on an earlier attempt of a
-      #   train run a later attempt passed, most often first, as JSON with the days it reaches back
+      # @return [Array<Hash>] the items that failed on an earlier attempt of a train run a later
+      #   attempt passed, most often first, as `Flake` rows
       # @raise [PipelineBoard::Unavailable] when no train run is recorded
-      def train_flakes(limit: nil)
-        { text: JSON.generate(flake_document(count(limit, 5))) }
-      end
+      def train_flakes(limit: nil) = flake_rows(flake_document(count(limit, 5)))
 
       # @return [String] the repository's web address, the base of its commit links
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
@@ -97,6 +104,11 @@ module Hecks
       def open_prs = PipelineBoard::PullChecks.open(open_list)
 
       private
+
+      # The jobs as `JobTime` rows, the minutes as a number with a fraction.
+      def job_times(jobs)
+        PipelineBoard::Rows.of("JobTime", jobs.map { |job| job.merge(name: job[:name].to_s, minutes: job[:minutes].to_f) })
+      end
 
       def count(value, default)
         number = value.is_a?(Hash) ? value[:value] : value

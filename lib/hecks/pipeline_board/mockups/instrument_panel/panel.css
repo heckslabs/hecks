@@ -1,0 +1,260 @@
+/* The instrument panel's theme: dark, nearly monochrome, large numbers, small labels.
+   Colour appears only on a reading that is wrong: amber for attention, red for failed. */
+
+:root {
+  --bg: #0b0d0f;
+  --panel: #101316;
+  --rule: #1e2327;
+  --faint: #454b52;
+  --dim: #868d94;
+  --ink: #e9ebed;
+  --warn: #e3a336;
+  --bad: #ff4b3e;
+  --bad-bg: #b3170c;
+  --num: "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  --text: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--bg); }
+
+body {
+  margin: 0 auto;
+  max-width: 1320px;
+  padding: 20px 28px 48px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Small labels. */
+.label, h2 .name, .lane-name, .axis, .tag, .when {
+  font: 500 11px/1.3 var(--text);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 5px;
+  border: 1px dashed var(--faint);
+  border-radius: 2px;
+  font-size: 9px;
+  color: var(--dim);
+  vertical-align: 1px;
+}
+
+/* Header and the switch. */
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+}
+.title { display: flex; gap: 16px; align-items: baseline; }
+.title .label { color: var(--ink); }
+.read { font: 12px var(--mono); color: var(--dim); }
+
+.switch { display: inline-flex; border: 1px solid var(--faint); border-radius: 4px; overflow: hidden; }
+.switch button {
+  padding: 7px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font: 500 12px var(--text);
+  cursor: pointer;
+}
+.switch button + button { border-left: 1px solid var(--faint); }
+.switch button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.switch button:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.notice, .failure {
+  margin: 0 0 12px;
+  padding: 9px 14px;
+  border: 1px dashed var(--faint);
+  color: var(--dim);
+  font-size: 13px;
+}
+.failure { border: 1px solid var(--warn); color: var(--warn); }
+
+/* A red main: one full-width band nothing else on the page resembles. */
+.red-main { margin: 0 0 20px; background: var(--bad-bg); color: #fff; }
+.red-main summary { display: flex; flex-wrap: wrap; gap: 4px 28px; align-items: baseline; padding: 18px 24px; }
+.red-main .count { font: 600 40px/1 var(--num); letter-spacing: -0.01em; color: #fff; }
+.red-main .line { flex: 1 1 320px; font-size: 15px; color: #fff; }
+.red-main .more { padding: 0 24px 16px; color: #ffe1de; }
+.red-main .more dt { color: #ffc2bd; }
+
+/* Sections. */
+section { margin-top: 32px; }
+h2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: baseline;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+  font: inherit;
+}
+h2 .num { font: 300 22px/1 var(--num); font-variant-numeric: tabular-nums; color: var(--ink); }
+h2 .line { color: var(--dim); font-size: 13px; }
+
+/* Click-open boxes: a count and one line outside, everything else behind the click. */
+details > summary { list-style: none; cursor: pointer; }
+details > summary::-webkit-details-marker { display: none; }
+
+.more { padding: 10px 0 4px; font-size: 12px; color: var(--dim); overflow-wrap: anywhere; }
+.more p { margin: 0 0 6px; }
+.more dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0; }
+.more dt { color: var(--faint); }
+.more dd { margin: 0; }
+.more ul { margin: 0; padding-left: 16px; }
+.more li { margin-bottom: 3px; }
+.more code { font: 11px var(--mono); color: var(--dim); }
+.more a { color: var(--ink); }
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
+}
+@media (max-width: 1100px) { .strip { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); } }
+.box { background: var(--panel); padding: 14px 16px 12px; min-width: 0; outline: 1px solid var(--rule); }
+.box.wide { grid-column: span 2; }
+.box summary { display: grid; gap: 6px; }
+.box .count {
+  font: 300 44px/1 var(--num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.box .count small { margin-left: 6px; font: 400 13px var(--text); letter-spacing: 0; color: var(--dim); }
+.box .line { min-height: 2.9em; font-size: 12.5px; color: var(--dim); }
+.box.unread .count { color: var(--faint); }
+
+.warn .count, .warn > summary .num { color: var(--warn); }
+.bad .count, .bad > summary .num { color: var(--bad); }
+.box.warn { box-shadow: inset 0 2px 0 var(--warn); }
+.box.bad { box-shadow: inset 0 2px 0 var(--bad); }
+.box.warn .label, .box.bad .label { color: var(--ink); }
+
+.metrics .box .count { font-size: 28px; }
+.metrics .box .line { min-height: 0; }
+
+/* One-line rows: the fill, a stuck entry, a list behind a section. */
+.row { border-bottom: 1px solid var(--rule); }
+.row summary { display: flex; gap: 14px; align-items: baseline; padding: 9px 2px; }
+.row .num { flex: 0 0 auto; min-width: 2ch; font: 300 20px/1 var(--num); font-variant-numeric: tabular-nums; }
+.row .line { flex: 1 1 auto; color: var(--ink); }
+.row .when { flex: 0 0 auto; }
+.row .more { padding: 0 2px 12px; }
+.row.warn .line::before, .row.bad .line::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 9px;
+  background: var(--warn);
+  vertical-align: 1px;
+}
+.row.bad .line::before { background: var(--bad); }
+#fill { margin-top: 2px; }
+
+.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 8px 40px; }
+.group h3 { display: flex; gap: 12px; align-items: baseline; margin: 0; padding: 4px 0 8px; font: inherit; }
+.group h3 .num { font: 300 34px/1 var(--num); font-variant-numeric: tabular-nums; }
+.group.has h3 .num { color: var(--warn); }
+.group.has.person h3 .num { color: var(--bad); }
+.none { margin: 0; padding: 9px 2px; color: var(--faint); }
+
+/* The line: a Work item's route as a track, each item in flight at its place. */
+.track { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding-top: 8px; }
+.station { position: relative; border-top: 2px solid var(--faint); padding: 14px 12px 0 0; min-width: 0; }
+.station::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--dim);
+  border-radius: 50%;
+  background: var(--bg);
+}
+.station summary { display: grid; gap: 5px; }
+.station .count { font: 300 34px/1 var(--num); font-variant-numeric: tabular-nums; }
+.station .marks { display: flex; flex-wrap: wrap; gap: 3px; min-height: 9px; }
+.station .marks i { width: 9px; height: 9px; background: var(--dim); }
+.station .marks i.held { background: var(--warn); }
+.station .line { font-size: 12px; color: var(--dim); overflow-wrap: anywhere; }
+.station.held .line { color: var(--warn); }
+/* A stop: the track is barred where items are held. */
+.station.held::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  right: 10px;
+  width: 4px;
+  height: 16px;
+  background: var(--warn);
+}
+.station.stopped { border-top-color: var(--bad); }
+.station.stopped::after { background: var(--bad); }
+.station.stopped .line { color: var(--bad); }
+.station.stopped .marks i.held { background: var(--bad); }
+
+/* The day: a time strip of today. */
+.day { position: relative; padding-bottom: 4px; }
+.lane { display: grid; grid-template-columns: 210px 1fr 56px; align-items: center; height: 30px; border-bottom: 1px solid var(--rule); }
+.lane-track { position: relative; height: 100%; }
+.lane .n { text-align: right; font: 300 18px var(--num); font-variant-numeric: tabular-nums; color: var(--dim); }
+.span { position: absolute; top: 8px; height: 14px; min-width: 3px; background: var(--dim); }
+.span.bad { background: var(--bad); }
+.span.warn { background: repeating-linear-gradient(135deg, var(--warn) 0 4px, transparent 4px 7px); border: 1px solid var(--warn); }
+.span.staged { opacity: 0.45; border-style: dashed; }
+.tick { position: absolute; top: 9px; width: 2px; height: 12px; background: var(--dim); }
+.tick.train { top: 6px; width: 3px; height: 18px; background: var(--ink); }
+.tick.bad { background: var(--bad); }
+.now { position: absolute; top: 0; width: 1px; height: 100%; background: var(--ink); opacity: 0.5; }
+.later { position: absolute; top: 0; right: 0; height: 100%; background: var(--bg); opacity: 0.6; }
+.axis { display: grid; grid-template-columns: 210px 1fr 56px; padding-top: 6px; }
+.axis .hours { position: relative; height: 14px; }
+.axis .hours span { position: absolute; transform: translateX(-50%); font-family: var(--mono); letter-spacing: 0; }
+.axis .hours span:first-child { transform: none; }
+.axis .hours span:last-child { transform: translateX(-100%); }
+#day-list { margin-top: 6px; }
+
+/* Everything else, collapsed. */
+.rest > summary { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+.rest > summary .num { font: 300 22px/1 var(--num); }
+.rest > summary .line { color: var(--dim); font-size: 13px; }
+.rest > summary::after { content: "open"; margin-left: auto; font-size: 11px; color: var(--faint); letter-spacing: 0.09em; text-transform: uppercase; }
+.rest[open] > summary::after { content: "close"; }
+.rest h3 { margin: 22px 0 8px; font: 500 11px var(--text); letter-spacing: 0.09em; text-transform: uppercase; color: var(--dim); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 1px; padding: 1px; }
+
+footer { margin-top: 44px; padding-top: 12px; border-top: 1px solid var(--rule); color: var(--faint); font-size: 12px; }
+
+@media (max-width: 860px) {
+  body { padding: 14px 16px 32px; }
+  .track { grid-template-columns: 1fr; padding-left: 6px; }
+  .station { border-top: 0; border-left: 2px solid var(--faint); padding: 0 0 18px 18px; }
+  .station::before { top: 0; left: -7px; }
+  .station.held::after { top: auto; bottom: 4px; right: auto; left: -9px; width: 16px; height: 4px; }
+  .station.stopped { border-left-color: var(--bad); }
+  .lane, .axis { grid-template-columns: 92px 1fr 34px; }
+  .box.wide { grid-column: span 1; }
+  .groups { grid-template-columns: 1fr; }
+}

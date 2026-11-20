@@ -44,9 +44,9 @@ Hecks.bluebook "Docs" do
       attribute :value, String, pattern: '^(projected|doctested|prose)$'
     end
 
-    # Where a region's words come from, as `<source>:<target>`: `readme:<id>`, `tools:<Section>`
-    # or `reference:<page>` for a projected region, `doctest:<path>` for a doctested one. Empty
-    # for prose.
+    # Where a region's words come from, as `<source>:<target>`: `readme:<id>`, `tools:<Section>`,
+    # `reference:<page>` or `region:<id>` (a marked region of the page itself) for a projected
+    # region, `doctest:<path>` for a doctested one. Empty for prose.
     value_object "SourceRef" do
       attribute :value, String, default: ""
     end

@@ -26,7 +26,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LoadGuard do
 
   def stand_ins
     quiet = instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {},
-                                                                cycle_events: [], stopped_times: {}, health_events: [])
+                                                                cycle_events: [], stopped_times: {}, health_events: [], turns: [])
     { journal: quiet, tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       boots: Hecks::Adapters::PipelineBoots.new(settings: { entries: ->(_date) { [] } }) }
   end

@@ -1,17 +1,15 @@
 # frozen_string_literal: true
 
-require "hecks/hecks/adapters/red_flag_guard"
-require "hecks/hecks/adapters/boarding_hold_marker"
 require "hecks/hecks/adapters/console_capture"
-require "hecks/indifferent_key"
+require_relative "bound_holds"
 
 module Hecks
   module Adapters
     class GitLanding
       # What refuses a landing before it takes a place in the line: unsaved work, the target as the
-      # branch, and a boarding hold on main, by name, until the hold is released or its window ends.
-      # The fix of a red Work item is exempt from the hold, as under a red flag. The including class
-      # answers `common_git_dir`, `worktree_on`, `dirty`, `unsaved_refusal` and `@registry`.
+      # branch, and whatever the project's `Holds` port says holds a landing onto main, in its own
+      # words. The including class answers `common_git_dir`, `worktree_on`, `dirty`,
+      # `unsaved_refusal` and `@registry`.
       module Held
         private
 
@@ -22,7 +20,7 @@ module Hecks
           raise ConsoleCapture::Failure, unsaved_refusal(tree.path, changed) unless changed.empty?
         end
 
-        # Refuses a branch that is the target itself, then one that a boarding hold keeps out.
+        # Refuses a branch that is the target itself, then one that the project holds back.
         def refuse_landing(branch, onto)
           raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
@@ -32,21 +30,11 @@ module Hecks
         # @param branch [String] the branch about to land
         # @param onto [String] the branch it lands on
         # @return [void]
-        # @raise [ConsoleCapture::Failure] when main is held for a boarding and the branch is not a
-        #   red Work item's fix
+        # @raise [ConsoleCapture::Failure] when the adapter bound to `Holds` holds the landing
         def refuse_held(branch, onto)
           return unless onto == "main"
-          return if RedFlagGuard.fix?(branch)
 
-          marker = BoardingHoldMarker.new(common_git_dir, minutes: hold_window)
-          hold = marker.active
-          raise ConsoleCapture::Failure, marker.refusal(hold) if hold
-        end
-
-        # The minutes a hold lasts: the world's `boarding_hold` setting, else the default.
-        def hold_window
-          setting = (@registry&.world("Hecks")&.settings || {})["boarding_hold"]
-          (setting && IndifferentKey.read(setting, :max_minutes)) || BoardingHoldMarker::DEFAULT_MINUTES
+          BoundHolds.new(@registry).hold(branch, onto, common_git_dir)
         end
       end
     end
