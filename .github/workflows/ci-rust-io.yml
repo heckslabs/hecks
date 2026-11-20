@@ -172,7 +172,7 @@ jobs:
         include:
           - leg: a
             domains: ""
-            specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
+            specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb spec/fuzzing/engine_twin_spec.rb
           - leg: b
             domains: banking roster
             specs: spec/rust_generated/domain_feature_exclusivity_spec.rb

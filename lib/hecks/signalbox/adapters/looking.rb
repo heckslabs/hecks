@@ -39,9 +39,13 @@ module Hecks
 
       private
 
-      # A reading is taken as it is looked at, so its age is nought.
+      # A reading is taken as it is looked at, so its age is nought. The kernel's memory pressure
+      # level and the metered coder's draw are passed on as read; the bluebook judges the level
+      # and chooses between the metered draw and the world's.
       def reading(machine)
-        { capacity: machine[:capacity_mb], used: machine[:used_mb], load: machine[:load], cores: machine[:cores], age: 0 }
+        { capacity: machine[:capacity_mb], used: machine[:used_mb], load: machine[:load], cores: machine[:cores],
+          memory_pressure_level: machine[:memory_pressure_level].to_i, metered_draw: machine[:coder_draw_mb].to_i,
+          age: 0 }
       end
 
       def rulings(beat) = { fill_ruling: "#{beat}:fill", shed_ruling: "#{beat}:shed" }

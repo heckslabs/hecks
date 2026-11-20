@@ -90,11 +90,13 @@ module Hecks
       end
 
       # @return [Hash] `capacity_mb`, `used_mb` (everything in use), `drawn_mb` (the pipeline's
-      #   sessions), `person_mb` (sessions a person runs), `load` (hundredths), `cores` (performance
-      #   cores), `sessions` and `taken_at`
+      #   sessions), `person_mb` (sessions a person runs), `coder_draw_mb` (the median live coder's
+      #   memory, 0 when none is metered), `load` (hundredths), `cores` (performance cores),
+      #   `memory_pressure_level` (the kernel's, 0 unread), `sessions` and `taken_at`
       def machine_facts
         gauge = MachineGauge.new(@machine.call)
-        { capacity_mb: gauge.capacity_mb, used_mb: gauge.used_mb, **draws, load: gauge.load, cores: gauge.cores,
+        { capacity_mb: gauge.capacity_mb, used_mb: gauge.used_mb, **draws, coder_draw_mb: median_draw("coder"),
+          load: gauge.load, cores: gauge.cores, memory_pressure_level: gauge.memory_pressure_level,
           sessions: rows.size, taken_at: stamp(@now.call) }
       end
 
@@ -115,6 +117,12 @@ module Hecks
       def draws
         person, pipeline = rows.partition { |row| row[:role] == "person" }
         { drawn_mb: pipeline.sum { |row| row[:memory_mb] }, person_mb: person.sum { |row| row[:memory_mb] } }
+      end
+
+      # The median memory of the live sessions of one role, the middle two averaged; 0 when none.
+      def median_draw(role)
+        drawn = rows.filter_map { |row| row[:memory_mb] if row[:role] == role }.sort
+        drawn.empty? ? 0 : (drawn.values_at((drawn.size - 1) / 2, drawn.size / 2).sum / 2.0).round
       end
 
       def row(entry, tree, run)
