@@ -45,8 +45,12 @@ module Hecks
           [report]
         end
 
+        # A run waiting for its next step is open, and so is one pushed or watched that still holds
+        # the line. A run whose train pull request is red with no check left running does not hold
+        # it (`TrainChecks`), so the tip that reverts its bad landing is opened and boards.
         def open?
-          @runs.all.any? { |run| MainIntegration::NEXT.key?(run.state) || Runs::IN_FLIGHT.include?(run.state) }
+          flying, waiting = @runs.all.partition { |run| Runs::IN_FLIGHT.include?(run.state) }
+          waiting.any? { |run| MainIntegration::NEXT.key?(run.state) } || !TrainChecks.new.blocking(flying).nil?
         end
       end
     end
