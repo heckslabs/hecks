@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe "the language holds a bluebook, and gives it back" do
   # The keys one read of the whole bluebook answers, in order.
   WHOLE_BLUEBOOK_KEYS = %i[bluebook aggregates commands value_objects queries entities members
-                           policies process_managers handlers dispatches read_models].freeze
+                           policies sagas handlers dispatches read_models].freeze
 
   ENGLISH_PLURALS = {
     "query" => "queries", "entity" => "entities", "policy" => "policies", "dispatch" => "dispatches",

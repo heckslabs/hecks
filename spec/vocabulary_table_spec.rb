@@ -42,7 +42,7 @@ RSpec.describe "the generated vocabulary table" do
     end
 
     it "Trigger is the language's own word for a refusal" do
-      expect(Hecks::Bluebook::ProcessManager::REFUSED)
+      expect(Hecks::Bluebook::Saga::REFUSED)
         .to eq(Hecks::Vocabulary.fetch("Trigger").first)
     end
 

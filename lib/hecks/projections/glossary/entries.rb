@@ -116,7 +116,7 @@ module Hecks
         end
 
         def saga_entries(bluebook, home_of)
-          bluebook.process_managers.map do |saga|
+          bluebook.sagas.map do |saga|
             shape = saga.to_h
             Entry.new(name: shape[:name], kind: :saga, section: home_of.call(bare(shape[:starts_on])),
                       facts: { saga: shape })

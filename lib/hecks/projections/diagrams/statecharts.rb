@@ -42,7 +42,7 @@ module Hecks
         def saga_edge(handler, saga)
           label = handler.event_type
           # Derived compensations first, matching the order `SagaInterpreter#unwind` runs them.
-          dispatched = handler.event_type == Bluebook::ProcessManager::REFUSED ? derived_compensations(saga) : []
+          dispatched = handler.event_type == Bluebook::Saga::REFUSED ? derived_compensations(saga) : []
           dispatched += handler.dispatches.map(&:command_name)
           label += " / dispatches #{dispatched.join(", ")}" unless dispatched.empty?
 

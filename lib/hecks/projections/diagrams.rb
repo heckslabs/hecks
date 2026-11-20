@@ -72,7 +72,7 @@ module Hecks
       end
 
       def saga_files(bluebook)
-        bluebook.process_managers.to_h { |saga| ["#{saga.hecks_name}_saga.mmd", Statecharts.saga_diagram(bluebook, saga)] }
+        bluebook.sagas.to_h { |saga| ["#{saga.hecks_name}_saga.mmd", Statecharts.saga_diagram(bluebook, saga)] }
       end
 
       # `hecksagon` is a separate argument because `bluebook` carries no reference to it;

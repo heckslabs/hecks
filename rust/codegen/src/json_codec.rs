@@ -328,7 +328,7 @@ pub fn required_composite_argument_expr(
 pub fn command_argument_allowlist(
     aggregate: &Json,
     command: &Json,
-    process_managers: &[Json],
+    sagas: &[Json],
     extra_identity_heads: &[String],
 ) -> Vec<String> {
     let references = command
@@ -348,7 +348,7 @@ pub fn command_argument_allowlist(
         .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
         .collect();
 
-    let correlation_keys: Vec<String> = process_managers
+    let correlation_keys: Vec<String> = sagas
         .iter()
         .filter_map(|pm| pm.get("correlates_by").map(Json::to_s))
         .filter_map(|c| c.split('.').next().map(std::string::ToString::to_string))

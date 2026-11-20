@@ -2,12 +2,12 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
-      # Parses a `process_manager "Name" do ... end` block into a `ProcessManager`; its states
+      # Parses a `process_manager "Name" do ... end` block into a `Saga`; its states
       # are derived from its `transition`s (ADR 0025).
       class ProcessManagerBuilder
         GRAMMAR_CONTEXT = "ProcessManager".freeze
 
-        class InvalidProcessManager < StandardError; end
+        class InvalidSaga < StandardError; end
 
         include WordGate
 
@@ -62,7 +62,7 @@ module Hecks
         #   naming the source state(s): a `String`, `Symbol`, or an `Array` of them
         # @yield the transition's dispatch body, `instance_eval`'d against a `HandlerBuilder`
         # @return [void]
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `mapping` names
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `mapping` names
         #   no `from:`
         def transition_impl(mapping, &block)
           mapping = mapping.dup
@@ -80,18 +80,18 @@ module Hecks
           end
         end
 
-        # Assembles the declared transitions into a `ProcessManager`, after validating them.
+        # Assembles the declared transitions into a `Saga`, after validating them.
         #
-        # @return [Bluebook::ProcessManager] the built process manager, with its own `states`
+        # @return [Bluebook::Saga] the built process manager, with its own `states`
         #   derived from the declared transitions
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `correlates_by`
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `correlates_by`
         #   is undeclared or names a whole field rather than one scalar, if `starts_on` is
         #   undeclared, if no transition was declared, or if two transitions answer the same event
         #   from the same source state
         def build
           validate!
 
-          ProcessManager.new(
+          Saga.new(
             name:          @name,
             correlates_by: @correlates_by,
             starts_on:     @starts_on,
@@ -107,8 +107,8 @@ module Hecks
         # @param name [String] the process manager's own name
         # @yield the process manager's body, `instance_eval`'d against a new builder; may be
         #   omitted
-        # @return [Bluebook::ProcessManager] the built process manager
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] see `#build`
+        # @return [Bluebook::Saga] the built process manager
+        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] see `#build`
         def self.build(name, &block)
           builder = new(name)
           builder.instance_eval(&block) if block
@@ -122,18 +122,18 @@ module Hecks
         def refuse_missing_from!(mapping, from)
           return unless from.nil?
 
-          raise InvalidProcessManager,
+          raise InvalidSaga,
                 "#{@name}'s transition #{mapping.inspect} names no from: — a process manager's own " \
                 "admission checks a saga instance's CURRENT state exactly, so a transition with no " \
                 "from: would match no instance ever, silently"
         end
 
-        # One row per source state, since a `ProcessManagerHandler` carries a single `from_state`.
+        # One row per source state, since a `SagaHandler` carries a single `from_state`.
         def expand(event_type, transition, dispatches)
           sources = transition.from.nil? ? [nil] : Array(transition.from)
 
           sources.map do |source|
-            ProcessManagerHandler.new(
+            SagaHandler.new(
               event_type: event_type,
               from_state: source.to_s,
               to_state:   transition.target,
@@ -151,13 +151,13 @@ module Hecks
           refuse_bad_correlation!
 
           if @starts_on.to_s.empty?
-            raise InvalidProcessManager, "#{@name} declares no starts_on — " \
-                                         "nothing would ever begin it"
+            raise InvalidSaga, "#{@name} declares no starts_on — " \
+                               "nothing would ever begin it"
           end
 
           if @handlers.empty?
-            raise InvalidProcessManager, "#{@name} declares no transitions — " \
-                                         "it would start and then ignore every event"
+            raise InvalidSaga, "#{@name} declares no transitions — " \
+                               "it would start and then ignore every event"
           end
 
           refuse_ambiguous_legs!
@@ -169,8 +169,8 @@ module Hecks
         def refuse_bad_correlation!
           return if @correlates_by
 
-          raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
-                                       "nothing would tie its events to one instance"
+          raise InvalidSaga, "#{@name} declares no correlates_by — " \
+                             "nothing would tie its events to one instance"
         end
 
         # A leg is selected by (event, current state), so two legs on the same pair would
@@ -187,7 +187,7 @@ module Hecks
         end
 
         def refuse_ambiguous_pair!(handler, earlier)
-          raise InvalidProcessManager,
+          raise InvalidSaga,
                 "#{@name} declares two transitions on #{handler.event_type.inspect} from " \
                 "#{handler.from_state.inspect} (=> #{earlier.to_state.inspect} and => " \
                 "#{handler.to_state.inspect}) — a leg is selected by (event, current state), so " \
@@ -215,7 +215,7 @@ module Hecks
           #   as in a policy's `trigger ..., with:`; `nil` forwards the triggering context
           # @yield the `compensates` body, run only if this leg completed
           # @return [Bluebook::DispatchSpec] the dispatch just recorded
-          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `command_ref`
+          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `command_ref`
           #   is quoted text outside shadow-parsing
           def dispatch_impl(command_ref, with: nil, &block)
             refuse_quoted_command!(command_ref)
@@ -236,7 +236,7 @@ module Hecks
           def refuse_quoted_command!(command_ref)
             return unless command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
 
-            raise InvalidProcessManager,
+            raise InvalidSaga,
                   "dispatch #{command_ref.inspect} is quoted text — give the bare command constant " \
                   "instead, e.g. dispatch Account::Debit"
           end
@@ -265,11 +265,11 @@ module Hecks
             #   arguments, the same shape `HandlerBuilder#dispatch_impl`'s own `with:` takes; `nil`
             #   forwards the triggering context verbatim
             # @return [Bluebook::DispatchSpec] the compensating dispatch just recorded
-            # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if `command_ref`
+            # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `command_ref`
             #   is quoted text outside shadow-parsing
             def compensates_impl(command_ref, with: nil)
               if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
-                raise InvalidProcessManager,
+                raise InvalidSaga,
                       "compensates #{command_ref.inspect} is quoted text — give the bare command constant " \
                       "instead, e.g. compensates Account::Credit"
               end

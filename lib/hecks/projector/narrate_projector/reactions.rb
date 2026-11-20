@@ -7,10 +7,10 @@ module Hecks
 
         # The "Reactions" section, or `nil` when the bluebook has no policies or sagas.
         def narrative(bluebook, depth)
-          return nil if bluebook.policies.empty? && bluebook.process_managers.empty?
+          return nil if bluebook.policies.empty? && bluebook.sagas.empty?
 
           [DocsProjector.h(depth, "Reactions"), *bluebook.policies.map { |policy| policy_sentence(policy) },
-           *bluebook.process_managers.map { |saga| saga_sentence(saga) }].join("\n\n")
+           *bluebook.sagas.map { |saga| saga_sentence(saga) }].join("\n\n")
         end
 
         # A policy as the sentence saying it fires on its own.

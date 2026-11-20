@@ -13,7 +13,7 @@ module Hecks
             # with the message the builder gives. Runs before the other correlation
             # checks, so they only ever see the dotted form.
             def resolve_bare_correlation_keys!(bluebook)
-              bluebook.process_managers.each do |process_manager|
+              bluebook.sagas.each do |process_manager|
                 key = process_manager.correlates_by.to_s
                 next if bare_correlation_key?(key)
 
@@ -28,7 +28,7 @@ module Hecks
             def resolve_bare_correlation_key!(bluebook, process_manager, key)
               aggregate = find_correlated_aggregate(bluebook, key)
               unless aggregate
-                raise ProcessManagerBuilder::InvalidProcessManager,
+                raise ProcessManagerBuilder::InvalidSaga,
                       bare_correlation_message(process_manager.name, key)
               end
 
@@ -55,7 +55,7 @@ module Hecks
               return "id" if paths.empty?
               return paths.first.delete_suffix(".value") if paths.one?
 
-              raise ProcessManagerBuilder::InvalidProcessManager,
+              raise ProcessManagerBuilder::InvalidSaga,
                     "#{process_manager.name} correlates_by #{aggregate.name}, but #{aggregate.name} has a " \
                     "composite identity — name the one field, e.g. #{aggregate.name}.#{paths.first}"
             end
@@ -64,14 +64,14 @@ module Hecks
             # command that emits an event the process manager reacts to. A command lacking the
             # first segment is skipped, since correlation has fallback tiers
             # (saga_interpreter/correlation.rb).
-            def validate_correlation_keys!(process_managers, aggregates)
-              process_managers.each do |pm|
+            def validate_correlation_keys!(sagas, aggregates)
+              sagas.each do |pm|
                 next unless pm.correlates_by
 
                 reason = correlation_key_violation(pm, aggregates)
                 next unless reason
 
-                raise ProcessManagerBuilder::InvalidProcessManager,
+                raise ProcessManagerBuilder::InvalidSaga,
                       "#{pm.name} correlates_by #{pm.correlates_by.inspect}, but #{reason}"
               end
             end
@@ -93,7 +93,7 @@ module Hecks
 
             def reacted_events(process_manager)
               events = [process_manager.starts_on, process_manager.ends_on] + process_manager.handlers.map(&:event_type)
-              answered = events.compact.reject { |event| event == ProcessManager::REFUSED }
+              answered = events.compact.reject { |event| event == Saga::REFUSED }
               answered.map { |event| Naming.demodulise(event) }.uniq
             end
 

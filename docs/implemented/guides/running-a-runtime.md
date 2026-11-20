@@ -67,7 +67,7 @@ end
 ```ruby
 ir = Hecks::Projector::Exporter.call(runtime.registry).fetch("Banking")
 
-ir.keys # => [:ir_version, :name, :version, :vision, :classification, :formerly_known_as, :namespace, :aggregates, :read_models, :policies, :process_managers, :attaches_to, :provides, :canonical_form]
+ir.keys # => [:ir_version, :name, :version, :vision, :classification, :formerly_known_as, :namespace, :aggregates, :read_models, :policies, :sagas, :attaches_to, :provides, :canonical_form]
 ```
 
 Every key below is a real Ruby `Symbol`, not a JSON string — `Exporter.call`
@@ -780,7 +780,7 @@ new shapes:
    another aggregate-local record, with its own identity-minting rule.
 
 Sagas, policies, and the query DSL are real parts of the IR
-(`process_managers`, `policies`, and each aggregate's own `queries`
+(`sagas`, `policies`, and each aggregate's own `queries`
 key) that this page does not walk — they're
 [policies-and-process-managers.md](policies-and-process-managers.md)
 and [queries-and-read-models.md](queries-and-read-models.md)'s

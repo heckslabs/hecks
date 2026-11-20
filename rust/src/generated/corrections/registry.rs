@@ -554,36 +554,35 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
-    &[crate::kernel::ProcessManagerDef {
-        name: "CorrectionWatch",
-        correlates_by: "reference.value",
-        starts_on: "EntryAmended",
-        ends_on: "AuditTrailFlagged",
-        initial_state: "flagging",
-        handlers: &[
-            crate::kernel::Handler {
-                event_type: "EntryAmended",
-                from_state: "flagging",
-                to_state: "flagging",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "AuditTrail.Open",
-                    with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
-                    compensates: None,
-                }],
-            },
-            crate::kernel::Handler {
-                event_type: "AuditTrailOpened",
-                from_state: "flagging",
-                to_state: "flagging",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "AuditTrail.Flag",
-                    with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
-                    compensates: None,
-                }],
-            },
-        ],
-    }];
+pub const SAGAS: &[crate::kernel::SagaDef] = &[crate::kernel::SagaDef {
+    name: "CorrectionWatch",
+    correlates_by: "reference.value",
+    starts_on: "EntryAmended",
+    ends_on: "AuditTrailFlagged",
+    initial_state: "flagging",
+    handlers: &[
+        crate::kernel::Handler {
+            event_type: "EntryAmended",
+            from_state: "flagging",
+            to_state: "flagging",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "AuditTrail.Open",
+                with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
+                compensates: None,
+            }],
+        },
+        crate::kernel::Handler {
+            event_type: "AuditTrailOpened",
+            from_state: "flagging",
+            to_state: "flagging",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "AuditTrail.Flag",
+                with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
+                compensates: None,
+            }],
+        },
+    ],
+}];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {

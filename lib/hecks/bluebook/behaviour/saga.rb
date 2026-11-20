@@ -3,7 +3,7 @@ module Hecks
     module Behaviour
       # Readings over a process manager's trigger, states and handlers.
       # Its `compensation` is derived from the handler that answers a refusal, not declared.
-      module ProcessManager
+      module Saga
         # The bluebook's name for this construct.
         #
         # @return [String, nil]
@@ -16,7 +16,7 @@ module Hecks
         #
         # @param event [String, Symbol]
         # @param state [String, Symbol, nil] the instance's current state; `nil` ignores state
-        # @return [Bluebook::ProcessManagerHandler, nil]
+        # @return [Bluebook::SagaHandler, nil]
         def handler_for(event, state = nil)
           @handlers.find { |h| h.event_type == event.to_s && (state.nil? || h.from_state == state.to_s) }
         end
@@ -24,7 +24,7 @@ module Hecks
         # Every declared leg for an event, regardless of source state.
         #
         # @param event [String, Symbol]
-        # @return [Array<Bluebook::ProcessManagerHandler>]
+        # @return [Array<Bluebook::SagaHandler>]
         def handlers_for(event) = @handlers.select { |h| h.event_type == event.to_s }
 
         # Whether any declared leg answers an event.
@@ -53,14 +53,14 @@ module Hecks
         # @return [Bluebook::Compensation, nil] `nil` when no handler answers a refusal, which is
         #   legitimate: a hiring pipeline cannot un-interview anybody
         def compensation
-          leg = handler_for(Bluebook::ProcessManager::REFUSED)
+          leg = handler_for(Bluebook::Saga::REFUSED)
           return nil unless leg
 
           # A static preview in declaration order, not one instance's runtime history.
           # Derived `compensates` come first, then the leg's hand-written body, so a saga
           # can derive some compensation and hand-write the rest.
           derived = handlers.flat_map { |handler| handler.dispatches.filter_map(&:compensates) }
-          Bluebook::Compensation.new(trigger: Bluebook::ProcessManager::REFUSED, from_state: leg.from_state,
+          Bluebook::Compensation.new(trigger: Bluebook::Saga::REFUSED, from_state: leg.from_state,
                                      to_state: leg.to_state, compensations: derived + leg.dispatches)
         end
 

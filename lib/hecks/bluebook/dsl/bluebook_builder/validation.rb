@@ -32,7 +32,7 @@ module Hecks
           # @param bluebook [Bluebook::Declaration] the assembled bluebook to validate
           # @return [void]
           # @raise [Bluebook::DSL::Malformed] if any check finds a violation
-          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a
+          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if a
           #   `correlates_by` resolves to something other than a scalar field
           def validate_assembled!(bluebook)
             resolve_bare_correlation_keys!(bluebook)
@@ -48,12 +48,12 @@ module Hecks
             # an attribute type references its Shape, so an undeclared value object
             # fails resolution
             validate_reference_value_objects!(bluebook.aggregates)
-            validate_correlation_keys!(bluebook.process_managers, bluebook.aggregates)
+            validate_correlation_keys!(bluebook.sagas, bluebook.aggregates)
             validate_no_bidirectional_references!(bluebook.aggregates)
             return if MetaValidator.shadow_parsing?
 
             validate_event_shapes!(bluebook.aggregates)
-            validate_with_projections!(bluebook.policies, bluebook.process_managers, bluebook.aggregates)
+            validate_with_projections!(bluebook.policies, bluebook.sagas, bluebook.aggregates)
           end
 
           # Hops resolve only now: `Bluebook.new` has just stamped `hecks_owner` on
