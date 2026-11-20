@@ -105,8 +105,9 @@ module Hecks
 
       # Removes a linked worktree and deletes its branch, once the branch is on `onto`.
       #
-      # @param held [Hash] the `Landing` record: `checkout` (the worktree to remove), `branch`
-      #   (its checked-out branch when absent), `onto`
+      # @param held [Hash] the `Landing` record: `checkout` (the worktree to remove; absent or the
+      #   main checkout, it is the worktree holding `branch`), `branch` (its checked-out branch
+      #   when absent), `onto`
       # @return [Hash{Symbol => Hash}] `outcome:` (`retired`), `checkout:`, `branch:`, `report:`
       # @raise [ConsoleCapture::Failure] when anything makes keeping it the safe answer: the primary
       #   worktree, one the process stands in, any file not tracked and clean (ignored included), a

@@ -80,7 +80,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#remove" do
   it "keeps a branch with a commit the train did not carry, naming that commit", :aggregate_failures do
     carried_branch
     commit(tree, "c.txt")
-    expect { retire }.to raise_error(failure, /it has 1 commit\(s\) not on main: \h{9} c\.txt\z/)
+    expect { retire }.to raise_error(failure, /it has 1 commit\(s\) not on main: \h{9} c\.txt \(Landing\.discard!/)
     expect(branch?).to be(true)
   end
 
@@ -100,7 +100,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#remove" do
 
   it "keeps a branch when the squash titled for its boarded commit holds another tree", :aggregate_failures do
     squash_of_another_tree
-    expect { retire }.to raise_error(failure, /it has 2 commit\(s\) not on main: \h{9} a\.txt, \h{9} b\.txt\z/)
+    expect { retire }.to raise_error(failure, /it has 2 commit\(s\) not on main: \h{9} a\.txt, \h{9} b\.txt \(Landing\.discard!/)
     expect(branch?).to be(true)
   end
 end

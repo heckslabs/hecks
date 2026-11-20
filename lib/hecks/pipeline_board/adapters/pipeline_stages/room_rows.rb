@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../rules"
+require_relative "fill_age"
 
 module Hecks
   module Adapters
@@ -28,15 +29,19 @@ module Hecks
           unread = fill.is_a?(Hash) ? fill[:unknown] : "no data"
           return row("Fill", { headroom: nil }, "-", "unknown: #{unread}") if unread
 
-          row("Fill", { headroom: fill[:headroom] }, "#{fill[:started]} of #{fill[:cap]}", explained(fill))
+          measures = { headroom: fill[:headroom], age_minutes: fill[:age_minutes] }
+          row("Fill", measures, "#{fill[:started]} of #{fill[:cap]}", explained(fill))
         end
 
-        # @return [String] how many would start and how many were skipped, the reasons counted
+        # @return [String] how many would start and how many were skipped, the reasons counted; a
+        #   stale report says its age first
         def explained(fill)
           skipped = Array(fill[:skipped])
           reasons = skipped.map { |held| held[:reason].to_s }.tally.map { |reason, count| "#{count} #{reason}" }
-          ["would start #{Array(fill[:would_start]).size}, skipped #{skipped.size}", *reasons].join("; ")
+          [*stale_note(fill), "would start #{Array(fill[:would_start]).size}, skipped #{skipped.size}", *reasons].join("; ")
         end
+
+        def stale_note(fill) = FillAge.stale?(fill) ? ["stale: #{FillAge.note(fill)}"] : []
 
         # @return [Hash] one row of the strip, its state by the `Verdict` rows of its name
         def row(name, measures, count, detail)
