@@ -47,12 +47,10 @@ module Hecks
           raise Runtime::WiringError, superseded_refusal
         end
 
-        # Saves an entry and reports whether it inserted or replaced, decided under the same lock
-        # that guards the write.
+        # Saves an entry and reports what it did, decided under the lock that guards the write.
         #
         # @param entry [Ports::Persistence::Entry] the save to journal
-        # @param insert_only [Boolean] when true, an id in the head the rule does not replace is
-        #   left untouched
+        # @param insert_only [Boolean] true to leave an id the rule does not replace untouched
         # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended and
         #   is archived under `<id>~<n>` under the same lock
         # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` hit a

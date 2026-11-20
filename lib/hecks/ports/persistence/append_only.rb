@@ -215,15 +215,13 @@ module Hecks
         # section, so a create cannot race another writer.
         #
         # @param instance [Runtime::Instance] the record to persist
-        # @param insert_only [Boolean] true to refuse replacing a record that already exists
+        # @param insert_only [Boolean] true to refuse a record the rule does not replace
         # @param mints_era [Boolean] true when the writing command declares `mints_era true`
-        # @param replace_when [ReplaceWhen, nil] when an occupant has ended: the adapter archives
-        #   it under `<id>~<n>` and writes the record in the same critical section
-        # @return [Persistence::Outcome] status `:inserted`, `:replaced`, or `:conflicted` when
-        #   `insert_only` met a record the rule does not replace and nothing was written;
-        #   `instance` is always the instance passed in
-        # @raise [Runtime::WiringError] if the adapter does not both advertise `:atomic_put`
-        #   and implement it
+        # @param replace_when [ReplaceWhen, nil] when an occupant has ended; the adapter archives
+        #   it under `<id>~<n>` in the same critical section
+        # @return [Persistence::Outcome] `:inserted`, `:replaced`, or `:conflicted` when nothing
+        #   was written; `instance` is always the instance passed in
+        # @raise [Runtime::WiringError] if the adapter does not advertise and implement it
         # @raise [ArgumentError] if the adapter answers a status outside `Outcome::STATUSES`
         def atomic_put(instance, insert_only: false, mints_era: false, replace_when: nil)
           unless capabilities.include?(:atomic_put) && @adapter.respond_to?(:atomic_put)

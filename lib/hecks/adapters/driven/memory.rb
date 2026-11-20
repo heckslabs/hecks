@@ -124,13 +124,11 @@ module Hecks
 
       # Stores an entry and reports whether it inserted, replaced or conflicted.
       #
-      # One in-memory critical section in the only thread touching this plain
-      # Hash: classify, archive an ended occupant and replace without a preliminary
-      # repository lookup. Durable append and projection remain ordered exactly as ordinary save.
+      # One in-memory critical section in the only thread touching this plain Hash: classify,
+      # archive an ended occupant and replace, ordered exactly as ordinary save.
       #
       # @param entry [Ports::Persistence::Entry] the save to store
-      # @param insert_only [Boolean] when true, an existing record the rule does not replace is
-      #   left untouched
+      # @param insert_only [Boolean] true to leave a record the rule does not replace untouched
       # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended
       #   and is archived under `<id>~<n>` before the write
       # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met a
