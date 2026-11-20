@@ -47,6 +47,8 @@ module Hecks
         # @return [#call, nil] stands in for the spec run of one search probe: given a clean copy's
         #   directory and the failing spec files, it returns, or raises `ConsoleCapture::Failure`
         #   when one is red; the launcher run ({MainIntegration::SpecProbe}) when nil
+        #   A red train's search hands it one failing example (`spec/x_spec.rb:12`) in place of the
+        #   files, and runs {MainIntegration::ExampleProbe} when nil.
         attr_accessor :specs
       end
 
@@ -74,18 +76,24 @@ module Hecks
       end
 
       # The facts about the first bad merge of a failed verification's range, as the domain's rule
-      # about reverting reads them. The search runs outside any copy, one probe at a time.
+      # about reverting reads them. The search runs outside any copy, one probe at a time. A red
+      # train names its failing `examples`: its range is what the train holds beyond `origin/main`,
+      # and the world's local verification setting, which CI's verdict does not depend on, is not
+      # asked.
       #
-      # @param held [Hash] the `Integration` record: `landed` and `checkout`
+      # @param held [Hash] the `Integration` record: `landed` and `checkout`, and the `examples`
+      #   of a red train
       # @return [Hash{Symbol => Hash}] each fact as a value: `base`, `culprit`, `branch`, `subject`,
       #   `spec`, `example`, `base_red`, `already_reverted`, `local` and `reason`
       def bisect(**held)
         landed = plain(held[:landed]).to_s
         repository = repository_of(held)
+        train = MainIntegration::Bisecting.train(repository, landed, plain(held[:examples]), runner: self.class.specs)
+        return train if train
+
         MainIntegration::LocalMode.new(repository).search!
         since, _changed, off = range_of(repository, landed)
-        facts = searched(repository, landed, since) if off
-        MainIntegration::Bisecting.answer(facts, since)
+        MainIntegration::Bisecting.answer((searched(repository, landed, since) if off), since)
       end
 
       private
