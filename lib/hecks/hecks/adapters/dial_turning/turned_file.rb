@@ -87,11 +87,11 @@ module Hecks
           end
         end
 
-        # Runs the block holding an exclusive lock on the file's lock file; turns queue behind it.
+        # Runs the block holding an exclusive lock on the file's directory, so no lock file is left behind; turns queue behind it.
         def locked(&)
           return yield if @locked
 
-          File.open("#{@path}.lock", File::RDWR | File::CREAT, 0o644) do |lock|
+          File.open(File.dirname(@path)) do |lock|
             lock.flock(File::LOCK_EX)
             @locked = true
             yield
