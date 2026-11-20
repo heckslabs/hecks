@@ -1,16 +1,12 @@
 require "spec_helper"
 require "json"
 require "hecks/hecks/adapters/codebase/source_tree"
-require "hecks/tools/pattern_cases"
-require "hecks/tools/rspec_io_parallel_files"
-require "hecks/tools/rspec_shard_files"
-require "hecks/tools/seed_semantics_corpus"
-require "hecks/tools/stress_concurrency_specs"
 require_relative "../../support/fake_codebase_shell"
 
 RSpec.describe Hecks::Adapters::Codebase::TestSuite do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
+  let(:modules) { described_class }
 
   def word(value) = { value: value }
 
@@ -22,53 +18,32 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
     described_class.report(operation, args, tree, shell: shell)
   end
 
-  # The tooling runs in this process: a stand-in for one command answers a status and prints
-  # what the real one would, and records the arguments it was called with.
-  def command_double(mod, status: 0, prints: "", data: "")
-    calls = []
-    allow(mod).to receive(:call) do |*args, **options|
-      calls << [args, options]
-      options[:out]&.print(data)
-      warn prints unless prints.empty?
-      status
-    end
-    calls
-  end
-
   describe "the listings" do
     it "asks for one group of the split, with the runtime log when there is one", :aggregate_failures do
-      calls = command_double(Hecks::Tools::RspecShardFiles, data: "spec/a_spec.rb\nspec/b_spec.rb\n")
+      allow(modules::SpecShards).to receive(:files).and_return(%w[spec/a_spec.rb spec/b_spec.rb])
 
-      files = query("shard_specs", { group: 2, groups: 4, runtime_log: ".github/log" }, nil)
-
-      expect(files).to eq("spec/a_spec.rb\nspec/b_spec.rb")
-      expect(calls.first.first).to eq([%w[2 4 .github/log]])
-      expect(calls.first.last).to include(root: tree.root)
-    end
-
-    it "keeps a command's progress out of the listing" do
-      command_double(Hecks::Tools::RspecShardFiles, data: "spec/a_spec.rb\n", prints: "group 1/2 has 1 of 2 files")
-
-      expect(query("shard_specs", { group: 1, groups: 2 }, nil)).to eq("spec/a_spec.rb")
+      expect(query("shard_specs", { group: 2, groups: 4, runtime_log: ".github/log" }, nil))
+        .to eq("spec/a_spec.rb\nspec/b_spec.rb")
+      expect(modules::SpecShards).to have_received(:files)
+        .with(root: tree.root, group: 2, groups: 4, runtime_log: ".github/log")
     end
 
     it "lists the io specs by the postgres job's filter unless tags are named" do
-      calls = command_double(Hecks::Tools::RspecIoParallelFiles, data: "spec/db_spec.rb\n")
-
+      allow(modules::IoParallelSpecs).to receive(:files).and_return(["spec/db_spec.rb"])
       query("list_io_parallel_specs", { exclude: "^spec/qa" }, nil)
 
-      expect(calls.first.first).to eq([["^spec/qa", "--", "--tag", "io", "--tag", "~fuzzing"]])
+      expect(modules::IoParallelSpecs).to have_received(:files)
+        .with(have_attributes(exclude: "^spec/qa", tags: %w[--tag io --tag ~fuzzing]))
     end
 
-    it "checks a committed list with --check, and a stale list is a refusal", :aggregate_failures do
-      calls = command_double(Hecks::Tools::RspecIoParallelFiles, status: 1, prints: "list.txt is out of date.")
+    it "checks a committed list, and a stale list is a refusal" do
+      allow(modules::IoParallelSpecs).to receive(:files).and_return(["spec/new_spec.rb"])
 
-      expect { query("list_io_parallel_specs", { exclude: "x", tags: "--tag slow", check: "list.txt" }, nil) }
-        .to raise_error(failure, /out of date/)
-      expect(calls.first.first).to eq([["--check", "list.txt", "x", "--", "--tag", "slow"]])
+      expect { query("list_io_parallel_specs", { exclude: "x", check: "absent-list.txt" }, nil) }
+        .to raise_error(failure, /absent-list.txt is out of date/)
     end
 
-    it "reads the pattern cases with the real command, and they are JSON" do
+    it "reads the pattern cases, and they are JSON" do
       cases = JSON.parse(query("record_pattern_cases", {}, nil))
 
       expect(cases.first.keys).to eq(%w[pattern input matches])
@@ -76,36 +51,34 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
   end
 
   describe "a stress run" do
-    it "passes only the counts that were named" do
-      calls = command_double(Hecks::Tools::StressConcurrencySpecs)
-
+    it "passes the counts that were named" do
+      allow(modules::StressRun).to receive(:call).and_return("CLEAN")
       suite("stress_concurrency", { runs: word(5), seed_start: word(9) }, nil)
 
-      expect(calls.first.first).to eq([%w[--runs 5 --seed-start 9]])
+      expect(modules::StressRun).to have_received(:call).with(root: tree.root, runs: 5, seed_start: 9)
     end
 
-    it "refuses with the failing runs when a seed fails" do
-      command_double(Hecks::Tools::StressConcurrencySpecs, status: 1, prints: "FOUND FLAKINESS - 1/5 runs failed")
-
-      expect { suite("stress_concurrency", {}, nil) }.to raise_error(failure, /FOUND FLAKINESS/)
+    it "refuses a run with no run count or first seed" do
+      expect { suite("stress_concurrency", {}, nil) }.to raise_error(failure, /needs runs and seed_start/)
     end
   end
 
   describe "the semantics corpus" do
-    it "fills the fixtures that lack an expectation" do
-      calls = command_double(Hecks::Tools::SeedSemanticsCorpus)
+    before do
+      require "hecks/hecks/adapters/codebase/test_suite/semantics_seeding"
+      allow(modules::SemanticsSeeding).to receive(:call).and_return("nothing to seed")
+    end
 
+    it "fills the fixtures that lack an expectation" do
       suite("seed_semantics_corpus", {}, nil)
 
-      expect(calls.first.last[:env]).not_to have_key("SEED")
+      expect(modules::SemanticsSeeding).to have_received(:call).with(root: tree.root, only: nil)
     end
 
     it "re-seeds one fixture when it is named" do
-      calls = command_double(Hecks::Tools::SeedSemanticsCorpus)
-
       suite("seed_semantics_corpus", { fixture: word("refusal_kind_lifecycle") }, nil)
 
-      expect(calls.first.last[:env]).to include("SEED" => "refusal_kind_lifecycle")
+      expect(modules::SemanticsSeeding).to have_received(:call).with(root: tree.root, only: "refusal_kind_lifecycle")
     end
   end
 
@@ -130,18 +103,18 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
     let(:held) { { exclude: word("^spec/qa"), write: word("list.txt") } }
 
     it "counts the files it would write, and writes none, unless confirmed", :aggregate_failures do
-      calls = command_double(Hecks::Tools::RspecIoParallelFiles, data: "spec/a_spec.rb\nspec/b_spec.rb\n")
+      allow(modules::IoParallelSpecs).to receive_messages(files: %w[spec/a_spec.rb spec/b_spec.rb], write: [])
 
       expect(suite("write_io_parallel_spec_list", held, nil))
         .to eq("dry run, would write 2 spec files to list.txt (add --confirm)")
-      expect(calls.first.first.first).not_to include("--write")
+      expect(modules::IoParallelSpecs).not_to have_received(:write)
     end
 
-    it "writes it with --write when confirmed", :aggregate_failures do
-      calls = command_double(Hecks::Tools::RspecIoParallelFiles)
+    it "writes it when confirmed" do
+      allow(modules::IoParallelSpecs).to receive(:write).and_return([])
+      suite("write_io_parallel_spec_list", held.merge(confirm: word(true)), nil)
 
-      expect(suite("write_io_parallel_spec_list", held.merge(confirm: word(true)), nil)).to eq("wrote list.txt")
-      expect(calls.first.first).to eq([["--write", "list.txt", "^spec/qa", "--", "--tag", "io", "--tag", "~fuzzing"]])
+      expect(modules::IoParallelSpecs).to have_received(:write).with(have_attributes(exclude: "^spec/qa"), "list.txt")
     end
   end
 

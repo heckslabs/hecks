@@ -47,7 +47,7 @@ runs cold. Before adding a spec or a step, check where it runs:
   as artifacts on the newest recent successful `ci.yml` run that kept them (any branch: a push of an attested tree
   skips the shards and keeps none, so that is usually the pull-request run that tested the tree; a file the
   run never timed is priced at the median), splits the files once with the shared
-  `Hecks::Tools::ShardPlanner` (longest processing time first) and publishes the plan; every leg
+  `Hecks::ShardPlanner` (`lib/hecks/ci_speed/shard_planner.rb`) (longest processing time first) and publishes the plan; every leg
   reads that plan. When no timing can be read (no previous run, expired artifacts, an API error)
   the `PlanBySizeWhenTimingsUnavailable` policy plans by file size and the run does not fail. The
   plan job's summary and the `shard-plan-trace-*` artifact list each event and the policy that

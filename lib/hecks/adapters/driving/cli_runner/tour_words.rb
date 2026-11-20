@@ -32,8 +32,8 @@ module Hecks
 
           # Writes each stub file of the sample domain under `target`.
           def write_tour(target)
-            require_relative "../../../tools/domain_stub"
-            Tools::DomainStub.files(name: TOUR_NAME).each do |path, text|
+            require_relative "../../../domain_stub"
+            DomainStub.files(name: TOUR_NAME).each do |path, text|
               full = File.join(target, path)
               FileUtils.mkdir_p(File.dirname(full))
               File.write(full, text)

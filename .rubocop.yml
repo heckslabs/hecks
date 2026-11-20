@@ -423,7 +423,7 @@ Metrics/ParameterLists:
     - "lib/hecks/adapters/driving/cli_runner/answers.rb"
     - "lib/hecks/adapters/driving/cli_runner/settling.rb"
     - "lib/hecks/adapters/driving/cli_runner/streaming.rb"
-    - "lib/hecks/tools/project_cli/launcher_source.rb"
+    - "lib/hecks/hecks/adapters/local_files/project_cli/launcher_source.rb"
     - "lib/hecks/hecks/adapters/in_process_operations.rb"
     - "lib/hecks/runtime/command_interpreter.rb"
     - "lib/hecks/runtime/command_rules/admissibility.rb"

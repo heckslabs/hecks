@@ -5,9 +5,10 @@ require "hecks"
 # A domain wired to PostgresEra needs this plugin loaded explicitly, and the `:shape` projection
 # reads `Runtime::StorageShape` from it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
-require_relative "../../tools/stores"
-require_relative "../../tools/shape"
-require_relative "../../tools/history"
+require_relative "in_process_boot/stores"
+require_relative "in_process_boot/shape"
+require_relative "in_process_boot/history"
+require_relative "in_process_boot/persistence_notice"
 require_relative "../../projections/context_map_diagram"
 require_relative "in_process_operations"
 require_relative "in_process_undo"
@@ -18,11 +19,10 @@ module Hecks
     # The `DomainRuntime` port's adapter: boots a target domain in this process and answers what
     # Custodian's Introspection queries ask about it.
     #
-    # Each method returns the text the matching tool prints, so the launcher shows the
-    # same bytes; a projection that would have written files answers a map of file name to text
-    # instead. Arguments arrive materialized, so a value object is `{ value: "x" }`. A domain or
-    # bluebook that cannot be found raises `Runtime::NotFound`, which the launcher words as a
-    # refusal.
+    # Each method returns the text the launcher shows; a projection that would have written files
+    # answers a map of file name to text instead. Arguments arrive materialized, so a value object
+    # is `{ value: "x" }`. A domain or bluebook that cannot be found raises `Runtime::NotFound`,
+    # which the launcher words as a refusal.
     #
     # It also answers the asks of journaled commands (`InProcessOperations`): a model check, a run,
     # a projection refresh, a behaviors run, a smoke test and a bounded follow.
@@ -58,7 +58,7 @@ module Hecks
       #   one `<Domain> <label>` line per domain for a directory
       # @raise [Runtime::NotFound] if the path does not exist or holds no bluebook
       def shape(domain:)
-        report(Tools::Shape.render(plain(domain)))
+        report(Shape.render(plain(domain)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -70,8 +70,8 @@ module Hecks
       # @raise [Runtime::NotFound] if the domain, aggregate or record cannot be found
       def stores(domain:, aggregate: nil, record: nil, flat: nil)
         registry = boot(domain).registry
-        Tools::PersistenceNotice.announce(registry, program: "hecks stores")
-        report(JSON.generate(Tools::Stores.read(registry, plain(aggregate), plain(record), flat: plain(flat) == true)))
+        PersistenceNotice.notice(registry, program: "hecks stores")&.then { |notice| warn notice }
+        report(JSON.generate(Stores.read(registry, plain(aggregate), plain(record), flat: plain(flat) == true)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -80,8 +80,8 @@ module Hecks
       # @raise [Runtime::NotFound] if the domain cannot be found
       def history(domain:)
         registry = boot(domain).registry
-        Tools::PersistenceNotice.announce(registry, program: "hecks history")
-        report(JSON.generate(Tools::History.document(registry)))
+        PersistenceNotice.notice(registry, program: "hecks history")&.then { |notice| warn notice }
+        report(JSON.generate(History.document(registry)))
       end
 
       # @param domain [Hash, String] a domain directory
