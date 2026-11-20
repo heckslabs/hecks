@@ -1,6 +1,7 @@
 require "spec_helper"
+require "hecks/hecks/adapters/reviewer_judgment"
 
-# The reviewer's judgment of a failing spec, and the rule that no role issues an owner decision.
+# The reviewer's judgment of a submission, and the rule that no role issues an owner decision.
 # Booted in Memory, one registry per example.
 RSpec.describe "the Agents reviewer and owner-only rule" do
   def agents_root = File.join(InMemoryDomain::ROOT, "lib/hecks/agents")
@@ -38,6 +39,13 @@ RSpec.describe "the Agents reviewer and owner-only rule" do
 
   it "records a judgment the reviewer gives" do
     expect { request(1).judge!(judgment: { value: "stale_expectation" }) }.not_to raise_error
+  end
+
+  # `clean` is left out: it also needs a full tier and its evidence, which other examples show.
+  it "records every closing word the reviewer's adapter reads, with the findings a missing behavior names" do
+    words = Hecks::Adapters::ReviewerJudgment::WORDS - ["clean"]
+    judge = ->(word, i) { request(1, "c-#{i}").judge!(judgment: { value: word }, findings: { value: "the scenario" }) }
+    expect { words.each_with_index(&judge) }.not_to raise_error
   end
 
   it "refuses a judgment the reviewer does not give, by name" do
