@@ -81,20 +81,25 @@ module Hecks
     #   the booted dispatcher
     # @raise [ArgumentError] when the engine is neither
     def boot(path, shared: nil, install_driving: true, environment: FROM_ENV, engine: FROM_ENV)
-      return boot_kernel(path) if selected_engine(engine) == :kernel
+      return boot_kernel(path, install_driving: install_driving, environment: environment) if selected_engine(engine) == :kernel
 
       drive(Runtime::Loader.boot(path, shared: shared, environment: selected_environment(environment),
                                        event_tap: event_tap_override),
             install_driving)
     end
 
-    # Boots a domain on the Rust kernel; see `RustBuild::KernelEngine`. It never falls back.
+    # Boots a domain on the Rust kernel; see `RustBuild::KernelEngine`. It never falls back. The
+    # driving side is the Ruby engine's: the role shadow is installed from the same variable (it
+    # only logs, and the kernel checks the caller's role itself), and the Ruby facade, when asked
+    # for, dispatches through the kernel dispatcher.
     #
     # @param path [String] path to a domain directory
+    # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
+    # @param environment [String, nil, Symbol] the overlay, or `FROM_ENV` for `HECKS_ENVIRONMENT`
     # @return [Runtime::KernelDispatcher]
-    def boot_kernel(path)
+    def boot_kernel(path, install_driving: true, environment: FROM_ENV)
       require_relative "rust_build/kernel_engine"
-      RustBuild::KernelEngine.boot(path)
+      drive(RustBuild::KernelEngine.boot(path, environment: selected_environment(environment)), install_driving)
     end
 
     # Loads a domain's declarations without binding any adapter. See `Runtime::Loader.describe`.

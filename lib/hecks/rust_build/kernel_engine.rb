@@ -28,11 +28,12 @@ module Hecks
 
       # @param path [String] a domain directory, or the `bluebook` directory inside one
       # @param binary [String, nil] a kernel binary to use instead of building the domain's feature
+      # @param environment [String, nil, Symbol] the overlay `Hecks.describe` reads, or `FROM_ENV`
       # @return [Runtime::KernelDispatcher] connected to a kernel for the domain
       # @raise [NotMemory] when an aggregate persists anywhere but Memory
       # @raise [BinaryUnavailable] when the feature is not declared or its build fails
-      def boot(path, binary: nil)
-        described = Hecks.describe(path)
+      def boot(path, binary: nil, environment: Assembly::FROM_ENV)
+        described = Hecks.describe(path, environment: environment)
         require_memory!(described.registry)
         connect(described.registry, feature_of(described.directory), binary: binary)
       end

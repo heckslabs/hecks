@@ -5,7 +5,7 @@ require "hecks/runtime/kernel_dispatcher"
 # The kernel dispatcher's surface against a stand-in client: no kernel binary is built or run.
 RSpec.describe Hecks::Runtime::KernelDispatcher do
   let(:client) { instance_double(Hecks::RustBuild::KernelClient) }
-  let(:registry) { instance_double(Hecks::Runtime::Registry, verbs: ["Pizzas::Order.CreatePizza"]) }
+  let(:registry) { instance_double(Hecks::Runtime::Registry, verbs: ["Pizzas::Order.CreatePizza"], bluebook: nil) }
   let(:dispatcher) { described_class.new(client, registry: registry) }
   let(:refused) { { "ok" => false, "error" => "no Order \"x\"", "refusal" => "NotFound", "refusals" => [] } }
 
@@ -45,6 +45,20 @@ RSpec.describe Hecks::Runtime::KernelDispatcher do
     end
   end
 
+  describe "a refused flat dispatch" do
+    before { allow(client).to receive(:dispatch).and_return("ok" => false, "error" => "nope") }
+
+    it "is raised as the class the same step's dry run names, with the dispatch's text" do
+      allow(client).to receive(:call).and_return(refused.merge("refusal" => "Unauthorized"))
+      expect { dispatcher.dispatch_flat("Pizzas::Order.CreatePizza") }.to raise_error(Hecks::Runtime::Unauthorized, "nope")
+    end
+
+    it "is raised as Refused when the dry run names nothing" do
+      allow(client).to receive(:call).and_return("ok" => true)
+      expect { dispatcher.dispatch_flat("Pizzas::Order.CreatePizza") }.to raise_error(described_class::Refused, "nope")
+    end
+  end
+
   describe "the described declarations" do
     it "answers verbs from the registry" do
       expect(dispatcher.verbs).to eq(["Pizzas::Order.CreatePizza"])
@@ -75,15 +89,20 @@ RSpec.describe Hecks::Runtime::KernelDispatcher do
       expect(dispatcher.dispatch_flat("Pizzas::Order.CreatePizza").id).to eq("p-1")
     end
 
-    it "reads a record back from the kernel's instances, keyed by symbol" do
-      allow(client).to receive(:call).and_return("ok" => true, "instances" => { "Pizzas::Order#p-1" => { "name" => "a" } })
-      record = dispatcher.repository("Pizzas", instance_double(Hecks::Bluebook::Aggregate, name: "Order")).find("p-1")
-      expect(record.state).to eq(name: "a")
+    it "answers no reaction records, which the kernel's answer does not carry yet" do
+      allow(client).to receive(:dispatch).and_return(announced)
+      expect(dispatcher.dispatch_flat("Pizzas::Order.CreatePizza").refused_reactions).to eq([])
+    end
+  end
+
+  describe "the declarations" do
+    it "reads records from the kernel, not the registry" do
+      order = instance_double(Hecks::Bluebook::Aggregate, name: "Order")
+      expect(dispatcher.repository("Pizzas", order)).to be_a(described_class::Repository)
     end
 
-    it "finds nothing the kernel does not hold" do
-      allow(client).to receive(:call).and_return("ok" => true, "instances" => {})
-      expect(dispatcher.repository("Pizzas", instance_double(Hecks::Bluebook::Aggregate, name: "Order")).find("x")).to be_nil
+    it "refuses a plan by name" do
+      expect { dispatcher.plan_flat("Pizzas::Order.CreatePizza") }.to raise_error(described_class::NotAnswered, /plan step/)
     end
   end
 
