@@ -13,8 +13,8 @@ require "tmpdir"
 RSpec.describe "the stdio MCP servers" do
   # The programs the two verbs run, by verb name.
   MCP_CHILD_PROGRAMS = {
-    "mcp"                => 'require "hecks/tools/mcp"; Hecks::Tools::Mcp.call(ARGV)',
-    "serve_query_ir_mcp" => 'require "hecks/tools/serve_query_ir_mcp"; Hecks::Tools::ServeQueryIrMcp.call(ARGV)'
+    "mcp"                => 'require "hecks/adapters/driving/mcp/stdio_entry"; Hecks::Adapters::Driving::Mcp.serve_stdio(ARGV)',
+    "serve_query_ir_mcp" => 'require "hecks/query_ir_mcp/stdio_entry"; Hecks::QueryIrMcp.serve_stdio(ARGV)'
   }.freeze
 
   def root = File.expand_path("..", __dir__)

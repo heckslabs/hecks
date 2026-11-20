@@ -10,6 +10,10 @@ require_relative "batch_runs"
 require_relative "sqlite_fixture"
 require_relative "cargo_tests"
 require_relative "cache_clearing"
+require_relative "test_suite/pattern_cases"
+require_relative "test_suite/spec_shards"
+require_relative "test_suite/io_parallel_specs"
+require_relative "test_suite/stress_run"
 
 module Hecks
   module Adapters
@@ -17,9 +21,10 @@ module Hecks
       # What Codebase's `TestSuiteRun` asks of the working tree: the tooling around this
       # repository's specs.
       #
-      # The tooling owns its options, so each ask runs one of the `Hecks::Tools` commands in this
-      # process from the checkout's root, except a single example (the `TestRunner` adapter runs it)
-      # and the persistence fixtures (the `SqliteFixture` adapter). A listing is a pure read.
+      # Each ask calls the module beside it that does the work and answers its value: the stress
+      # run, the semantics seeding, the spec shards, the io-parallel listing and the pattern cases;
+      # a single example goes to the `TestRunner` adapter and the persistence fixtures to the
+      # `SqliteFixture` adapter. A listing is a pure read.
       # Regenerating the fixtures and writing the committed spec list change tracked files, so
       # unconfirmed they report what they would do and write nothing.
       module TestSuite
@@ -42,16 +47,6 @@ module Hecks
         DEFAULT_TAGS = "--tag io --tag ~fuzzing"
 
         module_function
-
-        # Loads the command a `Hecks::Tools` file defines, the first time an ask needs it: several
-        # read the checkout's specs or need a development gem, which an installed gem lacks.
-        #
-        # @param file [String] the command's file under `lib/hecks/tools/`, without the extension
-        # @return [Module] the command, named as the file is, in camel case
-        def command(file)
-          require "hecks/tools/#{file}"
-          Hecks::Tools.const_get(file.split("_").map(&:capitalize).join)
-        end
 
         # Carries out one operation.
         #
@@ -119,9 +114,15 @@ module Hecks
 
         # @param args [Hash] `runs`, `parallel` and `seed_start`
         # @param tree [Tree] the checkout
-        # @return [String] what the stress run printed
+        # @return [String] what ran and the clean verdict
+        # @raise [ConsoleCapture::Failure] on flakiness, or when the run count or first seed is
+        #   missing
         def stress(args, tree)
-          answer { command("stress_concurrency_specs").call(RunOptions.stress_flags(args), root: tree.root) }
+          counts = %i[runs seed_start parallel].to_h { |name| [name, args[name] && Integer(args[name])] }.compact
+          missing = %i[runs seed_start] - counts.keys
+          raise ConsoleCapture::Failure, "a stress run needs #{missing.join(" and ")}" unless missing.empty?
+
+          StressRun.call(root: tree.root, **counts)
         end
 
         # @param args [Hash] `confirm`
@@ -137,10 +138,10 @@ module Hecks
         #
         # @param args [Hash] `fixture`, perhaps absent
         # @param tree [Tree] the checkout
-        # @return [String] what the seeding printed
+        # @return [String] the fixtures seeded, or that there was nothing to seed
         def seed(args, tree)
-          seeding = command("seed_semantics_corpus")
-          answer { TestRunner.at_reaction_depth_zero { seeding.call(root: tree.root, env: RunOptions.seed_env(args)) } }
+          require_relative "test_suite/semantics_seeding"
+          TestRunner.at_reaction_depth_zero { SemanticsSeeding.call(root: tree.root, only: args[:fixture]) }
         end
 
         # Rewrites the frozen IR files by running the golden spec with `GOLDEN=rewrite`. Unconfirmed
@@ -161,56 +162,43 @@ module Hecks
         # @param args [Hash] the query's plain arguments
         # @param tree [Tree] the checkout
         # @param shell [#capture, nil] unused: every listing is read in this process
-        # @return [String] what the command printed to stdout
-        # @raise [ConsoleCapture::Failure] when the command refuses its arguments
+        # @return [String] the listing, one item per line, or the pattern cases as JSON
+        # @raise [ConsoleCapture::Failure] when the arguments are refused or a committed list is
+        #   stale
         def report(operation, args, tree, shell: nil)
           case operation
-          when "shard_specs"
-            read { |out| command("rspec_shard_files").call(shard_args(args), root: tree.root, out: out) }
-          when "list_io_parallel_specs"
-            read { |out| command("rspec_io_parallel_files").call(list_args(args), root: tree.root, out: out) }
-          else read { |out| command("pattern_cases").call(out: out) }
+          when "shard_specs" then shards(args, tree).join("\n")
+          when "list_io_parallel_specs" then io_parallel(args, tree).join("\n")
+          else PatternCases.json
           end
         end
 
-        # Runs a command in this process and answers what it printed to stdout only, for a command
-        # whose stdout is its data and whose stderr is progress.
-        #
-        # @yield [out] the command, given the stream its data goes to; it answers an exit status
-        # @yieldparam out [StringIO] where the data goes
-        # @return [String] the data, without the trailing newline
-        # @raise [ConsoleCapture::Failure] with what it printed when the status is not 0
-        def read
-          out = StringIO.new
-          outcome = ConsoleCapture.capture { exit(yield(out)) }
-          raise ConsoleCapture::Failure, outcome.output.strip unless outcome.ok?
-
-          out.string.chomp
+        # @param args [Hash] `group`, `groups` and `runtime_log`
+        # @param tree [Tree] the checkout
+        # @return [Array<String>] the group's spec files
+        def shards(args, tree)
+          SpecShards.files(root: tree.root, group: Integer(args[:group]), groups: Integer(args[:groups]),
+                           runtime_log: args[:runtime_log])
         end
 
-        # Runs a command in this process and answers everything it printed.
-        #
-        # @yield the command; it answers an exit status
-        # @return [String] what it printed to stdout and stderr
-        # @raise [ConsoleCapture::Failure] with what it printed when the status is not 0
-        def answer
-          ConsoleCapture.answer { exit(yield) }
+        # @param args [Hash] `exclude`, `tags` and `check`
+        # @param tree [Tree] the checkout
+        # @return [Array<String>] the files that carry a matching example
+        def io_parallel(args, tree)
+          listing = io_listing(args, tree)
+          args[:check] ? IoParallelSpecs.check(listing, args[:check]) : IoParallelSpecs.files(listing)
+        end
+
+        # @param args [Hash] `exclude` and `tags`
+        # @param tree [Tree] the checkout
+        # @return [IoParallelSpecs::Listing] the checkout, exclude pattern and tag words
+        def io_listing(args, tree)
+          IoParallelSpecs::Listing.new(root: tree.root, exclude: args[:exclude].to_s, tags: tag_words(args))
         end
 
         # @param held [Hash] the record's fields, each perhaps a value object's `{ value: x }`
         # @return [Hash] the same fields as plain values
         def plain(held) = held.transform_values { |value| value.is_a?(Hash) ? value[:value] : value }
-
-        # @param args [Hash] `group`, `groups` and `runtime_log`
-        # @return [Array<String>] the script's arguments
-        def shard_args(args) = [args[:group].to_s, args[:groups].to_s, *args[:runtime_log]]
-
-        # @param args [Hash] `exclude`, `tags` and `check`
-        # @return [Array<String>] the script's arguments: `--check FILE`, the pattern, then the tags
-        def list_args(args)
-          check = args[:check] ? ["--check", args[:check]] : []
-          [*check, args[:exclude].to_s, "--", *tag_words(args)]
-        end
 
         # @param args [Hash] `tags`, perhaps absent
         # @return [Array<String>] the tag filter, one word each
@@ -221,14 +209,12 @@ module Hecks
         # @return [String] what was written, or (unconfirmed) how many files would be
         # @raise [ConsoleCapture::Failure] when the listing is refused
         def write_list(args, tree)
-          if args[:confirm] == true
-            words = ["--write", args[:write], args[:exclude], "--", *tag_words(args)]
-            answer { command("rspec_io_parallel_files").call(words, root: tree.root) }
-            return "wrote #{args[:write]}"
+          unless args[:confirm] == true
+            return "dry run, would write #{io_parallel(args, tree).size} spec files to #{args[:write]} (add --confirm)"
           end
 
-          files = report("list_io_parallel_specs", args, tree).lines.size
-          "dry run, would write #{files} spec files to #{args[:write]} (add --confirm)"
+          IoParallelSpecs.write(io_listing(args, tree), args[:write])
+          "wrote #{args[:write]}"
         end
       end
     end

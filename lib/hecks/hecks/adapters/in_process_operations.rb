@@ -6,7 +6,7 @@ require_relative "console_capture"
 require_relative "in_process_operations/tailing"
 require_relative "in_process_operations/event_logs"
 require_relative "in_process_operations/domain_names"
-require "hecks/tools/run"
+require_relative "operation_run"
 require "hecks/tools/model_check"
 require "hecks/tools/smoke_test"
 require "hecks/tools/behaviors"
@@ -68,7 +68,7 @@ module Hecks
         script = plain(held[:script])
         argv += script ? [script] : [plain(held[:verb]), *words(held[:arguments])].compact
 
-        output(ConsoleCapture.answer_apart { Tools::Run.call(argv, program: "hecks run") })
+        output(OperationRun.run_noticed(argv))
       end
 
       # Forces every read-model projection the domain declares to catch up.

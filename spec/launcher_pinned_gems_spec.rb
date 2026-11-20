@@ -1,6 +1,6 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/tools/project_cli"
+require "hecks/hecks/adapters/local_files/project_cli"
 
 # A checkout's launcher runs on the gems its Gemfile pins, the set `bundle exec` and CI use. The
 # block that does it is run here in scratch roots, so no launcher has to boot to test the decision.
@@ -12,7 +12,9 @@ RSpec.describe "the launcher's pinned gems" do
 
   after { FileUtils.remove_entry(root) }
 
-  def pinned_block = Hecks::Tools::ProjectCli.render(Hecks::Tools::ProjectCli::Templates::PINNED_GEMS, up: "../")
+  def pinned_block
+    Hecks::Adapters::LocalFiles::ProjectCli.render(Hecks::Adapters::LocalFiles::ProjectCli::Templates::PINNED_GEMS, up: "../")
+  end
 
   def ruby_output(*args) = IO.popen(clean_env, ["ruby", *args], err: File::NULL, &:read)
 
@@ -57,7 +59,9 @@ RSpec.describe "the launcher's pinned gems" do
   # A launcher beside a client's domain runs on what the client's own Gemfile pins, such as a
   # local Hecks it is built alongside; with no Gemfile it runs on the gems at hand.
   describe "beside a client's domain" do
-    def project_block = Hecks::Tools::ProjectCli.render(Hecks::Tools::ProjectCli::Templates::PROJECT_GEMS, up: "../")
+    def project_block
+      Hecks::Adapters::LocalFiles::ProjectCli.render(Hecks::Adapters::LocalFiles::ProjectCli::Templates::PROJECT_GEMS, up: "../")
+    end
 
     def run_project_block
       FileUtils.mkdir_p(File.join(root, "bluebook"))

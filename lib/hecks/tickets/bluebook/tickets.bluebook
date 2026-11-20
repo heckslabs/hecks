@@ -745,7 +745,8 @@ Hecks.bluebook "Tickets" do
     attribute :area,   list_of(Word), optional: true
     attribute :budget_minutes, Minutes, optional: true
     attribute :category, Category, optional: true
-    # The batch work item a batched sweep item waits in; empty once it is returned.
+    # The batch work item a batched item waits in: a sweep batch, or the lead of a group one coder
+    # builds on the lead's branch. Empty once it is returned.
     attribute :batch,    WorkText, optional: true
     reference_to Epic, as: :epic, optional: true
     attribute :priority, Priority, optional: true
@@ -757,6 +758,9 @@ Hecks.bluebook "Tickets" do
     attribute :no_change, WorkText, optional: true
     # Why the last finish left the item open: no landing of it was on main. A close clears it.
     attribute :refusal,   WorkText, optional: true
+    # The commit on its batch's branch that holds a batched item, once its coder has committed it;
+    # empty until then. A batch sent back to the plan keeps its committed members.
+    attribute :batch_commit, WorkText, optional: true
     identified_by :work
 
     # The interview a record came from, named by the key its Interviews bluebook identifies it by.
@@ -1073,17 +1077,19 @@ Hecks.bluebook "Tickets" do
       emits "WorkStarted"
     end
 
-    # A planned sweep item waits in a batch work item, which one coder does for every member. It
-    # leaves the plan, so no fill starts it alone.
+    # A planned item waits in a batch work item, which one coder does for every member: a sweep
+    # item in its sweep batch, or a member of a group the fill handed to one coder under its lead.
+    # It leaves the plan, so no fill starts it alone and it takes no place under the cap.
     command "Enlist" do
       role "System"
-      goal "Put a planned sweep item into the batch work item that does it"
+      goal "Put a planned item into the batch work item that does it"
 
       reference_to Work
       attribute :batch, WorkText, sets: true
 
-      given("only a sweep item joins a batch") { category != nil && category.value == "sweep" }
       given("a batch is named by its work item") { !batch.value.to_s.empty? }
+
+      sets :batch_commit, to: ""
 
       emits "WorkEnlisted"
     end
@@ -1100,6 +1106,7 @@ Hecks.bluebook "Tickets" do
       given("a returned item says why") { !reason.value.to_s.empty? }
 
       sets :batch, to: ""
+      sets :batch_commit, to: ""
 
       emits "WorkReturned"
     end
@@ -1238,6 +1245,21 @@ Hecks.bluebook "Tickets" do
       emits "WorkLapsed"
     end
 
+    # The batch's coder committed this member on the batch's branch: it lands with the batch, and
+    # stays in it if the batch goes back to the plan before landing.
+    command "Commit" do
+      role "System"
+      goal "Record the commit on its batch's branch that holds a batched item"
+
+      reference_to Work
+      attribute :batch_commit, WorkText, sets: true
+
+      given("only a batched work item is committed in its batch") { status == "batched" }
+      given("a commit names its sha") { !batch_commit.to_s.empty? }
+
+      emits "WorkCommitted"
+    end
+
     query "Undone" do
       description "Every work item not yet done or dropped, in plan order."
       where(status: { in: "planned,started,batched" })
@@ -1316,7 +1338,7 @@ Hecks.bluebook "Tickets" do
 
     # The members still waiting in one batch work item: the ones its landing closes.
     query "InBatch" do
-      description "Every sweep item still batched in one batch work item."
+      description "Every item still batched in one batch work item."
       attribute :work, String
       where(batch: :work, status: "batched")
     end
@@ -1355,6 +1377,13 @@ Hecks.bluebook "Tickets" do
       description "Every work item of one epic, finished or not, in plan order."
       attribute :epic, String
       where(epic: :epic)
+      order_by :step
+    end
+
+    query "UncommittedIn" do
+      description "The members still batched in one batch work item and not yet committed on its branch."
+      attribute :work, String
+      where(batch: :work, status: "batched", batch_commit: "")
       order_by :step
     end
   end
@@ -1533,6 +1562,27 @@ Hecks.bluebook "Tickets" do
     on       "Adr.AdrSuperseded"
     for_each "Work.UndoneUnder"
     trigger  Work::Lapse, with: { work: :work }
+  end
+
+  # A batch work item sent back to the plan lets go of the members it had not committed; a committed
+  # member stays in the batch, whose branch holds its commit, so a restart never builds it twice.
+  policy "ReleaseBatchWhenLeadYielded" do
+    on       "Work.WorkYielded"
+    for_each "Work.UncommittedIn"
+    trigger  Work::Return, with: { work: :work, reason: "its batch yielded" }
+  end
+
+  policy "ReleaseBatchWhenLeadRefused" do
+    on       "Work.WorkRefused"
+    for_each "Work.UncommittedIn"
+    trigger  Work::Return, with: { work: :work, reason: "its batch's landing was refused" }
+  end
+
+  # A batch set aside takes its branch with it, so every member goes back to the plan.
+  policy "ReleaseBatchWhenLeadDropped" do
+    on       "Work.WorkDropped"
+    for_each "Work.InBatch"
+    trigger  Work::Return, with: { work: :work, reason: "its batch was dropped" }
   end
 
   # Only a landing finishes a work item, never a submission, which a landing job may still refuse.
