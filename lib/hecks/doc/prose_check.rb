@@ -10,7 +10,6 @@ module Hecks
     # @example
     #   ProseCheck.new(root, layout).unresolved(region) # => ["mentions command Landing.land!, …"]
     class ProseCheck
-      # @param root [String] the checkout
       # A Markdown heading line, capturing its words.
       HEADING = /^#+ (.+?)\s*$/
 
