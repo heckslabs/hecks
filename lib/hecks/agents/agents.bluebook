@@ -2298,6 +2298,534 @@ Hecks.bluebook "Agents" do
     count
   end
 
+  # A known-bad patch kept as data, so the review is shown now and then that it can still fail
+  # something. Planted round robin on a scratch branch and reviewed as a landing asks; never landed.
+  aggregate "Canary" do
+    description "One known-bad patch: the base it is cut from, the patch, the finding the review must give, and how often it was planted, caught, missed and mistaken."
+
+    identified_by :canary
+
+    attribute :canary,     CanaryName
+    attribute :base,       BaseRef
+    attribute :patch,      PatchText
+    attribute :finding,    FindingWord
+    attribute :branch,     BranchName
+    attribute :message,    CommitMessage
+    attribute :planted_at, Instant, optional: true
+    attribute :plants,     Tally, optional: true
+    attribute :catches,    Tally, optional: true
+    attribute :misses,     Tally, optional: true
+    attribute :mistakes,   Tally, optional: true
+    attribute :unfit,      Tally, optional: true
+    attribute :faults,     Tally, optional: true
+    attribute :reason,     ReasonText, optional: true
+    attribute :spoiled,    SpoiledFlag, optional: true
+
+    value_object "CanaryName" do
+      attribute :value, String, matches: :present
+    end
+
+    # The ref the scratch branch is cut from, `main` unless the patch needs an older tree.
+    value_object "BaseRef" do
+      attribute :value, String, matches: :present
+    end
+
+    # The known-bad change, as a unified diff `git apply` takes.
+    value_object "PatchText" do
+      attribute :value, String, matches: :present
+    end
+
+    # The judgment the review must give: `real_bug`, `missing_behavior` or `stale_expectation`.
+    value_object "FindingWord" do
+      attribute :value, String, matches: :present
+    end
+
+    # An ordinary branch name, so the reviewer reads an ordinary brief; each plant adds its round.
+    value_object "BranchName" do
+      attribute :value, String, matches: :present
+    end
+
+    # The scratch commit's message, written as a coder would write it.
+    value_object "CommitMessage" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    value_object "Tally" do
+      attribute :value, Integer, default: 0
+      invariant("a tally is not negative") { !value.negative? }
+    end
+
+    value_object "ReasonText" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SpoiledFlag", Boolean
+
+    command "Add" do
+      role "System"
+      goal "Keep a known-bad patch and the finding the review must give on it"
+
+      attribute :canary,  CanaryName, sets: true
+      attribute :base,    BaseRef, sets: true
+      attribute :patch,   PatchText, sets: true
+      attribute :finding, FindingWord, sets: true
+      attribute :branch,  BranchName, sets: true
+      attribute :message, CommitMessage, sets: true
+
+      given("the finding is one the reviewer gives on a bad change") do
+        finding.value == "real_bug" || finding.value == "missing_behavior" || finding.value == "stale_expectation"
+      end
+
+      emits "CanaryAdded"
+    end
+
+    # Planting stamps the canary, so the next due plant takes the one planted least recently.
+    command "Plant" do
+      role "System"
+      goal "Plant a known-bad patch on a scratch branch for the reviewer"
+
+      reference_to Canary
+      attribute :base,    BaseRef
+      attribute :patch,   PatchText
+      attribute :finding, FindingWord
+      attribute :branch,  BranchName
+      attribute :message, CommitMessage
+      attribute :round,   Tally
+      attribute :now,     Instant
+      needs :now
+
+      given("the canary's patch still applies") { spoiled == nil || spoiled.value != true }
+
+      sets :planted_at, to: :now
+      sets :plants, increment: { value: 1 }
+
+      emits "CanaryPlanted"
+    end
+
+    # The patch no longer applies to its base: the canary is set aside with git's reason, and only a
+    # fresh patch (a new canary) plants again.
+    command "Spoil" do
+      role "System"
+      goal "Set a canary aside whose patch no longer applies to its base"
+
+      reference_to Canary
+      attribute :reason, ReasonText, sets: true
+
+      given("the patch itself was refused") { reason.to_s.start_with?("the patch does not apply") }
+
+      sets :spoiled, to: true
+
+      emits "CanarySpoiled"
+    end
+
+    # Any other failure to cut is counted and may pass: the canary plants again on its next turn.
+    command "Fault" do
+      role "System"
+      goal "Count a scratch branch that could not be cut for a reason other than the patch"
+
+      reference_to Canary
+      attribute :reason, ReasonText, sets: true
+
+      given("the refusal was not the patch's") { !reason.to_s.start_with?("the patch does not apply") }
+
+      sets :faults, increment: { value: 1 }
+
+      emits "CanaryFaulted"
+    end
+
+    command "TallyCatch" do
+      role "System"
+      goal "Count a plant the review caught"
+      reference_to Canary
+      sets :catches, increment: { value: 1 }
+      emits "CatchTallied"
+    end
+
+    command "TallyMiss" do
+      role "System"
+      goal "Count a plant the review passed clean"
+      reference_to Canary
+      sets :misses, increment: { value: 1 }
+      emits "MissTallied"
+    end
+
+    command "TallyMistake" do
+      role "System"
+      goal "Count a plant the review failed with another finding than the canary's"
+      reference_to Canary
+      sets :mistakes, increment: { value: 1 }
+      emits "MistakeTallied"
+    end
+
+    command "TallyUnfit" do
+      role "System"
+      goal "Count a plant whose commit was not of the full review tier, so no clean could be given"
+      reference_to Canary
+      sets :unfit, increment: { value: 1 }
+      emits "UnfitTallied"
+    end
+
+    query "Canaries" do
+      description "Every known-bad patch with how often it was planted, caught, missed and mistaken: its catch rate is catches over plants."
+      order_by :canary
+    end
+
+    # Round robin: the patch planted least recently, a new one (never planted) first.
+    query "NextDue" do
+      description "The known-bad patch still fit to plant that was planted least recently."
+      where(spoiled: nil)
+      order_by :planted_at
+      limit 1
+    end
+
+    # A plant is a scratch branch of the primary checkout: cut through LinkedTree, then patched.
+    policy "CutTheScratchBranch" do
+      on  "Canary.CanaryPlanted"
+      ask :cut_scratch, with: { canary: :canary, base: :base, patch: :patch, finding: :finding, branch: :branch,
+                                message: :message, round: :round }
+    end
+
+    policy "OpenThePlant" do
+      on      "Canary.ScratchCut"
+      trigger CanaryPlant::Open, with: { submission: :submission, canary: :canary, checkout: :checkout,
+                                         branch: :branch, expected: :finding }
+    end
+
+    policy "SpoilTheRottenCanary" do
+      on      "Canary.ScratchUncut"
+      where   { refusal.start_with?("the patch does not apply") }
+      trigger Canary::Spoil, with: { canary: :canary, reason: :refusal }
+    end
+
+    policy "CountTheFaultedCut" do
+      on      "Canary.ScratchUncut"
+      where   { !refusal.start_with?("the patch does not apply") }
+      trigger Canary::Fault, with: { canary: :canary, reason: :refusal }
+    end
+
+    # The open cadence row is the one gate: the first canary added opens it.
+    policy "OpenTheCadence" do
+      on      "Canary.CanaryAdded"
+      root
+      trigger CanaryCadence::Open, with: { cadence: "canary" }
+    end
+  end
+
+  # When a canary is due: one row, `canary`, stamped at each plant. A sweep ticks it; a tick inside
+  # the window refuses by its given. With no canary added there is no row, and a sweep does nothing.
+  aggregate "CanaryCadence" do
+    description "The one gate on planting canaries: when the last was planted, and the window before the next."
+
+    identified_by :cadence
+
+    attribute :cadence, CadenceName
+    attribute :last_at, Instant, optional: true
+
+    value_object "CadenceName" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # Seconds between plants.
+    value_object "Window" do
+      attribute :value, Integer
+      invariant("a window is positive") { value.positive? }
+    end
+
+    # The owner's delegated cadence, named. No rule reads this row: it says what `Tick`'s `every`
+    # default is, and a spec holds the two equal.
+    value_object "Setting" do
+      attribute :name,  String
+      attribute :value, Integer
+
+      member name: "canary_every_seconds", value: 86_400
+    end
+
+    command "Open" do
+      role "System"
+      goal "Open the canary cadence, with nothing planted yet"
+
+      attribute :cadence, CadenceName, sets: true
+
+      emits "CadenceOpened"
+    end
+
+    command "Tick" do
+      role "System"
+      goal "Say a canary is due once the window since the last plant has passed"
+
+      reference_to CanaryCadence
+      attribute :every, Window, default: 86_400
+      attribute :now,   Instant
+      needs :now
+
+      given("the window since the last plant has passed") { last_at == nil || last_at.value + every.value <= now.value }
+
+      sets :last_at, to: :now
+
+      emits "CanaryDue"
+    end
+
+    query "Cadences" do
+      description "The canary cadence, once a canary has been added."
+      order_by :cadence
+    end
+
+    policy "TickTheCadenceOnSweep" do
+      on       "SessionSweep.SweepRequested"
+      root
+      for_each "CanaryCadence.Cadences"
+      trigger  CanaryCadence::Tick, with: { canary_cadence: :canary_cadence }
+    end
+
+    # The plant is stamped with the tick's own time, so the cadence and the canary agree.
+    policy "PlantTheNextCanary" do
+      on       "CanaryCadence.CanaryDue"
+      for_each "Canary.NextDue"
+      trigger  Canary::Plant, with: { canary: :canary, base: :base, patch: :patch, finding: :finding,
+                                      branch: :branch, message: :message, round: :plants, now: :now }
+    end
+  end
+
+  # One planting of a canary: its scratch commit, sent to the reviewer as a landing sends a
+  # submission but naming no work item, so it starts no coder and never reaches Landing.
+  aggregate "CanaryPlant" do
+    description "One planted canary: the scratch commit the reviewer judged, its tier, the finding expected and the verdict given, caught, missed or mistaken."
+
+    identified_by :submission
+
+    acknowledges :key_by_value, "the canary is named so its tally finds it; a plant outlives nothing and a canary is never removed, so a reference adds no guard", of: :canary
+
+    attribute :submission, PlantedCommit
+    attribute :canary,     CanaryName
+    attribute :checkout,   CheckoutPath
+    attribute :branch,     BranchName
+    attribute :expected,   FindingWord
+    attribute :tier,       TierWord, optional: true
+    attribute :judgment,   Judgment, optional: true
+    attribute :findings,   FindingsText, optional: true
+    attribute :outcome,    Outcome, optional: true
+
+    # The scratch commit, which keys its SubmissionReview too.
+    value_object "PlantedCommit" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "CanaryName" do
+      attribute :value, String, matches: :present
+    end
+
+    # The scratch worktree, kept until a command may retire an unlanded branch.
+    value_object "CheckoutPath", String
+
+    value_object "BranchName", String
+
+    value_object "FindingWord", String
+
+    value_object "TierWord", String
+
+    value_object "Judgment", String
+
+    value_object "FindingsText", String
+
+    # `caught`, `missed`, `mistaken` or `unfit`.
+    value_object "Outcome", String
+
+    command "Open" do
+      role "System"
+      goal "Record a canary's scratch commit, ready for the reviewer"
+
+      attribute :submission, PlantedCommit, sets: true
+      attribute :canary,     CanaryName, sets: true
+      attribute :checkout,   CheckoutPath, sets: true
+      attribute :branch,     BranchName, sets: true
+      attribute :expected,   FindingWord, sets: true
+
+      emits "CanaryPlantOpened"
+    end
+
+    command "Scope" do
+      role "System"
+      goal "Record the review tier of a planted commit"
+
+      reference_to CanaryPlant
+      attribute :tier, TierWord, sets: true
+
+      emits "PlantScoped"
+    end
+
+    # Only a full-tier commit can be passed clean (SubmissionReview.Judge), so only one can be missed.
+    command "Unfit" do
+      role "System"
+      goal "Record that a planted commit is not of the full review tier, so the plant proves nothing"
+
+      reference_to CanaryPlant
+      attribute :canary, CanaryName
+
+      given("the plant is not settled already") { outcome == nil || outcome.to_s == "" }
+      given("the plant's tier is not full") { tier.value != "full" }
+
+      sets :outcome, to: "unfit"
+
+      emits "CanaryUnfit"
+    end
+
+    command "Catch" do
+      role "System"
+      goal "Record that the review gave the finding a planted bug calls for"
+
+      reference_to CanaryPlant
+      attribute :canary,   CanaryName
+      attribute :judgment, Judgment, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
+
+      given("the plant is not settled already") { outcome == nil || outcome.to_s == "" }
+      given("the review gave the expected finding") { judgment.value == expected.value }
+
+      sets :outcome, to: "caught"
+
+      emits "CanaryCaught"
+    end
+
+    command "Miss" do
+      role "System"
+      goal "Record that the review passed a planted bug clean"
+
+      reference_to CanaryPlant
+      attribute :canary,   CanaryName
+      attribute :judgment, Judgment, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
+
+      given("the plant is not settled already") { outcome == nil || outcome.to_s == "" }
+      given("the review passed the planted bug clean") { judgment.value == "clean" }
+
+      sets :outcome, to: "missed"
+
+      emits "CanaryMissed"
+    end
+
+    command "Mistake" do
+      role "System"
+      goal "Record that the review failed a planted bug, but with another finding than the canary's"
+
+      reference_to CanaryPlant
+      attribute :canary,   CanaryName
+      attribute :judgment, Judgment, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
+
+      given("the plant is not settled already") { outcome == nil || outcome.to_s == "" }
+      given("the review gave neither clean nor the expected finding") do
+        judgment.value != "clean" && judgment.value != expected.value
+      end
+
+      sets :outcome, to: "mistaken"
+
+      emits "CanaryMistaken"
+    end
+
+    query "Plants" do
+      description "Every planted canary, by commit: its canary, tier, the finding expected and the verdict given."
+      order_by :submission
+    end
+
+    query "OfSubmission" do
+      description "The planted canary of one submitted commit, if the commit is one."
+      attribute :submission, PlantedCommit
+      where(submission: :submission)
+    end
+
+    # Exactly the landing's request (`AskTheReviewerWhenWorkIsSubmitted`), naming no work item:
+    # the reviewer starts with no parent and its finding raises nothing (`Raise` needs a work item).
+    policy "AskTheReviewerOfThePlant" do
+      on      "CanaryPlant.CanaryPlantOpened"
+      trigger SubmissionReview::Request, with: { submission: :submission, work: "", brief: :branch, hops: 1,
+                                                 role: "reviewer", repo: :checkout }
+    end
+
+    policy "ScopeThePlant" do
+      on       "SubmissionReview.SubmissionScoped"
+      for_each "CanaryPlant.OfSubmission"
+      trigger  CanaryPlant::Scope, with: { canary_plant: :canary_plant, tier: :tier }
+    end
+
+    policy "SetAsideTheUnfitPlant" do
+      on       "CanaryPlant.PlantScoped"
+      where    { tier != "full" }
+      for_each "CanaryPlant.OfSubmission"
+      trigger  CanaryPlant::Unfit, with: { canary_plant: :canary_plant, canary: :canary }
+    end
+
+    policy "CatchThePlant" do
+      on       "SubmissionReview.SpecFailureJudged"
+      where    { judgment != "clean" }
+      for_each "CanaryPlant.OfSubmission"
+      trigger  CanaryPlant::Catch, with: { canary_plant: :canary_plant, canary: :canary, judgment: :judgment,
+                                           findings: :findings }
+    end
+
+    policy "MissThePlant" do
+      on       "SubmissionReview.SpecFailureJudged"
+      where    { judgment == "clean" }
+      for_each "CanaryPlant.OfSubmission"
+      trigger  CanaryPlant::Miss, with: { canary_plant: :canary_plant, canary: :canary, judgment: :judgment,
+                                          findings: :findings }
+    end
+
+    policy "MistakeThePlant" do
+      on       "SubmissionReview.SpecFailureJudged"
+      where    { judgment != "clean" }
+      for_each "CanaryPlant.OfSubmission"
+      trigger  CanaryPlant::Mistake, with: { canary_plant: :canary_plant, canary: :canary, judgment: :judgment,
+                                             findings: :findings }
+    end
+
+    policy "TallyTheCatch" do
+      on      "CanaryPlant.CanaryCaught"
+      trigger Canary::TallyCatch, with: { canary: :canary }
+    end
+
+    policy "TallyTheMiss" do
+      on      "CanaryPlant.CanaryMissed"
+      trigger Canary::TallyMiss, with: { canary: :canary }
+    end
+
+    policy "TallyTheMistake" do
+      on      "CanaryPlant.CanaryMistaken"
+      trigger Canary::TallyMistake, with: { canary: :canary }
+    end
+
+    policy "TallyTheUnfit" do
+      on      "CanaryPlant.CanaryUnfit"
+      trigger Canary::TallyUnfit, with: { canary: :canary }
+    end
+  end
+
+  # How many canaries were planted and how many caught, per review tier: caught over planted is a
+  # tier's catch rate.
+  read_model "CanaryPlantsByTier" do
+    description "How many canaries were planted and judged, per review tier."
+    include CanaryPlant
+    group_by :tier
+    count
+  end
+
+  read_model "CanaryCatchesByTier" do
+    description "How many planted canaries the review caught, per review tier."
+    include CanaryPlant
+    where(outcome: "caught")
+    group_by :tier
+    count
+  end
+
   # A finding goes to a coder on the same branch, never to a person. Each fix is a new tip, gated and
   # reviewed again; a finding past the hop limit exhausts the route instead of starting a coder.
   aggregate "FindingRoute" do

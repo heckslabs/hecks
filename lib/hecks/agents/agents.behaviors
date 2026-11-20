@@ -231,4 +231,43 @@ Hecks.behaviors "Agents" do
            hops: { value: 1 }, episode: { value: "ep-miss1" }, culprit: { value: "m1" }, spec: { value: "spec/a_spec.rb" }
     expect emits: ["ReviewMissed"]
   end
+
+  test "Add refuses a canary whose finding the reviewer never gives on a bad change" do
+    tests "Add", on: "Canary"
+    input  canary: { value: "c-clean" }, base: { value: "main" }, patch: { value: "diff" },
+           finding: { value: "clean" }, branch: { value: "tidy-parse" }, message: { value: "Tidy the parse" }
+    expect refused: "the finding is one the reviewer gives on a bad change"
+  end
+
+  test "Catch records a plant the review failed with the expected finding" do
+    tests "Catch", on: "CanaryPlant"
+    setup  "Agents::CanaryPlant.Open", submission: { value: "cp1" }, canary: { value: "c1" },
+           checkout: { value: "/nonexistent" }, branch: { value: "tidy-parse-1" }, expected: { value: "real_bug" }
+    input  canary_plant: "cp1", canary: { value: "c1" }, judgment: { value: "real_bug" }
+    expect emits: ["CanaryCaught"]
+  end
+
+  test "Miss refuses a plant the review did not pass clean" do
+    tests "Miss", on: "CanaryPlant"
+    setup  "Agents::CanaryPlant.Open", submission: { value: "cp2" }, canary: { value: "c1" },
+           checkout: { value: "/nonexistent" }, branch: { value: "tidy-parse-2" }, expected: { value: "real_bug" }
+    input  canary_plant: "cp2", canary: { value: "c1" }, judgment: { value: "real_bug" }
+    expect refused: "the review passed the planted bug clean"
+  end
+
+  test "Mistake refuses a plant given the expected finding" do
+    tests "Mistake", on: "CanaryPlant"
+    setup  "Agents::CanaryPlant.Open", submission: { value: "cp3" }, canary: { value: "c1" },
+           checkout: { value: "/nonexistent" }, branch: { value: "tidy-parse-3" }, expected: { value: "real_bug" }
+    input  canary_plant: "cp3", canary: { value: "c1" }, judgment: { value: "real_bug" }
+    expect refused: "the review gave neither clean nor the expected finding"
+  end
+
+  test "Tick refuses inside the window since the last plant" do
+    tests "Tick", on: "CanaryCadence"
+    setup  "Agents::CanaryCadence.Open", cadence: { value: "canary" }
+    setup  "Agents::CanaryCadence.Tick", canary_cadence: "canary", now: { value: 100_000 }
+    input  canary_cadence: "canary", now: { value: 100_100 }
+    expect refused: "the window since the last plant has passed"
+  end
 end
