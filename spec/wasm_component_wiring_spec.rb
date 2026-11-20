@@ -2,9 +2,9 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 
-# A deploy names a component adapter in its hecksagon (`mailed_by "Resend"`), and the IR the
-# Rust host reads carries that component: its module and digest, the port it answers and the
-# grant the host cuts for it. A hecksagon that names none carries no `components`.
+# A deploy names a component adapter in its hecksagon (`mailed_by "Resend"`, `charged_by "Stripe"`),
+# and the IR the Rust host reads carries that component: its module and digest, the port it answers
+# and the grant the host cuts for it. A hecksagon that names none carries no `components`.
 module MailedDomain
   BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "Mailed" do
@@ -75,6 +75,22 @@ RSpec.describe "a component adapter a hecksagon wires" do
     it "keeps a component out of the plugins, which answer queries" do
       registry = boot_mailed(%(  persisted_by "Memory"\n  mailed_by "Resend"))
       expect(Hecks::Projector::Exporter.plugins(registry).map { |plugin| plugin["adapter"] }).not_to include("Resend")
+    end
+  end
+
+  describe "the Stripe component a hecksagon wires to payments" do
+    let(:entry) { components(%(  persisted_by "Memory"\n  charged_by "Stripe")).first }
+    let(:committed) { File.expand_path("../lib/hecks/adapters/driven/stripe", __dir__) }
+
+    it "is granted requests to Stripe's API and no secret" do
+      expect(entry.except("module", "sha256"))
+        .to eq({ "adapter" => "Stripe", "port" => "payments", "verb" => "charged_by", "runs" => "stripe.wasm",
+                 "secrets" => [], "imports" => ["http_out"], "hosts" => ["api.stripe.com"] })
+    end
+
+    it "carries the committed module, by the digest committed beside it", :aggregate_failures do
+      expect(entry["sha256"]).to eq(File.readlines(File.join(committed, "stripe.wasm.sha256")).last.split.first)
+      expect(Base64.strict_decode64(entry["module"])).to eq(File.binread(File.join(committed, "stripe.wasm")))
     end
   end
 
