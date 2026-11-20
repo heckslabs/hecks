@@ -18,9 +18,8 @@ module Hecks
         #   hecks test_suite_run.seed_semantics_corpus!   # fill what lacks an expect
         #   hecks test_suite_run.seed_semantics_corpus! fixture.value=refusal_kind_lifecycle   # one
         #
-        # The seeded expectation is the definition, not a recording: both runtimes are compared to
-        # it. `occurred_at` is stripped from events (C7.3/C9.1); refusals keep verb, error and kind
-        # (C8.2).
+        # The seeded expectation is the definition, both runtimes are compared to it: `occurred_at`
+        # is stripped from events (C7.3/C9.1); refusals keep verb, error and kind (C8.2).
         module SemanticsSeeding
           module_function
 
