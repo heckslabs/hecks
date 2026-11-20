@@ -1,5 +1,7 @@
 # Closing the vendored-lineage gap named in 0030 — scoping, not executed
 
+Numbered 0030 until 2026-11-20, a number it shared with [0030](0030-rust-mints-its-own-eras-at-boot.md); renumbered so one number names one decision.
+
 **Status:** Scoping only. No code changed by this document. Written after
 investigating far enough to find the fix touches more than it first
 looked like — recorded here so the next session (or this one, on

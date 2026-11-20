@@ -1,5 +1,7 @@
 # PostgresEra's era-1 self-mint now finds a vendored bluebook's own real source text
 
+Numbered 0058 until 2026-11-20, a number it shared with [0058](0058-uses-embryonaut-bluebook-proven-rust-conformant.md); renumbered so one number names one decision.
+
 **Status:** Fixed. `EraCheck.source_text_for` (`lib/hecks/ports/persistence/plugins/era/era_check.rb`) now checks the registry itself for a `uses_embryonaut_bluebook` attachment before falling back to a single-file domain directory's one file — closing a gap where a vendored, PostgresEra-bound second bluebook could get minted with an entirely different domain's own source text stamped as its held era-1 text.
 
 ## The bug, found live

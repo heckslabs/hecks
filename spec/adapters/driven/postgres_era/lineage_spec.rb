@@ -959,7 +959,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   ROSTER_V2 = <<~BLUEBOOK.freeze
     Hecks.bluebook "Roster" do
       aggregate "Person" do
-        # NOT optional: an identity must be wholly known (ADR 0029) — every
+        # NOT optional: an identity must be wholly known (ADR 0227) — every
         # V1 row is rekeyed to a real email by the translation below before
         # V2 identity ever matters, so nothing here actually depends on
         # `email` being absent at any point this scenario exercises.
