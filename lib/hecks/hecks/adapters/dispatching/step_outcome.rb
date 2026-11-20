@@ -2,6 +2,8 @@
 
 require "json"
 require_relative "../../../boot_notices"
+require_relative "../../../rendering"
+require_relative "../../../runtime/errors"
 
 module Hecks
   module Adapters
@@ -25,9 +27,10 @@ module Hecks
         # boot notice. `BootNotices` names only the runtime's own lines, so this one is read here.
         RUBY_WARNING = /\A\S+:\d+: warning: /
 
-        # The words of the lifecycle's refusal (the `transition_blocked` refusal in
-        # `vocabulary.rb`): its stable code, then the field and the status the record already holds.
-        LIFECYCLE_REFUSED = "[LifecycleRefused]"
+        # The lifecycle refusal's stable code as the launcher prints it, `[lifecycle_refused]`. The
+        # code is the refusal class's own; the brackets repeat the one-line format of the CLI's
+        # `Answers#coded`, which lives in the driving adapter and is not loaded here.
+        LIFECYCLE_REFUSED = "[#{Hecks::Runtime::LifecycleRefused.new.code}]".freeze
 
         # @param result [Shell::Result] the command's output and status
         # @param reaches [String, nil] the status the command's record holds when it did its part,
@@ -60,11 +63,13 @@ module Hecks
 
         # @param current [String] a status
         # @return [Boolean] whether the lifecycle refused the command because its record already
-        #   holds that status, as a second `Work.start!` on a started item is refused
+        #   holds that status, as a second `Work.start!` on a started item is refused. The status
+        #   is matched as the `transition_blocked` wording renders it, `status is "started", `.
         def refused_at?(current)
           return false if ok?
 
-          lines(@result.err).any? { |line| line.include?(LIFECYCLE_REFUSED) && line.include?(" is #{current}, ") }
+          held = " is #{Hecks::Rendering.describe(current)}, "
+          lines(@result.err).any? { |line| line.include?(LIFECYCLE_REFUSED) && line.include?(held) }
         end
 
         # @return [Hash, nil] the record the command printed, nil when it printed none
