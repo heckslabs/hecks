@@ -1094,10 +1094,10 @@ Hecks.behaviors "Signalbox" do
   test "the standing holds since the first reading of its band, across beats" do
     tests "Now", on: "Standing", kind: :query
     setup "Signalbox::Pressure.Open", pressure: { value: "beat-0900" }, capacity: { value: 28672 }
-    setup "Signalbox::Pressure.Read", pressure: "beat-0900", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0900", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }, now: { value: 900 }
     setup "Signalbox::Pressure.Open", pressure: { value: "beat-0901" }, capacity: { value: 28672 }
-    setup "Signalbox::Pressure.Read", pressure: "beat-0901", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
-    expect count: 1, band: "tight", pressure: { value: "beat-0900" }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0901", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }, now: { value: 960 }
+    expect count: 1, band: "tight", pressure: { value: "beat-0900" }, since: { value: 900 }
   end
 
   test "a reading in the band the machine stands in turns nothing and still posts" do

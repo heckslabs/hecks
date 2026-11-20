@@ -101,6 +101,8 @@ Hecks.bluebook "Signalbox" do
 
       attribute :pressure, Key, sets: true
       attribute :capacity, Megabytes, sets: true
+      attribute :now,      Stamp
+      needs :now
 
       emits PressureOpened
     end
@@ -141,6 +143,7 @@ Hecks.bluebook "Signalbox" do
       goal "Put the machine in the tight band: headroom is under the target"
 
       reference_to Pressure
+      attribute :at, Stamp, default: { value: 0 }
 
       emits PressureTightened
     end
@@ -150,6 +153,7 @@ Hecks.bluebook "Signalbox" do
       goal "Put the machine in the short band: headroom is under the floor"
 
       reference_to Pressure
+      attribute :at, Stamp, default: { value: 0 }
 
       sets :coders_fit, to: { value: 0 }
       sets :gates_fit,  to: { value: 0 }
@@ -162,6 +166,7 @@ Hecks.bluebook "Signalbox" do
       goal "Put the machine back in the normal band: headroom is past the target by the gap"
 
       reference_to Pressure
+      attribute :at, Stamp, default: { value: 0 }
 
       emits PressureEased
     end
@@ -174,6 +179,9 @@ Hecks.bluebook "Signalbox" do
       reference_to Pressure
       attribute :age,         Seconds
       attribute :stale_after, Seconds
+
+      attribute :now,         Stamp
+      needs :now
 
       given("the signal goes dark only when its reading is stale") { age.value > stale_after.value }
 
@@ -676,10 +684,7 @@ Hecks.bluebook "Signalbox" do
       goal "Start a machine's standing in the normal band, once"
 
       attribute :standing, Key, sets: true
-      attribute :now,      Stamp
-      needs :now
-
-      sets :since, to: :now
+      attribute :since,    Stamp, default: { value: 0 }, sets: true
 
       emits StandingOpened
     end
@@ -690,10 +695,7 @@ Hecks.bluebook "Signalbox" do
 
       reference_to Standing
       attribute :pressure, ReadingKey, sets: true
-      attribute :now,      Stamp
-      needs :now
-
-      sets :since, to: :now
+      attribute :since,    Stamp, default: { value: 0 }, sets: true
 
       emits StandingTightened
     end
@@ -704,10 +706,7 @@ Hecks.bluebook "Signalbox" do
 
       reference_to Standing
       attribute :pressure, ReadingKey, sets: true
-      attribute :now,      Stamp
-      needs :now
-
-      sets :since, to: :now
+      attribute :since,    Stamp, default: { value: 0 }, sets: true
 
       emits StandingFellShort
     end
@@ -718,10 +717,7 @@ Hecks.bluebook "Signalbox" do
 
       reference_to Standing
       attribute :pressure, ReadingKey, sets: true
-      attribute :now,      Stamp
-      needs :now
-
-      sets :since, to: :now
+      attribute :since,    Stamp, default: { value: 0 }, sets: true
 
       emits StandingEased
     end
@@ -732,10 +728,7 @@ Hecks.bluebook "Signalbox" do
 
       reference_to Standing
       attribute :pressure, ReadingKey, sets: true
-      attribute :now,      Stamp
-      needs :now
-
-      sets :since, to: :now
+      attribute :since,    Stamp, default: { value: 0 }, sets: true
 
       emits StandingDarkened
     end
@@ -760,7 +753,6 @@ Hecks.bluebook "Signalbox" do
     attribute :load_mark,  Percent
     attribute :headroom,   Signed
     attribute :held_at,    Stamp, optional: true
-    attribute :lifted_at,  Stamp, optional: true
 
     value_object "Key" do
       attribute :value, String, matches: :present
@@ -872,10 +864,6 @@ Hecks.bluebook "Signalbox" do
       goal "Lift the hold once its subject is admitted or no longer asks"
 
       reference_to Hold
-      attribute :now, Stamp
-      needs :now
-
-      sets :lifted_at, to: :now
 
       emits HoldLifted
     end
@@ -1049,9 +1037,15 @@ Hecks.bluebook "Signalbox" do
     attribute :shed_subject,  Word, optional: true
     attribute :shed_delegate, Word, optional: true
     attribute :refusal,       Note, optional: true
+    attribute :begun_at,      Stamp, optional: true
 
     value_object "BeatKey" do
       attribute :value, String, matches: :present
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer, default: 0
+      invariant("a time is not negative") { !value.negative? }
     end
 
     value_object "Word" do
@@ -1103,6 +1097,10 @@ Hecks.bluebook "Signalbox" do
       goal "Begin one pressure beat, which looks at the outside once"
 
       attribute :beat, BeatKey, sets: true
+      attribute :now,  Stamp
+      needs :now
+
+      sets :begun_at, to: :now
 
       emits BeatBegun
     end
@@ -1193,6 +1191,7 @@ Hecks.bluebook "Signalbox" do
       attribute :shed_ruling,   Word
       attribute :shed_subject,  Word
       attribute :shed_delegate, Word
+      attribute :at,            Stamp, default: { value: 0 }
 
       emits BeatPublished
     end
@@ -1444,13 +1443,13 @@ Hecks.bluebook "Signalbox" do
       load_short: :load_short, load_gap: :load_gap, memory_pressure_level: :memory_pressure_level,
       coder_draw: :coder_draw, gate_draw: :gate_draw, coders_fit: :coders_fit, gates_fit: :gates_fit,
       fill_ruling: :fill_ruling, fill_subject: :fill_subject, fill_delegate: :fill_delegate, shed_ruling: :shed_ruling,
-      shed_subject: :shed_subject, shed_delegate: :shed_delegate
+      shed_subject: :shed_subject, shed_delegate: :shed_delegate, at: :begun_at
     }
   end
 
   policy "OpenTheClearedBeatsPressure" do
     on      "Beat.BeatPublished"
-    trigger Pressure::Open, with: { pressure: :beat, capacity: :capacity }
+    trigger Pressure::Open, with: { pressure: :beat, capacity: :capacity, now: :at }
   end
 
   policy "PublishTheClearedBeatsPressure" do
@@ -1459,7 +1458,7 @@ Hecks.bluebook "Signalbox" do
       pressure: :beat, headroom: :headroom, target: :target, floor: :floor, gap: :gap, load: :load,
       cores: :cores, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
       memory_pressure_level: :memory_pressure_level, coders_fit: :coders_fit, gates_fit: :gates_fit, age: :age,
-      stale_after: :stale_after
+      stale_after: :stale_after, now: :at
     }
   end
 
@@ -1484,7 +1483,7 @@ Hecks.bluebook "Signalbox" do
       (headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4 ||
         load.value > cores.value * load_short.value
     end
-    trigger Pressure::Trip, with: { pressure: :pressure }
+    trigger Pressure::Trip, with: { pressure: :pressure, at: :now }
   end
 
   policy "TightenWhenHeadroomFallsUnderTheTarget" do
@@ -1495,7 +1494,7 @@ Hecks.bluebook "Signalbox" do
         ((headroom.value < target.value && memory_pressure_level.value != 1) || memory_pressure_level.value == 2 ||
           load.value > cores.value * load_tight.value)
     end
-    trigger Pressure::Tighten, with: { pressure: :pressure }
+    trigger Pressure::Tighten, with: { pressure: :pressure, at: :now }
   end
 
   # Between a mark and the mark past it by the gap no policy answers, so the band holds: hysteresis.
@@ -1508,7 +1507,7 @@ Hecks.bluebook "Signalbox" do
         (memory_pressure_level.value != 2 && memory_pressure_level.value < 4 && headroom.value >= target.value + gap.value)) &&
         load.value <= cores.value * (load_tight.value - load_gap.value)
     end
-    trigger Pressure::Ease, with: { pressure: :pressure }
+    trigger Pressure::Ease, with: { pressure: :pressure, at: :now }
   end
 
   # Law 2, published (phase 3b): once the band policies above have settled the reading, it is
@@ -1523,31 +1522,31 @@ Hecks.bluebook "Signalbox" do
   # which leaves its band and its since as they are.
   policy "OpenTheMachinesStanding" do
     on      "Pressure.PressureOpened"
-    trigger Standing::Open, with: { standing: { value: "machine" } }
+    trigger Standing::Open, with: { standing: { value: "machine" }, since: :now }
   end
 
   policy "TightenTheStanding" do
     on       "Pressure.PressureTightened"
     for_each "Standing.NotTight"
-    trigger  Standing::Tighten, with: { standing: :standing, pressure: :pressure }
+    trigger  Standing::Tighten, with: { standing: :standing, pressure: :pressure, since: :at }
   end
 
   policy "TripTheStanding" do
     on       "Pressure.PressureFellShort"
     for_each "Standing.NotShort"
-    trigger  Standing::Trip, with: { standing: :standing, pressure: :pressure }
+    trigger  Standing::Trip, with: { standing: :standing, pressure: :pressure, since: :at }
   end
 
   policy "EaseTheStanding" do
     on       "Pressure.PressureEased"
     for_each "Standing.NotNormal"
-    trigger  Standing::Ease, with: { standing: :standing, pressure: :pressure }
+    trigger  Standing::Ease, with: { standing: :standing, pressure: :pressure, since: :at }
   end
 
   policy "DarkenTheStanding" do
     on       "Pressure.PressureDarkened"
     for_each "Standing.NotDark"
-    trigger  Standing::Darken, with: { standing: :standing, pressure: :pressure }
+    trigger  Standing::Darken, with: { standing: :standing, pressure: :pressure, since: :now }
   end
 
   # A session admitted for real is held no more.
