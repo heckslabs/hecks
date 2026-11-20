@@ -5,6 +5,8 @@ require "time"
 require_relative "../shell"
 require_relative "../console_capture"
 require_relative "brief_text"
+require_relative "batch_brief"
+require_relative "batch_steps"
 require_relative "parking"
 require_relative "step_outcome"
 
@@ -18,6 +20,8 @@ module Hecks
       # so a session never starts from a stale base. A step that fails yields the work item to the
       # plan.
       class Launcher
+        include BatchSteps
+
         # The claimant every dispatched work item names.
         CLAIMANT = "dispatch"
 
@@ -61,7 +65,8 @@ module Hecks
           return [:held, held_line(item)] if started.refused_at?("started")
 
           checked(item, "start", started)
-          dispatch(item, brief(item, limit: limit, held: held, **lines))
+          enlist(item)
+          dispatch(item, brief(item, limit: limit, held: held, batch: BatchBrief.text(item), **lines))
           [:started, started_line(item, started.note)]
         rescue ConsoleCapture::Failure => e
           [:yielded, yield_back(item, e.message)]
@@ -192,7 +197,9 @@ module Hecks
 
         def retire_argv(key) = ["AgentRun.retire!", "to=#{key}", "--wait"]
 
-        def started_line(item, note) = note.empty? ? "started #{item.key}" : "started #{item.key} (then refused: #{note})"
+        def started_line(item, note)
+          group_line(item, note.empty? ? "started #{item.key}" : "started #{item.key} (then refused: #{note})")
+        end
 
         # Local `main` current before the session starts, so no worktree is cut from a stale base.
         def pull_argv = ["LinkedTree.pull_main!", "checkout.value=#{@repo}", "--wait"]

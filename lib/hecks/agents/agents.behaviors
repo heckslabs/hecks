@@ -95,4 +95,39 @@ Hecks.behaviors "Agents" do
     input  submission: { value: "abc8" }, kind: { value: "behaviors" }, run: { value: "nightly" }
     expect refused: "the run is of the submitted commit: its key names the commit"
   end
+
+  test "Count counts a finding under the hop limit and sends it to a coder" do
+    tests "Count", on: "FindingRoute"
+    setup  "Agents::FindingRoute.Open", work: { value: "w-route1" }, judgment: { value: "real_bug" },
+           submission: { value: "r1" }, repo: { value: "/nonexistent" }
+    input  work: { value: "w-route1" }, judgment: { value: "real_bug" }, submission: { value: "r1" },
+           repo: { value: "/nonexistent" }
+    expect emits: ["RouteCounted", "FindingRouted"]
+  end
+
+  test "Exhaust refuses a route under the hop limit" do
+    tests "Exhaust", on: "FindingRoute"
+    setup  "Agents::FindingRoute.Open", work: { value: "w-route2" }, judgment: { value: "real_bug" },
+           submission: { value: "r2" }, repo: { value: "/nonexistent" }
+    input  work: { value: "w-route2" }, reason: { value: "review loop" }
+    expect refused: "the route reached the hop limit"
+  end
+
+  test "Send refuses a clean verdict, which no coder fixes" do
+    tests "Send", on: "FindingRoute"
+    setup  "Agents::FindingRoute.Open", work: { value: "w-route3" }, judgment: { value: "real_bug" },
+           submission: { value: "r3" }, repo: { value: "/nonexistent" }
+    input  work: { value: "w-route3" }, judgment: { value: "clean" }, repo: { value: "/nonexistent" },
+           brief: { value: "fix it" }
+    expect refused: "the finding is one a coder fixes"
+  end
+
+  test "Send routes a stale expectation to a coder" do
+    tests "Send", on: "FindingRoute"
+    setup  "Agents::FindingRoute.Open", work: { value: "w-route4" }, judgment: { value: "stale_expectation" },
+           submission: { value: "r4" }, repo: { value: "/nonexistent" }
+    input  work: { value: "w-route4" }, judgment: { value: "stale_expectation" }, repo: { value: "/nonexistent" },
+           brief: { value: "edit only the stale spec" }
+    expect emits: ["FindingRouted"]
+  end
 end

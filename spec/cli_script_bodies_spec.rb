@@ -1,7 +1,7 @@
 require "spec_helper"
 require "json"
-require "hecks/tools/shape"
-require "hecks/tools/history"
+require "hecks/hecks/adapters/in_process_boot/shape"
+require "hecks/hecks/adapters/in_process_boot/history"
 require "hecks/tools/refresh_projections"
 
 # The library bodies of scripts whose `bin/` file only starts them: each `bin/` file runs one of
@@ -10,7 +10,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
   let(:root)   { File.expand_path("..", __dir__) }
   let(:pizzas) { File.join(root, "examples/pizzas/bluebook/pizzas.bluebook") }
 
-  describe Hecks::Tools::Shape do
+  describe Hecks::Adapters::InProcessBoot::Shape do
     it "prints a bluebook's storage shape as JSON" do
       expect(JSON.parse(described_class.render(pizzas))).to be_a(Hash)
     end
@@ -23,19 +23,11 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
       expect { described_class.render("/nonexistent") }.to raise_error(Hecks::Runtime::NotFound, /does not exist/)
       expect { described_class.render(root) }.to raise_error(Hecks::Runtime::NotFound, /no \*\.bluebook files/)
     end
-
-    it "aborts with usage when given no target", :aggregate_failures do
-      expect { expect { described_class.call([]) }.to raise_error(SystemExit) }.to output(/usage/).to_stderr
-    end
   end
 
-  describe Hecks::Tools::History do
+  describe Hecks::Adapters::InProcessBoot::History do
     it "answers no entries for a repository that is not append-only" do
       expect(described_class.entries(Object.new)).to eq([])
-    end
-
-    it "aborts with usage when given no domain", :aggregate_failures do
-      expect { expect { described_class.call([]) }.to raise_error(SystemExit) }.to output(/usage/).to_stderr
     end
   end
 

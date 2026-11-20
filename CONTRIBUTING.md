@@ -464,7 +464,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
 
    The gem's push key comes from 1Password (`op run`, Touch ID-gated;
    `release/gem_push.env`), and its one-time setup is in the header of
-   `lib/hecks/tools/release_gem.rb`.
+   `lib/hecks/release/runner/gem_push.rb`.
 
    One-time setup for CI publishing, by an owner of the `@hecks` scope on
    npmjs.com, possible only once the package exists: package

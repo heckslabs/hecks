@@ -65,7 +65,8 @@ RSpec.describe Hecks::Adapters::Sweeping::Orphans do
     texts = ["vim exe/hecks x", "grep x exe/hecks ", "claude -p run exe/hecks tickets Work.undone"]
     named = texts.each_with_index.map { |command, index| entry(920 + index, 1, 9000, command) }
 
-    expect(orphans(named + [entry(904, 1, 9000, "ruby -I lib -e require 'hecks/tools/mcp'")]).lines).to eq([])
+    expect(orphans(named + [entry(904, 1, 9000,
+                                  "ruby -I lib -e require 'hecks/adapters/driving/mcp/stdio_entry'")]).lines).to eq([])
   end
 
   it "finds a launcher run directly, under ruby, or under bundle exec ruby" do
