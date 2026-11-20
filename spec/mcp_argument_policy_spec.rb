@@ -8,7 +8,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
   PLAIN_ARGUMENTS = %w[
     agent aggregates arguments at body budget budget_minutes cap check clean commits component context copy crate
     declaration_cache days dry dry_run email environment era example exclude fills format full_gate
-    gate inner isolation iterations kind lane landed list_shards message name named new_name now number only
+    gate helper how inner isolation iterations kind lane landed list_shards message name named new_name now number only
     opened_by opens outcome owner package pairs_shape parallel parent persist_regressions pin probe profile pulled pushed reason
     rehearsal_verdict
     report required resuming retried revert role run runs scope seed_start seeds session shard stage state stdout
