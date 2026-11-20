@@ -396,7 +396,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     end
 
     it "reads the reviewer's judgment off the closed job, and no verdict" do
-      job("done", "judged", { result: "One failure is a stale expectation." })
+      job("done", "judged", { result: "One failure is a stale expectation.\n\nstale_expectation" })
 
       expect(read(agent: { value: "reviewer" })).to include(judgment: "stale_expectation", verdict: "")
     end
