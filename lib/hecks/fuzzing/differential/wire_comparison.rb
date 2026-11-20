@@ -43,12 +43,26 @@ module Hecks
            compare("events", view[:events], rust_output["events"])].compact
         end
 
+        # The divergences on the fields a serve session answers (`ServeEngine::SERVED`), compared
+        # exactly as {differential_divergences} compares them.
+        #
+        # @param view [Hash] the Ruby side, as {ruby_view} builds it
+        # @param rust_output [Hash] the kernel's `instances`, `events` and `dry_runs`
+        # @return [Array<Hash>] one `{field:, ruby:, rust:}` entry per disagreeing field
+        def served_divergences(view, rust_output)
+          (plain_divergences(view, rust_output) + [dry_run_divergence(view, rust_output)]).compact
+        end
+
+        def dry_run_divergence(view, rust_output)
+          compare("dry_runs", view[:dry_runs], Array(rust_output["dry_runs"]).map { |d| d.slice("verb", "ok") })
+        end
+
         def kept_divergences(differ, ruby_result, view, rust_output, kept)
           [compare("refusals", *kind_rows(kept)),
            compare("queries", *wire_queries(differ, kept)),
            compare("sagas", view[:sagas], rust_output["sagas"]),
            compare("reactions", *reactions(differ, ruby_result, rust_output)),
-           compare("dry_runs", view[:dry_runs], Array(rust_output["dry_runs"]).map { |d| d.slice("verb", "ok") })].compact
+           dry_run_divergence(view, rust_output)].compact
         end
 
         def kind_rows(kept)
