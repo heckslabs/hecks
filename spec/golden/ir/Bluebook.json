@@ -39206,28 +39206,6 @@
             [
               [
                 "script",
-                "qa_event_pump"
-              ],
-              [
-                "section",
-                "QualityControl"
-              ],
-              [
-                "aggregate",
-                "Sweep"
-              ],
-              [
-                "verb",
-                "tick"
-              ],
-              [
-                "note",
-                "its last step, the event_pump setting; EventDelivery Pump.Run on the ledger"
-              ]
-            ],
-            [
-              [
-                "script",
                 "qa_sweep"
               ],
               [
