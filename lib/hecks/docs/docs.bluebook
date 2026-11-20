@@ -1,7 +1,6 @@
 # Docs: a page is made of regions, each projected from a bluebook, doctested by a booted example,
 # or prose. A live page is checked by the docs gate; a frozen one is kept as written and left out.
 # Reading pages, booting examples and comparing projections belong to whoever answers Page.Live.
-# A prose region's claims (its purpose, mentions and supports) and their review are a Prose.
 
 Hecks.bluebook "Docs" do
   vision "A documentation page is made of regions, each projected from a bluebook, doctested by a booted example, or prose, and only a live page is held to its sources."
@@ -131,10 +130,8 @@ Hecks.bluebook "Docs" do
     end
   end
 
-  # What one prose region of a page claims about the model. The Page says where the region sits
-  # (its anchor, in reading order); the Prose says what its words are for, which model terms they
-  # mention, what they rest on, and whether they still hold. The words themselves stay in the .md
-  # between the region's markers. Detecting the terms a body uses and resolving each mention
+  # The Page says where a prose region sits; the Prose says what its words claim. The words stay
+  # in the .md between the region's markers. Detecting a body's terms and resolving each mention
   # against the live model belong to whoever answers a port for it, not to this bluebook.
   aggregate "Prose" do
     description "What one prose region of a page claims: its purpose, the model terms it mentions, what it rests on, and whether it still holds: current, needing review, confirmed or revised."
@@ -150,7 +147,7 @@ Hecks.bluebook "Docs" do
     attribute :supports,          list_of(Support)
     attribute :confirmed_against, ModelStamp, optional: true
 
-    # The region's page path and anchor, as `<path>#<anchor>`, such as `docs/query-dsl.md#Why queries`.
+    # The region's page path and anchor as `<path>#<anchor>`: `docs/query-dsl.md#Why queries`.
     value_object "ProseKey" do
       attribute :value, String, pattern: '^[^/#][^#]*[.]md#.+$'
     end
