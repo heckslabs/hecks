@@ -2,6 +2,7 @@
 
 require "cgi"
 require_relative "../pipeline_stages/integration_runs"
+require_relative "../pipeline_stages/fill_age"
 
 module Hecks
   module Adapters
@@ -99,7 +100,11 @@ module Hecks
           "<table><thead><tr>#{head.map { |name| "<th>#{esc(name)}</th>" }.join}</tr></thead><tbody>#{cells.join}</tbody></table>"
         end
 
-        def as_of(reading) = reading[:at] ? " (as of #{esc(reading[:at])})" : ""
+        def as_of(reading)
+          return "" unless reading[:at]
+
+          " (as of #{esc(reading[:at])}#{"; stale: #{FillAge.note(reading)}" if FillAge.stale?(reading)})"
+        end
 
         def tip(row, needs) = "#{row[:name]}: #{row[:detail]}#{" (click to resolve)" if needs}"
 
