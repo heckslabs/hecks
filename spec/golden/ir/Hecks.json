@@ -660,6 +660,24 @@
               ],
               [
                 "aggregate",
+                "LoadStanding"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "each reading turns the one load standing, and the next reading and the fill read it, in processes of their own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "WorkCap"
               ],
               [
