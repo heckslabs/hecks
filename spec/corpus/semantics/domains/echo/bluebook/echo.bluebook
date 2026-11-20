@@ -88,11 +88,9 @@ Hecks.bluebook "Echo" do
     end
   end
 
-  # ONE LEVEL BELOW THE BOUND (C10.4). Striking a fuse sets off four reactions, Spark, Hiss, Glow
-  # and Burn, so Burnt is announced at depth four. The saga's Burnt leg blows the fuse, which runs
-  # as the fifth reaction and is refused: a fuse blows only before it is armed. The saga unwinds
-  # there, one level under the ceiling, so its compensation (Unprime) and the refused leg's Scrap
-  # still run.
+  # One level below the bound (C10.4): a strike sets off four reactions, so Burnt comes at depth
+  # four; the Blow it dispatches runs fifth and is refused (a fuse blows only unarmed), so the saga
+  # unwinds under the ceiling and its Unprime and Scrap still run.
   aggregate "Fuse" do
     identified_by :name
 
