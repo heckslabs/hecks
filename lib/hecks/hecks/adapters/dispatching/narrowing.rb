@@ -47,7 +47,7 @@ module Hecks
         # @return [BatchGround, nil] the reader for the checkout, nil when none is named
         def effective_for(repo)
           branch = @standins[:effective] || (repo.to_s.empty? ? nil : EffectiveArea.new(repo))
-          branch && BatchGround.new(branch, work_items.planned, root: Plan::REPOSITORY)
+          branch && BatchGround.new(branch, root: Plan::REPOSITORY)
         end
       end
     end
