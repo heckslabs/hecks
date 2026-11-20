@@ -3,27 +3,20 @@
 require_relative "../../../hecks"
 # The era subsystem does not load with core (ADR 0033); the QualityControl ledger binds it.
 require_relative "../../ports/persistence/plugins/era"
+require_relative "../../adapters/driven/event_pump"
 require_relative "qa_event_pump/attached"
-require_relative "qa_event_pump/cursors"
-require_relative "qa_event_pump/reactions"
-require_relative "qa_event_pump/reader"
-require_relative "qa_event_pump/consumer"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control event_pump.pump!`: reads each attached domain's
-    # event log past its cursor and runs the policies that react to what it reads. A consumer reads
-    # the logs its hecksagon subscribes to, and each cursor is one (log, consumer) row of the
-    # ledger's `EventCursor`. The pump writes no domain's event log.
-    #
-    # A policy that has an `EventReaction` row for its event is not run again. A refused reaction is
-    # recorded and named, and the cursor moves past it. A cursor does not move for an event whose
-    # reaction could not run at all: that consumer stops, and the pump exits 1.
+    # The QA ledger's run of EventDelivery's pump (`Adapters::EventPump`, ADR 0178), behind the
+    # `PumpTools` adapter and the QA tick: the domains QualityControl attaches are the consumers,
+    # and the QualityControl ledger, which attaches EventDelivery, holds their cursors and
+    # reactions. It prints each line the pump reports, and exits 1 when a consumer stopped.
     class QaEventPump
       EXIT_OK = 0
       EXIT_ERROR = 1
 
-      USAGE = "usage: hecks quality_control event_pump.pump!"
+      USAGE = "usage: qa_event_pump (the QA ledger's EventDelivery Pump.Run)"
 
       # Runs the pump, or prints its usage for `--help`.
       #
@@ -60,16 +53,10 @@ module Hecks
       #
       # @return [Integer] 0 or 1, as `call` answers
       def run
-        ledger = @attached.runtime("QualityControl")
-        cursors = Cursors.new(ledger)
-        reactions = Reactions.new(ledger)
-        consumers = @attached.names.map do |name|
-          Consumer.new(name, attached: @attached, cursors: cursors, reactions: reactions)
-        end
-        lines = consumers.flat_map(&:lines)
-        lines.each { |line| puts line }
-        puts "event pump: #{lines.size} line(s) reported"
-        consumers.any?(&:failed?) ? EXIT_ERROR : EXIT_OK
+        report = Adapters::EventPump.new(attached: @attached, ledger: "QualityControl").run
+        report[:lines].each { |line| puts line }
+        puts "event pump: #{report[:lines].size} line(s) reported"
+        report[:failed] ? EXIT_ERROR : EXIT_OK
       end
     end
   end

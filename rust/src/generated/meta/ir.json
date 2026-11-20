@@ -37101,7 +37101,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."
+                "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; an EventDelivery `Pump.Run` on the ledger runs it regardless."
               ]
             ],
             [
@@ -39177,24 +39177,6 @@
               [
                 "verb",
                 "tick"
-              ]
-            ],
-            [
-              [
-                "script",
-                "qa_event_pump"
-              ],
-              [
-                "section",
-                "QualityControl"
-              ],
-              [
-                "aggregate",
-                "EventPump"
-              ],
-              [
-                "verb",
-                "pump"
               ]
             ],
             [

@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
 module Hecks
-  module QualityControlCli
-    class QaEventPump
-      # The reactions the pump has made, kept as the ledger's `EventReaction` rows: one per
+  module Adapters
+    class EventPump
+      # The reactions the pump has made, kept as `EventDelivery::Reaction` rows: one per
       # (consumer, event, policy). The pump asks before it runs a policy, and records the reaction
       # once the policy's command has answered, delivered or refused. The keys are read once, on
       # first use, and kept for the run, so a pass costs one query however many events it reads.
       class Reactions
-        # @param runtime [Hecks::Runtime::Dispatcher] the booted ledger the rows live in
+        # @param runtime [Hecks::Runtime::Dispatcher] the booted ledger that attaches EventDelivery
         def initialize(runtime)
           @runtime = runtime
           @known = nil
@@ -28,15 +28,15 @@ module Hecks
         # @return [void]
         def record(consumer, event_id, policy)
           row = key(consumer, event_id, policy)
-          @runtime.dispatch_flat("QualityControl::EventReaction.Record", key: row, consumer: consumer,
-                                                                         event_id: event_id, policy: policy)
+          @runtime.dispatch_flat("EventDelivery::Reaction.Record", key: row, consumer: consumer,
+                                                                        event_id: event_id, policy: policy)
           known << row
         end
 
         private
 
         def known
-          @known ||= @runtime.query("QualityControl::EventReaction.All").to_set { |row| row[:key][:value] }
+          @known ||= @runtime.query("EventDelivery::Reaction.All").to_set { |row| row[:key][:value] }
         end
 
         def key(consumer, event_id, policy) = "#{consumer}/#{event_id}/#{policy}"
