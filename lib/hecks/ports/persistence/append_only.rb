@@ -2,6 +2,7 @@ require_relative "../../runtime/registry"
 require_relative "execution"
 require_relative "set_transforming"
 require_relative "event_log_reading"
+require_relative "replace_when"
 
 module Hecks
   module Ports
@@ -216,13 +217,15 @@ module Hecks
         # @param instance [Runtime::Instance] the record to persist
         # @param insert_only [Boolean] true to refuse replacing a record that already exists
         # @param mints_era [Boolean] true when the writing command declares `mints_era true`
+        # @param replace_when [ReplaceWhen, nil] when an occupant has ended: the adapter archives
+        #   it under `<id>~<n>` and writes the record in the same critical section
         # @return [Persistence::Outcome] status `:inserted`, `:replaced`, or `:conflicted` when
-        #   `insert_only` met an existing record and nothing was written; `instance` is always
-        #   the instance passed in
+        #   `insert_only` met a record the rule does not replace and nothing was written;
+        #   `instance` is always the instance passed in
         # @raise [Runtime::WiringError] if the adapter does not both advertise `:atomic_put`
         #   and implement it
         # @raise [ArgumentError] if the adapter answers a status outside `Outcome::STATUSES`
-        def atomic_put(instance, insert_only: false, mints_era: false)
+        def atomic_put(instance, insert_only: false, mints_era: false, replace_when: nil)
           unless capabilities.include?(:atomic_put) && @adapter.respond_to?(:atomic_put)
             raise Runtime::WiringError,
                   "#{@adapter.class} advertises no atomic_put persistence capability"
@@ -230,7 +233,7 @@ module Hecks
 
           entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup,
                             mints_era: mints_era)
-          status = @adapter.atomic_put(entry, insert_only: insert_only)
+          status = @adapter.atomic_put(entry, insert_only: insert_only, replace_when: replace_when)
           Outcome.new(status: status, instance: instance)
         end
 

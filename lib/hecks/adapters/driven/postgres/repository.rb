@@ -1,8 +1,12 @@
+require_relative "../../../ports/persistence/archiving_put"
+
 module Hecks
   module Adapters
     class Postgres
       # The repository surface: find, list, count, and the journal-then-project writes.
       module Repository
+        include Ports::Persistence::ArchivingPut
+
         # Reads the current row for one aggregate identity, stamped with its stored version.
         #
         # @param id [String, Object] the aggregate identity, bound as `id.to_s`
@@ -89,13 +93,19 @@ module Hecks
         # replaced or conflicted, so two concurrent creators of one id cannot both insert.
         #
         # @param entry [Ports::Persistence::Entry] the save to store
-        # @param insert_only [Boolean] when true, an existing row is left untouched
-        # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met an
-        #   existing row and nothing was written
+        # @param insert_only [Boolean] when true, an existing row the rule does not replace is left
+        #   untouched
+        # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended and
+        #   is archived under `<id>~<n>` under the same lock
+        # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met a
+        #   live row and nothing was written
         # @raise [PG::Error] if a statement fails; the transaction is rolled back
-        def atomic_put(entry, insert_only: false)
+        def atomic_put(entry, insert_only: false, replace_when: nil)
           status = nil
-          transaction { status = put_entry(entry, insert_only) }
+          transaction do
+            lock_identity!(entry.id)
+            status = archiving_put(entry, insert_only, replace_when)
+          end
           status
         end
 
@@ -161,20 +171,17 @@ module Hecks
             ["hecks_version = #{quoted_table}.hecks_version + 1"]
         end
 
-        # Takes the per-identity advisory lock, then journals and projects unless an
-        # `insert_only` put finds the row already there.
-        def put_entry(entry, insert_only)
+        # Takes the per-identity advisory lock, so two creators of one id decide one at a time.
+        def lock_identity!(id)
           pg_exec_params(
             "SELECT pg_advisory_xact_lock(" \
             "hashtext(current_schema() || ':' || $1), hashtext($2))",
-            [table, entry.id.to_s]
+            [table, id.to_s]
           )
-          exists = !pg_exec_params("SELECT 1 FROM #{quoted_table} WHERE id = $1", [entry.id.to_s]).ntuples.zero?
-          return :conflicted if insert_only && exists
+        end
 
-          append(entry)
-          project(entry)
-          exists ? :replaced : :inserted
+        def occupied?(id)
+          !pg_exec_params("SELECT 1 FROM #{quoted_table} WHERE id = $1", [id.to_s]).ntuples.zero?
         end
 
         # Stamps `.version` from `hecks_version` so a later CAS save has something
