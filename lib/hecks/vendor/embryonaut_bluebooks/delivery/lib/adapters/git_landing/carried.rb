@@ -18,6 +18,8 @@ module Hecks
 
         private
 
+        def discard_hint = @retiring ? " (Landing.discard! removes a worktree whose commits #{@onto} lacks)" : ""
+
         def unmerged(tip)
           return "it has no commit to verify" unless tip
           return if @discarding
@@ -26,7 +28,7 @@ module Hecks
           return unless count("#{local}..#{tip}").positive? || !ancestor?(tip, local)
 
           lacking = lacking(tip)
-          "it has #{lacking.size} commit(s) not on #{@onto}: #{listed(lacking)}" unless lacking.empty?
+          "it has #{lacking.size} commit(s) not on #{@onto}: #{listed(lacking)}#{discard_hint}" unless lacking.empty?
         end
 
         # The commits the branch adds that `onto` carries under no id, no patch and no train:
