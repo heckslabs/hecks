@@ -36,14 +36,14 @@ module Hecks
         #   a fact, never blamed
         attr_reader :flaky
 
+        # @return [Array<String>] each probe made, in order: the merge and whether it was `green`
+        #   or `red` there
+        attr_reader :log
+
         # @return [Hash, nil] the merge (`sha:`, `subject:`, `paths:`) with its `finding:`, or nil
         #   when none failed or the search could not finish (`reason` says which)
         def call
-          @low = 0
-          @high = @merges.size - 1
-          @found = nil
-          @spent = 0
-          @flaky = []
+          start
           step while @low <= @high
           conclude
         rescue StandardError, ConsoleCapture::Failure => e
@@ -52,6 +52,15 @@ module Hecks
         end
 
         private
+
+        def start
+          @low = 0
+          @high = @merges.size - 1
+          @found = nil
+          @spent = 0
+          @flaky = []
+          @log = []
+        end
 
         def conclude
           @reason = "no merge in the range turns the failing specs red" unless @found
@@ -78,7 +87,7 @@ module Hecks
           raise ConsoleCapture::Failure, "probe budget of #{@limit} spent" if @spent >= @limit
 
           @spent += 1
-          @probe.call(merge)
+          @probe.call(merge).tap { |ok, _finding| @log << "#{merge[:sha].to_s[0, 10]} #{ok ? "green" : "red"}" }
         end
 
         def fail_at(middle, finding)

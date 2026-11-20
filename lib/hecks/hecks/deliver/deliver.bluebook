@@ -1409,6 +1409,25 @@ Hecks.bluebook "Hecks" do
         emits PullRequestClosed
       end
 
+      # A red train pull request is searched as a failed verification is: the same `Bisect` ask, over
+      # the landings the train holds beyond `origin/main`, with each failing example CI named as the
+      # test. Its run is the key of the failed attempt (`TrainPr`).
+      command "Probe" do
+        role "System"
+        goal "Ask which landing of a red train first turns one of its failing examples red"
+
+        attribute :run,      RunKey, sets: true
+        attribute :landed,   Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :examples, Report, sets: true
+        # What the red-train Work item would carry, should the search find no landing to revert.
+        attribute :work_key, Report, optional: true, sets: true
+        attribute :title,    Report, optional: true, sets: true
+        attribute :cause,    Report, optional: true, sets: true
+
+        emits TrainProbeRequested
+      end
+
       command "Merge" do
         role "System"
         goal "Record that the train's pull request for a boarded commit merged while CI on the merge commit is still running"
@@ -1544,6 +1563,15 @@ Hecks.bluebook "Hecks" do
       ask     :bisect, with: { run: :run, landed: :landed, checkout: :checkout }
     end
 
+    # A red train asks the same search, naming the failing examples: the answer is the same
+    # `BisectAnswered`, so the rules below decide a train's red as they decide a verification's.
+    policy "BisectWhenATrainIsProbed" do
+      on      "Integration.TrainProbeRequested"
+      root
+      ask     :bisect, with: { run: :run, landed: :landed, checkout: :checkout, examples: :examples, work_key: :work_key,
+                               title: :title, cause: :cause }
+    end
+
     # A merge whose specs fail, pass at the last verified commit, and whose range holds no revert
     # yet is the one change to revert. A range with a revert is parked; a spec red at the base too
     # reverts nothing.
@@ -1575,13 +1603,22 @@ Hecks.bluebook "Hecks" do
     end
 
     # A search that ran and found no merge, while the failing specs are green at the base, is not an
-    # acquittal: main is red and nobody knows why. The episode is unfound, the flag is raised and the
-    # owner is told.
+    # acquittal: main is red and nobody knows why, so the flag is raised and the owner is told. A
+    # train's search (its answer names `examples`) is the next rule's: `origin/main` may be green.
     policy "UnfoundWhenNoMergeIsFound" do
       on      "Integration.BisectAnswered"
       root
-      where   { searched.value == true && culprit.value == "" && base_red.value == false }
+      where   { searched.value == true && culprit.value == "" && base_red.value == false && examples.value == "" }
       trigger RedEpisode::Unfound, with: { run: :run, landed: :landed, base: :base, reason: :reason, checkout: :checkout }
+    end
+
+    # A train's search that found no landing, while its examples are green at `origin/main`, gives
+    # the red train to a coder as before the search existed. The search's run is the attempt's key.
+    policy "ReturnTheTrainWhenNoMergeIsFound" do
+      on      "Integration.BisectAnswered"
+      root
+      where   { searched.value == true && culprit.value == "" && base_red.value == false && examples.value != "" }
+      trigger TrainPr::Exhaust, with: { key: :run, landed: :landed, detail: :reason, work: :work_key, title: :title, cause: :cause }
     end
 
     policy "BoardWhenRequested" do
@@ -1644,7 +1681,8 @@ Hecks.bluebook "Hecks" do
       where   { outcome.value == "pr_failed" }
       trigger TrainPr::Record, with: { key: :failure_key, landed: :landed, pr: :pr, ci_run: :ci_run, attempt: :attempt,
                                        specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report,
-                                       failed_jobs: :failed_jobs, job: :job, examples: :examples, related: :related }
+                                       failed_jobs: :failed_jobs, job: :job, examples: :examples, related: :related,
+                                       checkout: :checkout }
     end
 
     # One record per red run: the merge is being reverted, the episode is parked because a revert
@@ -1941,10 +1979,11 @@ Hecks.bluebook "Hecks" do
     # One failed attempt of a train pull request's CI, recorded once under its key
     # (`<commit>-<run>-<attempt>`), so a second wake for the same failure is refused. The adapter
     # reports facts (failed jobs, specs, examples, and whether they touch the change); the policies
-    # below decide: one unrelated failed job is rerun once by itself, any other spec failure is red
-    # at once as the red-train Work item (tickets.bluebook), a setup failure is rerun twice.
+    # below decide: one unrelated failed job is rerun once by itself, any other spec failure that
+    # names a failing example is searched for the landing that broke it (`Integration.Probe`), a
+    # setup failure is rerun once, and what is left is the red-train Work item (tickets.bluebook).
     aggregate "TrainPr" do
-      description "One failed attempt of a train pull request's CI: what failed, and whether it was rerun or given to a coder."
+      description "One failed attempt of a train pull request's CI: what failed, and whether it was rerun, searched for the landing that broke it, or given to a coder."
 
       attribute :key,     Key
       attribute :landed,  Word,   optional: true
@@ -1961,6 +2000,7 @@ Hecks.bluebook "Hecks" do
       attribute :job,      Word,   optional: true
       attribute :examples, Report, optional: true
       attribute :related,  Word,   optional: true
+      attribute :checkout, Word,   optional: true
       attribute :report,  Report, optional: true
       attribute :detail,  Report, optional: true
       attribute :refusal, Report, optional: true
@@ -1982,7 +2022,8 @@ Hecks.bluebook "Hecks" do
       lifecycle :status, default: "requested" do
         mark :failure, "exhausted"
         transition "Rerun"   => "rerun",     from: "requested"
-        transition "Exhaust" => "exhausted", from: "requested"
+        transition "Exhaust" => "exhausted", from: %w[requested searched]
+        transition "Search"  => "searched",  from: "requested"
         mark :terminal, "rerun", "exhausted"
       end
 
@@ -2005,6 +2046,7 @@ Hecks.bluebook "Hecks" do
         attribute :job,      Word,   optional: true, sets: true
         attribute :examples, Report, optional: true, sets: true
         attribute :related,  Word,   optional: true, sets: true
+        attribute :checkout, Word,   optional: true, sets: true
 
         emits TrainPrFailed
       end
@@ -2033,12 +2075,25 @@ Hecks.bluebook "Hecks" do
 
         emits TrainPrExhausted
       end
+
+      command "Search" do
+        role "System"
+        goal "Record that a red train pull request's failing examples are searched for the landing that broke them, so no coder is given it"
+
+        reference_to TrainPr
+
+        emits TrainPrSearched
+      end
     end
 
-    # A setup failure has no spec to blame: its failed jobs are rerun, twice at most.
+    # The four rules below share one `TrainPrFailed` between them and no two take the same one. A
+    # setup failure is rerun on its first attempt and exhausted after. A spec failure is the
+    # one-unrelated-job rerun, or else searched when it names a failing example, or else exhausted.
+
+    # A setup failure has no spec to blame: its failed jobs are rerun, once.
     policy "RerunTheFailedSetup" do
       on      "TrainPr.TrainPrFailed"
-      where   { cause.value == "setup" && attempt.value < 3 }
+      where   { cause.value == "setup" && attempt.value < 2 }
       ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
@@ -2051,12 +2106,29 @@ Hecks.bluebook "Hecks" do
                                     title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
-    # Every spec failure the rerun policy does not take is red at once: a related one, one of unknown
-    # relation, one of two or more jobs, and the rerun's own failure. Its `where` is the exact
-    # complement of `RerunTheOneUnrelatedJob`'s among spec failures.
+    # Every other spec failure that names a failing example is searched, and no coder is started. The
+    # two policies share one `where`: the first ends the attempt's record, the second asks the search,
+    # in that order, so a search that finds no landing can still give the attempt to a coder.
+    policy "RecordTheTrainPrSearched" do
+      on      "TrainPr.TrainPrFailed"
+      where   { cause.value == "spec" && !examples.nil? && !examples.value.to_s.empty? && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no") }
+      trigger TrainPr::Search, with: { key: :key }
+    end
+
+    policy "ProbeTheRedTrainPr" do
+      on      "TrainPr.TrainPrFailed"
+      root
+      where   { cause.value == "spec" && !examples.nil? && !examples.value.to_s.empty? && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no") }
+      trigger Integration::Probe, with: { run: :key, landed: :landed, checkout: :checkout, examples: :examples,
+                                          work_key: :work, title: :title, cause: :cause }
+    end
+
+    # What is left is red at once for a coder: a setup failure past its one rerun, and a spec
+    # failure that names no example to search with (a file that would not load) and is not the
+    # one-unrelated-job rerun. Its `where` is the exact complement of the three rules above.
     policy "ExhaustTheFailedTrainPr" do
       on      "TrainPr.TrainPrFailed"
-      where   { attempt.value >= 3 || (cause.value == "spec" && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no")) }
+      where   { (cause.value == "setup" && attempt.value >= 2) || (cause.value == "spec" && (examples.nil? || examples.value.to_s.empty?) && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no")) }
       trigger TrainPr::Exhaust, with: { landed: :landed, detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 

@@ -4,8 +4,10 @@ require "securerandom"
 require_relative "support/fake_train_github"
 
 # A red train pull request is handled by the pipeline: its failed CI is read through `gh`, recorded,
-# its one unrelated failed job rerun once by itself, and given to a coder as a red-train Work item
-# when the rerun fails too. The domain is in Memory and GitHub is a scripted fake.
+# its one unrelated failed job rerun once by itself, and searched for the landing that broke it when
+# the rerun fails too; here the boarded commit is in no repository, so the search cannot run and the
+# failure is given to a coder as a red-train Work item. The domain is in Memory and GitHub is a
+# scripted fake.
 RSpec.describe "a red train pull request" do
   let(:landed) { SecureRandom.hex(20) }
   let(:github) { FakeTrainGithub.new }
@@ -64,18 +66,18 @@ RSpec.describe "a red train pull request" do
     expect(github.calls.grep(/--job \d+ --log-failed/).size).to eq(2)
   end
 
-  it "reruns a setup failure twice and files a finding, not a fix item, when it keeps failing" do
-    fail_in_setup(3)
-    expect([github.reruns.size, names.grep(/WorkPlanned/), names.grep(/StoppedRunReported/).size]).to eq([2, [], 1])
+  it "reruns a setup failure once and files a finding, not a fix item, when it fails again" do
+    fail_in_setup(2)
+    expect([github.reruns.size, names.grep(/WorkPlanned/), names.grep(/StoppedRunReported/).size]).to eq([1, [], 1])
   end
 
   it "reruns a setup failure that clears and files nothing" do
-    fail_in_setup(2)
-    expect([github.reruns.size, names.grep(/TrainPrExhausted|WorkPlanned|StoppedRunReported/)]).to eq([2, []])
+    fail_in_setup(1)
+    expect([github.reruns.size, names.grep(/TrainPrExhausted|WorkPlanned|StoppedRunReported/)]).to eq([1, []])
   end
 
   it "names the failed step of a setup failure and tells a spec failure from it" do
-    fail_in_setup(3)
+    fail_in_setup(2)
     expect(@hecks.registry.event_log.map { |e| e.payload.to_s }.join).to include("Install zsh")
   end
 

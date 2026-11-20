@@ -2,6 +2,7 @@
 
 require_relative "../console_capture"
 require_relative "searching"
+require_relative "train_searching"
 
 module Hecks
   module Adapters
@@ -12,9 +13,10 @@ module Hecks
       # merge reached `origin/main`. It reads and decides nothing; whether to revert is the
       # domain's rule. It runs outside any verification's copy, one probe after another.
       class Bisecting
-        # What the merge's keys hold when no merge failed. `searched` is false until a search ran.
+        # What the merge's keys hold when no merge failed. `searched` is false until a search ran,
+        # and `examples` is empty unless the search is a red train's.
         NONE = { culprit: "", subject: "", branch: "", work: "", finding: "", spec: "", example: "", base_red: false,
-                 local: false, searched: false }.freeze
+                 local: false, searched: false, examples: "" }.freeze
 
         class << self
           # @return [Hash{String => Hash}] the facts of each search, by commit, so a refusal and the
@@ -29,6 +31,26 @@ module Hecks
             searches[landed] ||= new(repository, failing: failing, runner: runner).facts(landed, since)
           rescue StandardError, ConsoleCapture::Failure => e
             { culprit: "", searched: true, reason: "#{Searching::UNFOUND}: the search could not run: #{e.message}" }
+          end
+
+          # Searches a red train's landings beyond `origin/main`, each failing example as the test
+          # of its own search ({TrainSearching}); a search that cannot run answers the reason.
+          #
+          # @param examples [String, nil] the failing examples CI named, each `spec/x_spec.rb:12`,
+          #   comma separated
+          # @return [Hash{Symbol => Hash}, nil] the facts of {.answer}; nil when no example is
+          #   named, which is no train's search
+          def train(repository, landed, examples, runner: nil)
+            named = examples.to_s.split(",")
+            return nil if named.empty?
+
+            held!(repository, landed)
+            repository.refresh
+            since = repository.remote_main
+            answer(TrainSearching.new(repository, runner: runner).call(landed, since, named).merge(examples: examples), since)
+          rescue StandardError, ConsoleCapture::Failure => e
+            why = "#{Searching::UNFOUND}: the search could not run: #{e.message}"
+            answer({ searched: true, examples: examples, reason: why }, "")
           end
 
           # @param facts [Hash, nil] what {.search} answered; nil when no search was made
@@ -48,6 +70,13 @@ module Hecks
           end
 
           private
+
+          # A train's head the checkout does not hold is refused before anything is fetched.
+          def held!(repository, landed)
+            return if repository.commit(landed)
+
+            raise ConsoleCapture::Failure, "#{landed[0, 10]} is not a commit of #{repository.checkout}"
+          end
 
           def detail(facts)
             parts = [("spec #{facts[:spec]}" unless facts[:spec].to_s.empty?),
