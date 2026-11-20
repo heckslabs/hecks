@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "hecks/ci_speed/shard_planner"
+require "hecks/ci_speed/adapters/shard_planner"
 require_relative "../../console_capture"
 
 module Hecks
