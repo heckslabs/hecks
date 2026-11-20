@@ -107,7 +107,7 @@ module Hecks
 
         private
 
-        def repository = @dispatcher.registry.repository(@domain, @ir)
+        def repository = @dispatcher.repository(@domain, @ir)
 
         # Masks any Privacy::Marking leaf the caller isn't granted to read, and
         # masks an unidentified caller outright (a leak is worse than a refusal
