@@ -76,6 +76,12 @@ Hecks.hecksagon "Deploy" do
     end
   end
 
+  # Read-only towards the box, as deploy.ports.hecksagon says it for a hecksagon that attaches
+  # Deploy: a boot that names this file and not that one still gives the query its answer path.
+  Deploy::BoxRoll.port "BoxState" do
+    answers_query "BoxState"
+  end
+
   Deploy::DataCopy.port "DeployToolchain" do
     asks "CopyData", to: DataCopy do
       attribute :run, RunKey
