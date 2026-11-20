@@ -1,12 +1,14 @@
 require_relative "../reference"
 require "hecks/tools/tools_doc"
+require_relative "cli_catalogue"
 
 module Hecks
   module Doc
     module Pages
       # The live pages of a checkout and the regions each is made of: README's generated regions
-      # and its examples, each section table of `docs/tools.md`, every DSL reference page, and every
-      # guide's examples. Each region names its source as `<source>:<target>` (see `Sources`).
+      # and its examples, each section table of `docs/tools.md`, every DSL reference page, every
+      # guide's examples, and the command-line guides' generated sections and prose. Each region
+      # names its source as `<source>:<target>` (see `Sources`).
       class Catalogue
         # One page to declare: its path, title and regions in reading order.
         Entry = Data.define(:path, :title, :regions)
@@ -37,7 +39,7 @@ module Hecks
         end
 
         # @return [Array<Entry>] every live page
-        def pages = [readme, tools] + reference + guides
+        def pages = [readme, tools] + reference + guides + CliCatalogue.new(@root).pages
 
         # @return [Entry] README: its generated regions, then its examples
         def readme
