@@ -4,6 +4,7 @@ require "hecks/roundhouse/adapters/metering"
 require_relative "looking/view"
 require_relative "looking/marks"
 require_relative "looking/delegate_look"
+require_relative "looking/meter"
 
 module Hecks
   module Adapters
@@ -17,11 +18,11 @@ module Hecks
 
       # @param registry [Runtime::Registry, nil] whose Signalbox world and Delegate records it reads
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] stand-ins for the outside: `view:`, `machine:`, `marks:` and
-      #   `delegate:`, each a callable answering the hash its part would
+      # @param settings [Hash] stand-ins for the outside: `view:`, `machine:` (else the {Meter}),
+      #   `marks:` and `delegate:`, each a callable answering the hash its part would
       # @param root [String, nil] the checkout the beat runs from
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
-        live = { view: -> { View.new(root || Dir.pwd).facts }, machine: -> { Metering.new(registry: registry).machine_facts },
+        live = { view: -> { View.new(root || Dir.pwd).facts }, machine: -> { Meter.read(registry) },
                  marks: -> { Marks.new(registry).facts }, delegate: -> { DelegateLook.new(registry).facts } }
         @view, @machine, @marks, @delegate = live.map { |part, read| settings.fetch(part, read) }
       end
