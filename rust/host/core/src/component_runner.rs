@@ -132,7 +132,7 @@ fn run_within<T>(
 /// Instantiates the component at `path` with the granted imports and hands the instance to
 /// `call`. A call that passes its deadline, its memory cap or its output cap is stopped and
 /// answered with an error naming the cap.
-fn run_with<T>(
+pub(crate) fn run_with<T>(
     limits: Limits,
     path: &Path,
     imports: Arc<dyn Imports>,

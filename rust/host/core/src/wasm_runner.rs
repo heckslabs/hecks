@@ -16,10 +16,10 @@ use wasmtime_wasi::WasiCtxBuilder;
 /// transaction while the kernel runs, so a run that never ends, or that grows without bound, would
 /// stall every write the host serves.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Limits {
-    pub(crate) deadline: Duration,
-    pub(crate) memory_bytes: usize,
-    pub(crate) output_bytes: usize,
+pub struct Limits {
+    pub deadline: Duration,
+    pub memory_bytes: usize,
+    pub output_bytes: usize,
 }
 
 /// The limits every real run gets.
