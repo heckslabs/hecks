@@ -4,6 +4,8 @@ package hecks:adapters@0.1.0;
 interface clock {
   /// Whole seconds since the Unix epoch.
   now-seconds: func() -> s64;
+  /// Waits `ms` milliseconds; the host caps one wait at five seconds.
+  sleep: func(ms: u32);
 }
 
 /// The smallest adapter: imports the clock grant, answers with the time it read.

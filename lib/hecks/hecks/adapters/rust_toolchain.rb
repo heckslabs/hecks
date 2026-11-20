@@ -23,7 +23,8 @@ module Hecks
       # The `Hecks::RustBuild` tool each ask runs.
       TOOLS = { generate: "project_rust", wasm: "project_wasm", host: "project_host",
                 browser_wasm: "project_wasm_browser", conform: "rust_conformance",
-                replay: "rust_conformance_fuzz", coverage: "rust_coverage", parser: "build_parser" }.freeze
+                replay: "rust_conformance_fuzz", coverage: "rust_coverage", parser: "build_parser",
+                component: "build_component" }.freeze
 
       # The load path the benchmark child runs with: this checkout's or gem's `lib/`.
       LIB = File.expand_path("../../..", __dir__)
@@ -156,6 +157,19 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when cargo cannot build the crate
       def parser(**_held)
         child(:parser, [])
+      end
+
+      # Compiles an adapter crate under `rust/adapters/` to a `wasm32-wasip2` component and writes
+      # it with its digest, or with `check` only compares the committed pair.
+      #
+      # @param held [Hash] the `Build` record: `component` (the crate's name) and `check`
+      # @return [Hash{Symbol => Hash}] `output:` the component's digest
+      # @raise [ConsoleCapture::Failure] when the crate, the target or the build is missing, or the
+      #   committed component does not match its digest
+      def component(**held)
+        argv = [plain(held[:component])]
+        argv << "--check" if plain(held[:check]) == true
+        child(:component, argv)
       end
 
       # Measures command throughput and latency for each target, building the Rust binary in the
