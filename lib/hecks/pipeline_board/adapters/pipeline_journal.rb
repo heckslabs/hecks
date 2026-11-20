@@ -10,6 +10,7 @@ require_relative "pipeline_turns"
 require_relative "pipeline_stages/cycles"
 require_relative "pipeline_stages/daily_health"
 require_relative "pipeline_stages/integration_runs"
+require_relative "pipeline_stages/snapshot_rows"
 
 module Hecks
   module Adapters
@@ -50,8 +51,6 @@ module Hecks
         @stored = PipelineBoard::Cache.kept(settings, "stores_keep_seconds")
       end
 
-      # @param limit [Hash, Integer, nil] how many events (40 when none is named)
-      # @return [Hash{Symbol => String}] `text:` the events as JSON, newest first
       # Every logged event a cycle stage opens or closes on, read from the whole event log rather
       # than its tail, so a cycle is laid from the events alone.
       #
@@ -96,8 +95,10 @@ module Hecks
       #   (see {PipelineBoard::IntegrationRuns.seen})
       def integration_seen = PipelineBoard::IntegrationRuns.seen(@tap.rows)
 
+      # @param limit [Hash, Integer, nil] how many events (40 when none is named)
+      # @return [Array<Hash>] the events as `EventLine` rows, newest first
       def events(limit: nil)
-        { text: JSON.generate(recent(limit.is_a?(Hash) ? limit[:value] : limit)) }
+        recent(limit.is_a?(Hash) ? limit[:value] : limit).map { |row| PipelineBoard::SnapshotRows.event(row) }
       end
 
       # @param limit [Integer, nil] how many events
@@ -117,14 +118,14 @@ module Hecks
         PipelineBoard::Turns.finished(@tap.named([PipelineBoard::Turns::EVENT]))
       end
 
-      # @return [Hash{Symbol => String}] `text:` one card per run, from its newest `TurnFinished`
+      # @return [Array<Hash>] one `RunCard` row per run, from its newest `TurnFinished`
       def run_cards(limit: nil)
-        { text: JSON.generate(PipelineBoard::Turns.run_cards(turns).first(count_of(limit))) }
+        PipelineBoard::Turns.run_cards(turns).first(count_of(limit))
       end
 
-      # @return [Hash{Symbol => String}] `text:` the stuck items across runs, from `TurnFinished`
+      # @return [Array<Hash>] the stuck items across runs as `StuckItem` rows, from `TurnFinished`
       def stuck(limit: nil)
-        { text: JSON.generate(PipelineBoard::Turns.stuck(turns).first(count_of(limit))) }
+        PipelineBoard::Turns.stuck(turns).first(count_of(limit))
       end
 
       # @param run [Hash, String, nil] a run key, or none for the newest turn

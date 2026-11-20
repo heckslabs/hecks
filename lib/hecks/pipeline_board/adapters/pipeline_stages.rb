@@ -33,6 +33,7 @@ require_relative "pipeline_stages/headline"
 require_relative "pipeline_stages/plan_reading"
 require_relative "pipeline_stages/plan_tile"
 require_relative "pipeline_stages/throughput_days"
+require_relative "pipeline_stages/typed_answers"
 
 module Hecks
   module Adapters
@@ -42,6 +43,7 @@ module Hecks
     # every section that failed as `{unknown: reason}`. It only reads.
     class PipelineStages
       include PipelineBoard::Gather
+      include PipelineBoard::TypedAnswers
 
       # @param registry [Runtime::Registry, nil] the booted registry the Tickets reader uses
       # @param aggregate [Object, nil] unused
@@ -54,40 +56,18 @@ module Hecks
         wire(settings.fetch(:readers, {}), registry)
       end
 
-      # @return [Hash{Symbol => String}] `text:` one row per stage as JSON
-      def stages = { text: JSON.generate(PipelineBoard::Strip.build(sections, @now.call)) }
-
       # @return [Hash] every section the page shows: `stages`, `metrics`, the four tables, the
-      #   fan-out and the events, each an answer or `{unknown: reason}`
+      #   fan-out and the events, each an answer or `{unknown: reason}`, and under `board` the
+      #   same state as the typed `Snapshot` row
       def state
         data = sections
-        now = @now.call
-        health = PipelineBoard::DailyHealth.build(data, now)
-        { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now), daily_health: health,
-          metrics: metrics(data, now, health), fanout: fanout(data), live_store_problem: @live&.problem,
-          stale_sections: stale_sections, load_guard: PipelineBoard::LoadGuard.standing }.merge(tables(data), panels(data))
+        with_board(drawn(data, @now.call), data)
       end
 
       # The sections the page shows as they were read: CI on main and on train pull requests, the
       # Work items, the sessions and the events.
       def tables(data)
         data.slice(:ci_runs, :slowest_jobs, :train_ci_runs, :train_slowest_jobs, :train_flakes, :open_work, :sessions, :events)
-      end
-
-      # @param limit [Hash, Integer, nil] how many Work items (the `cycle_items` setting when nil)
-      # @return [Hash{Symbol => String}] `text:` the cycles, newest first, and each stage's median
-      #   and percentile, as JSON
-      def cycles(limit: nil)
-        { text: JSON.generate(cycle_reading(guard { @journal.cycle_events }, held(limit))) }
-      end
-
-      # The pipeline's own day, read from the event log, the sessions and the open findings only.
-      #
-      # @return [Hash{Symbol => String}] `text:` each check's findings and the line, as JSON
-      def daily_health
-        data = { health_events: guard { @journal.health_events }, sessions: queried { @jobs.sessions },
-                 open_findings: guard { @tickets.open_findings } }
-        { text: JSON.generate(PipelineBoard::DailyHealth.build(data, @now.call)) }
       end
 
       # The state the page shows, drawn as a text panel for a terminal. It reads what `/api/state`
@@ -133,11 +113,19 @@ module Hecks
       # The shas as commit links on the repository and, where the CI rows know the sha, the CI run.
       def commits_of(shas)
         base = guard { @github.repo_url }
-        runs = guard { JSON.parse(@github.ci_runs[:text], symbolize_names: true) }
+        runs = guard { @github.ci_runs }
         shas.map { |sha| PipelineBoard::CommitLink.of(sha, base, runs) }
       end
 
       private
+
+      # The sections as the hand-written page reads them.
+      def drawn(data, now)
+        health = PipelineBoard::DailyHealth.build(data, now)
+        { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now), daily_health: health,
+          metrics: metrics(data, now, health), fanout: fanout(data), live_store_problem: @live&.problem,
+          stale_sections: stale_sections, load_guard: PipelineBoard::LoadGuard.standing }.merge(tables(data), panels(data))
+      end
 
       # The metric tiles, the daily health line's last.
       def metrics(data, now, health)

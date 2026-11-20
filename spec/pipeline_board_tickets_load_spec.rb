@@ -17,7 +17,7 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
 
   def plan(key, step) = cli("work.plan!", "work.value=#{key}", "title.value=Item #{key}", "step.value=#{step}")
 
-  def open_slugs = JSON.parse(tickets.open_work[:text]).map { |item| item["slug"] }
+  def open_slugs = tickets.open_work.map { |item| item[:slug] }
 
   # Two items planned out of plan order, and a third that is finished.
   def three_items

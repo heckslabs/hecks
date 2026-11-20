@@ -12,7 +12,7 @@ RSpec.describe "the Disk free metric" do
   let(:df_output) do
     "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/disk3s5 104857600 83886080 20971520 80% /\n"
   end
-  let(:floors) { { attention_gb: 20, failed_gb: 5 } }
+  let(:floors) { { disk_attention_gb: 20, disk_failed_gb: 5 } }
   let(:tiles) { Object.new.extend(Hecks::Adapters::PipelineBoard::DiskTiles) }
 
   def reader(output) = Hecks::Adapters::PipelineDisk.new(root: "/x", settings: { df: ->(_) { output } })
@@ -56,7 +56,7 @@ RSpec.describe "the Disk free metric" do
 
   it "reads the floors from the Hecks world", :aggregate_failures do
     registry = Hecks.describe(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks")).registry
-    expect(Hecks::Adapters::PipelineBoard::DiskTiles.health(registry)).to eq(attention_gb: 20, failed_gb: 5)
-    expect(Hecks::Adapters::PipelineBoard::DiskTiles.health(nil)).to eq(attention_gb: 20, failed_gb: 5)
+    expect(Hecks::Adapters::PipelineBoard::DiskTiles.health(registry)).to eq(disk_attention_gb: 20, disk_failed_gb: 5)
+    expect(Hecks::Adapters::PipelineBoard::DiskTiles.health(nil)).to eq({})
   end
 end

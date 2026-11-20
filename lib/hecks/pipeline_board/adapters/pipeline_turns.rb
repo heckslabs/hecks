@@ -13,6 +13,9 @@ module Hecks
       module Turns
         EVENT = "TurnFinished"
 
+        # The fields of the bluebook's `StuckItem` row.
+        STUCK = %w[kind what since owner_run link].freeze
+
         module_function
 
         # @param rows [Array<Hash>] journal or tap rows, any order
@@ -23,19 +26,26 @@ module Hecks
         end
 
         # @param turns [Array<Hash>] from `finished`
-        # @return [Array<Hash>] one card per run, newest turn first: run, role, session, at and
-        #   `last_word`, the turn's verdict
+        # @return [Array<Hash>] one `RunCard` row per run, newest turn first: run, role, session
+        #   and `last_word`, the turn's verdict
         def run_cards(turns)
           newest(turns).sort_by { |t| t["at"].to_s }.reverse.map do |t|
-            { run: t["run"], role: t["role"], session: t["session"], at: t["at"], last_word: t["verdict"] }
+            { run: t["run"].to_s, role: t["role"].to_s, session: t["session"].to_s, last_word: t["verdict"].to_s }
           end
         end
 
         # @param turns [Array<Hash>] from `finished`
-        # @return [Array<Hash>] the stuck items of each run's newest turn, oldest `since` first
+        # @return [Array<Hash>] the stuck items of each run's newest turn as `StuckItem` rows,
+        #   oldest `since` first
         def stuck(turns)
-          items = newest(turns).flat_map { |t| Array(t["stuck"]).map { |s| s.transform_keys(&:to_s) } }
-          items.uniq { |s| [s["kind"], s["what"], s["owner_run"]] }.sort_by { |s| s["since"].to_s }
+          items = newest(turns).flat_map { |t| Array(t["stuck"]).map { |s| stuck_item(s) } }
+          items.uniq { |s| s.values_at(:kind, :what, :owner_run) }.sort_by { |s| s[:since] }
+        end
+
+        # @return [Hash] one stuck row of a turn, as the fields of a `StuckItem`
+        def stuck_item(row)
+          said = row.transform_keys(&:to_s)
+          STUCK.to_h { |field| [field.to_sym, said[field].to_s] }
         end
 
         # @param turns [Array<Hash>] from `finished`

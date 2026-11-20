@@ -3,6 +3,7 @@
 require "time"
 require "hecks/hecks/adapters/red_flag_report"
 require_relative "../rules"
+require_relative "../../../check_conclusion"
 require_relative "stopped_row"
 require_relative "overdue_row"
 require_relative "integration_runs"
@@ -116,9 +117,9 @@ module Hecks
         end
 
         # What the CI verdict rows compare: whether the run is still going, and whether it ended in
-        # anything but success.
+        # a conclusion the Vocabulary's `CheckConclusion` rows do not call clean.
         def ci_measures(run)
-          { running: run[:status] == "completed" ? 0 : 1, unsuccessful: run[:conclusion] == "success" ? 0 : 1 }
+          { running: run[:status] == "completed" ? 0 : 1, unsuccessful: Hecks::CheckConclusion.clean?(run[:conclusion]) ? 0 : 1 }
         end
 
         def promote(stable)
