@@ -29,6 +29,7 @@ require_relative "dispatching/rolls"
 require_relative "dispatching/rethinks"
 require_relative "dispatching/launching"
 require_relative "dispatching/shedding"
+require_relative "dispatching/stall_gauging"
 require_relative "dispatching/narrowing"
 require_relative "dispatching/held_ground"
 require_relative "landing/landing_ahead"
@@ -51,6 +52,7 @@ module Hecks
       include Rolls
       include Launching
       include Shedding
+      include StallGauging
       include Narrowing
       include BatchReads
 
