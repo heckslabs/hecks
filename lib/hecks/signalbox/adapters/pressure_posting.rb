@@ -23,7 +23,7 @@ module Hecks
       #   {PressureSignal.path} and the clock when absent
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
-        @stale_after = Looking::Marks.new(registry).facts[:stale_after]
+        @registry = registry
         @path = settings[:path] || PressureSignal.path
         @now = settings[:now] || -> { Time.now }
       end
@@ -32,13 +32,18 @@ module Hecks
       #
       # @param held [Hash] the settled `Pressure` record
       # @return [Hash{Symbol => Hash}] `pressure:` the key posted
+      # @raise [Looking::Marks::Unread] when the world's marks cannot be read
       def post(**held)
         signal = FIELDS.to_h { |field| [field, plain(held[field])] }
-        write(signal.merge(posted_at: @now.call.utc.iso8601, stale_after: @stale_after))
+        write(signal.merge(posted_at: @now.call.utc.iso8601, stale_after: stale_after))
         { pressure: { value: signal[:pressure] } }
       end
 
       private
+
+      # How long a signal stays current, read when it is posted: a world whose line cannot be read
+      # raises {Looking::Marks::Unread}, so nothing is posted on a mark the world did not set.
+      def stale_after = Looking::Marks.new(@registry).facts[:stale_after]
 
       def plain(field) = field.is_a?(Hash) ? field[:value] : field
 
