@@ -37,7 +37,7 @@ module RevertLandingRepo
 
   def failure = Hecks::Adapters::ConsoleCapture::Failure
 
-  def revert(sha) = Hecks::Adapters::GitTrain::Reverting.new(Hecks::Adapters::Git.new, work).revert(sha)
+  def revert(sha, **) = Hecks::Adapters::GitTrain::Reverting.new(Hecks::Adapters::Git.new, work).revert(sha, **)
 
   # Lands a branch, then edits its file on main so reverting it conflicts; answers main's head.
   def edit_landed(name)

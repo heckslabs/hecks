@@ -1733,18 +1733,18 @@ Hecks.bluebook "Tickets" do
     trigger Finding::ReportStoppedRun, with: { finding: :work, stage: "landing", body: :detail }
   end
 
-  # A reverted merge reopens its Work item, first in line, to redo the work: the revert itself is
-  # main's fix. RedEpisode (deliver.bluebook) owns the `work` key (the branch less its -stepN or -rN)
-  # and the `finding`. An unknown key is refused by name.
+  # A reverted merge reopens its Work item (RedEpisode's `work` key), first in line, once the revert
+  # is made: the detail is the revert's `report`, which names what broke, the revert commit and how
+  # the work lands again. A refused revert reopens nothing; an unknown key is refused by name.
   policy "ReopenWorkWhenAnEpisodeReverts" do
-    on      "RedEpisode.EpisodeReverting"
+    on      "RedEpisode.EpisodeRevertMade"
     root
     where   { work.value.to_s != "" }
-    trigger Work::Reopen, with: { work: :work, title: "A red main reverted this work item's merge", detail: :finding }
+    trigger Work::Reopen, with: { work: :work, title: "A red main reverted this work item's merge", detail: :report }
   end
 
   policy "PrioritizeTheWorkAnEpisodeReverted" do
-    on      "RedEpisode.EpisodeReverting"
+    on      "RedEpisode.EpisodeRevertMade"
     root
     where   { work.value.to_s != "" }
     trigger Work::Prioritize, with: { work: :work, priority: "now" }
