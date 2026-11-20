@@ -53,10 +53,10 @@ module Hecks
       # finding for any IR construct the manifest omits.
       def coverage_findings(mod_dir)
         ir = read_json(File.join(mod_dir, "ir.json"),
-                       "this generated tree predates ir.json (hecks project_rust writes it now); " \
-                       "re-run hecks project_rust for this domain")
+                       "this generated tree predates ir.json (Build.project_rust! writes it now); " \
+                       "re-run hecks Build.project_rust! domain.value=… for this domain")
         manifest = read_json(File.join(mod_dir, "manifest.json"),
-                             "re-run hecks project_rust for this domain to write it")
+                             "re-run hecks Build.project_rust! domain.value=#{domain} to write it")
         [ir, manifest + unaccounted_findings(ir, manifest)]
       end
 
@@ -112,7 +112,8 @@ module Hecks
 
       def report(domain, codegen)
         mod_dir = File.join(generated_root, domain)
-        Dir.exist?(mod_dir) or raise Failure, "#{mod_dir}: no such generated module — run hecks project_rust first, " \
+        Dir.exist?(mod_dir) or raise Failure, "#{mod_dir}: no such generated module — " \
+                                              "run hecks Build.project_rust! domain.value=#{domain} first, " \
                                               "or check rust/src/generated/ for the actual directory name"
         return print_report(domain, mod_dir) unless codegen == "rust"
 
@@ -126,7 +127,8 @@ module Hecks
       def regenerated(mod_dir, domain, scratch)
         ir_path = File.join(mod_dir, "ir.json")
         File.exist?(File.join(mod_dir, "manifest.json")) or raise Failure, "#{mod_dir}: no committed manifest.json — " \
-                                                                           "re-run hecks project_rust for this domain to write it"
+                                                                           "re-run hecks Build.project_rust! " \
+                                                                           "domain.value=#{domain} to write it"
         out_dir = File.join(scratch, domain)
         output, status = run_codegen(%w[cargo run --quiet -- domain] + [ir_path, domain, domain, out_dir])
         status.success? or raise Failure, "hecks-codegen domain failed for #{domain}:\n#{output}"
