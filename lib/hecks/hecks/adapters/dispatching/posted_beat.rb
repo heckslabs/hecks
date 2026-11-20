@@ -12,8 +12,10 @@ module Hecks
       # clearance and posts nothing, yet it reads the machine the main checkout's beat reads, so
       # admission there reads the posted signal rather than calling the machine dark.
       #
-      # The signal carries the band and the headroom; the marks and the draw it lacks come from
-      # the beat's own record, or from the Signalbox world when the beat could not look.
+      # The signal carries the band and the headroom. The marks, the draw, the OS's memory pressure
+      # level and the metered draw it lacks come from the uncleared beat's own record, which holds
+      # what that beat looked at; only a beat that could not look at all falls to the Signalbox
+      # world's marks, with the level unread and no draw metered.
       #
       # It needs the including door's `runtime`, `beat_facts` and `@signal`.
       module PostedBeat
@@ -34,11 +36,12 @@ module Hecks
             age: (now - Time.iso8601(signal[:posted_at].to_s)).to_i.clamp(0, nil) }
         end
 
-        # The marks a beat would have recorded, from the world the door's Signalbox reads.
+        # The marks a beat would have recorded, from the world the door's Signalbox reads, for a
+        # beat that recorded no look: the OS's level is unread (0) and no coder's draw is metered.
         def world_marks
           marks = Looking::Marks.new(runtime.registry).facts
           { headroom: 0, floor: marks[:floor], gap: marks[:gap], age: 0, stale_after: marks[:stale_after],
-            draw: marks[:coder_draw] }
+            draw: marks[:coder_draw], memory_pressure_level: 0, metered_draw: 0 }
         end
       end
     end

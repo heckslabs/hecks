@@ -7,11 +7,11 @@ module Hecks
   module Tools
     # Projects the `RoleFile` rows of the Agents bluebook's `Role` aggregate into the role files
     # of a checkout, `.claude/agents/<role>.md`: the frontmatter Claude Code reads (name,
-    # description, tools, model) with a generated-file banner inside it, then the purpose, steps,
-    # rules and handback of the role.
+    # description, tools, model, and the `mcpServers` of its `RoleServer` rows) with a
+    # generated-file banner inside it, then the purpose, steps, rules and handback of the role.
     #
     # Without a flag the files are written, except that a file whose frontmatter holds a key the row
-    # cannot say (an `mcpServers` block) is refused by name and left alone. `--check` writes nothing
+    # cannot say (a `hooks` block, say) is refused by name and left alone. `--check` writes nothing
     # and answers 1, naming each file that is missing or differs from its row. The same run
     # projects the roles that have `RoutingRule` rows into `.claude/hooks/guarded_roles`, which
     # the Bash guard hook reads when `Role.guard` cannot answer.

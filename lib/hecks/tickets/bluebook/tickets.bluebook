@@ -774,8 +774,8 @@ Hecks.bluebook "Tickets" do
     end
 
     # A path prefix or glob a claim covers, or a bluebook's declarations (`x.bluebook#Coder,Brief`).
-    # Areas overlap by `Hecks::Adapters::AreaOverlap`, which keeps different declarations of one
-    # bluebook apart; a work item with no area claims nothing.
+    # Areas overlap by `Hecks::Adapters::AreaOverlap`; a plan or rescope reads each word against the
+    # checkout (`Hecks::Adapters::AreaNames`). The area a `Start` carries is not read so.
     value_object "Word" do
       attribute :value, String, matches: :present
     end
@@ -895,6 +895,7 @@ Hecks.bluebook "Tickets" do
       transition "Close"  => "done",    from: %w[planned started batched]
       transition "Drop"   => "dropped", from: %w[planned started batched]
       transition "Lapse"  => "dropped", from: %w[planned started batched]
+      transition "Misname" => "dropped", from: "planned"
       transition "Reopen" => "planned", from: %w[done dropped]
       # A batched item waits on its batch work item, which closes it or hands it back: nothing times it.
       mark :rests, "batched"
@@ -966,6 +967,18 @@ Hecks.bluebook "Tickets" do
       given("a dropped work item has no area to clear") { status != "dropped" }
 
       emits "WorkAreaCleared"
+    end
+
+    # A planned work item whose area names nothing in the checkout is dropped, its reason naming
+    # each word. A started one keeps its claim (a coder holds it): the transition refuses it. It
+    # emits no WorkDropped, as Lapse does not, so no epic is reviewed for a typo.
+    command "Misname" do
+      goal "Drop a planned work item whose area names nothing in the checkout, naming each word"
+
+      reference_to Work
+      attribute :reason, WorkText, sets: true
+
+      emits "WorkMisnamed"
     end
 
     # An open work item names the decision it carries out (refused by name when no Adr has that id).
@@ -1542,6 +1555,24 @@ Hecks.bluebook "Tickets" do
   policy "YieldWhenAreaTaken" do
     on      "Work.AreaRefused"
     trigger Work::Yield, with: { reason: :refusal }
+  end
+
+  # A planned or rescoped work item asks the WorkAreas port whether every word of its area names
+  # something in the checkout; one that names nothing is refused by name and set aside, so a
+  # mistyped or renamed path never claims nothing while it seems to claim ground.
+  policy "CheckAreaNamesWhenPlanned" do
+    on      "Work.WorkPlanned"
+    ask     :check_names, with: { work: :work }
+  end
+
+  policy "CheckAreaNamesWhenRescoped" do
+    on      "Work.WorkRescoped"
+    ask     :check_names, with: { work: :work }
+  end
+
+  policy "MisnameWhenAreaUnnamed" do
+    on      "Work.AreaUnnamed"
+    trigger Work::Misname, with: { reason: :refusal }
   end
 
   # A started work item asks the WorkLimits port whether it is one too many for the concurrency cap.

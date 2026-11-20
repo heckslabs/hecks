@@ -120,7 +120,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,     RunKey, sets: true
         attribute :setting, Word, sets: true
         attribute :becomes, Word, sets: true
-        attribute :probe,   Probing, sets: true
+        attribute :probe,   Probing, sets: true, default: { value: true }
 
         emits DialTurnRequested
       end

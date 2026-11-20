@@ -83,6 +83,11 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
         persisted_by("PostgresEra") { database "#{url}" }
       end
     WORLD
+    File.write(File.join(@pg_dir, "event_delivery.world"), <<~WORLD)
+      Hecks.world "EventDelivery" do
+        persisted_by("PostgresEra") { database "#{url}" }
+      end
+    WORLD
 
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{SCRATCH_DB} WITH (FORCE)")

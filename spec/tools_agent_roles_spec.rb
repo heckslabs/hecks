@@ -86,10 +86,10 @@ RSpec.describe Hecks::Tools::AgentRoles do
   end
 
   describe "a file whose frontmatter holds a key the row cannot say" do
-    before { File.write(scout, "---\nname: scout\nmcpServers:\n  - hecks:\n---\n\nbody\n") }
+    before { File.write(scout, "---\nname: scout\nhooks:\n  - Stop:\n---\n\nbody\n") }
 
     it "is refused by name" do
-      expect { run_tool }.to output(/refused scout\.md: frontmatter mcpServers/).to_stderr
+      expect { run_tool }.to output(/refused scout\.md: frontmatter hooks/).to_stderr
     end
 
     it "is left as it was" do
@@ -137,9 +137,14 @@ RSpec.describe Hecks::Tools::AgentRoles do
       end
     end
 
-    it "leave out the architect, whose file holds frontmatter a row cannot say" do
-      names = %w[coder orchestrator orchestrator-owner planner pruner reviewer]
+    it "project every role, the architect too" do
+      names = %w[architect coder orchestrator orchestrator-owner planner pruner reviewer]
       expect(rows.map { |real| real[:role] }).to match_array(names)
+    end
+
+    it "give the architect the mcpServers block its RoleServer row says" do
+      front, = rendered_halves(rows.find { |real| real[:role] == "architect" })
+      expect(front).to include("mcpServers:\n  - hecks:\n      type: stdio\n      command: .claude/hecks-door/hecks-helper-door")
     end
 
     it "tell the coder to run the quick gate once its work is committed, then have CI check it", :aggregate_failures do

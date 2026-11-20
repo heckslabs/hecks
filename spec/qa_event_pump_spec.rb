@@ -6,7 +6,8 @@ require "fileutils"
 require "hecks/quality_control/cli/qa_event_pump"
 require "hecks/quality_control/cli/qa_tick"
 
-# The QA event pump: each attached domain's policies read the events past their cursors. The logs
+# The QA event pump: each attached domain's policies read the events past their cursors, kept as
+# EventDelivery's `Consumer` and `Reaction` rows on the QualityControl ledger. The logs
 # are read through the `Operation.Follow` query, which a fresh boot of a Memory domain cannot answer
 # across processes, so these examples stub only that read and feed it entries the producer emitted.
 RSpec.describe Hecks::QualityControlCli::QaEventPump do
@@ -86,7 +87,7 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
   let(:pump) { described_class.new(root: @dir, attached: attached) }
 
   before do
-    allow(Hecks::QualityControlCli::QaEventPump::Reader).to receive(:after) do |dir, position|
+    allow(Hecks::Adapters::EventPump::Reader).to receive(:after) do |dir, position|
       { cursor: logs[dir].size, events: logs[dir].drop(position) }
     end
   end
@@ -226,7 +227,7 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
 
   def react_in_process(entry)
     consumer = attached.runtime("Consumer")
-    event = Hecks::QualityControlCli::QaEventPump::Reader.event(entry)
+    event = Hecks::Adapters::EventPump::Reader.event(entry)
     policy, home = consumer.outbox.policies_for(event, "Producer").first
     consumer.outbox.react_policy(event, policy: policy, home: home, domain: "Producer", event_uid: nil)
   end
@@ -255,14 +256,14 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
   # Counts a name on the consumer first, so the pumped `Count` for that name is refused.
   def count_already(name) = attached.runtime("Consumer").dispatch_flat("Consumer::Tally.Count", name: name)
 
-  def recorded_reactions = Hecks::QualityControlCli::QaEventPump::Reactions.new(ledger)
+  def recorded_reactions = Hecks::Adapters::EventPump::Reactions.new(ledger)
 
   def recorded?(entry) = recorded_reactions.recorded?("Consumer", entry["id"], "CountOnPinged")
 
   # Lets the cursor write fail once, after the policy's command has answered, as a stop would.
   def stop_before_the_first_cursor_write
-    cursors = Hecks::QualityControlCli::QaEventPump::Cursors.new(ledger)
-    allow(Hecks::QualityControlCli::QaEventPump::Cursors).to receive(:new).and_return(cursors)
+    cursors = Hecks::Adapters::EventPump::Cursors.new(ledger)
+    allow(Hecks::Adapters::EventPump::Cursors).to receive(:new).and_return(cursors)
     stopped = false
     allow(cursors).to receive(:advance).and_wrap_original do |original, *args|
       next original.call(*args) if stopped
@@ -273,11 +274,11 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
   end
 
   def open_auditor_cursor
-    Hecks::QualityControlCli::QaEventPump::Cursors.new(attached.runtime("QualityControl")).position("Producer", "Auditor")
+    Hecks::Adapters::EventPump::Cursors.new(attached.runtime("QualityControl")).position("Producer", "Auditor")
   end
 
   def position_of(log, consumer)
-    row = attached.runtime("QualityControl").query("QualityControl::EventCursor.All")
+    row = attached.runtime("QualityControl").query("EventDelivery::Consumer.All")
                   .find { |found| found[:key][:value] == "#{log}/#{consumer}" }
     row[:position][:value]
   end

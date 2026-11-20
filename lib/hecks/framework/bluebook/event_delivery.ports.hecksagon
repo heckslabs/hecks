@@ -1,0 +1,12 @@
+# The port EventDelivery declares for every hecksagon that attaches it (`Framework.load!` loads it).
+# `Carry` runs one pump over the adapter's domains (ADR 0178); the adapter is the attacher's, and
+# QualityControl's `PumpTools` binds it for the QA ledger.
+Hecks.hecksagon "EventDelivery" do
+  EventDelivery::Pump.port "Pumping" do
+    asks "Carry", to: Pump do
+      attribute :run, PumpRun
+      answers "PumpCarried"
+      refuses "PumpCarryRefused"
+    end
+  end
+end

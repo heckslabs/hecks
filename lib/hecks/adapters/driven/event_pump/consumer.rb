@@ -3,8 +3,8 @@
 require "hecks/naming"
 
 module Hecks
-  module QualityControlCli
-    class QaEventPump
+  module Adapters
+    class EventPump
       # One attached domain as a consumer: the logs of the domains its hecksagon subscribes to, read
       # past each cursor, with the policies that react to each event run through the domain's own
       # runtime. A subscription to a domain the pump does not attach is named, not read.

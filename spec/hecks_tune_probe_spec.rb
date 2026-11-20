@@ -29,6 +29,10 @@ RSpec.describe "a probe of a turned setting" do
     expect(status(probed([], after: 600))).to eq("watching")
   end
 
+  it "probes a turn that leaves probe out" do
+    expect(status(probed([], after: 600, probe: nil))).to eq("watching")
+  end
+
   it "opens no probe for a turn with probe false" do
     expect(probed([], probe: false)).to be_nil
   end

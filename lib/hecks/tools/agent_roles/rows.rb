@@ -3,16 +3,17 @@
 module Hecks
   module Tools
     module AgentRoles
-      # Reads the `RoleFile` rows from the Agents bluebook.
+      # Reads the `RoleFile` rows from the Agents bluebook, each with its role's `RoleServer` rows.
       module Rows
-        # Roles whose file holds frontmatter a row cannot say yet (architect's `mcpServers` block).
-        LEFT_OUT = %w[architect].freeze
-
         module_function
 
         # @param root [String] the checkout
-        # @return [Array<Hash>] one row per projected role, in the order the bluebook lists them
-        def read(root) = table(root, "RoleFile").reject { |row| LEFT_OUT.include?(row[:role]) }
+        # @return [Array<Hash>] one row per role, in the bluebook's order, each with its `servers`
+        #   (the `RoleServer` rows of that role, none for most)
+        def read(root)
+          servers = table(root, "RoleServer").group_by { |row| row[:role] }
+          table(root, "RoleFile").map { |row| row.merge(servers: servers.fetch(row[:role], [])) }
+        end
 
         # @param root [String] the checkout
         # @return [Array<String>] each role that has `RoutingRule` rows, first seen first
