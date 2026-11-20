@@ -31,7 +31,7 @@ RSpec.describe "the orchestrator guard hook" do
 
   # @return [Array(String, Integer)] what the hook wrote to stderr, and its exit status
   def hook(command, role: "orchestrator")
-    input = JSON.generate(agent_type: role, tool_input: { command: command })
+    input = JSON.generate(agent_type: role, session_id: "s1", tool_input: { command: command })
     env = { "CLAUDE_PROJECT_DIR" => dir, "HECKS_GUARD_LIMIT" => "1" }
     _out, err, status = Open3.capture3(env, File.join(dir, ".claude/hooks/orchestrator_guard.sh"), stdin_data: input)
     [err, status.exitstatus]
@@ -39,11 +39,12 @@ RSpec.describe "the orchestrator guard hook" do
 
   def unanswered = launcher(body: "[unknown_command] no such command", code: 2)
 
-  it "forwards the query name, role, command and agent as separate words" do
+  it "forwards the query name, role, command, agent and session as separate words" do
     launcher
     hook("git status")
     expect(File.read(File.join(dir, "argv")).lines(chomp: true))
-      .to eq(["agents", "Role.guard", "role.value=orchestrator", "command.value=git status", "agent.value="])
+      .to eq(["agents", "Role.guard", "role.value=orchestrator", "command.value=git status", "agent.value=",
+              "session.value=s1"])
   end
 
   it "lets an allowed command through" do
