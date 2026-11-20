@@ -410,6 +410,7 @@ Hecks.bluebook "Tickets" do
     attribute :tier,    EpicTier, optional: true
     attribute :measure,  MeasureName, optional: true
     attribute :evidence, Evidence, optional: true
+    attribute :measured, MeasureState, optional: true
     attribute :hand_ranked_at, RankedAt, optional: true
     attribute :hold,     HandHold, optional: true
     reference_to Adr, as: :decision, optional: true
@@ -492,6 +493,18 @@ Hecks.bluebook "Tickets" do
     # nothing could be read.
     value_object "Evidence", String
 
+    # What the last reading of the epic's measure found: `met`, `missed`, or `unread` while nothing
+    # has been read (no reading yet, or one that could not be made). An epic that states no measure
+    # is `unread` too; its empty `measure` says so, and `Epic.outcomes` answers it as `unstated`.
+    value_object "MeasureState" do
+      attribute :value, String, one_of: ["unread", "met", "missed"]
+    end
+
+    # What the measure queries answer from outside the domain: JSON, one entry per row or epic.
+    value_object "MeasureDocument" do
+      attribute :text, String
+    end
+
     # A number read from the event tap, or a bound on one.
     value_object "Reading" do
       attribute :value, Integer
@@ -555,6 +568,7 @@ Hecks.bluebook "Tickets" do
       reference_to Adr, as: :decision, optional: true
 
       sets :decision
+      sets :measured, to: "unread"
 
       emits "EpicOpened"
     end
@@ -578,6 +592,8 @@ Hecks.bluebook "Tickets" do
       given("an outcome read under its least does not complete") { reading.value >= at_least.value }
       given("an outcome read over its most does not complete") { reading.value <= at_most.value }
 
+      sets :measured, to: "met"
+
       emits "EpicCompleted"
     end
 
@@ -595,6 +611,8 @@ Hecks.bluebook "Tickets" do
       attribute :finding,  EvidenceKey
 
       given("an outcome read within its bounds is not missed") { reading.value < at_least.value || reading.value > at_most.value }
+
+      sets :measured, to: "missed"
 
       emits "EpicOutcomeMissed"
     end
@@ -620,6 +638,8 @@ Hecks.bluebook "Tickets" do
 
       reference_to Epic
       attribute :evidence, Evidence, sets: true
+
+      sets :measured, to: "unread"
 
       emits "EpicLeftUnmeasured"
     end
@@ -722,6 +742,22 @@ Hecks.bluebook "Tickets" do
     query "Charter" do
       description "The owner's charter, first line first: what each line covers, which the product owner ranks the epics from."
       returns CharterDocument
+    end
+
+    # Every `OutcomeMeasure` row read now, whether or not an epic names it: the MeasureReadings port
+    # counts each on the event tap and answers the number beside the row's bounds and how many of
+    # the row's minutes the tap could see back.
+    query "Measures" do
+      description "Every outcome measure as JSON: its present reading, its bounds, whether it is met and how far back the reading saw."
+      returns MeasureDocument
+    end
+
+    # The epics in `Ranked` order, each with the measure it names, the state its last reading left
+    # (`met`, `missed`, `unread`, or `unstated` when it names no measure), the evidence and its
+    # members counted, answered by the EpicOutcomes port. It reads no tap: the state is the stored one.
+    query "Outcomes" do
+      description "Every epic as JSON, lowest tier first: its measure, whether its last reading was met, missed, unread or unstated, and its members counted."
+      returns MeasureDocument
     end
   end
 
