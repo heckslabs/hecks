@@ -123,7 +123,7 @@ module Hecks
         # Checks a caught domain refusal against `test.expect[:refused]`.
         #
         # @param test [Behaviors::TestCase] the test case to check
-        # @param error [StandardError] the caught refusal, a member of `REFUSAL_CLASSES`
+        # @param error [StandardError] the caught refusal, a member of `TESTED_REFUSALS`
         # @return [Result] a `pass_result` if `test` expected this refusal's message, an
         #   `error_result` if it expected none, or a `fail_result` if the message doesn't match
         def check_refusal(test, error)

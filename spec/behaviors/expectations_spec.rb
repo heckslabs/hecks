@@ -1,6 +1,8 @@
 require "tmpdir"
 require "fileutils"
 require "hecks/behaviors/expectations"
+require "hecks/rust_build/kernel_engine"
+require_relative "../support/engine_choice"
 
 RSpec.describe Hecks::Behaviors::Expectations do
   let(:root) { File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook") }
@@ -114,6 +116,46 @@ RSpec.describe Hecks::Behaviors::Expectations do
       FileUtils.touch(copy.loads.first, mtime: Time.now + 5)
 
       expect(described_class.runtime_for(copy)).not_to be(before)
+    end
+  end
+
+  # Each example boots a fresh copy of the pizzas files, so a stubbed kernel failure it caches is
+  # never the cached boot of the real files another spec runs.
+  describe "the kernel engine" do
+    include EngineChoice
+
+    let(:suite) { Hecks::Behaviors::BehaviorsSuite.new(loads: copied_loads) }
+
+    around { |example| Dir.mktmpdir { |dir| (@dir = dir) && example.run } }
+    before { allow(engine).to receive(:connect).and_raise(engine::BinaryUnavailable, "no kernel binary") }
+
+    def engine = Hecks::RustBuild::KernelEngine
+
+    def copied_loads
+      [File.join(root, "pizzas.bluebook"), memory_hecksagon].map do |path|
+        FileUtils.cp(path, @dir)
+        File.join(@dir, File.basename(path))
+      end
+    end
+
+    it "boots the suite on the kernel, never falling back" do
+      expect { described_class.runtime_for(suite, engine: :kernel) }.to raise_error(engine::BinaryUnavailable)
+    end
+
+    it "follows HECKS_ENGINE and tries a failed kernel boot once per set of files" do
+      with_engine("kernel")
+      2.times { described_class.run_one(create_test("First"), suite) }
+      expect(engine).to have_received(:connect).once
+    end
+
+    it "keeps the Memory-only refusal" do
+      sqlite = Hecks::Behaviors.parse(File.expand_path("fixtures/sqlite_binding.behaviors", __dir__)).suite
+      expect { described_class.runtime_for(sqlite, engine: :kernel) }.to raise_error(Hecks::Behaviors::Malformed, /Memory/)
+    end
+
+    def create_test(name)
+      Hecks::Behaviors::TestCase.new(description: name, tests_command: "CreatePizza", on_aggregate: "Order",
+                                     kind: :command, setups: [], expect: { ok: true }, input: pizza_input(name))
     end
   end
 
