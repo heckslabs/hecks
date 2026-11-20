@@ -468,6 +468,22 @@ Hecks.behaviors "Signalbox" do
     expect refused: "a larger breaker waits while a smaller one can still act"
   end
 
+  # Phase 3, protection: with the helpers within their share, the machine fuse is the breaker
+  # left to act, rated by the live `cpu_budget` (36 hours, 2160 boot minutes).
+  test "the machine fuse trips once no smaller breaker can act" do
+    tests "Trip", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "machine-fuse" }, level: { value: "machine" }, rating: { value: 2160 }
+    input breaker: "machine-fuse", load: { value: 2170 }, smaller_ready: { value: 0 }
+    expect emits: ["BreakerTripped"], state: "open"
+  end
+
+  test "the machine fuse under its boot minutes does not trip" do
+    tests "Trip", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "machine-fuse" }, level: { value: "machine" }, rating: { value: 2160 }
+    input breaker: "machine-fuse", load: { value: 1450 }, smaller_ready: { value: 0 }
+    expect refused: "a breaker trips only past its rating"
+  end
+
   test "the helper share trips first, past its rating" do
     tests "Trip", on: "Breaker"
     setup "Signalbox::Breaker.Install", breaker: { value: "helper-share" }, level: { value: "helpers" }, rating: { value: 3 }
