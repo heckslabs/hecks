@@ -51,6 +51,31 @@ Hecks.hecksagon "Agents" do
     answers_query "Diff"
   end
 
+  # The same read for `SubmissionReview`: the tier of a submitted commit and the domains and
+  # bluebooks it touches, matched to ChangeReview's rows, so the reviewer's evidence is counted
+  # against the one rule.
+  Agents::SubmissionReview.port "SubmittedPaths" do
+    asks "ReadScope", to: SubmissionReview do
+      attribute :submission, SubmissionRef
+      attribute :checkout,   RepoPath
+      answers "ScopeRead"
+      refuses "ScopeUnread"
+    end
+  end
+
+  # How a run the reviewer cites ended, read from its kept record in the Hecks domain's store
+  # (`Operation` for behaviors, `ModelCheckRun` for a model check). Bound by adapters/run_records,
+  # which only reads; the bluebook judges what the record shows.
+  Agents::SubmissionReview.port "RunRecords" do
+    asks "Read", to: SubmissionReview do
+      attribute :submission, SubmissionRef
+      attribute :kind,       EvidenceKind
+      attribute :run,        EvidenceRunKey
+      answers "RunRead"
+      refuses "RunUnkept"
+    end
+  end
+
   # The sessions claude lists, joined to the AgentRun ledger (adapters/fleet_control). The examines
   # read the facts Fleet's policies judge; the adapter refuses only a session not listed, a boot
   # with no ledger, and a command `claude` refused.
