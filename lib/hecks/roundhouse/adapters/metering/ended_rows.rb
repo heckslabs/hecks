@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "session_role"
+require_relative "session_runs"
 
 module Hecks
   module Adapters
@@ -47,7 +48,7 @@ module Hecks
         end
 
         def of_run(entry)
-          run = @runs[entry["sessionId"].to_s]
+          run = SessionRuns.of(@runs, entry)
           { role: SessionRole.of(entry, run), run: run.to_h[:run].to_s, run_status: run.to_h[:status].to_s }
         end
 
