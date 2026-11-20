@@ -2571,6 +2571,26 @@ Hecks.bluebook "Hecks" do
         where(kind: { in: "merged,auto_merge_enabled,auto_merge_disabled,closed,reopened,review_requested" })
         returns list_of(TimelineEvent)
       end
+
+      # One failed job of a pull request's checks: the job, its failed steps and the failing spec
+      # examples (each list joined with a comma), the message of its first failure, and the commit
+      # it is attributed to. A job that never reached the specs names no example.
+      value_object "CheckFailure" do
+        attribute :job,      String
+        attribute :steps,    String
+        attribute :examples, String
+        attribute :error,    String
+        attribute :culprit,  String
+      end
+
+      # Read-only. The culprit is a measure, not a proof: the newest commit of the pull request whose
+      # changed files are the failing specs or map to them, or a line saying none was found. A pull
+      # request with no failed check answers no row. A number that is not a pull request is refused.
+      query "Failures" do
+        description "Why a pull request's checks failed, one line per failed job: the job, its failed steps, the failing spec examples, the first failure's message, and the newest commit touching the failing specs. Nothing is changed."
+        attribute :number, Word
+        returns list_of(CheckFailure)
+      end
     end
 
     policy "CreatePullRequestWhenRequested" do

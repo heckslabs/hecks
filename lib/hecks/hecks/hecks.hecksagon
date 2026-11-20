@@ -514,6 +514,7 @@ Hecks.hecksagon "Hecks" do
 
     answers_query "Status"
     answers_query "Timeline"
+    answers_query "Failures"
   end
 
   # The outside a filling of the queue reaches: the Work items, the machine's load and the freeze.
