@@ -344,10 +344,9 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # One stall, filed once: `stall-<kind>-<subject>`. Its key is the dedupe, so a stall seen by a
-    # later look is refused as already filed, and a look after a restart, when this store is empty
-    # again, finds it filed on the tap. Its key also keys the orchestrator run its wake starts; that run
-    # plans a Work item, citing the key, only when the fix needs code.
+    # One stall, filed once: `stall-<kind>-<subject>`. Its key is the dedupe (a later look, or one after
+    # a restart, finds it filed on the tap) and keys the orchestrator run its wake starts, which plans
+    # a Work item, citing the key, only when the fix needs code.
     aggregate "Stall" do
       description "One stall: an opening event whose closing event did not come within its kind's minutes, and the role that fixes it."
       created_by "Stall.file!"
