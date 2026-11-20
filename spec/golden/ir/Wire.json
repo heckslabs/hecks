@@ -758,7 +758,13 @@
   "policies": [
 
   ],
-  "process_managers": [
+  "provides": [
+
+  ],
+  "read_models": [
+
+  ],
+  "sagas": [
     {
       "correlates_by": "reference.value",
       "endings": [
@@ -891,12 +897,6 @@
         "returned"
       ]
     }
-  ],
-  "provides": [
-
-  ],
-  "read_models": [
-
   ],
   "version": null,
   "vision": "Money leaves one drawer for another, and something remembers which half happened."

@@ -30,11 +30,11 @@ module Hecks
         # own `deep_copy` performs (mirrored here, a private instance method
         # with no registry to hand it).
         def sagas_rehydrate_cleanly(history)
-          process_managers = history.fetch(:bluebook).process_managers.to_h { |pm| [pm.name, pm] }
+          sagas = history.fetch(:bluebook).sagas.to_h { |pm| [pm.name, pm] }
 
           offenders = history.fetch(:saga_instances).flat_map do |pm_name, conversations|
             conversations.filter_map do |correlation, instance|
-              saga_offense(pm_name, process_managers[pm_name], correlation, instance)
+              saga_offense(pm_name, sagas[pm_name], correlation, instance)
             end
           end
 

@@ -672,7 +672,7 @@
   "policies": [
 
   ],
-  "process_managers": [
+  "sagas": [
 
   ],
   "attaches_to": [

@@ -390,32 +390,31 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
-    &[crate::kernel::ProcessManagerDef {
-        name: "Delivery",
-        correlates_by: "tag.value",
-        starts_on: "ParcelPosted",
-        ends_on: "ParcelDelivered",
-        initial_state: "posted",
-        handlers: &[
-            crate::kernel::Handler {
-                event_type: "ParcelScanned",
-                from_state: "posted",
-                to_state: "picked_up",
-                dispatches: &[],
-            },
-            crate::kernel::Handler {
-                event_type: "ParcelScanned",
-                from_state: "picked_up",
-                to_state: "handed_over",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "Parcel.Deliver",
-                    with: &[("parcel", crate::kernel::WithValue::Ref("tag"))],
-                    compensates: None,
-                }],
-            },
-        ],
-    }];
+pub const SAGAS: &[crate::kernel::SagaDef] = &[crate::kernel::SagaDef {
+    name: "Delivery",
+    correlates_by: "tag.value",
+    starts_on: "ParcelPosted",
+    ends_on: "ParcelDelivered",
+    initial_state: "posted",
+    handlers: &[
+        crate::kernel::Handler {
+            event_type: "ParcelScanned",
+            from_state: "posted",
+            to_state: "picked_up",
+            dispatches: &[],
+        },
+        crate::kernel::Handler {
+            event_type: "ParcelScanned",
+            from_state: "picked_up",
+            to_state: "handed_over",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "Parcel.Deliver",
+                with: &[("parcel", crate::kernel::WithValue::Ref("tag"))],
+                compensates: None,
+            }],
+        },
+    ],
+}];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {

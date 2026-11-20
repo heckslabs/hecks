@@ -328,7 +328,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[];
+pub const SAGAS: &[crate::kernel::SagaDef] = &[];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {

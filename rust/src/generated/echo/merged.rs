@@ -1775,8 +1775,8 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
-    crate::kernel::ProcessManagerDef {
+pub const SAGAS: &[crate::kernel::SagaDef] = &[
+    crate::kernel::SagaDef {
         name: "Charge",
         correlates_by: "name.value",
         starts_on: "FuseLaid",
@@ -1819,7 +1819,7 @@ pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
             },
         ],
     },
-    crate::kernel::ProcessManagerDef {
+    crate::kernel::SagaDef {
         name: "Watch",
         correlates_by: "name.value",
         starts_on: "LampInstalled",

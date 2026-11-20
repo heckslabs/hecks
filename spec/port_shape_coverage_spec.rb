@@ -102,6 +102,6 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
   it "declares a read model, a policy, and a process manager", :aggregate_failures do
     expect(ir[:read_models]).not_to be_empty
     expect(ir[:policies]).not_to be_empty
-    expect(ir[:process_managers]).not_to be_empty
+    expect(ir[:sagas]).not_to be_empty
   end
 end

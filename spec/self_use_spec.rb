@@ -48,7 +48,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
       end
     },
     "policy"                 => -> { SELF_USE_LANGUAGE.aggregates.sum { |a| a.policies.size } + SELF_USE_LANGUAGE.policies.size },
-    "process_manager"        => -> { SELF_USE_LANGUAGE.process_managers.size },
+    "process_manager"        => -> { SELF_USE_LANGUAGE.sagas.size },
     "ensures"                => -> { every_command.sum { |c| c.ensures.to_a.size } },
     "provenance"             => -> { every_command.count(&:provenance) },
     "group_by"               => -> { SELF_USE_LANGUAGE.read_models.count { |r| !r.group_by.to_a.empty? } },

@@ -5178,8 +5178,8 @@ fn pm_literal_4() -> crate::kernel::Json {
     )])
 }
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
-    crate::kernel::ProcessManagerDef {
+pub const SAGAS: &[crate::kernel::SagaDef] = &[
+    crate::kernel::SagaDef {
         name: "Onboarding",
         correlates_by: "reference.value",
         starts_on: "OnboardingOpened",
@@ -5212,7 +5212,7 @@ pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
             },
         ],
     },
-    crate::kernel::ProcessManagerDef {
+    crate::kernel::SagaDef {
         name: "Settlement",
         correlates_by: "reference.value",
         starts_on: "TransferRequested",
@@ -5296,7 +5296,7 @@ pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
             },
         ],
     },
-    crate::kernel::ProcessManagerDef {
+    crate::kernel::SagaDef {
         name: "ExternalSettlement",
         correlates_by: "end_to_end.value",
         starts_on: "ExternalTransferRequested",

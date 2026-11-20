@@ -18,7 +18,7 @@ module Hecks
         # for each opens-block word must be named here explicitly.
         SAFE_OPENS_BLOCK = {
           %w[Bluebook policy]          => :policies,
-          %w[Bluebook process_manager] => :process_managers,
+          %w[Bluebook process_manager] => :sagas,
           %w[Bluebook read_model]      => :read_models
         }.freeze
 

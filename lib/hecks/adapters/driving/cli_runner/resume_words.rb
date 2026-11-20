@@ -52,7 +52,7 @@ module Hecks
 
           # The command the `resumes` list names for a stage, as `Aggregate.Command`.
           def resume_verb(bluebook, stage)
-            process_manager = bluebook.process_managers.find { |pm| pm.name == SAGA }
+            process_manager = bluebook.sagas.find { |pm| pm.name == SAGA }
             entry = process_manager&.resumes&.find { |line| line.start_with?("#{stage}=") }
             entry&.split("=", 2)&.last
           end

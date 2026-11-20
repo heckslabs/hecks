@@ -25,12 +25,12 @@ module Hecks
             # A for_each policy's source is the event plus a query row; the row's names are known
             # only when the query's aggregate is in this bluebook, otherwise only the target is
             # checked.
-            def validate_with_projections!(policies, process_managers, aggregates)
-              context = WithContext.new(command_lookup(aggregates), aggregates, correlation_heads(process_managers),
+            def validate_with_projections!(policies, sagas, aggregates)
+              context = WithContext.new(command_lookup(aggregates), aggregates, correlation_heads(sagas),
                                         event_emitters(aggregates))
 
               policies.each { |policy| check_policy_with!(policy, context) }
-              process_managers.each do |pm|
+              sagas.each do |pm|
                 pm.handlers.each do |handler|
                   handler.dispatches.each { |dispatch| check_dispatch_with!(pm, handler, dispatch, context) }
                 end
@@ -132,8 +132,8 @@ module Hecks
 
             # A saga's `correlates_by` head is a legal `with:` key: correlation rides
             # through commands that never read it.
-            def correlation_heads(process_managers)
-              process_managers.filter_map { |pm| pm.correlates_by && pm.correlation_head }
+            def correlation_heads(sagas)
+              sagas.filter_map { |pm| pm.correlates_by && pm.correlation_head }
             end
           end
         end

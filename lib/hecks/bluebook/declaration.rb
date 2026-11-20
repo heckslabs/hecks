@@ -31,7 +31,7 @@ module Hecks
         aggregates:        many(:aggregates),
         read_models:       many(:read_models),
         policies:          many(:policies),
-        process_managers:  many(:process_managers),
+        sagas:             many(:sagas),
         attaches_to:       :attaches_to,
         # One row per declared `provides` capability, in declaration order;
         # present (possibly empty) like `attaches_to`.
@@ -77,13 +77,13 @@ module Hecks
 
       attr_accessor :formerly_known_as
 
-      attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
+      attr_reader :name, :version, :vision, :aggregates, :policies, :sagas,
                   :classification, :read_models, :ports, :namespace, :attaches_to, :provides,
                   :modules
 
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        version: nil, vision: nil, aggregates: [], policies: [], process_managers: [],
+        version: nil, vision: nil, aggregates: [], policies: [], sagas: [],
         classification: nil, read_models: [], formerly_known_as: nil, namespace: nil,
         attaches_to: [], provides: [], modules: []
       }.freeze

@@ -192,7 +192,7 @@ RSpec.describe "a construct's identity" do
     end
 
     def bluebook_constructs(bank)
-      [bank, bank.read_models.first, bank.policies.first, bank.process_managers.first]
+      [bank, bank.read_models.first, bank.policies.first, bank.sagas.first]
     end
 
     def account_constructs(account)

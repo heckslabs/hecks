@@ -7,7 +7,7 @@ module Hecks
         # Fields the model holds that the grammar declares as containment edges
         # (syntax.bluebook's Keyword rows, `context` -> `opens`).
         CONTAINED = {
-          "Bluebook"       => %i[aggregates read_models policies process_managers],
+          "Bluebook"       => %i[aggregates read_models policies sagas],
           "Aggregate"      => %i[commands entities queries value_objects],
           # An entity may nest further entities (`Dispatch` inside `Handler`) (ADR 0026).
           "Entity"         => %i[commands entities queries],
