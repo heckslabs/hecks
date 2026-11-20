@@ -546,10 +546,8 @@ Hecks.bluebook "PipelineBoard" do
       # stable lane's `alert_after` (4) on purpose, unlinked: by then a stop has outlived any CI
       # run, queue and verification (about 25 minutes) many times over, and a person's session.
       member name: "stopped_run_overdue_hours", value: 4
-      # ---- the marks past which a stuck item has stood too long, in minutes ----
-      # A first choice from the bounds the board already holds, for the owner to turn. A red main
-      # is fixed through the train, whose verification takes about 25 minutes (`verify_bound_minutes`)
-      # after a CI run under three minutes, so thirty minutes is one fix attempt's cycle.
+      # Marks, in minutes, past which a stuck item has stood too long: a first choice for the owner to turn.
+      # A red main is fixed through the train (about 25 minutes, `verify_bound_minutes`): one fix attempt.
       member name: "red_main_minutes",        value: 30
       # Three verification cycles of 25 minutes: a pull request left that long is not on its way.
       member name: "train_pr_left_minutes",   value: 90
