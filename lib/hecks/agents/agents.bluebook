@@ -3567,6 +3567,7 @@ Hecks.bluebook "Agents" do
     attribute :filed,      Facts, optional: true
     attribute :stuck,      list_of(StuckItem), optional: true
     attribute :unpushed,   Facts, optional: true
+    attribute :landing_state, LandingState, optional: true
     attribute :links,      Facts, optional: true
 
     value_object "RunKey" do
@@ -3587,6 +3588,18 @@ Hecks.bluebook "Agents" do
     value_object "TurnVerdict" do
       attribute :value, String, matches: :present
       invariant("a verdict is routed or blocked") { value == "routed" || value == "blocked" }
+    end
+
+    # Where the turn's work stands: `landed` (on main), `pushed_not_landed` (on a pushed branch, not
+    # on main), `committed_not_pushed` (committed on a local branch only), `uncommitted`. It is the
+    # verdict and `unpushed` is its detail; a turn with several branches states the worst one, with
+    # `uncommitted` the worst and `landed` the best. A turn with no work leaves it unset.
+    value_object "LandingState" do
+      attribute :value, String, matches: :present
+      invariant("a landing state is landed, pushed_not_landed, committed_not_pushed or uncommitted") do
+        value == "landed" || value == "pushed_not_landed" || value == "committed_not_pushed" ||
+          value == "uncommitted"
+      end
     end
 
     # A JSON document: `landed[]` of {sha,title}, `main` of {origin,ahead,behind,clean,origin_pushed_h},
@@ -3619,6 +3632,7 @@ Hecks.bluebook "Agents" do
       attribute :filed,      Facts, optional: true, sets: true
       attribute :stuck,      list_of(StuckItem), optional: true, sets: true
       attribute :unpushed,   Facts, optional: true, sets: true
+      attribute :landing_state, LandingState, optional: true, sets: true
       attribute :links,      Facts, optional: true, sets: true
 
       emits "TurnFinished"
@@ -3627,6 +3641,12 @@ Hecks.bluebook "Agents" do
     query "Blocked" do
       description "The turns that ended blocked, by run."
       where(verdict: "blocked")
+      order_by :run
+    end
+
+    query "CommittedNotPushed" do
+      description "The turns that ended with finished work committed on a local branch and not pushed, by run."
+      where(landing_state: "committed_not_pushed")
       order_by :run
     end
   end
