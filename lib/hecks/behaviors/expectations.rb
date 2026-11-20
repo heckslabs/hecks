@@ -4,6 +4,7 @@ require_relative "../runtime/caller"
 require_relative "../runtime/errors"
 require_relative "../runtime/value"
 require_relative "../runtime/reaction_invocation"
+require_relative "../runtime/kernel_dispatcher"
 require_relative "../ports/persistence/binding_policy"
 require_relative "expectations/boot"
 require_relative "expectations/qualify"
@@ -20,6 +21,9 @@ module Hecks
     # `Qualify`, `Dispatching` and `Checks`, extended onto this module.
     module Expectations
       REFUSAL_CLASSES = Hecks::Runtime::DOMAIN_REFUSALS
+      # What refuses the tested step: a domain refusal, or the kernel's refusal of a dispatch,
+      # which names no class yet and is matched by its text.
+      TESTED_REFUSALS = (REFUSAL_CLASSES + [Hecks::Runtime::KernelDispatcher::Refused]).freeze
       SPECIAL_KEYS = %i[ok refused emits count].freeze
 
       # The outcome of one test case.
@@ -37,18 +41,29 @@ module Hecks
       #
       # @param test [Behaviors::TestCase] the test case to run
       # @param suite [Behaviors::BehaviorsSuite] the suite `test` belongs to
-      # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher, nil] an
-      #   already-booted runtime to reuse and reset; nil boots (or reuses the cached
-      #   boot of) `suite.loads` via `runtime_for`
+      # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher,
+      #   Runtime::KernelDispatcher, nil] an already-booted runtime to reuse and reset; nil boots
+      #   (or reuses the cached boot of) `suite.loads` via `runtime_for`, on `HECKS_ENGINE`
       # @return [Result] the test's pass, fail, or error outcome
       def run_one(test, suite, runtime: nil)
         runtime ||= runtime_for(suite)
+        reset(runtime)
         registry = runtime.registry
-        registry.reset_runtime_state!
         bluebooks = registry.bluebooks.values
         replay_setup(test, runtime, bluebooks) || run_tested(test, runtime, bluebooks)
       rescue StandardError => e
         error_result(test, "#{e.class}: #{e.message}")
+      end
+
+      # Clears what the previous test left: the kernel's store goes back to its snapshot, the
+      # in-process runtime's Memory stores and event log are emptied.
+      #
+      # @param runtime [Object] the suite's booted runtime
+      # @return [void]
+      def reset(runtime)
+        return runtime.reset! if runtime.is_a?(Hecks::Runtime::KernelDispatcher)
+
+        runtime.registry.reset_runtime_state!
       end
 
       # Replays the test's `setup` dispatches.
@@ -65,7 +80,7 @@ module Hecks
           as_role(setup.role) { dispatch_command(runtime, verb, setup.args) }
         end
         nil
-      rescue *REFUSAL_CLASSES => e
+      rescue *TESTED_REFUSALS => e
         error_result(test, "setup #{current_setup&.command.inspect} refused: #{e.message}")
       end
 
@@ -97,7 +112,7 @@ module Hecks
         else
           run_command(test, runtime, verb)
         end
-      rescue *REFUSAL_CLASSES => e
+      rescue *TESTED_REFUSALS => e
         check_refusal(test, e)
       end
 

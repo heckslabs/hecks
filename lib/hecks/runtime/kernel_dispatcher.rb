@@ -1,7 +1,9 @@
 require_relative "event"
 require_relative "errors"
+require_relative "caller"
 require_relative "kernel_dispatcher/refusals"
 require_relative "kernel_dispatcher/unanswered"
+require_relative "kernel_dispatcher/settled"
 
 module Hecks
   module Runtime
@@ -9,15 +11,15 @@ module Hecks
     # through a `RustBuild::KernelClient`. The kernel runs the command and answers the events; this
     # class rebuilds each as a `Runtime::Event`, stamps it from the clock, and keeps it in `events`.
     #
-    # It answers what `Runtime::Dispatcher` answers where the protocol carries it: `dispatch`,
-    # `dispatch_flat`, `dry_run?`, `events`, `verbs`, `registry` and `redrive_sagas!`. What the
-    # protocol does not carry yet is raised as {NotAnswered} (see {Unanswered}), never answered
-    # empty. A dispatch refusal is raised as {Refused} with the kernel's text, since the kernel's
-    # dispatch answer names no refusal class; a `dry_run?` refusal is raised as the Ruby class the
-    # kernel names (see {Refusals}). A dispatch from inside a callback is raised as
-    # {NestedDispatch}.
+    # It answers what `Runtime::Dispatcher` answers where the protocol carries it (see {Settled}
+    # for the store read back and reset), and sends the bound caller's role on each step. What
+    # the protocol does not carry yet is raised as {NotAnswered} (see {Unanswered}), never
+    # answered empty. A dispatch refusal is raised as {Refused} with the kernel's text; a
+    # `dry_run?` refusal as the Ruby class the kernel names (see {Refusals}); a dispatch from
+    # inside a callback as {NestedDispatch}.
     class KernelDispatcher
       include Unanswered
+      include Settled
 
       # Raised when the kernel refuses a dispatch; the message is the kernel's error.
       class Refused < StandardError; end
@@ -25,8 +27,9 @@ module Hecks
       # Raised when a dispatch starts while another is still open on the same dispatcher.
       class NestedDispatch < StandardError; end
 
-      # What one dispatch settled on, in the shape `Dispatcher::Result` shares for these two.
-      Result = Struct.new(:verb, :events, keyword_init: true)
+      # What one dispatch settled on, in the shape `Dispatcher::Result` shares: the verb, the events
+      # it announced, the identity its first event names, and no state (read it back by `id`).
+      Result = Struct.new(:verb, :events, :id, :state, keyword_init: true)
 
       # @return [Array<Runtime::Event>] every event the kernel announced, oldest first
       attr_reader :events
@@ -35,7 +38,7 @@ module Hecks
       # @param clock [#call] answers the `occurred_at` stamp for a rebuilt event
       # @param registry [Runtime::Registry, nil] the described declarations, read by `registry`
       #   and `verbs`
-      def initialize(client, clock: Event.method(:stamp), registry: nil)
+      def initialize(client, clock: -> { Event.stamp }, registry: nil)
         @client = client
         @clock = clock
         @registry = registry
@@ -63,7 +66,8 @@ module Hecks
       def dispatch(verb, to: nil, with: nil)
         return dispatch_flat(verb, with || {}) unless to
 
-        exclusively(verb) { settle(verb, @client.call("verb" => verb, "to" => to, "with" => with || {})) }
+        step = { "verb" => verb, "to" => to, "with" => with || {} }.merge(caller_fields)
+        exclusively(verb) { settle(verb, @client.call(step)) }
       end
 
       # @param verb [String] a qualified command
@@ -72,7 +76,7 @@ module Hecks
       # @raise [Refused] when the kernel refuses
       # @raise [NestedDispatch] when called while another dispatch is open
       def dispatch_flat(verb, args = {})
-        exclusively(verb) { settle(verb, @client.dispatch(verb, args)) }
+        exclusively(verb) { settle(verb, @client.dispatch(verb, args, caller: caller_fields)) }
       end
 
       # Answers whether a command would succeed now, without saving, emitting or reacting.
@@ -82,7 +86,7 @@ module Hecks
       # @return [true] whenever the kernel refuses nothing
       # @raise [StandardError] the `Runtime::DOMAIN_REFUSALS` class the kernel names, else {Refused}
       def dry_run?(verb, **args)
-        answer = exclusively(verb) { @client.call("dry_run" => verb, "args" => args) }
+        answer = exclusively(verb) { @client.call({ "dry_run" => verb, "args" => args }.merge(caller_fields)) }
         raise Refusals.from_dry_run(answer) unless answer["ok"]
 
         true
@@ -112,7 +116,7 @@ module Hecks
 
         announced = answer.fetch("events").map { |wire| rebuild(wire) }
         @events.concat(announced)
-        Result.new(verb: verb, events: announced)
+        Result.new(verb: verb, events: announced, id: announced.first&.id)
       end
 
       def rebuild(wire)
