@@ -344,7 +344,7 @@ Hecks.bluebook "Agents" do
              purpose: "You judge a submission against its work item; you do not repair it. You are given a branch; its tip is the commit you were started for and your run key. Your tier, and the domains and bluebooks the commit touches, are the review's: read them with `exe/hecks SubmissionReview.of_submission submission.value=<your run key>`.",
              steps: "1. **Find what is left to review.** Your brief is the branch and your working directory is its worktree; the primary checkout is that path up to `/.claude/worktrees/`, and it outlives the worktree, so run git there (`git -C <primary> ...`). If your working directory is gone, the branch no longer exists, or its tip is on main (`git -C <primary> merge-base --is-ancestor <branch> main`), the branch has landed and the landing ran the quick gate and the impacted specs: stop and close with `landed`.\n2. **Read the change and its brief, nothing else.** Check out nothing. Read `git -C <primary> diff main...<branch>` and the work item's brief (`exe/hecks tickets Work.show work=<branch>`). Never read the coder's report or its transcript: you judge the change, not what was said about it.\n3. **Run the behaviors and the model check.** For each domain the review lists in `domains` run `exe/hecks Operation.run_behaviors! run.value=<run key>-behaviors-<n> subject.value=<the domain> --wait`, and for each in `bluebooks` `exe/hecks ModelCheckRun.model_check! run.value=<run key>-model-check-<n> domains.value=<the domain> --wait`; each run key names your run key, so it is of this commit. Cite every run, `exe/hecks SubmissionReview.cite! to=<run key> kind.value=behaviors run.value=<its key> --wait` (`kind.value=model_check` for a model check): the kept record, not your words, says how it ended. Both must come back clean. A touched domain with no `.behaviors` scenario that covers the change is `missing_behavior`: name the scenario to write (its domain, the command and the outcome it shows).\n4. **Run the affected specs through the launcher** in your working directory: `exe/hecks test_suite_run.run_impacted_specs! --wait`. For each failure decide: a **real bug** is a failure the change caused (the code is wrong and the spec is right); a **stale expectation** is a spec that encodes behaviour the change deliberately replaced. Read both the spec and the code, and quote the line that settles it.\n5. **Run only through the launcher; edit nothing.** Every check is an `exe/hecks` command. You never edit a file, never fix a bug and never run the whole suite (it runs only in CI). A push, a promotion, a release or a plan's confirmation is the owner's: name it in your report and never take it.\n6. **Say nothing you did not check.** If you could not run a check, or cannot tell which judgment a failure is, say so; do not guess.",
              rules: "",
-             handback: "List your evidence first: each run key of `Operation.run_behaviors!` and `ModelCheckRun.model_check!` with its domain and result, each failing spec with its line and your reason, and each missing scenario. Then end your report with exactly one of these words alone on the last line, so the board can read it: `landed` if the branch has landed, `real_bug` if any failure is a real bug, `missing_behavior` if a touched domain lacks a covering scenario, `stale_expectation` if every failure is a stale expectation, otherwise `clean` when every run you cited passed. A word anywhere else in the report is not read. `landed` ends the review and hands nothing to a person. A real bug goes to a person; you never fix it."
+             handback: "List your evidence first: each run key of `Operation.run_behaviors!` and `ModelCheckRun.model_check!` with its domain and result, each failing spec with its line and your reason, and each missing scenario. Then end your report with exactly one of these words alone on the last line, so the board can read it: `landed` if the branch has landed, `real_bug` if any failure is a real bug, `missing_behavior` if a touched domain lacks a covering scenario, `stale_expectation` if every failure is a stale expectation, otherwise `clean` when every run you cited passed. A word anywhere else in the report is not read. `landed` ends the review and routes nothing. A real bug goes to a coder on the same branch; you never fix it."
       member role: "architect",
              description: "Reviews a plan against domain-driven design, Hecks conventions and hexagonal architecture. Give it a plan (text or a file path) before building. It reads the bluebooks and adapters the plan touches, runs Hecks checks through the restricted door, and returns ranked findings with evidence. It cannot edit files or run a shell; it advises.",
              tools: "Read, Grep, Glob, mcp__hecks",
@@ -1795,11 +1795,11 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The reviewer's verdict on a submitted commit, and the evidence it stands on. A real bug is never
-  # fixed by an agent on its own; it goes to a person. A clean verdict is counted from the kept run
-  # records the reviewer cites, never from its prose.
+  # The reviewer's verdict on a submitted commit, and the evidence it stands on. The reviewer never
+  # fixes what it finds: a finding goes to a coder by its `FindingRoute`. A clean verdict is counted
+  # from the kept run records the reviewer cites, never from its prose.
   aggregate "SubmissionReview" do
-    description "One verdict by the reviewer role on a submitted commit: asked as an event, scoped to the domains and bluebooks the commit touches, answered with clean, real_bug, stale_expectation or missing_behavior on the evidence of the kept behaviors and model_check runs it cites, and a real bug handed to a person."
+    description "One verdict by the reviewer role on a submitted commit: asked as an event, scoped to the domains and bluebooks the commit touches, answered with clean, real_bug, stale_expectation or missing_behavior on the evidence of the kept behaviors and model_check runs it cites, each finding routed to a coder."
 
     identified_by :submission
 
@@ -1978,7 +1978,7 @@ Hecks.bluebook "Agents" do
       attribute :findings, FindingsText, optional: true, sets: true
 
       # `landed` ends a review whose branch landed before it ran: the landing ran the gates, and
-      # it hands nothing to a person.
+      # nothing is routed.
       given("the judgment is one the reviewer gives") do
         judgment.value == "clean" || judgment.value == "real_bug" || judgment.value == "stale_expectation" ||
           judgment.value == "missing_behavior" || judgment.value == "landed"
@@ -2002,15 +2002,20 @@ Hecks.bluebook "Agents" do
       emits "SpecFailureJudged"
     end
 
-    # A real bug is not fixed by an agent's say-so. A person looks at it.
-    command "HandToPerson" do
+    # A finding a coder fixes, read back off the review's row so its route hears the work item and
+    # checkout on the event (`FindingRoute`).
+    command "Raise" do
       role "System"
-      goal "Hand a real bug to a person instead of letting an agent fix it"
+      goal "Raise a judged finding for its route, with the work item and checkout it was judged in"
 
       reference_to SubmissionReview
+      attribute :work,     WorkKey
+      attribute :repo,     RepoPath
       attribute :judgment, Judgment
 
-      emits "HandedToPerson"
+      given("the review names its work item") { work.to_s != "" }
+
+      emits "FindingRaised"
     end
 
     query "Reviews" do
@@ -2052,15 +2057,196 @@ Hecks.bluebook "Agents" do
                                                status: :status, scenarios: :scenarios }
     end
 
+    policy "RaiseTheFinding" do
+      on       "SubmissionReview.SpecFailureJudged"
+      where    { judgment.value == "real_bug" || judgment.value == "missing_behavior" || judgment.value == "stale_expectation" }
+      for_each "SubmissionReview.OfSubmission"
+      trigger  SubmissionReview::Raise, with: { submission: :submission, work: :work, repo: :repo, judgment: :judgment }
+    end
+
     policy "DeclineTheUnkeptRun" do
       on      "SubmissionReview.RunUnkept"
       trigger SubmissionReview::Decline, with: { submission: :submission, reason: :refusal }
     end
 
-    policy "RealBugGoesToAPerson" do
-      on      "SubmissionReview.SpecFailureJudged"
+  end
+
+  # A finding goes to a coder on the same branch, never to a person. Each fix is a new tip, gated and
+  # reviewed again; a finding past the hop limit exhausts the route instead of starting a coder.
+  aggregate "FindingRoute" do
+    description "The findings of one work item's reviews, each sent to a coder run on the same branch, counted against the hop limit and exhausted at it."
+
+    identified_by :work
+
+    attribute :work,       RouteKey
+    attribute :rounds,     RoundCount, optional: true
+    attribute :judgment,   Judgment, optional: true
+    attribute :submission, JudgedCommit, optional: true
+    attribute :repo,       RepoPath, optional: true
+    attribute :reason,     ReasonText, optional: true
+
+    # The branch the reviewed commit is on, which is the work item's key.
+    value_object "RouteKey" do
+      attribute :value, String, matches: :present
+      invariant("a route names its work item") { !value.to_s.empty? }
+    end
+
+    # How many findings of the work item have gone to a coder.
+    value_object "RoundCount", Integer
+
+    # The reviewer's word for the finding: `real_bug`, `missing_behavior` or `stale_expectation`.
+    value_object "Judgment", String
+
+    # The commit the finding was judged on, which keys its review.
+    value_object "JudgedCommit", String
+
+    # The checkout the coder of the branch works in, where the fix coder works too.
+    value_object "RepoPath", String
+
+    # What the fix coder is told: the one step its kind of finding asks for.
+    value_object "BriefText", String
+
+    # Why the route was exhausted, as the work item is planned again with it.
+    value_object "ReasonText" do
+      attribute :value, String, matches: :present
+    end
+
+    # The first finding of a work item opens its route, with no rounds counted yet.
+    command "Open" do
+      role "System"
+      goal "Open the route of a work item's first finding"
+
+      attribute :work,       RouteKey, sets: true
+      attribute :judgment,   Judgment, sets: true
+      attribute :submission, JudgedCommit, sets: true
+      attribute :repo,       RepoPath, sets: true
+
+      sets :rounds, to: 0
+
+      emits "RouteOpened"
+    end
+
+    # A finding under the hop limit is counted as one more round; past it, `Exhaust` passes instead.
+    command "Count" do
+      role "System"
+      goal "Count a finding of the work item as one more round sent to a coder"
+
+      reference_to FindingRoute
+      attribute :judgment,   Judgment, sets: true
+      attribute :submission, JudgedCommit, sets: true
+      attribute :repo,       RepoPath, sets: true
+
+      given("the route is under the hop limit") { rounds == nil || rounds.value < 3 }
+
+      sets :rounds, increment: { value: 1 }
+
+      emits "RouteCounted"
+    end
+
+    # The counted finding goes to a coder: the event the Hecks domain starts the coder's run on.
+    command "Send" do
+      role "System"
+      goal "Send a counted finding to a coder run on the same branch and checkout"
+
+      reference_to FindingRoute
+      attribute :judgment, Judgment
+      attribute :repo,     RepoPath
+      attribute :brief,    BriefText
+
+      given("the finding is one a coder fixes") do
+        judgment.value == "real_bug" || judgment.value == "missing_behavior" || judgment.value == "stale_expectation"
+      end
+      given("the brief says something") { !brief.value.to_s.strip.empty? }
+
+      emits "FindingRouted"
+    end
+
+    # The hop limit is reached: no coder is started, and the work item is planned again with the
+    # reason, so the landing of this branch does not go on.
+    command "Exhaust" do
+      role "System"
+      goal "End a route that reached the hop limit, so its work item is planned again with the reason"
+
+      reference_to FindingRoute
+      attribute :reason, ReasonText, sets: true
+
+      given("the route reached the hop limit") { rounds != nil && rounds.value >= 3 }
+
+      emits "FindingsExhausted"
+    end
+
+    query "Routes" do
+      description "Every work item's finding route: the rounds sent to a coder, the last judgment and the commit it was judged on."
+      order_by :work
+    end
+
+    # Declared first, so the finding that takes a route to the hop limit is still sent to a coder and
+    # only the next one exhausts it; a first finding finds no route and is refused.
+    policy "ExhaustTheRoute" do
+      on       "SubmissionReview.FindingRaised"
+      trigger  FindingRoute::Exhaust,
+               with: { work: :work,
+                       reason: "review loop: the reviewer's findings on this branch reached the hop limit after three " \
+                               "coder fixes, so no coder is started again and the landing does not go on. Read the " \
+                               "last review with exe/hecks agents SubmissionReview.reviews before planning a fix." }
+    end
+
+    # After the exhaust, before the open: a first finding finds no route here and is counted from
+    # `RouteOpened`; a later one is counted here and the open refused.
+    policy "CountTheFinding" do
+      on       "SubmissionReview.FindingRaised"
+      trigger  FindingRoute::Count, with: { work: :work, judgment: :judgment, submission: :submission, repo: :repo }
+    end
+
+    policy "OpenTheRoute" do
+      on       "SubmissionReview.FindingRaised"
+      trigger  FindingRoute::Open, with: { work: :work, judgment: :judgment, submission: :submission, repo: :repo }
+    end
+
+    policy "CountTheFirstFinding" do
+      on      "FindingRoute.RouteOpened"
+      trigger FindingRoute::Count, with: { work: :work, judgment: :judgment, submission: :submission, repo: :repo }
+    end
+
+    # A real bug: a coder fixes it on the same branch, reading the reviewer's findings.
+    policy "SendARealBugToACoder" do
+      on      "FindingRoute.RouteCounted"
       where   { judgment.value == "real_bug" }
-      trigger SubmissionReview::HandToPerson, with: { submission: :submission, judgment: :judgment }
+      trigger FindingRoute::Send,
+              with: { work: :work, judgment: :judgment, repo: :repo,
+                      brief: "A reviewer judged this branch's tip real_bug. Read its findings with exe/hecks agents " \
+                             "SubmissionReview.of_submission submission.value=<this branch's tip> through the main " \
+                             "checkout's launcher. Fix the bug they name on this same branch, in this checkout, and " \
+                             "nothing else. Run the specs the fix touches through the launcher, commit, and end your " \
+                             "report with the word submitted, so the new tip is gated and reviewed again." }
+    end
+
+    # A missing behavior: the coder's one step is to write the scenario, which lands with the change.
+    policy "SendAMissingBehaviorToACoder" do
+      on      "FindingRoute.RouteCounted"
+      where   { judgment.value == "missing_behavior" }
+      trigger FindingRoute::Send,
+              with: { work: :work, judgment: :judgment, repo: :repo,
+                      brief: "A reviewer judged this branch's tip missing_behavior. Your one step: write the behavior. " \
+                             "Read the missing scenario and the domain it names in the review's findings, with " \
+                             "exe/hecks agents SubmissionReview.of_submission submission.value=<this branch's tip> " \
+                             "through the main checkout's launcher. Write that scenario into the domain's .behaviors " \
+                             "on this same branch, in this checkout, so it lands with the change; run it with " \
+                             "exe/hecks Operation.run_behaviors! on the domain, commit, and end your report with the " \
+                             "word submitted." }
+    end
+
+    # A stale expectation: the coder edits only the stale spec, in place.
+    policy "SendAStaleExpectationToACoder" do
+      on      "FindingRoute.RouteCounted"
+      where   { judgment.value == "stale_expectation" }
+      trigger FindingRoute::Send,
+              with: { work: :work, judgment: :judgment, repo: :repo,
+                      brief: "A reviewer judged this branch's tip stale_expectation. Read the stale spec it names in " \
+                             "its findings, with exe/hecks agents SubmissionReview.of_submission submission.value=<this " \
+                             "branch's tip> through the main checkout's launcher. Edit only that spec, so it expects " \
+                             "the behavior the change made on purpose, and touch no other file. Run it through the " \
+                             "launcher, commit on this same branch, and end your report with the word submitted." }
     end
   end
 

@@ -142,12 +142,12 @@ RSpec.describe "a plan review request starting the architect's session" do
     expect(launch("agent_run.running").first.to_s).to include("abc9001")
   end
 
-  it "records the reviewer's judgment, and hands a real bug to a person", :aggregate_failures do
+  it "records the reviewer's judgment, and raises a real bug for its route to a coder", :aggregate_failures do
     submit("w-bug", "abc9002")
     close_job("The failing spec is wrong code, not a stale expectation.\n\nreal_bug")
     launch("agent_run.check!", "to=abc9002", "--wait")
     expect(launch("agents", "SubmissionReview.reviews").first.to_s).to include("abc9002", "real_bug")
-    expect(reactions("RealBugGoesToAPerson").last[:delivered]).to be(true)
+    expect(reactions("RaiseTheFinding").last[:delivered]).to be(true)
   end
 
   it "records a missing behavior with the reviewer's report as its findings" do
