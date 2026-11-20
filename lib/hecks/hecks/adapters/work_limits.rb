@@ -5,6 +5,8 @@ require_relative "console_capture"
 require_relative "work_slots"
 require_relative "moving_cap"
 require_relative "dispatching/work_items"
+require_relative "dispatching/admission_switch"
+require_relative "dispatching/admitting"
 
 module Hecks
   module Adapters
@@ -26,8 +28,10 @@ module Hecks
 
       # @param registry [Runtime::Registry, nil] the booted registry whose Work items are read
       # @param aggregate [Object, nil] unused
-      def initialize(registry: nil, aggregate: nil)
+      # @param settings [Hash] `admitting:` stands in for Signalbox's admission
+      def initialize(registry: nil, aggregate: nil, settings: {})
         @registry = registry
+        @settings = settings
       end
 
       # The cap on started work items: the moving cap's place while the owner has it move
@@ -68,7 +72,8 @@ module Hecks
         !declared || declared[:roll_forward] != false
       end
 
-      # Clears a just-started work item against the owner's switch and the cap.
+      # Clears a just-started work item against the owner's switch and the cap, or with the
+      # `admission.signalbox` switch on against Signalbox's admission by headroom.
       #
       # @param held [Hash] the Work item: `work`
       # @return [Hash{Symbol => Hash}] `output:` the line that says the cap holds
@@ -78,6 +83,13 @@ module Hecks
         raise ConsoleCapture::Failure, "new work is stopped: #{SWITCH} is off" unless self.class.switch_on?(@registry)
 
         key = plain(held[:work])
+        Dispatching::AdmissionSwitch.on?(@registry) ? admitted(key) : within_cap(key)
+      end
+
+      private
+
+      # The cap and the red reserve, as {WorkSlots} holds them.
+      def within_cap(key)
         holders = started
         item = holders.find { |candidate| candidate.key == key }
         limit = self.class.cap(@registry)
@@ -86,7 +98,19 @@ module Hecks
         { output: { value: "#{key} is within the cap of #{limit} (#{holders.size} started)" } }
       end
 
-      private
+      # The item is put to Signalbox as a fill puts it, its own run not counted against the ramp.
+      def admitted(key)
+        item = started.find { |candidate| candidate.key == key }
+        reason = item && admitting.reason(item)
+        raise ConsoleCapture::Failure, "#{key} is not admitted: #{reason}" if reason
+
+        { output: { value: "#{key} is admitted by #{admitting.clause}" } }
+      end
+
+      def admitting
+        @admitting ||= @settings[:admitting] ||
+                       Dispatching::Admitting.new(runs: Dispatching::WorkItems.new(@registry).runs, now: Time.now)
+      end
 
       def started
         StartedWork.items(@registry).map do |item|
