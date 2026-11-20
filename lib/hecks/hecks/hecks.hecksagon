@@ -416,6 +416,13 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RunKey
       attribute :landed, Word
       attribute :checkout, Word
+      # The failing examples of a red train (`spec/x_spec.rb:12`, comma separated), each the test of
+      # its own search; absent for a failed verification, which names its failing spec files itself.
+      attribute :examples, Report, optional: true
+      # Carried onto the answer: what the red-train Work item names when no landing is found.
+      attribute :work_key, Report, optional: true
+      attribute :title, Report, optional: true
+      attribute :cause, Report, optional: true
       answers "BisectAnswered"
       refuses "BisectRefused"
     end

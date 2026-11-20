@@ -86,11 +86,11 @@ Hecks.bluebook "Hecks" do
                ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
-        # A rerun does not close the line; an exhaust does, and any later merge settles it (`TrainPr`
-        # records no pass), even an unrelated one. A failed rerun exhausts under a new key, so this
-        # line still files and its move stops.
+        # A rerun does not close the line; an exhaust or a search does, and any later merge settles it
+        # (`TrainPr` records no pass), even an unrelated one. A failed rerun exhausts or is searched
+        # under a new key, so this line still files and its move stops.
         member kind: "train-pr-red", aggregate: "Hecks::TrainPr", opens: "TrainPrFailed",
-               closes: "TrainPrExhausted", minutes: 30, forgets: 1440, fixer: "orchestrator",
+               closes: "TrainPrExhausted,TrainPrSearched", minutes: 30, forgets: 1440, fixer: "orchestrator",
                settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed", settled_on: "any",
                move: "The failed jobs were rerun already; read the PR (gh pr view <pr> --json state,statusCheckRollup). " \
                      "If a later attempt was exhausted (a red-train-<pr> work item exists), report that and stop. A PR " \
