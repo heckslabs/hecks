@@ -23,7 +23,7 @@ RSpec.describe "Work area names" do
   def row(key)
     aggregate = hecks.registry.bluebook("Tickets").aggregate("Work")
     work = hecks.registry.repository("Tickets", aggregate).all.find { |item| field(item, :work) == key }
-    { "status" => field(work, :status), "reason" => field(work, :reason) }
+    { "status" => field(work, :status), "reason" => field(work, :reason), "area" => field(work, :area) }
   end
 
   def field(record, name) = Hecks::Adapters::StartedWork.value(record, name).to_s
@@ -67,5 +67,20 @@ RSpec.describe "Work area names" do
     cli("work.start!", "to=names/f", "claimed_by.value=s", "claimed_at.value=2026-10-31T09:00:00Z")
     cli("work.rescope!", "to=names/f", "area.value=lib/no/such/dir")
     expect(row("names/f")["status"]).to eq("started")
+  end
+
+  # The refusal is Misname's given, so the rescope itself stands.
+  it "rescopes a started item to a word that names nothing" do
+    plan("names/g", "lib/hecks/tickets")
+    cli("work.start!", "to=names/g", "claimed_by.value=s", "claimed_at.value=2026-10-31T09:00:00Z")
+    cli("work.rescope!", "to=names/g", "area.value=lib/no/such/dir")
+    expect(row("names/g")["area"]).to include("lib/no/such/dir")
+  end
+
+  # A new directory is named by the directory that holds it, a new aggregate by its file alone.
+  it "drops a planned item naming a new directory or a new aggregate's section", :aggregate_failures do
+    work = plan("names/h", "lib/hecks/brand_new/thing.rb", "lib/hecks/tickets/bluebook/tickets.bluebook#NewAgg")
+
+    expect(work["reason"]).to include("lib/hecks/brand_new/thing.rb", "tickets.bluebook#NewAgg")
   end
 end
