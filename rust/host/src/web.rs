@@ -3072,7 +3072,7 @@ mod tests {
         let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir: Value = serde_json::from_str(
             &std::fs::read_to_string(crate::test_dist::dist_file("banking.ir.json"))
-                .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
+                .expect("hecks Build.build_wasm! writes banking.ir.json beside the wasm"),
         )
         .expect("valid IR");
         let lineage = LineageConfig {
@@ -3116,7 +3116,7 @@ mod tests {
         let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir: Value = serde_json::from_str(
             &std::fs::read_to_string(crate::test_dist::dist_file("banking.ir.json"))
-                .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
+                .expect("hecks Build.build_wasm! writes banking.ir.json beside the wasm"),
         )
         .expect("valid IR");
         let lineage = LineageConfig {

@@ -388,8 +388,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   end
 
   NO_EDGE_REFUSAL = "cannot boot Ledger: the shape changed (era 2) and no translation edge covers it — " \
-                    "run hecks scaffold_translation to write the edge, check it with hecks audit_translation, " \
-                    "then boot again".freeze
+                    "run hecks SchemaRevision.scaffold_translation domain.value=… to write the edge, check it with " \
+                    "hecks SchemaRevision.audit_translation domain.value=…, then boot again".freeze
 
   UNEXPLAINED_LEGACY_NOTE = /
     cannot\ boot\ Ledger::Account:\ its\ shape\ changed\ and\ :legacy_note\ is\ not\ explained\ by\ any
@@ -809,7 +809,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   end
 
   MERGE_CONFLICT_REFUSAL = "cannot merge the tail of Ledger: touched by both worlds since the cut — account#a1. " \
-                           "Name each winner (--winner <id>=old or --winner <id>=new), then run hecks merge_tail again. " \
+                           "Name each winner as <id>:old or <id>:new, then run " \
+                           "hecks SchemaRevision.merge_tail! domain.value=… winners.value=<id>:old,<id>:new again. " \
                            "A winner takes the WHOLE record — the aggregate is the consistency boundary, so the " \
                            "loser's edits are discarded even where they touched different attributes".freeze
 

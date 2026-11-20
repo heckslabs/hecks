@@ -44,6 +44,15 @@ module Hecks
         patterns.flat_map { |pattern| text.scan(pattern).flatten }.filter_map { |rest| call(rest, number, line) }
       end
 
+      # The leading words of a line that spell a launcher name, after the flags before it.
+      #
+      # @param rest [String] the text after the launcher's name
+      # @return [Array<String>] at most three words, punctuation cut off
+      def words(rest)
+        tokens = rest.split.drop_while { |token| token.start_with?("-") }
+        tokens.map { |token| token.sub(TRAILING, "") }.take_while { |token| token.match?(NAME) }.first(3)
+      end
+
       private
 
       def patterns
@@ -55,12 +64,6 @@ module Hecks
       def call(rest, number, line)
         words = words(rest)
         Call.new(number, line.strip, words) unless words.empty?
-      end
-
-      # The leading words of a line that spell a launcher name, after the flags before it.
-      def words(rest)
-        tokens = rest.split.drop_while { |token| token.start_with?("-") }
-        tokens.map { |token| token.sub(TRAILING, "") }.take_while { |token| token.match?(NAME) }.first(3)
       end
     end
   end

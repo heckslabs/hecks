@@ -56,7 +56,7 @@ module Hecks
           end
 
           warn "project_site: out of date: #{stale.map { |path| display(path, project) }.join(", ")} " \
-               "(run hecks site site_projection.project_site)"
+               "(run hecks site SiteProjection.project_site! domain.value=…)"
           1
         end
 
