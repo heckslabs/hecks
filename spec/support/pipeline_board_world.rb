@@ -74,6 +74,13 @@ module PipelineBoardWorld
     File.write(File.join(base, id, "state.json"), JSON.generate("state" => state, "detail" => detail))
   end
 
+  # A board whose readers cannot answer, but for the ones given: each of the rest raises, so its
+  # sections read as unknown.
+  def silent_board(root, readers)
+    silent = %i[github git journal fill disk boots trains integration].to_h { |name| [name, Object.new] }
+    Hecks::Adapters::PipelineStages.new(root: root, settings: { readers: silent.merge(readers), now: -> { NOW } })
+  end
+
   def work_items
     [{ slug: "a", status: "planned", title: "A", area: [], claimed_by: "", claimed_at: "" },
      { slug: "b", status: "started", title: "B", area: [], claimed_by: "s1", claimed_at: "x" },

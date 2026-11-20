@@ -19,9 +19,9 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanTile do
 
       define_method(:initialize) do
         @tickets = Struct.new(:runs, :epics, :work_times) do
-          def open_work = { text: JSON.generate([{ slug: "open-one", title: "T", status: "planned" }]) }
+          def undone_work = [{ slug: "open-one", title: "T", status: "planned" }]
         end.new(held, [], {})
-        @jobs = Struct.new(:sessions).new({ text: "[]" })
+        @jobs = Struct.new(:rows).new([])
         @fill = Struct.new(:preview).new({ would_start: [], skipped: [] })
         @now = -> { Time.utc(2026, 11, 16, 12) }
         @root = "."

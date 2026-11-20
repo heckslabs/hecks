@@ -72,10 +72,13 @@ module Hecks
           reading = RedReading.new(runs, flag, now)
           return red_tile(reading) if reading.flagged?
           return running_red(runs.last) unless runs.last[:status] == "completed"
-          return tile("red", "Main red for", 0, "h", detail: "main is green") if runs.last[:conclusion] == "success"
+          return green_tile if Hecks::CheckConclusion.clean?(runs.last[:conclusion])
 
           red_tile(reading)
         end
+
+        # The newest run ended in a conclusion the `CheckConclusion` rows call clean.
+        def green_tile = tile("red", "Main red for", 0, "h", detail: "main is green")
 
         def red_tile(reading)
           hours = reading.minutes && (reading.minutes / 60.0).round(1)
