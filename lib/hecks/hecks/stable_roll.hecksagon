@@ -1,0 +1,12 @@
+# StableRoll's port, beside hecks.hecksagon: same-name blocks merge, and every bluebook loads first.
+# Deploy loads here without deploy.hecksagon, so the ask a roll that follows stable makes of the box
+# is restated as that file declares it. The adapter beside the Deploy bluebook answers it.
+Hecks.hecksagon "Hecks" do
+  Deploy::StableRoll.port "BoxState" do
+    asks "ReadBox", to: StableRoll do
+      attribute :run, RunKey
+      answers "BoxRead"
+      refuses "BoxUnreadable"
+    end
+  end
+end
