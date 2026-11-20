@@ -14,17 +14,17 @@ RSpec.describe Hecks::Adapters::MachineSampling::History do
     expect(states).to eq(load: "above", memory: "low", lane: "idle")
   end
 
-  it "scans 10,000 readings in Memory well inside the minute between readings" do
+  it "scans 10,000 readings in Memory well inside the minute between readings", :wall_clock do
     held = history_over(10_000)
 
-    expect(elapsed_ms { held.states }).to be < 60_000
+    expect_wall_clock(elapsed_ms { held.states }, under: 60_000)
   end
 
-  it "scans 10,000 readings over SQLite inside the minute between readings" do
+  it "scans 10,000 readings over SQLite inside the minute between readings", :wall_clock do
     Dir.mktmpdir do |dir|
       held = sqlite_history_over(10_000, dir)
 
-      expect(elapsed_ms { held.states }).to be < 60_000
+      expect_wall_clock(elapsed_ms { held.states }, under: 60_000)
     end
   end
 end
