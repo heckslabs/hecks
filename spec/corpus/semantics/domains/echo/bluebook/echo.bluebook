@@ -88,6 +88,132 @@ Hecks.bluebook "Echo" do
     end
   end
 
+  # One level below the bound (C10.4): a strike sets off four reactions, so Burnt comes at depth
+  # four; the Blow it dispatches runs fifth and is refused (a fuse blows only unarmed), so the saga
+  # unwinds under the ceiling and its Unprime and Scrap still run.
+  aggregate "Fuse" do
+    identified_by :name
+
+    attribute :name, Name
+
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "laid" do
+      transition "Arm"  => "armed", from: "laid"
+      transition "Blow" => "blown", from: "laid"
+      mark :rests, "laid"
+      mark :terminal, "armed", "blown"
+    end
+
+    command "Lay" do
+      goal "Lay a fuse"
+      attribute :name, Name
+      emits "FuseLaid"
+    end
+
+    command "Arm" do
+      goal "Arm a fuse"
+      reference_to Fuse
+      emits "Armed"
+    end
+
+    command "Prime" do
+      goal "Prime an armed fuse"
+      reference_to Fuse
+      emits "Primed"
+    end
+
+    command "Unprime" do
+      goal "Take back a priming"
+      reference_to Fuse
+      emits "Unprimed"
+    end
+
+    command "Strike" do
+      goal "Strike a fuse, which sparks, hisses, glows and burns"
+      reference_to Fuse
+      emits "Struck"
+    end
+
+    command "Spark" do
+      goal "Spark a struck fuse"
+      reference_to Fuse
+      emits "Sparked"
+    end
+
+    command "Hiss" do
+      goal "Hiss a sparked fuse"
+      reference_to Fuse
+      emits "Hissed"
+    end
+
+    command "Glow" do
+      goal "Glow a hissing fuse"
+      reference_to Fuse
+      emits "Glowed"
+    end
+
+    command "Burn" do
+      goal "Burn a glowing fuse"
+      reference_to Fuse
+      emits "Burnt"
+    end
+
+    command "Blow" do
+      goal "Blow a fuse that was never armed"
+      reference_to Fuse
+      emits "Blown"
+    end
+
+    command "Scrap" do
+      goal "Scrap a fuse that would not blow"
+      reference_to Fuse
+      emits "Scrapped"
+    end
+
+    policy "SparkOnStrike" do
+      on      "Struck"
+      trigger Fuse::Spark
+    end
+
+    policy "HissOnSpark" do
+      on      "Sparked"
+      trigger Fuse::Hiss
+    end
+
+    policy "GlowOnHiss" do
+      on      "Hissed"
+      trigger Fuse::Glow
+    end
+
+    policy "BurnOnGlow" do
+      on      "Glowed"
+      trigger Fuse::Burn
+    end
+  end
+
+  process_manager "Charge" do
+    correlates_by :"name.value"
+    starts_on "FuseLaid"
+    ends_on   "Scrapped"
+
+    transition "Armed" => "armed", from: "laid" do
+      dispatch Fuse::Prime, with: { fuse: :name } do
+        compensates Fuse::Unprime, with: { fuse: :name }
+      end
+    end
+
+    transition "Burnt" => "burning", from: "armed" do
+      dispatch Fuse::Blow, with: { fuse: :name }
+    end
+
+    transition :refused => "fizzled", from: "burning" do
+      dispatch Fuse::Scrap, with: { fuse: :name }
+    end
+  end
+
   process_manager "Watch" do
     correlates_by :"name.value"
     starts_on "LampInstalled"

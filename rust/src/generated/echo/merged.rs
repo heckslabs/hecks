@@ -15,6 +15,7 @@ use crate::kernel::Repository;
 pub struct Store {
     pub beacon: crate::kernel::InMemoryRepository<crate::generated::echo::beacon::Beacon>,
     pub lamp: crate::kernel::InMemoryRepository<crate::generated::echo::lamp::Lamp>,
+    pub fuse: crate::kernel::InMemoryRepository<crate::generated::echo::fuse::Fuse>,
 }
 
 impl Store {
@@ -22,6 +23,7 @@ impl Store {
         Self {
             beacon: crate::kernel::InMemoryRepository::new(),
             lamp: crate::kernel::InMemoryRepository::new(),
+            fuse: crate::kernel::InMemoryRepository::new(),
         }
     }
 
@@ -37,6 +39,9 @@ impl Store {
         }
         for (id, record) in self.lamp.entries() {
             instances.push((format!("{}{}", "Echo::Lamp#", id), record.to_json()));
+        }
+        for (id, record) in self.fuse.entries() {
+            instances.push((format!("{}{}", "Echo::Fuse#", id), record.to_json()));
         }
         instances
     }
@@ -62,6 +67,12 @@ impl Store {
                     store
                         .lamp
                         .save(id, crate::generated::echo::lamp::Lamp::from_json(value)?);
+                    continue;
+                }
+                if let Some(id) = key.strip_prefix("Echo::Fuse#") {
+                    store
+                        .fuse
+                        .save(id, crate::generated::echo::fuse::Fuse::from_json(value)?);
                     continue;
                 }
             }
@@ -97,6 +108,14 @@ impl crate::kernel::AggregateScan for Store {
                     .collect(),
             );
         }
+        if aggregate == "Echo::Fuse" {
+            return Some(
+                self.fuse
+                    .json_entries(|record| record.to_json())
+                    .map(|(id, json)| (id.clone(), json.clone()))
+                    .collect(),
+            );
+        }
         None
     }
 
@@ -113,6 +132,12 @@ impl crate::kernel::AggregateScan for Store {
         }
         if aggregate == "Echo::Lamp" {
             for (id, json) in self.lamp.json_entries(|record| record.to_json()) {
+                visit(id, json);
+            }
+            return true;
+        }
+        if aggregate == "Echo::Fuse" {
+            for (id, json) in self.fuse.json_entries(|record| record.to_json()) {
                 visit(id, json);
             }
             return true;
@@ -756,6 +781,865 @@ pub fn dispatch_by_name(
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
+        "Echo::Fuse.Lay" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::LayArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::LayArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::LayArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::LayArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::LayArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::LayArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::LayArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::LayArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::LayArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::LayArgs| Ok(()),
+                    },
+                )?
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref = Vec::new();
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_lay(
+                &mut store.fuse,
+                route,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Arm" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::ArmArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::ArmArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::ArmArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::ArmArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::ArmArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::ArmArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::ArmArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::ArmArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::ArmArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::ArmArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Arm",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_arm(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Prime" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::PrimeArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::PrimeArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::PrimeArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::PrimeArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::PrimeArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::PrimeArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::PrimeArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::PrimeArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::PrimeArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::PrimeArgs| Ok(()),
+                        },
+                    )?
+                };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Prime",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_prime(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Unprime" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::echo::fuse::UnprimeArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::UnprimeArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::UnprimeArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::UnprimeArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::UnprimeArgs| {
+                            Ok(())
+                        },
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::echo::fuse::UnprimeArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::UnprimeArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::UnprimeArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::UnprimeArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::UnprimeArgs| {
+                            Ok(())
+                        },
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Unprime",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_unprime(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Strike" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::StrikeArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::StrikeArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::StrikeArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::StrikeArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::StrikeArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::StrikeArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::StrikeArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::StrikeArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::StrikeArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::StrikeArgs| Ok(()),
+                        },
+                    )?
+                };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Strike",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_strike(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Spark" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::SparkArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::SparkArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::SparkArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::SparkArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::SparkArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::SparkArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::SparkArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::SparkArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::SparkArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::SparkArgs| Ok(()),
+                        },
+                    )?
+                };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Spark",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_spark(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Hiss" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::HissArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::HissArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::HissArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::HissArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::HissArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::HissArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::HissArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::HissArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::HissArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::HissArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Hiss",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_hiss(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Glow" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::GlowArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::GlowArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::GlowArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::GlowArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::GlowArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::GlowArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::GlowArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::GlowArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::GlowArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::GlowArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Glow",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_glow(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Burn" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::BurnArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::BurnArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::BurnArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::BurnArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::BurnArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::BurnArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::BurnArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::BurnArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::BurnArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::BurnArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Burn",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_burn(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Blow" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::BlowArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::BlowArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::BlowArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::BlowArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::BlowArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::fuse::BlowArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::fuse::BlowArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::fuse::BlowArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::fuse::BlowArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::fuse::BlowArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Blow",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_blow(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Fuse.Scrap" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::ScrapArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::ScrapArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::ScrapArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::ScrapArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::ScrapArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::fuse::ScrapArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::fuse::ScrapArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::fuse::ScrapArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::fuse::ScrapArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::fuse::ScrapArgs| Ok(()),
+                        },
+                    )?
+                };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::fuse::Fuse::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Scrap",
+                                aggregate: "Fuse",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Fuse", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::fuse::dispatch_scrap(
+                &mut store.fuse,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!(
             "unknown command {other:?}"
         ))),
@@ -790,8 +1674,11 @@ fn stamp_payload(
         .collect()
 }
 
-pub static REFERENCE_TABLE: crate::kernel::ReferenceTable =
-    &[("Echo::Beacon", &[]), ("Echo::Lamp", &[])];
+pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
+    ("Echo::Beacon", &[]),
+    ("Echo::Lamp", &[]),
+    ("Echo::Fuse", &[]),
+];
 
 impl crate::kernel::ReferenceLookup for Store {
     fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {
@@ -804,6 +1691,12 @@ impl crate::kernel::ReferenceLookup for Store {
         if target == "Echo::Lamp" {
             return self
                 .lamp
+                .find(id)
+                .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+        }
+        if target == "Echo::Fuse" {
+            return self
+                .fuse
                 .find(id)
                 .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
         }
@@ -834,12 +1727,99 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         with_spec: &[],
         where_expr: None,
     },
+    crate::kernel::PolicyRule {
+        policy_name: "SparkOnStrike",
+        event_name: "Struck",
+        event_qualifier: None,
+        target_verb: "Echo::Fuse.Spark",
+        for_each: None,
+        for_each_key: None,
+        root: false,
+        with_spec: &[],
+        where_expr: None,
+    },
+    crate::kernel::PolicyRule {
+        policy_name: "HissOnSpark",
+        event_name: "Sparked",
+        event_qualifier: None,
+        target_verb: "Echo::Fuse.Hiss",
+        for_each: None,
+        for_each_key: None,
+        root: false,
+        with_spec: &[],
+        where_expr: None,
+    },
+    crate::kernel::PolicyRule {
+        policy_name: "GlowOnHiss",
+        event_name: "Hissed",
+        event_qualifier: None,
+        target_verb: "Echo::Fuse.Glow",
+        for_each: None,
+        for_each_key: None,
+        root: false,
+        with_spec: &[],
+        where_expr: None,
+    },
+    crate::kernel::PolicyRule {
+        policy_name: "BurnOnGlow",
+        event_name: "Glowed",
+        event_qualifier: None,
+        target_verb: "Echo::Fuse.Burn",
+        for_each: None,
+        for_each_key: None,
+        root: false,
+        with_spec: &[],
+        where_expr: None,
+    },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
-    &[crate::kernel::ProcessManagerDef {
+pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
+    crate::kernel::ProcessManagerDef {
+        name: "Charge",
+        correlates_by: "name.value",
+        starts_on: "FuseLaid",
+        ends_on: "Scrapped",
+        initial_state: "laid",
+        handlers: &[
+            crate::kernel::Handler {
+                event_type: "Armed",
+                from_state: "laid",
+                to_state: "armed",
+                dispatches: &[crate::kernel::DispatchSpec {
+                    command_name: "Fuse.Prime",
+                    with: &[("fuse", crate::kernel::WithValue::Ref("name"))],
+                    compensates: Some(&crate::kernel::DispatchSpec {
+                        command_name: "Fuse.Unprime",
+                        with: &[("fuse", crate::kernel::WithValue::Ref("name"))],
+                        compensates: None,
+                    }),
+                }],
+            },
+            crate::kernel::Handler {
+                event_type: "Burnt",
+                from_state: "armed",
+                to_state: "burning",
+                dispatches: &[crate::kernel::DispatchSpec {
+                    command_name: "Fuse.Blow",
+                    with: &[("fuse", crate::kernel::WithValue::Ref("name"))],
+                    compensates: None,
+                }],
+            },
+            crate::kernel::Handler {
+                event_type: "refused",
+                from_state: "burning",
+                to_state: "fizzled",
+                dispatches: &[crate::kernel::DispatchSpec {
+                    command_name: "Fuse.Scrap",
+                    with: &[("fuse", crate::kernel::WithValue::Ref("name"))],
+                    compensates: None,
+                }],
+            },
+        ],
+    },
+    crate::kernel::ProcessManagerDef {
         name: "Watch",
         correlates_by: "name.value",
         starts_on: "LampInstalled",
@@ -881,12 +1861,14 @@ pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
                 }],
             },
         ],
-    }];
+    },
+];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
         "Echo::Beacon" => Some("beacon"),
         "Echo::Lamp" => Some("lamp"),
+        "Echo::Fuse" => Some("fuse"),
         _ => None,
     }
 }
@@ -901,6 +1883,17 @@ pub fn command_creates(verb: &str) -> bool {
         "Echo::Lamp.Mark" => false,
         "Echo::Lamp.Unmark" => false,
         "Echo::Lamp.Retire" => false,
+        "Echo::Fuse.Lay" => true,
+        "Echo::Fuse.Arm" => false,
+        "Echo::Fuse.Prime" => false,
+        "Echo::Fuse.Unprime" => false,
+        "Echo::Fuse.Strike" => false,
+        "Echo::Fuse.Spark" => false,
+        "Echo::Fuse.Hiss" => false,
+        "Echo::Fuse.Glow" => false,
+        "Echo::Fuse.Burn" => false,
+        "Echo::Fuse.Blow" => false,
+        "Echo::Fuse.Scrap" => false,
         _ => false,
     }
 }
@@ -909,6 +1902,7 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Echo::Beacon" => Some("name"),
         "Echo::Lamp" => Some("name"),
+        "Echo::Fuse" => Some("name"),
         _ => None,
     }
 }
@@ -929,6 +1923,17 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Echo::Lamp.Mark" => &[],
         "Echo::Lamp.Unmark" => &[],
         "Echo::Lamp.Retire" => &[],
+        "Echo::Fuse.Lay" => &["name"],
+        "Echo::Fuse.Arm" => &[],
+        "Echo::Fuse.Prime" => &[],
+        "Echo::Fuse.Unprime" => &[],
+        "Echo::Fuse.Strike" => &[],
+        "Echo::Fuse.Spark" => &[],
+        "Echo::Fuse.Hiss" => &[],
+        "Echo::Fuse.Glow" => &[],
+        "Echo::Fuse.Burn" => &[],
+        "Echo::Fuse.Blow" => &[],
+        "Echo::Fuse.Scrap" => &[],
         _ => &[],
     }
 }
@@ -958,6 +1963,7 @@ pub fn present(aggregate: &str, state: crate::kernel::Json) -> crate::kernel::Js
     match aggregate {
         "Echo::Beacon" => crate::generated::echo::beacon::present(state),
         "Echo::Lamp" => crate::generated::echo::lamp::present(state),
+        "Echo::Fuse" => crate::generated::echo::fuse::present(state),
         _ => state,
     }
 }
