@@ -1,0 +1,138 @@
+# Docs: a documentation page as a domain. A page is made of regions, in the order they are read,
+# and each region says where its words come from: projected from a named bluebook or its IR,
+# doctested by an example that is booted and asserted, or prose that a person writes.
+#
+# A page stands live or frozen, as it is declared. A live page is one the docs gate checks region
+# by region against its source; a frozen page (an audit, an archived plan, a PRD, a wayfinder note)
+# is kept as it was written and stays out of the gate.
+#
+# The bluebook names no file, clock or renderer. Reading a page from disk, booting an example and
+# comparing a projection are the work of whoever answers `Page.Live`.
+
+Hecks.bluebook "Docs" do
+  vision "A documentation page is made of regions, each projected from a bluebook, doctested by a booted example, or prose, and only a live page is held to its sources."
+  namespace "Hecks::Docs"
+
+  supporting
+
+  # One page of documentation, keyed by its path in the repository.
+  aggregate "Page" do
+    description "One documentation page: its path, title, whether it stands live or frozen, and its regions in reading order."
+    created_by "Page.declare!"
+
+    identified_by :path
+
+    attribute :path,     PagePath
+    attribute :title,    Title
+    attribute :standing, Standing
+    attribute :regions,  list_of(Region)
+
+    # A repository-relative Markdown path, such as `docs/query-dsl.md`.
+    value_object "PagePath" do
+      attribute :value, String, pattern: '^[^/].*[.]md$'
+    end
+
+    value_object "Title" do
+      attribute :value, String, matches: :present
+    end
+
+    # `live` is checked by the docs gate; `frozen` is kept as written and left out of it.
+    value_object "Standing" do
+      attribute :value, String, pattern: '^(live|frozen)$'
+    end
+
+    # The heading a region sits under, as the page spells it.
+    value_object "Anchor" do
+      attribute :value, String, matches: :present
+    end
+
+    # Where a region's words come from.
+    value_object "SourceKind" do
+      attribute :value, String, pattern: '^(projected|doctested|prose)$'
+    end
+
+    # What a projected region projects (a bluebook's name, or a path into its IR), or the example
+    # a doctested region boots. Empty for prose.
+    value_object "SourceRef" do
+      attribute :value, String, default: ""
+    end
+
+    # What a doctested example is asserted to show once booted. Empty for the other kinds.
+    value_object "Assertion" do
+      attribute :value, String, default: ""
+    end
+
+    # One region of a page, in the order the page is read.
+    value_object "Region" do
+      attribute :anchor,    Anchor
+      attribute :kind,      SourceKind
+      attribute :source,    SourceRef
+      attribute :assertion, Assertion
+    end
+
+    command "Declare" do
+      role "Maintainer"
+      goal "Write down one documentation page: where it lives, its title, and whether it stands live or frozen"
+
+      attribute :path,     PagePath
+      attribute :title,    Title
+      attribute :standing, Standing
+
+      sets :path
+      sets :title
+      sets :standing
+
+      emits "PageDeclared"
+    end
+
+    command "AddProjected" do
+      role "Maintainer"
+      goal "Add a region whose words are projected from a named bluebook or its IR"
+
+      reference_to Page
+      attribute :anchor, Anchor
+      attribute :source, SourceRef
+
+      given("a projected region names the bluebook or IR it projects") { source.value != "" }
+
+      sets :regions, append: { anchor: :anchor, kind: { value: "projected" }, source: :source, assertion: { value: "" } }
+
+      emits "ProjectedRegionAdded"
+    end
+
+    command "AddDoctested" do
+      role "Maintainer"
+      goal "Add a region whose words are an example that is booted and asserted"
+
+      reference_to Page
+      attribute :anchor,    Anchor
+      attribute :source,    SourceRef
+      attribute :assertion, Assertion
+
+      given("a doctested region names the example it boots") { source.value != "" }
+      given("a doctested region says what its example asserts") { assertion.value != "" }
+
+      sets :regions, append: { anchor: :anchor, kind: { value: "doctested" }, source: :source, assertion: :assertion }
+
+      emits "DoctestedRegionAdded"
+    end
+
+    command "AddProse" do
+      role "Maintainer"
+      goal "Add a region whose words a person writes, held to no source"
+
+      reference_to Page
+      attribute :anchor, Anchor
+
+      sets :regions, append: { anchor: :anchor, kind: { value: "prose" }, source: { value: "" }, assertion: { value: "" } }
+
+      emits "ProseRegionAdded"
+    end
+
+    query "Live" do
+      description "Every page that stands live, the ones the docs gate checks, by path."
+      where("standing.value": "live")
+      order_by :path
+    end
+  end
+end
