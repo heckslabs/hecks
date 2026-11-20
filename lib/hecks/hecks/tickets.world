@@ -82,6 +82,10 @@ Hecks.world "Tickets" do
   # world's `reaping` line keeps the windows the old sweep reads. Off, the plain sweep reaps.
   reaping "Sessions", signalbox: false
   epic_wip_limit "Dispatch", limit: 4
+  # `work_group_cap` is the most work items one batch holds, its lead included, when a fill hands a
+  # group to one coder (`only=group:<path>`), so one session stays reviewable; the rest of the group
+  # waits for the next batch. The batch is one session, so it takes one place under `work_limit`.
+  work_group_cap "Dispatch", cap: 6
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
   # `load_shed` bounds the Delegate `Shed`: a rise of the load asks one started item to yield.
   # `min_coders` 2: asking the only coder frees the machine for no other work. `at_once` 1: a
