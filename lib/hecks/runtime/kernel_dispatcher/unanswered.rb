@@ -23,6 +23,9 @@ module Hecks
         # @raise [NotAnswered] the kernel's `--serve` takes no query step yet
         def query_page(verb, **) = unanswered("query_page #{verb}", "--serve takes no query step")
 
+        # @raise [NotAnswered] the kernel's `--serve` takes no plan step yet
+        def plan_flat(verb, **) = unanswered("plan_flat #{verb}", "--serve takes no plan step")
+
         private
 
         def unanswered(what, why)

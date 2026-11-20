@@ -2,6 +2,7 @@ require "json"
 require_relative "mcp/stdio_entry"
 require_relative "mcp/tool_definitions"
 require_relative "mcp/loading"
+require_relative "mcp/call_boots"
 require_relative "mcp_scope"
 require_relative "mcp/roles"
 
@@ -43,6 +44,7 @@ module Hecks
         INVALID_REQUEST = "Invalid Request: one request object per line; batches are not supported".freeze
 
         extend Loading
+        extend CallBoots
         extend Roles
 
         module_function
@@ -83,7 +85,7 @@ module Hecks
         def boot(domain)
           framework!
           path = Storehouse.confine!(scope.admit_domain!(domain), "domain")
-          runtime = scope.restricted? ? resident_boot(path) : Hecks.boot(path, install_driving: false)
+          runtime = scope.restricted? ? resident_boot(path) : call_boot(path)
           Admission.admit!(runtime.registry, "Mcp")
           runtime
         end
@@ -92,7 +94,7 @@ module Hecks
           return scope.refusal(name) unless scope.permits_tool?(name)
 
           framework!
-          ToolCalls.call(name, scope.with_default_domain(args))
+          closing_call_boots { ToolCalls.call(name, scope.with_default_domain(args)) }
         end
 
         # One line per allowed command: what it takes and the role it declares, read from the booted
@@ -103,11 +105,14 @@ module Hecks
           return unless scope.commands_mode? && scope.default_domain
 
           framework!
-          McpGuideCache.remember(scope.default_domain, scope.allowed_commands) do
-            Storehouse.command_guide(boot(scope.default_domain), scope.allowed_commands)
-          end
+          McpGuideCache.remember(scope.default_domain, scope.allowed_commands) { booted_guide }
         rescue StandardError
           nil
+        end
+
+        # The command guide read from a boot of the served domain, closed when it is read.
+        def booted_guide
+          closing_call_boots { Storehouse.command_guide(boot(scope.default_domain), scope.allowed_commands) }
         end
 
         def tool_result(payload)
