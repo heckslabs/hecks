@@ -57,6 +57,17 @@ section.group > h2 small { font-weight: 400; font-size: 12.5px; color: var(--ink
 .savebar button:disabled { opacity: .45; cursor: default; }
 .range input[type=range] { width: 100%; margin: 0 0 2px; accent-color: var(--run); cursor: pointer; }
 .dial .turn input.changed { outline: 2px solid var(--run); }
+/* Whether each setting is in force now, standing by, or without effect, and Signalbox's marks beside the numbers they mirror. */
+.dial .force { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); }
+.dial .force b { font-weight: 650; margin-right: 6px; }
+.dial.without_effect .what, .dial.without_effect .range { opacity: .55; }
+.dial.without_effect .force b { color: var(--critical); }
+.dial.standing_by .force b { color: var(--muted); }
+.dial.mark .now { font-size: 14px; }
+.dial.mark .beside { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); }
+.governs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 14px; }
+.governs div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: var(--ink2); }
+.governs b { display: block; font-size: 13.5px; color: var(--ink); }
 @media (max-width: 760px) { .dial { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -69,7 +80,8 @@ section.group > h2 small { font-weight: 400; font-size: 12.5px; color: var(--ink
   </header>
   <div class="overview"><p class="headline" id="headline">Reading the settings</p>
     <div class="power" id="power" hidden><button type="button" id="power-switch" role="switch" aria-checked="false"><i></i></button>
-      <div><b id="power-word"></b><span id="power-says"></span></div></div></div>
+      <div><b id="power-word"></b><span id="power-says"></span></div></div>
+    <div class="governs" id="governs"></div></div>
   <div id="groups"></div>
   <footer class="savebar"><span id="pending">No unsaved changes.</span><button type="button" id="cancel" disabled>Cancel</button><button type="button" id="save" class="primary" disabled>Save</button></footer>
 </main>
@@ -114,8 +126,26 @@ function control(d) {
 }
 function row(d, note) {
   const said = h("p", { class: "said" + (note && note.bad ? " bad" : ""), "aria-live": "polite" }, note ? note.text : "");
-  return h("li", { class: "dial" }, h("div", { class: "what" }, d.says, d.turned ? h("span", { class: "mark" }, "set here") : null, outside(d) ? h("span", { class: "mark out" }, "outside " + d.least + " to " + d.most) : null, h("small", {}, d.setting)),
-    ...control(d), said);
+  const f = d.force || { state: "in_force", why: "" };
+  return h("li", { class: "dial " + f.state }, h("div", { class: "what" }, SAYS[d.setting] || d.says, d.turned ? h("span", { class: "mark" }, "set here") : null, outside(d) ? h("span", { class: "mark out" }, "outside " + d.least + " to " + d.most) : null, h("small", {}, d.setting)),
+    ...control(d), h("p", { class: "force" }, h("b", {}, STATE[f.state] || f.state), f.why), said);
+}
+/* The words for a setting's state, and the rows whose declared words hold only while their side governs. */
+const STATE = { in_force: "In force now.", standing_by: "Standing by.", without_effect: "Without effect now." };
+const SAYS = { "dispatch_max_load.limit": "The load above which Tickets' own guard starts no session (Signalbox's short mark replaces it while its signal is current)",
+  "work_limit.cap": "Work items that may be started at once while the work cap is fixed and Signalbox does not admit" };
+/* One side per question: which number governs a start at this moment. */
+function governs(g) {
+  const names = { load: "Load", admission: "Admission", protection: "Protection", reaping: "Reaping" };
+  $("governs").replaceChildren(...Object.keys(names).filter((k) => g && g[k]).map((k) => h("div", {}, h("b", {}, names[k] + ": " + g[k].side), g[k].says)));
+}
+/* A Signalbox mark as a read-only row beside the Tickets setting that means the same. */
+function markRow(m, dials) {
+  const twin = m.beside && dials.find((x) => x.setting === m.beside.setting);
+  const load = m.beside && m.beside.load !== null && m.beside.load !== undefined ? " (a load of " + m.beside.load + ")" : "";
+  const said = m.beside ? "Beside " + m.beside.setting + (twin ? " " + shown(twin) : "") + load + "." : "";
+  return h("li", { class: "dial mark" }, h("div", { class: "what" }, m.name.replaceAll("_", " "), h("span", { class: "mark" }, "Signalbox, read only"), h("small", {}, "Signalbox " + m.verb + "." + m.name)),
+    h("div", {}), h("div", { class: "turn" }, h("output", { class: "now" }, String(m.value) + (m.unit ? " " + m.unit : ""))), said ? h("p", { class: "beside" }, said) : null);
 }
 /* The bar at the foot of the page: how many settings are moved, Save and Cancel. */
 function bar() {
@@ -138,11 +168,11 @@ async function save() {
 }
 function cancel() { pending.clear(); load(); }
 /* The few numbers that say how hard the machine is driven, as one sentence. */
-function headline(dials, moving) {
+function headline(dials, moving, extra) {
   const of = (name) => dials.find((d) => d.setting === name), cap = of("work_limit.cap"), load = of("dispatch_max_load.limit"), heavy = of("heavy_jobs.cap");
   const changed = dials.filter((d) => d.turned).length;
   const p = $("headline"); p.replaceChildren();
-  if (cap && load) p.append("Up to ", h("b", {}, moving ? String(moving.current) : shown(cap)), " Work items at once, and no new session above a load of ", h("b", {}, shown(load)), ...(heavy ? [", with ", h("b", {}, shown(heavy)), " heavy jobs at a time"] : []), ".");
+  if (cap && load) p.append("Up to ", h("b", {}, moving ? String(moving.current) : shown(cap)), " Work items at once, and no new session ", h("b", {}, extra && extra.governs && extra.governs.load.side === "Signalbox" ? "while Signalbox's band is short" : "above a load of " + shown(load)), ...(heavy ? [", with ", h("b", {}, shown(heavy)), " heavy jobs at a time"] : []), ".");
   else p.append(dials.length ? "The limits this machine runs the pipeline under." : "No setting can be set from here.");
   p.append(h("small", { id: "cap-line" }, capLine(moving, cap)));
   p.append(h("small", {}, changed ? changed + (changed === 1 ? " setting was" : " settings were") + " set from here. " : "", "A change is kept on this machine only and is never committed."));
@@ -162,7 +192,11 @@ const GROUPS = [
     moves: [["metric", "working", "coders dispatched"], ["metric", "throughput", "work finished"], ["stage", "Work items", "planned / started / done"], ["metric", "ahead", "commits not pushed"]] },
   { title: "How hard the machine is pushed", says: "when the fill holds back and when it sheds work",
     has: ["dispatch_max_load.", "machine_marks.", "load_shed.", "cpu_budget."],
-    moves: [["load", "", "load, last hour"], ["metric", "boots", "boot hours today"], ["metric", "disk", "disk free"], ["none", "", "memory pressure"], ["none", "", "free memory and swap"]] },
+    moves: [["load", "", "load, last hour"], ["metric", "boots", "boot hours today"], ["metric", "disk", "disk free"], ["band", "", "memory pressure"], ["headroom", "", "memory headroom"]] },
+  { title: "Which side decides", says: "the switches that put Signalbox, not the Tickets numbers, in charge",
+    has: ["signalbox_pressure.", "signalbox_response.", "admission.", "protection.", "reaping.", "metering."], moves: [] },
+  { title: "How landings are verified", says: "what a landed commit is checked with on this machine",
+    has: ["main_verification."], moves: [] },
   { title: "How fast landings clear", says: "how many gates and spec runs go at once",
     has: ["heavy_jobs.", "spec_workers.", "rust_build."],
     moves: [["metric", "carry", "landed to pushed"], ["metric", "lead", "commit to green CI"], ["none", "", "heavy-slot queue"], ["none", "", "handed to landed"], ["none", "", "landings an hour"]] },
@@ -179,9 +213,12 @@ function move([kind, id, label], state) {
   if (kind === "metric") { const m = (state.metrics || []).find((x) => x.id === id); if (m && m.value !== null && m.value !== undefined) return h("div", { class: "move", title: m.detail || "" }, h("b", {}, m.value + " " + (m.unit || "")), h("span", {}, label)); }
   if (kind === "stage") { const st = (state.stages || []).find((x) => x.name === id); if (st) return h("div", { class: "move", title: st.detail || "" }, h("b", {}, st.count), h("span", {}, label)); }
   if (kind === "load") { const sm = (state.load_history || {}).samples || []; if (sm.length) return h("div", { class: "move" }, h("b", {}, Number(sm[sm.length - 1][1]).toFixed(1)), h("span", {}, label), spark(sm)); }
-  return h("div", { class: "move none", title: "The board does not measure this yet" }, h("b", {}, kind === "none" ? "not measured yet" : "reading"), h("span", {}, label));
+  if (kind === "band" && lastSignal) return h("div", { class: "move", title: "Signalbox's posted signal" }, h("b", {}, lastSignal.band), h("span", {}, label));
+  if (kind === "headroom" && lastSignal) return h("div", { class: "move", title: "Signalbox's posted signal" }, h("b", {}, Math.round(Number(lastSignal.headroom)) + " MB"), h("span", {}, label));
+  const dark = kind === "band" || kind === "headroom";
+  return h("div", { class: "move none", title: "No reading reaches the board for this" }, h("b", {}, dark ? "signal dark" : "no reading"), h("span", {}, label));
 }
-let lastState = {};
+let lastState = {}, lastSignal = null;
 /* The one switch that stops and starts new work: the fill's roll-forward. The limits stay as they are. */
 const ROLL = "dispatch_roll_forward.roll_forward";
 function power(d) {
@@ -193,12 +230,14 @@ function power(d) {
     + (pending.has(ROLL) ? " Not saved yet." : "");
   sw.onclick = () => { changed(d, want ? "off" : "on"); power(d); };
 }
-function draw(dials, note, moving) {
-  headline(dials, moving);
+function draw(dials, note, moving, extra) {
+  lastSignal = (extra && extra.signal) || null; governs(extra && extra.governs);
+  const marks = (extra && extra.marks) || [];
+  headline(dials, moving, extra);
   const taken = new Set(), sections = GROUPS.map((g) => {
     const rows = dials.filter((d) => d.setting !== ROLL && g.has.some((start) => d.setting.startsWith(start))); rows.forEach((d) => taken.add(d.setting));
     return rows.length ? h("section", { class: "group" }, h("h2", {}, g.title, h("small", {}, g.says)), h("div", { class: "moves" }, g.moves.map((m) => move(m, lastState))),
-      h("div", { class: "card" }, h("ul", {}, rows.map((d) => row(d, note && note.get(d.setting)))))) : null;
+      h("div", { class: "card" }, h("ul", {}, rows.map((d) => row(d, note && note.get(d.setting))), marks.filter((m) => m.group === g.title).map((m) => markRow(m, dials))))) : null;
   });
   const rest = dials.filter((d) => d.setting !== ROLL && !taken.has(d.setting));
   if (rest.length) sections.push(h("section", { class: "group" }, h("h2", {}, "Other"), h("div", { class: "card" }, h("ul", {}, rest.map((d) => row(d, note && note.get(d.setting)))))));
@@ -211,7 +250,7 @@ function load(notes) {
   const state = fetch("/api/state", { cache: "no-store" }).then((r) => r.json()).then((st) => { if (st && Array.isArray(st.metrics) && st.metrics.length) lastState = st; }).catch(() => {});
   // A board that has just started has no numbers yet: ask again shortly, unless something is moved and unsaved.
   state.then(() => { if (!(lastState.metrics || []).length) setTimeout(() => { if (!pending.size) load(); }, 10000); });
-  return state.then(() => fetch("/api/settings", { cache: "no-store" })).then((r) => r.json()).then((s) => draw(s.dials || [], notes || null, s.cap || null))
+  return state.then(() => fetch("/api/settings", { cache: "no-store" })).then((r) => r.json()).then((s) => draw(s.dials || [], notes || null, s.cap || null, s))
     .catch((e) => { $("headline").textContent = "The settings could not be read: " + e.message; });
 }
 $("save").addEventListener("click", save); $("cancel").addEventListener("click", cancel);
