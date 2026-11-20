@@ -127,6 +127,32 @@
               },
               "canonical": "!verb.value.to_s.empty?",
               "description": "a wiring names its verb"
+            },
+            {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "to_s",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "verb",
+                      "value"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "event_log"
+                }
+              },
+              "canonical": "verb.value.to_s != \"event_log\"",
+              "description": "event_log is now event_tap: write event_tap"
             }
           ],
           "goal": "Bind one adapter in a world",
