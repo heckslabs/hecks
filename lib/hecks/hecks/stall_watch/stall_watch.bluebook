@@ -236,10 +236,8 @@ Hecks.bluebook "Hecks" do
                      "AgentRun.answer! that run naming the processes and asking it to end the processes its " \
                      "commands start and to bound how many it starts. Never kill a pid. If no pipeline " \
                      "session owns them, Work.plan! a work item with the process list as its detail and leave it to the owner."
-        # A pressure beat that looked and was never cleared: `Clearance.Grant` refused its copy (behind
-        # main, or missing a local file of the main checkout), so no reading was published and the load
-        # pause froze on the last one. A refusal writes no line, so the row times the beat that stayed
-        # looked; any later beat published or faulted closes it, and a stuck copy files one stall.
+        # A pressure beat left looked: its copy was refused clearance, so nothing was published.
+        # A refusal writes no line; a later beat published or faulted closes the row.
         member kind: "beat-uncleared", only_about: "launchd-", aggregate: "Signalbox::Beat", opens: "BeatRecorded",
                closes: "BeatPublished,BeatFaulted", closed_by: "any", state: "looked", folds: "kind",
                minutes: 5, forgets: 1440, fixer: "orchestrator",
