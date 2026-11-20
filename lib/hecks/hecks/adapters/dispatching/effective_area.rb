@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../area_overlap"
-require_relative "../shell"
+require_relative "../branch_changes"
 require "hecks/hecks/adapters/landing/section_area"
 
 module Hecks
@@ -41,26 +41,12 @@ module Hecks
         # @param onto [String] the branch a work item's changes are measured from
         # @param shell [Shell] runs git
         def initialize(repo, onto: "main", shell: Shell.new)
-          @repo = repo
-          @onto = onto
-          @shell = shell
-          @seen = {}
+          @changes = BranchChanges.new(repo, onto: onto, shell: shell)
         end
 
         # @param item [#key, #area] a work item, whose branch is named by its key
-        # @return [Array<String>] the area it holds now
-        def call(item) = self.class.choose(item.area, changed(item.key))
-
-        private
-
-        # The same diff a landing reads (`GitLanding::Rivals`), so a rename counts alike in both.
-        def changed(branch)
-          @seen[branch] ||= begin
-            result = @shell.capture("git", "diff", "--no-renames", "--name-only", "-z",
-                                    "#{@onto}...refs/heads/#{branch}", chdir: @repo)
-            result.ok? ? result.out.split("\0").reject(&:empty?) : []
-          end
-        end
+        # @return [Array<String>] the area it holds now, its branch's files read by {BranchChanges}
+        def call(item) = self.class.choose(item.area, @changes.of(item.key))
       end
     end
   end
