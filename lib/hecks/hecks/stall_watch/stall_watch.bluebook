@@ -287,12 +287,9 @@ Hecks.bluebook "Hecks" do
                      "failed jobs as its detail."
       end
 
-      # One impediment the view computes at look time, which no tap line opens, one row each. It is
-      # never filed and wakes no run: only `Impediments` carries it. `read` names what the adapter
-      # reads from the machine: "shared-files", for each pair of open branches, the file names both
-      # changed against main, one git read per branch; the adapter refuses any other value. A
-      # branch is open while the latest line of its work item on `aggregate` is `opens`, not one
-      # of `closes` (comma separated). A pair is one entry until either branch's tip moves.
+      # An impediment `Impediments` computes at look time and never files, one row each. `read` is
+      # what the adapter reads: "shared-files", the file names two open branches both changed. A
+      # branch is open while its work item's latest line on `aggregate` is `opens`, not a `closes`.
       value_object "ComputedSignal" do
         attribute :kind,      String
         attribute :read,      String
