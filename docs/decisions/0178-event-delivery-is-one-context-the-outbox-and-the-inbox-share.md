@@ -72,6 +72,21 @@ the Rust runtime, has neither.
   `disposable_ledger true` (or whatever [ADR 0179](0179-ledger-names-the-seal-chain-only.md) renames
   it to) in its world.
 
+## Implementation
+
+- **The outbox answers the `event_delivery` port.** `lib/hecks/ports/event_delivery.port` declares
+  it (`deliveries`, `reacted?`), and `Hecks::Ports::EventDelivery` resolves the one adapter bound
+  to it. EventDelivery ships `event_delivery.outbox.adapter` beside its bluebook, so attaching the
+  member binds `Hecks::Adapters::OutboxDelivery`: `deliveries` reads every outbox row across
+  every bound store (Memory, Sqlite, Postgres) shaped as a `Delivery`, and `reacted?` asks every
+  store that dedupes dispatches whether a `DispatchClaim` key is applied. `Relay`, `Fanout`,
+  `ConsumerRunner` and `Redrive` are unchanged.
+- **A read model, for now.** The runtime does not write `Delivery` records into EventDelivery's
+  repository; read deliveries through the port.
+- **Still open.** The outbox redrives a stalled claim, not a failed row, so `Delivery.Redrive`
+  has no adapter yet. A `Pump` port, a runtime `Reaction` keyed by `DispatchClaim`, and
+  QualityControl's move (decision 4) wait on changes to the bluebook.
+
 ## Alternatives considered
 
 - **Leave the outbox in Ruby and have QualityControl call it.** Rejected: a bluebook cannot reach
