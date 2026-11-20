@@ -6,7 +6,7 @@ module Hecks
       #
       # @param runtime [Runtime::Registry] the booted domain to query
       # @param question [String, Symbol] the query name, bare or qualified
-      # @param summary [String] a one-line audit summary; required
+      # @param summary [String] a one-line trace summary; required
       # @param args [Hash] the query's arguments, JSON-shaped
       # @param options [Hash] `source:`, a SOURCE_TAGS tag naming who is calling; `role:`, the
       #   caller's
@@ -18,7 +18,7 @@ module Hecks
         check_options!(options, %i[source role actor_id surface])
         request = Request.new(runtime: runtime, name: question, summary: summary, args: args, **options)
         request.bluebook, request.name = bluebook_and_name(runtime, question)
-        audited(request, "query") { perform_query(request) }
+        traced(request, "query") { perform_query(request) }
       end
 
       # :nodoc:
@@ -42,7 +42,7 @@ module Hecks
       #
       # @param runtime [Runtime::Registry] the booted domain to read
       # @param aggregate [String, Symbol] the aggregate's declared name
-      # @param summary [String] a one-line audit summary; required
+      # @param summary [String] a one-line trace summary; required
       # @param id [String, Object, nil] one record's identity, or nil for every record
       # @param source [String, Symbol, nil] a SOURCE_TAGS tag naming who is calling
       # @return [Hash] :ok and, with id:, :record; without it, :count/:records; or refused
