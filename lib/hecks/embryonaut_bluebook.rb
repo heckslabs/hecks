@@ -58,7 +58,7 @@ module Hecks
 
       raise Runtime::WiringError,
             "no vendored embryonaut bluebook named #{name.inspect} at #{dir} — " \
-            "vendor it with hecks vendor #{name}"
+            "vendor it with hecks Package.vendor! package.value=#{name}"
     end
     private_class_method :vendored_bluebooks
 
