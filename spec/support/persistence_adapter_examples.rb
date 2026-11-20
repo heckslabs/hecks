@@ -281,6 +281,91 @@ RSpec.shared_examples "an atomic_put adapter" do
   end
 end
 
+# The `Ticket` aggregate the archiving atomic_put specs put: a lifecycle whose "closed" state is
+# marked reusable. A spec supplies `store`, the append-only repository under test, built on
+# `aggregate`, which it sets with `ticket_aggregate`.
+RSpec.shared_context "with the archiving Ticket aggregate" do
+  def ticket_aggregate(domain) = ticket_bluebook(domain).aggregate("Ticket")
+
+  def ticket_bluebook(domain)
+    states = ticket_states
+    Hecks::Bluebook::DSL::BluebookBuilder.build(domain) do
+      aggregate "Ticket" do
+        identified_by { attribute :code, String }
+        value_object "Title", String
+        attribute :title, Title
+        lifecycle :status, default: "open", &states
+      end
+    end
+  end
+
+  # An open ticket closes, and a closed one frees its code.
+  def ticket_states
+    proc do
+      transition "Close" => "closed", from: "open"
+      mark :reusable, "closed"
+    end
+  end
+
+  def ticket(id, status, title = status)
+    Hecks::Runtime::Instance.new(aggregate: aggregate, id: id,
+                                 state: { identity: { code: id }, title: { value: title }, status: status })
+  end
+
+  def replace_when = Hecks::Ports::Persistence::ReplaceWhen.for(aggregate)
+
+  # The title the record under `id` holds, or nil when no record does.
+  def title_of(id) = store.find(id)&.then { |record| record[:title].to_h[:value] }
+
+  # Puts an occupant in `status` under `id`, then a new open ticket over it; answers the status.
+  def reuse(id, status)
+    store.atomic_put(ticket(id, status, "first"))
+    store.atomic_put(ticket(id, "open", "second"), insert_only: true, replace_when: replace_when).status
+  end
+end
+
+# The archiving atomic_put contract: an adapter that takes `replace_when` archives an ended
+# occupant under the first free `<id>~<n>`, fields kept, and writes the new record in the same
+# critical section; a live occupant is refused and nothing is written. The status table runs the
+# lifecycle's own rule against what the adapter decides, so a SQL gate that drifts fails here.
+RSpec.shared_examples "an archiving atomic_put adapter" do
+  it "replaces exactly the occupants the lifecycle calls reusable" do
+    expected = %w[open closed gone].to_h { |s| [s, aggregate.lifecycle.reusable?(s) ? :replaced : :conflicted] }
+
+    expect(%w[open closed gone].to_h { |status| [status, reuse("t-#{status}", status)] }).to eq(expected)
+  end
+
+  it "keeps the ended occupant's fields under <id>~1 and writes the new record" do
+    reuse("t-1", "closed")
+
+    expect([title_of("t-1~1"), store.find("t-1~1")[:status], title_of("t-1")]).to eq(%w[first closed second])
+  end
+
+  it "writes nothing over a live occupant" do
+    reuse("t-1", "open")
+
+    expect([store.entries.size, title_of("t-1"), title_of("t-1~1")]).to eq([1, "first", nil])
+  end
+
+  it "archives under the first <id>~<n> no record holds" do
+    store.atomic_put(ticket("t-1~1", "closed"))
+    reuse("t-1", "closed")
+
+    expect([title_of("t-1~1"), title_of("t-1~2")]).to eq(%w[closed first])
+  end
+
+  it "archives an id that holds SQL LIKE wildcards under its own name" do
+    store.atomic_put(ticket("t_%~1", "closed"))
+    reuse("t_%", "closed")
+
+    expect(title_of("t_%~2")).to eq("first")
+  end
+
+  it "inserts when no record holds the id" do
+    expect(store.atomic_put(ticket("t-1", "open"), insert_only: true, replace_when: replace_when).status).to eq(:inserted)
+  end
+end
+
 # The dispatch-claim contract every adapter that reports `:dispatch_claims` honours: a saga
 # dispatch's key is accepted once, and a claim made in a transaction that fails is released with it.
 RSpec.shared_examples "a dispatch-claiming adapter" do

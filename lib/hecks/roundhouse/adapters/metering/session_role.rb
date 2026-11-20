@@ -5,9 +5,10 @@ module Hecks
     class Metering
       # The role Signalbox's laws count a session under (coder, helper, gate, orchestrator or
       # repair), or `person` for a session a person runs by hand, which is the person's own use and
-      # not the pipeline's load. A dispatched session's run names its agent; an unrun background
-      # session is counted by its name, and is a helper unless it is a copy of the orchestrator
-      # seat.
+      # not the pipeline's load. A dispatched session's run names its agent, or, when it was started
+      # with no agent, the part it works as (a fill's coder is dispatched as `works_as: coder`); an
+      # unrun background session is counted by its name, and is a helper unless it is a copy of the
+      # orchestrator seat.
       module SessionRole
         # Names an unrun session takes the orchestrator's seat under.
         SEAT = /\A(orchestrator|coordinator|handrun-orchestrator)/i
@@ -18,7 +19,7 @@ module Hecks
         # @param run [Hash, nil] its AgentRun: `agent:`, `works_as:`, `work:` and `run:`
         # @return [String] the role the laws count it under
         def of(entry, run)
-          return by_agent(run[:agent].to_s) if run
+          return by_agent(counted_as(run)) if run
           return "person" if entry["kind"].to_s == "interactive"
 
           entry["name"].to_s.match?(SEAT) ? "orchestrator" : "helper"
@@ -32,6 +33,16 @@ module Hecks
           part.empty? ? run[:agent].to_s : part
         end
 
+        # @param run [Hash] an AgentRun: `agent:` and `works_as:`
+        # @return [String] its agent, else the part it works as: an agent's own role wins, so an
+        #   orchestrator dispatched to answer or wake still counts as the orchestrator
+        def counted_as(run)
+          agent = run[:agent].to_s
+          agent.empty? ? run[:works_as].to_s : agent
+        end
+
+        # @param agent [String] an agent's or a part's name
+        # @return [String] `coder` or `orchestrator` for those, else `helper`
         def by_agent(agent)
           case agent
           when "coder", "orchestrator" then agent

@@ -1,8 +1,12 @@
+require_relative "../../../ports/persistence/archiving_put"
+
 module Hecks
   module Adapters
     class Sqlite
       # The repository surface: find, list, count, and the journal-then-project writes.
       module Repository
+        include Ports::Persistence::ArchivingPut
+
         # Reads the current row for one aggregate identity.
         #
         # @param id [String, Object] the aggregate identity, bound as `id.to_s`
@@ -81,13 +85,16 @@ module Hecks
         # The outcome lookup, journal append and snapshot replacement share one transaction.
         #
         # @param entry [Ports::Persistence::Entry] the save to store
-        # @param insert_only [Boolean] when true, an existing row is left untouched
-        # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met an
-        #   existing row and nothing was written
+        # @param insert_only [Boolean] when true, an existing row the rule does not replace is left
+        #   untouched
+        # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended and
+        #   is archived under `<id>~<n>` in the same transaction
+        # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met a
+        #   live row and nothing was written
         # @raise [SQLite3::Exception] if a statement fails; the transaction is rolled back
-        def atomic_put(entry, insert_only: false)
+        def atomic_put(entry, insert_only: false, replace_when: nil)
           status = nil
-          transaction { status = put_entry(entry, insert_only) }
+          transaction { status = archiving_put(entry, insert_only, replace_when) }
           status
         end
 
@@ -132,13 +139,8 @@ module Hecks
           [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) }
         end
 
-        def put_entry(entry, insert_only)
-          exists = !@db.get_first_value("SELECT 1 FROM #{quoted_table} WHERE id = ?", [entry.id.to_s]).nil?
-          return :conflicted if insert_only && exists
-
-          append(entry)
-          project(entry)
-          exists ? :replaced : :inserted
+        def occupied?(id)
+          !@db.get_first_value("SELECT 1 FROM #{quoted_table} WHERE id = ?", [id.to_s]).nil?
         end
       end
     end
