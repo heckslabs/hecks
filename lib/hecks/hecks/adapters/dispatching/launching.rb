@@ -3,6 +3,7 @@
 require_relative "headroom"
 require_relative "headroom_reads"
 require_relative "admission_reads"
+require_relative "protection_reads"
 require_relative "shared_sections"
 
 module Hecks
@@ -13,6 +14,7 @@ module Hecks
       module Launching
         include HeadroomReads
         include AdmissionReads
+        include ProtectionReads
 
         private
 

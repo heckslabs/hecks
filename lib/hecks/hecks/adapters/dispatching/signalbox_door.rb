@@ -2,6 +2,7 @@
 
 require "securerandom"
 require_relative "../started_work"
+require_relative "breaker_door"
 
 module Hecks
   module Adapters
@@ -9,8 +10,11 @@ module Hecks
       # Delegate's one handle on Signalbox for admission: a Signalbox booted standing alone from
       # its directory, in Memory, once per process. It begins one pressure beat (Signalbox's own
       # `Looking` port reads the machine, and its policies set the headroom and the band) and asks
-      # `Admission.Admit` by dry run, so nothing is kept and Roundhouse starts nothing from it.
+      # `Admission.Admit` by dry run, so nothing is kept and Roundhouse starts nothing from it. For
+      # protection it reads the breakers' order and trips one by dry run ({BreakerDoor}).
       class SignalboxDoor
+        include BreakerDoor
+
         # Where the Signalbox bluebook stands.
         HOME = File.expand_path("../../../signalbox", __dir__)
 

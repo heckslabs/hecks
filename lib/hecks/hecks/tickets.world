@@ -73,6 +73,10 @@ Hecks.world "Tickets" do
   # `admission.signalbox` (ADR 0222, phase 3): Signalbox admits each coder by headroom in place of
   # `work_limit`, the moving `work_cap` and the red `urgent_reserve`. Off, the cap holds.
   admission "Dispatch", signalbox: false
+  # `protection.signalbox` (ADR 0222, phase 3): the boot-budget hold is Signalbox's breakers in
+  # their declared order, so `cpu_budget` holds new coders only once the helpers are within their
+  # share. Off, the boot fuse holds as before.
+  protection "Dispatch", signalbox: false
   epic_wip_limit "Dispatch", limit: 4
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
   # `load_shed` bounds the Delegate `Shed`: a rise of the load asks one started item to yield.
