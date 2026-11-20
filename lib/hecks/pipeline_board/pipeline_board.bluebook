@@ -341,8 +341,15 @@ Hecks.bluebook "PipelineBoard" do
 
       # The last fill: the seats left under the cap, unread when no fill has reported them.
       member stage: "Fill",       position: 1, measure: "headroom",     op: "missing", than: "",  scale: 1, state: "unknown"
-      member stage: "Fill",       position: 2, measure: "headroom",     op: "<=",      than: "0", scale: 1, state: "attention"
-      member stage: "Fill",       position: 3, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+      # A report older than `fill_stale_minutes` says what the queue was, not what it is.
+      member stage: "Fill",       position: 2, measure: "age_minutes",  op: ">",       than: "fill_stale_minutes", scale: 1, state: "attention"
+      member stage: "Fill",       position: 3, measure: "headroom",     op: "<=",      than: "0", scale: 1, state: "attention"
+      member stage: "Fill",       position: 4, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      # Whether the last fill's report is marked stale on the page, by the minutes since it ran.
+      # A report that states no time is not marked.
+      member stage: "Fill age",   position: 1, measure: "age_minutes",  op: ">",       than: "fill_stale_minutes", scale: 1, state: "stale"
+      member stage: "Fill age",   position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "current"
 
       member stage: "Local main", position: 1, measure: "ahead",        op: ">",       than: "0", scale: 1, state: "attention"
       member stage: "Local main", position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
@@ -487,6 +494,9 @@ Hecks.bluebook "PipelineBoard" do
       member name: "session_fresh_seconds",   value: 600
       member name: "session_window_hours",    value: 24
       member name: "open_pr_stale_hours",     value: 24
+      # Minutes after which the last fill's report is stale. A rolling fill records one every few
+      # minutes, so a quarter of an hour without one means the rolls have stopped reporting.
+      member name: "fill_stale_minutes",      value: 15
       member name: "cycle_items",             value: 20
       member name: "cycle_percentile",        value: 90
       # Hours a run stopped for a person may wait before the board puts it first. It matches the

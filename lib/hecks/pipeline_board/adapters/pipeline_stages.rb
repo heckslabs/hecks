@@ -24,6 +24,7 @@ require_relative "pipeline_stages/gather"
 require_relative "pipeline_stages/strip"
 require_relative "pipeline_stages/metrics"
 require_relative "pipeline_stages/fanout"
+require_relative "pipeline_stages/fill_age"
 require_relative "pipeline_stages/train_detail"
 require_relative "pipeline_stages/commit_link"
 require_relative "pipeline_stages/panel"
@@ -124,8 +125,11 @@ module Hecks
         health = PipelineBoard::DailyHealth.build(data, now)
         { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now), daily_health: health,
           metrics: metrics(data, now, health), fanout: fanout(data), live_store_problem: @live&.problem,
-          stale_sections: stale_sections, load_guard: PipelineBoard::LoadGuard.standing }.merge(tables(data), panels(data))
+          stale_sections: noted_sections(data), load_guard: PipelineBoard::LoadGuard.standing }.merge(tables(data), panels(data))
       end
+
+      # The sections showing an earlier answer, the fill among them while its report is stale.
+      def noted_sections(data) = PipelineBoard::FillAge.noted(stale_sections, data[:fill])
 
       # The metric tiles, the daily health line's last.
       def metrics(data, now, health)
@@ -198,7 +202,7 @@ module Hecks
         landed = data[:landed].is_a?(Array) ? data[:landed] : []
         work = data[:open_work].is_a?(Array) ? data[:open_work] : []
         mapped = PipelineBoard::Fanout.mapping(sessions: data[:sessions], work: work, landed: landed, fill: data[:fill])
-        { rows: mapped, flags: PipelineBoard::Fanout.flags_of(mapped), fill: data[:fill], sessions: data[:sessions] }
+        { rows: mapped, flags: PipelineBoard::Fanout.flags_of(mapped), fill: PipelineBoard::FillAge.marked(data[:fill]), sessions: data[:sessions] }
       end
     end
   end
