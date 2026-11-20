@@ -287,6 +287,28 @@ Hecks.bluebook "Hecks" do
                      "failed jobs as its detail."
       end
 
+      # An impediment `Impediments` computes at look time and never files, one row each. `read` is
+      # what the adapter reads: "shared-files", the file names two open branches both changed. A
+      # branch is open while its work item's latest line on `aggregate` is `opens`, not a `closes`.
+      value_object "ComputedSignal" do
+        attribute :kind,      String
+        attribute :read,      String
+        attribute :aggregate, String
+        attribute :opens,     String
+        attribute :closes,    String
+        attribute :fixer,     String
+        attribute :move,      String
+        # How it is cleared, as `StallKind.cleared_by` says it: "help", since no look files it.
+        attribute :cleared_by, String
+
+        member kind: "branches-share-files", read: "shared-files", aggregate: "Tickets::Work", opens: "WorkStarted",
+               closes: "WorkFinished,WorkYielded,WorkReleased,WorkRefused,WorkDropped,WorkLapsed", fixer: "orchestrator",
+               cleared_by: "help",
+               move: "Two started work items edit the same files, so the later landing meets a conflict. " \
+                     "AgentRun.answer! each run naming the other work item and the shared files, so the two agree " \
+                     "who lands first and the other rebases; when one must wait, Work.wait_on! it on the other."
+      end
+
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
       # prices it: the facts `Stall.File` judges. `id` is the look that found it.
       value_object "Sighting" do
@@ -340,7 +362,7 @@ Hecks.bluebook "Hecks" do
       # The impediments: what holds work up now, oldest first. `subject` is the source record,
       # `waited` its age in minutes, `fixer` its owner and `detail` the help it needs.
       query "Impediments" do
-        description "Every opening line of every stall kind still open past its kind's minutes and within its window, filed or not: its run not ended, its subject not settled, its closing line not come. One per subject, or one per kind for a row that folds, with how many lines it stands for; oldest first. Read-only: it reads the tap and boots nothing."
+        description "Every opening line of every stall kind still open past its kind's minutes and within its window, filed or not: its run not ended, its subject not settled, its closing line not come. One per subject, or one per kind for a row that folds, with how many lines it stands for; and one per pair of open branches that changed the same files against main, naming the files, until either branch's tip moves; oldest first. Read-only: it reads the tap and the branches' file names, and boots nothing."
         attribute :run, String
         returns list_of(Sighting)
       end
