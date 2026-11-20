@@ -60,8 +60,11 @@ module Hecks
         def plan_built(items)
           PipelineBoard::PlanReading.build(items: items, epics: @tickets.epics, sessions: plan_sessions(items),
                                            reviews: plan_reviews(items), fill: plan_fill, train: train_tile, now: @now.call,
-                                           flow: guard { @tickets.work_times })
+                                           flow: guard { @tickets.work_times }, help: plan_help)
         end
+
+        # The calls for help the owner is shown; none when they cannot be read.
+        def plan_help = PipelineBoard::HelpQueue.reading(guard { @tickets.open_help }, @now.call)[:help]
 
         def project_plan_reading(name)
           read = plain(@tickets.project_plan(name))

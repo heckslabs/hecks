@@ -43,7 +43,8 @@ module Hecks
         def shown(lanes) = WORDS.keys.map { |lane| [lane, lanes[lane].to_i] }.reject { |_, count| count.zero? }
 
         def strip(data)
-          "<div class=\"strip4\">#{running(data[:running])}#{upnext(data)}#{landing(data[:landing])}#{owner(data[:owner])}</div>"
+          cards = [running(data[:running]), upnext(data), landing(data[:landing]), owner(data[:owner], Array(data[:help]))]
+          "<div class=\"strip4\">#{cards.join}</div>"
         end
 
         # The count of running items, linking to the Running now panel that holds them.
@@ -81,11 +82,14 @@ module Hecks
           card("Landing now", ["#{esc(train[:count])} #{esc(train[:state])} <span class=\"facts\">#{esc(train[:detail])}</span>"])
         end
 
-        def owner(sessions)
-          return card("Needs you: nothing", ["no session is waiting on an answer"]) if sessions.empty?
-
+        # The sessions waiting on an answer, then the calls for help the owner is shown, one line
+        # each; the card's number counts both.
+        def owner(sessions, help)
           named = sessions.map { |s| esc(s[:work_item].to_s.empty? ? s[:id] : s[:work_item]) }
-          card("#{sessions.size} waiting on you", named, mark: " you")
+          lines = named + help.map { |row| esc(row[:line]) }
+          return card("Needs you: nothing", ["no session is waiting on an answer"]) if lines.empty?
+
+          card("#{lines.size} waiting on you", lines, mark: " you")
         end
 
         # @param lines [Array<String>] the card's lines, already escaped
