@@ -31,6 +31,11 @@ Hecks.bluebook "Hecks" do
       attribute :cause,     Report, optional: true
       attribute :expected,  CheckCount, optional: true
       attribute :recorded,  CheckCount, optional: true
+      # Where the run ran, as git says (TreeFacts): a linked worktree, its branch, and the check's
+      # name (`gate-<stage>`). A red in a coder's worktree is that coder's, and Tickets files none.
+      attribute :linked,    Switch, optional: true
+      attribute :on_branch, Report, optional: true
+      attribute :check_name, Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -88,6 +93,9 @@ Hecks.bluebook "Hecks" do
 
         reference_to GateRun
         attribute :checkout, Switch, sets: true
+        attribute :linked,   Switch, optional: true, sets: true
+        attribute :on_branch, Report, optional: true, sets: true
+        attribute :check_name, Report, optional: true, sets: true
 
         given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
@@ -118,6 +126,9 @@ Hecks.bluebook "Hecks" do
         reference_to GateRun
         attribute :refusal, Report, sets: true
         attribute :cause,   Report, optional: true, sets: true
+        attribute :linked,  Switch, optional: true, sets: true
+        attribute :on_branch, Report, optional: true, sets: true
+        attribute :check_name, Report, optional: true, sets: true
 
         emits GateFaulted
       end
@@ -143,18 +154,19 @@ Hecks.bluebook "Hecks" do
 
     policy "AcceptGateWhenExamined" do
       on      "GateRun.GateExamined"
-      trigger GateRun::Accept, with: { checkout: :checkout }
+      trigger GateRun::Accept, with: { checkout: :checkout, linked: :linked, on_branch: :on_branch, check_name: :check_name }
     end
 
     policy "FaultGateWhenNotAccepted" do
       on      "GateRun.GateExamined"
       where   { !checkout.value }
-      trigger GateRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+      trigger GateRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/",
+                                      linked: :linked, on_branch: :on_branch, check_name: :check_name }
     end
 
     policy "PerformGateWhenAccepted" do
       on      "GateRun.GateAccepted"
-      ask     :perform, with: { run: :run }
+      ask     :perform, with: { run: :run, linked: :linked, on_branch: :on_branch, check_name: :check_name }
     end
 
     policy "RecordGateOutcome" do
@@ -164,7 +176,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordGateFault" do
       on      "GateRun.GateRefused"
-      trigger GateRun::Fault, with: { refusal: :refusal, cause: :kind }
+      trigger GateRun::Fault, with: { refusal: :refusal, cause: :kind, linked: :linked, on_branch: :on_branch, check_name: :check_name }
     end
 
     # A journaled command whose work happens outside the runtime (ADR 0080, section 11). Every
