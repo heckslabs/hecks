@@ -1,13 +1,6 @@
-# Docs: a documentation page as a domain. A page is made of regions, in the order they are read,
-# and each region says where its words come from: projected from a named bluebook or its IR,
-# doctested by an example that is booted and asserted, or prose that a person writes.
-#
-# A page stands live or frozen, as it is declared. A live page is one the docs gate checks region
-# by region against its source; a frozen page (an audit, an archived plan, a PRD, a wayfinder note)
-# is kept as it was written and stays out of the gate.
-#
-# The bluebook names no file, clock or renderer. Reading a page from disk, booting an example and
-# comparing a projection are the work of whoever answers `Page.Live`.
+# Docs: a page is made of regions, each projected from a bluebook, doctested by a booted example,
+# or prose. A live page is checked by the docs gate; a frozen one is kept as written and left out.
+# Reading pages, booting examples and comparing projections belong to whoever answers Page.Live.
 
 Hecks.bluebook "Docs" do
   vision "A documentation page is made of regions, each projected from a bluebook, doctested by a booted example, or prose, and only a live page is held to its sources."
