@@ -19,4 +19,10 @@ RSpec.describe Hecks::Adapters::Dispatching::Plan, "#chosen" do
   it "holds each member of the batch for its lead" do
     expect(plan.skipped.map(&:reason).uniq).to eq(["skipped: held: in the batch of a"])
   end
+
+  it "holds the members for their lead, not for the cap, once the cap is reached" do
+    full = described_class.new(members, [lead], cap: 1, load: 1.0, max_load: 10.0, frozen: [])
+
+    expect(full.skipped.map(&:reason).uniq).to eq(["skipped: held: in the batch of a"])
+  end
 end
