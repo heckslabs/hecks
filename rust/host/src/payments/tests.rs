@@ -212,8 +212,32 @@ struct Tenant {
     raw: Option<Arc<MemoryStore>>,
 }
 
+thread_local! {
+    // Whether the test on this thread makes its Stripe calls through the committed component
+    // (`on_the_component`), so one test body runs against either adapter.
+    static ON_THE_COMPONENT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+// The adapter the test on this thread makes its Stripe calls with, reaching `base`.
+fn stripe_under_test(base: &str) -> Stripe {
+    if ON_THE_COMPONENT.with(std::cell::Cell::get) {
+        Stripe::committed(base)
+    } else {
+        Stripe::Native
+    }
+}
+
+// A database of its own for the component's run of a test, so both runs can go at once.
+fn database_name(name: &str) -> String {
+    if ON_THE_COMPONENT.with(std::cell::Cell::get) {
+        format!("{name}_wasm")
+    } else {
+        name.to_string()
+    }
+}
+
 async fn tenant(name: &str) -> Tenant {
-    let client = scratch_db(name).await;
+    let client = scratch_db(&database_name(name)).await;
     {
         let guard = client.lock().await;
         provision_lineage(
@@ -265,6 +289,7 @@ async fn tenant(name: &str) -> Tenant {
         store: None,
         stored: Arc::new(StoredDocument::default()),
         api_base: fake.base.clone(),
+        stripe: stripe_under_test(&fake.base),
         webhook_description: "Checkout Fixture website".to_string(),
         direct_test_key: DIRECT_KEY.to_string(),
         direct_live_key: String::new(),
@@ -2689,5 +2714,37 @@ fn the_adapter_words_are_ones_the_connection_domain_admits() {
     assert!(
         payments.contains(&format!("one_of: [\"mock_stripe\", \"{PROCESSOR}\"]")),
         "Payment's Processor must admit {PROCESSOR}"
+    );
+}
+
+/// The tests that assert on what Stripe was asked and what it answered, run again with the
+/// calls made by the committed Stripe component. Role gates, routing and the save and rollback
+/// order are the host's own and run once, natively.
+mod on_the_component {
+    macro_rules! again {
+        ($($name:ident),* $(,)?) => {$(
+            #[test]
+            fn $name() {
+                super::ON_THE_COMPONENT.with(|on| on.set(true));
+                super::$name();
+            }
+        )*};
+    }
+
+    again!(
+        an_enabled_connection_charges_on_the_business_own_account,
+        a_stripe_refusal_answers_502_and_leaves_no_payment_or_registration_behind,
+        a_stripe_session_expires_about_thirty_one_minutes_after_it_is_created,
+        using_the_own_account_records_the_reserved_ref_and_only_public_facts,
+        the_own_account_falls_back_to_a_generic_name_when_stripe_will_not_say,
+        the_own_account_charges_with_its_own_key_and_names_no_other_account,
+        saving_keys_checks_them_creates_the_webhook_and_keeps_every_secret_out_of_the_database,
+        saving_keys_refuses_with_plain_messages_and_saves_nothing,
+        a_restricted_key_that_cannot_read_the_account_still_saves_with_a_generic_name,
+        saving_again_replaces_the_webhook_and_the_keys_without_disturbing_the_connection,
+        disconnecting_forgets_the_keys_even_when_stripe_cannot_remove_the_webhook,
+        disconnecting_removes_the_webhook_from_stripe_and_deletes_the_saved_keys,
+        a_store_that_cannot_be_written_saves_nothing_and_takes_the_webhook_back,
+        the_webhook_endpoint_is_created_with_the_platform_description,
     );
 }

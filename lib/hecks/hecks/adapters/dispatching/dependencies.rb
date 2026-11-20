@@ -11,9 +11,10 @@ module Hecks
       # spelt another way names no dependency. It stands in for `waits_on` until the open work
       # items that carry one name their keys through `Work.wait_on!`, and is read beside it.
       #
-      # A dependency has landed when a landed `Landing` names its branch, which is what
-      # {LandingFacts#landed_commits} reads. A work item stays started until its landing job
-      # finishes it, so the landing, not the status, says a dependency is met.
+      # A dependency is met when its work item is done, or when a landed `Landing` names its branch
+      # ({LandingFacts#landed_commits}). A work item is done once its landing job finishes it or it
+      # is finished with no change, so a done item no landing names still releases its waiters;
+      # the landing releases them while the status is not yet settled.
       class Dependencies
         # The line of a detail that names dependencies, with the keys it names.
         NAMED = /^\s*depends?\s+on\s*:\s*(.+)$/i
@@ -41,24 +42,26 @@ module Hecks
         #   asked only about a key some detail names
         def initialize(work_items)
           @work_items = work_items
-          @landed = {}
+          @met = {}
         end
 
         # @param item [#key, #detail] a planned work item
-        # @return [String, nil] `skipped: waits on <key>` for the first named key that has not
-        #   landed, nil when the item names none or each has landed
+        # @return [String, nil] `skipped: waits on <key>` for the first named key that is not met,
+        #   nil when the item names none or each is met
         def reason(item)
-          key = self.class.of(item).find { |name| !landed?(name) }
+          key = self.class.of(item).find { |name| !met?(name) }
           "skipped: waits on #{key}#{note(key)}" if key
         end
 
         private
 
-        def landed?(key)
-          @landed.fetch(key) { @landed[key] = @work_items.landed_commits(key).any? }
+        def met?(key)
+          @met.fetch(key) { @met[key] = done?(key) || @work_items.landed_commits(key).any? }
         end
 
-        # Said when no landing can end the wait, so a person sees it.
+        def done?(key) = @work_items.status_of(key) == "done"
+
+        # Said when the named key can never be met, so a person sees it.
         def note(key)
           case @work_items.status_of(key)
           when nil then " (no such work item)"

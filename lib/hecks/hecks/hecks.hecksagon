@@ -275,6 +275,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unclosed"
     answers_query "Abandoned"
     answers_query "Impediments"
+    answers_query "Relieved"
   end
 
   Hecks::SendTrain.port "Alerts" do
@@ -1419,6 +1420,12 @@ Hecks.hecksagon "Hecks" do
       answers "BoxRollAnswered"
       refuses "BoxRollRefused"
     end
+  end
+
+  # Read-only towards the box: what runs on it, its commit, its restore point and whether a command
+  # is still running there. The adapter beside the Deploy bluebook answers it.
+  Deploy::BoxRoll.port "BoxState" do
+    answers_query "BoxState"
   end
 
   Deploy::DataCopy.port "DeployToolchain" do

@@ -121,6 +121,13 @@ RSpec.describe "AgentRun.Retire through the Agents port" do
     expect(outcome.dig("state", "refusal")).to eq("session stand-in-session is still listed, working")
   end
 
+  it "exits refused with the reason when the run's session is still listed", :aggregate_failures do
+    started_run("r-refused")
+    _, status, why = launch("AgentRun.retire!", "to=r-refused", "--wait")
+    expect(status).to eq(Hecks::Adapters::Driving::ExitStatus::REFUSED)
+    expect(why).to include("a run whose session is still listed, or could not be looked for, is not retired")
+  end
+
   it "keeps a run whose sessions cannot be listed", :aggregate_failures do
     started_run("r-unread")
     File.write(File.join(scratch, "claude"), "#!/bin/sh\necho 'daemon down' >&2\nexit 1\n")

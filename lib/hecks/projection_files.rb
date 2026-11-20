@@ -177,18 +177,19 @@ module Hecks
       Result.new({ File.join(root, "rust/host/core/src/field_hints.rs") => field_hints_text(hints) }, [])
     end
 
-    # The DSL reference pages and the README regions generated from the same declarations.
+    # The DSL reference pages, the README regions generated from the same declarations, and the
+    # top-level pages' regions projected from the model (`Doc::Regions`).
     #
     # @param root [String] the checkout
-    # @return [Result] every page of `docs/implemented/reference/` and `README.md`
+    # @return [Result] every page of `docs/implemented/reference/`, `README.md` and each page of
+    #   `Doc::Regions::PAGES`
     def reference(root)
       require "hecks"
+      require "hecks/doc/regions"
       directory = File.join(root, "docs/implemented/reference")
       pages = Projector.call(:reference, bluebook: declaration, options: { from: directory })
       content = pages.to_h { |relative, text| [File.join(directory, relative), text] }
-      readme = File.join(root, "README.md")
-      content[readme] = Doc::Reference.render_readme(root, File.read(readme))
-      Result.new(content, [])
+      Result.new(content.merge(Doc::Regions.files(root)), [])
     end
 
     # @param projection [Symbol] a projection registered with the projector

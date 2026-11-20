@@ -62,9 +62,11 @@ module Hecks
       #   the value it held and the value it holds
       def turn(row, to)
         verb, key = row[:setting].split(".").then { |word, name| [word, name.to_sym] }
-        was = standing(row[:world], verb)
-        now = was.merge(key => Turnables.value(row, to))
-        [said(row, verb, key, was, now), was[key], now[key]]
+        file.locked do
+          was = standing(row[:world], verb)
+          now = was.merge(key => Turnables.value(row, to))
+          [said(row, verb, key, was, now), was[key], now[key]]
+        end
       end
 
       def said(row, verb, key, was, now)
@@ -91,18 +93,14 @@ module Hecks
       # The verb's settings as the booted world holds them, every local file read.
       def standing(world, verb)
         held = @registry&.world(world)&.for_verb(verb) || {}
+        held = held.merge(file.values.fetch([world, verb], {}).transform_keys(&:to_sym))
         held[:adapter] ? held : refuse!("the #{world} world declares no #{verb}, so there is nothing to turn")
       end
 
-      # Writes every verb the file already holds as it stands, and this one as it now is.
-      def write(world, verb, now)
-        file = TurnedFile.new(@directory)
-        turned = [world, verb]
-        lines = (file.turned + [turned]).uniq.map do |pair|
-          [pair.first, TurnedFile.line(pair.last, pair == turned ? now : standing(*pair))]
-        end
-        file.write(lines.group_by(&:first).transform_values { |pairs| pairs.map(&:last) })
-      end
+      # Sets this verb's line in the file, as the file holds it now, and leaves every other line.
+      def write(world, verb, now) = file.replace(world, verb, TurnedFile.line(verb, now))
+
+      def file = (@file ||= TurnedFile.new(@directory))
 
       def refuse!(message) = raise(ConsoleCapture::Failure, message)
 

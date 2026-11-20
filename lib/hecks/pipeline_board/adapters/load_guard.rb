@@ -35,6 +35,9 @@ module Hecks
           # @return [Hash, nil] the standing guard's {#standing}; nil when none stands
           def standing = shared&.standing
 
+          # @return [Hash, nil] the standing guard's {#signal}; nil when none stands
+          def signal = shared&.signal
+
           # The 1-minute load average, from `/proc/loadavg` where there is one, else from the C
           # library's `getloadavg`, which macOS and the BSDs answer.
           #
@@ -90,6 +93,13 @@ module Hecks
           signal = @pressure.call
           shown = { load: @load.call.to_f.round(1), limit: @limit.call.to_f.round(1), since: @since.iso8601 }
           signal ? shown.merge(pressure: signals.said(signal)) : shown
+        end
+
+        # @return [Hash, nil] Signalbox's signal as the strip shows it: its `band`, whether it is
+        #   `short`, and what it `said`; nil while the signal does not drive
+        def signal
+          found = @pressure.call
+          found && { band: found[:band].to_s, short: signals.short?(found), said: signals.said(found) }
         end
 
         # @param program [String] what was not run
