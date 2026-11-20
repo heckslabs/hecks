@@ -131,6 +131,26 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
   end
 
+  # The reopened probe of 2026-11-20 05:30: 9086 MB of headroom at the OS's normal level is not
+  # short on memory; a load past 18.00 on the six performance cores is what read it short.
+  test "the 05:30 reading: 9086 MB at the OS's normal level with a load of 10.55 is tight, not short" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 9086 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 0 }, stale_after: { value: 120 }, load: { value: 1055 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
+    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+  end
+
+  test "the 05:30 reading: the same memory with a load past 18.00 on six cores is short by the load" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 9086 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 0 }, stale_after: { value: 120 }, load: { value: 1900 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
+    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+  end
+
   test "memory past its gap does not ease a band the load still holds" do
     tests "Read", on: "Pressure"
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
@@ -369,6 +389,21 @@ Hecks.behaviors "Signalbox" do
           ends_when: { value: "the branch lands" },
           draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
           switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 2100 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }, memory_pressure_level: { value: 1 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  # The reopened probe of 2026-11-20 05:30: 9086 - 3072 floor - 2048 gap leaves 3966 MB, room for
+  # coders at the 397 MB Roundhouse metered; with the band not short a lower-tier coder is admitted.
+  test "the 05:30 reading admits a coder: 9086 MB, draw 397 metered, floor 3072, gap 2048, level 1" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-os-0530" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "admission-reads-memory-as-the-os-does" }, purpose: { value: "admit at normal pressure" },
+          ends_when: { value: "the branch lands" },
+          draw: { value: 397 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 9086 }, age: { value: 0 },
           stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
           share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
           floor: { value: 3072 }, gap: { value: 2048 }, memory_pressure_level: { value: 1 }
