@@ -96,7 +96,7 @@ module Hecks
         # runs for this process manager, so a declared compensates is structurally
         # unreachable — a dead declaration, not a style warning.
         def unarmed_compensation_findings(process_manager, handler)
-          return [] if process_manager.saga?
+          return [] if process_manager.compensates?
 
           handler.dispatches.select(&:compensates).map do |dispatch|
             compensated = dispatch.compensates
@@ -109,10 +109,9 @@ module Hecks
 
         # Checks whether a saga's own compensation leaves an unreachable state.
         def dead_compensation_findings(process_manager, reached)
-          return [] unless process_manager.saga?
+          return [] unless process_manager.compensates?
 
-          saga = process_manager.saga
-          left = saga.from_state
+          left = process_manager.compensation.from_state
           return [] if reached.include?(left)
 
           [Finding.new(kind: :dead_compensation, severity: :error, subject: process_manager.name,
