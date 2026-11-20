@@ -18,6 +18,7 @@ class BluebookConflictRepo
   def initialize(prefix = "hecks-settled")
     @dir = File.realpath(Dir.mktmpdir(prefix))
     git("init", "-q", "-b", "trunk")
+    quiet_maintenance
     commit(BASE)
   end
 
@@ -86,4 +87,13 @@ class BluebookConflictRepo
 
   # @return [void]
   def remove = FileUtils.remove_entry(@dir)
+
+  private
+
+  # Stops git from starting a background gc or maintenance after a commit, which would write
+  # into the repository while the spec's teardown removes it.
+  def quiet_maintenance
+    git("config", "gc.auto", "0")
+    git("config", "maintenance.auto", "false")
+  end
 end
