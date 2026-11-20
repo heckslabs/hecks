@@ -1,6 +1,7 @@
 require_relative "../mcp/tool_definitions/calling"
 require_relative "../mcp/tool_definitions/reading"
 require_relative "../mcp/tool_definitions/auditing"
+require_relative "../mcp/tool_definitions/running"
 
 module Hecks
   module Adapters
@@ -10,7 +11,7 @@ module Hecks
         # order
         # `tools/list` shows them.
         module ToolDefinitions
-          TOOLS = (Calling::LIST + Reading::LIST + Auditing::LIST).freeze
+          TOOLS = (Calling::LIST + Running::LIST + Reading::LIST + Auditing::LIST).freeze
         end
       end
     end
