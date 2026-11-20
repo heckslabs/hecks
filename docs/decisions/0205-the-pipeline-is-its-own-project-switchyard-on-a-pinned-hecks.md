@@ -226,6 +226,16 @@ Step 2 of the order of work, on 2026-11-13.
 - Some refusals still name `hecks Workspace.strays` where the line to type is the project's own launcher's.
 - The old commands are untouched here and nothing calls Switchyard yet.
 
+The package owns its declarations, on 2026-11-20.
+
+- Delivery's bluebook, its ports file and its adapter declarations are changed in the package, in Switchyard, and
+  nowhere else. A change reaches this repository when a release of the package is vendored here.
+- Switchyard's `Transcription` aggregate, its `Transcribing` port and the `DeliveryTranscriber` adapter are deleted,
+  so `Transcription.write!` is no longer a command. With the declarations gone from this repository it had nothing
+  left to copy, and a run of it would have written the package's two files over with what little it found here.
+- `spec/hecks_vendored_delivery_spec.rb` holds this side of it: the Hecks bluebook declares no `Revision`,
+  `LinkedTree` or `Landing`, and its `Workspace` has only the settings, the doctor and `where`, with their ports.
+
 ## Alternatives considered
 
 - **Leave it in place and make landings faster.** It shortens the first of the three delays and leaves the other two:
