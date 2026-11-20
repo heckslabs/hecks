@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require "hecks/roundhouse/adapters/metering"
 require_relative "signalbox_door"
 
 module Hecks
@@ -18,13 +19,22 @@ module Hecks
         # A coder's fuse when the world declares none.
         FUSE = { coder_mb: 4_096, coder_minutes: 240 }.freeze
 
+        # Roundhouse's meter over a registry that holds the AgentRun ledger, so the beat meters each
+        # live coder's draw; the one meter every caller of admission hands the door.
+        #
+        # @param registry [Runtime::Registry] the Hecks registry the fill or the check runs in
+        # @return [Proc] answers the machine facts as {Metering#machine_facts} does
+        def self.meter(registry) = -> { Metering.new(registry: registry).machine_facts }
+
         # @param runs [Hash{String => Hash}] each agent run's key with its `started_at`
         # @param now [Time] the time of the fill
         # @param door [SignalboxDoor] the handle on Signalbox
         # @param switch [Boolean] whether the owner's switch lets new work start
-        def initialize(runs:, now:, door: SignalboxDoor.shared, switch: true)
+        # @param meter [#call, nil] the machine facts the beat looks at ({.meter}); nil leaves the
+        #   door's Signalbox to meter the machine itself
+        def initialize(runs:, now:, door: SignalboxDoor.shared, switch: true, meter: nil)
           @door = door
-          @beat = door.look
+          @beat = meter ? door.look(meter: meter) : door.look
           @ramp = RAMP.merge(door.setting("ramp"))
           @fuse = FUSE.merge(door.setting("fuses"))
           @recent = runs.select { |_key, run| recent?(run[:started_at], now) }.keys
@@ -42,8 +52,9 @@ module Hecks
 
         # @return [String] the clause a fill's header says in place of the cap
         def clause
-          "admission by headroom #{@beat[:headroom]} MB (#{@beat[:band]}; draw #{@beat[:draw]}, " \
-            "floor #{@beat[:floor]}, gap #{@beat[:gap]}, ramp #{@ramp[:step]} per #{@ramp[:window_seconds]}s)"
+          "admission by headroom #{@beat[:headroom]} MB (#{@beat[:band]}; memory pressure level " \
+            "#{@beat[:memory_pressure_level].to_i}; #{draw_words}, floor #{@beat[:floor]}, gap #{@beat[:gap]}, " \
+            "ramp #{@ramp[:step]} per #{@ramp[:window_seconds]}s)"
         end
 
         private
@@ -59,10 +70,18 @@ module Hecks
             switch: @switch ? "on" : "off" }
         end
 
+        # The draw the beat chose, named by where it came from: Roundhouse's metered median, or the
+        # world's while no coder is metered.
+        def draw_words
+          source = @beat[:metered_draw].to_i.positive? ? "metered" : "the world's"
+          "draw #{@beat[:draw]} #{source}"
+        end
+
         def machine(chosen)
           draw = @beat[:draw].to_i
           { band: @beat[:band], headroom: @beat[:headroom].to_i - (draw * chosen), floor: @beat[:floor],
             gap: @beat[:gap], age: @beat[:age], stale_after: @beat[:stale_after], draw: draw,
+            memory_pressure_level: @beat[:memory_pressure_level].to_i,
             fuse: @fuse[:coder_mb], fuse_minutes: @fuse[:coder_minutes] }
         end
 
