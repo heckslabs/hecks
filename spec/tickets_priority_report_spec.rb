@@ -27,4 +27,9 @@ RSpec.describe Hecks::Adapters::PriorityReport do
   it "says which items would start" do
     expect(report.grep(/red-z/).first).to include("would start")
   end
+
+  it "says a planned item waits on a work item that has not landed, as the fill does" do
+    held = record("held-w", priority: "now").tap { |entry| entry.waits_on = [RollForwardFixtures::Word.new("run-1")] }
+    expect(report(seeded + [held]).grep(/held-w/).first).to include("waits on run-1")
+  end
 end
