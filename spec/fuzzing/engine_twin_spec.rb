@@ -32,7 +32,7 @@ RSpec.describe "Hecks::Fuzzing::Engine twins (native binary)", :io do
   # The scripts whose domain has no Cargo feature, so no kernel binary runs them yet.
   KERNEL_CANNOT_RUN = %w[
     assurance.json change.json command_defaults.json command_list_argument.json console_settings.json
-    copy_from_state.json directory.json expression.json governance.json identity.json list_field_shape.json
+    copy_from_state.json directory.json event_delivery.json expression.json governance.json identity.json list_field_shape.json
     multi_role.json onboarding.json order_deadline.json parent_visibility.json privacy.json translation.json
   ].freeze
 
