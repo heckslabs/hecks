@@ -46,20 +46,22 @@ module Hecks
         #   the work item went back to the plan
         def launch(item, **asked) = attempt(item, **asked).last
 
-        # Starts one work item like {#launch} and says how it ended, so a report counts outcomes
-        # and never reads the text of a line.
+        # Starts one work item like {#launch} and says how it ended. A work item another fill
+        # already started is left to that claim: no yield, brief or second dispatch.
         #
         # @param item [Plan::Item] the work item to start
         # @param held [Array<String>] a line for each area another started work item holds
         # @param minutes [Integer] the time budget of the work item
         # @param limit [Integer, nil] the most spec files a session runs per call
         # @param lines [Hash] `traps:` a line for each known trap the work item's area meets
-        # @return [Array(Symbol, String)] `:started` or `:yielded`, then the line
+        # @return [Array(Symbol, String)] `:started`, `:held` or `:yielded`, then the line
         def attempt(item, held:, minutes:, limit: nil, **lines)
           step(item, "pull main", pull_argv)
-          started = step(item, "start", start_argv(item, minutes), reaches: "started")
-          text = BriefText.new(composed(item)).render(item.key, area: item.area, limit: limit, main: main, held: held, **lines)
-          dispatch(item, text)
+          started = StepOutcome.new(@runner.call(start_argv(item, minutes)), reaches: "started")
+          return [:held, held_line(item)] if started.refused_at?("started")
+
+          checked(item, "start", started)
+          dispatch(item, brief(item, limit: limit, held: held, **lines))
           [:started, started_line(item, started.note)]
         rescue ConsoleCapture::Failure => e
           [:yielded, yield_back(item, e.message)]
@@ -151,12 +153,20 @@ module Hecks
 
         # Runs one step and answers its outcome; a step whose command did not do its part raises
         # with the command's own reason.
-        def step(item, name, argv, reaches: nil)
-          outcome = StepOutcome.new(@runner.call(argv), reaches: reaches)
+        def step(item, name, argv, reaches: nil) = checked(item, name, StepOutcome.new(@runner.call(argv), reaches: reaches))
+
+        # The outcome when its command did its part; otherwise it raises with the command's reason.
+        def checked(item, name, outcome)
           return outcome if outcome.ok?
 
           raise ConsoleCapture::Failure, "#{name} of #{item.key} failed: #{outcome.reason}"
         end
+
+        # The brief the work item's session is handed.
+        def brief(item, **asked) = BriefText.new(composed(item)).render(item.key, area: item.area, main: main, **asked)
+
+        # The line of a work item another fill already started.
+        def held_line(item) = "#{item.key} is already started: its claim stands, so this fill leaves it"
 
         # Hands the brief to `AgentRun`. A key held by a run still recorded started is refused; when
         # that run's session is gone, `AgentRun.Retire` closes it (it frees the key, as an ended
