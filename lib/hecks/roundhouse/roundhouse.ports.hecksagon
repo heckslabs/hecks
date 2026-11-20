@@ -3,13 +3,15 @@
 Hecks.hecksagon "Roundhouse" do
   attaches "Governance"
 
-  # The machine and its live sessions, read with `claude agents --json`, `ps`, `sysctl` and
-  # `vm_stat`. It only reads: no session is started, stopped or reaped through it (ADR 0222,
-  # phase 2, the shadow).
+  # The machine, its sessions and the checkout's copies, read with `claude agents --json`, `ps`,
+  # `sysctl`, `vm_stat` and `git`. It only reads: no session is started, stopped or reaped through
+  # it (ADR 0222, phase 2, the shadow).
   Roundhouse::Reading.port "Metering" do
     answers_query "Sessions"
     answers_query "Machine"
     # Delegate's load, once its `metering.roundhouse` switch is on (Hecks' `Sampling` and the fill).
     answers_query "Load"
+    # The ended sessions and the copies a reap is ruled on, once `reaping.signalbox` is on.
+    answers_query "Ended"
   end
 end

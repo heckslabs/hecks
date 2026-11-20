@@ -5,6 +5,8 @@ require_relative "metering/process_table"
 require_relative "metering/machine_gauge"
 require_relative "metering/session_role"
 require_relative "metering/live_reads"
+require_relative "metering/ended_rows"
+require_relative "metering/copy_reads"
 
 module Hecks
   module Adapters
@@ -23,16 +25,15 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins for the outside, each a callable: `listing:` (the listed
       #   sessions), `processes:` (the `ps` text), `machine:` (the `sysctl` and `vm_stat` reads),
-      #   `runs:` (runs by session id), `activity:` (a session's last transcript time) and `now:`
-      # @param root [String, nil] unused
+      #   `runs:` (runs by session id), `activity:` (a session's last transcript time), `copies:`
+      #   (the checkout's worktrees, as {CopyReads#call} answers) and `now:`
+      # @param root [String, nil] the checkout whose copies are read; the working directory when nil
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         live = LiveReads.new(registry)
-        @listing = settings[:listing] || live.method(:listing)
-        @processes = settings[:processes] || live.method(:processes)
-        @machine = settings[:machine] || live.method(:machine)
-        @runs = settings[:runs] || live.method(:runs)
-        @activity = settings[:activity] || live.method(:activity)
+        @listing, @processes, @machine, @runs, @activity =
+          %i[listing processes machine runs activity].map { |read| settings[read] || live.method(read) }
         @now = settings[:now] || -> { Time.now }
+        @copies = settings[:copies] || CopyReads.new(root || Dir.pwd, now: @now)
       end
 
       # The `Sessions` query.
@@ -44,6 +45,22 @@ module Hecks
       #
       # @return [Hash{Symbol => String}] `text:` the machine facts as JSON
       def machine = { text: JSON.generate(machine_facts) }
+
+      # The `Ended` query (ADR 0222, phase 3, reaping).
+      #
+      # @return [Hash{Symbol => String}] `text:` the ended sessions and the copies as JSON
+      def ended = { text: JSON.generate(ended_facts) }
+
+      # What Signalbox rules a reap on: each finished or stale session ({EndedRows}) and each copy
+      # of the checkout ({CopyReads}), a copy marked `held` while a live session works inside it.
+      #
+      # @return [Hash] `sessions:` and `copies:`, each an array of rows
+      def ended_facts
+        table = ProcessTable.new(@processes.call)
+        listing = Array(@listing.call)
+        sessions = EndedRows.new(table: table, runs: @runs.call, activity: @activity, now: @now).rows(listing)
+        { sessions: sessions, copies: held(@copies.call, live(table, listing).map { |entry| entry["cwd"].to_s }) }
+      end
 
       # The `Load` query.
       #
@@ -84,7 +101,15 @@ module Hecks
       private
 
       # The listed sessions whose own process is still running.
-      def live(table) = Array(@listing.call).select { |entry| entry["pid"] && table.running?(entry["pid"]) }
+      def live(table, listing = @listing.call)
+        Array(listing).select { |entry| entry["pid"] && table.running?(entry["pid"]) }
+      end
+
+      def held(copies, cwds)
+        copies.map { |copy| { **copy, held: cwds.any? { |cwd| inside?(cwd, copy[:path]) } ? "yes" : "no" } }
+      end
+
+      def inside?(cwd, path) = cwd == path || cwd.start_with?("#{path}/")
 
       # `drawn_mb`, what the pipeline's sessions draw, and `person_mb`, what a person's own do.
       def draws

@@ -3,6 +3,7 @@
 require "securerandom"
 require_relative "../started_work"
 require_relative "breaker_door"
+require_relative "reap_door"
 
 module Hecks
   module Adapters
@@ -11,9 +12,11 @@ module Hecks
       # its directory, in Memory, once per process. It begins one pressure beat (Signalbox's own
       # `Looking` port reads the machine, and its policies set the headroom and the band) and asks
       # `Admission.Admit` by dry run, so nothing is kept and Roundhouse starts nothing from it. For
-      # protection it reads the breakers' order and trips one by dry run ({BreakerDoor}).
+      # protection it reads the breakers' order and trips one by dry run ({BreakerDoor}); for
+      # reaping it asks clearance and rules each subject by dry run ({ReapDoor}).
       class SignalboxDoor
         include BreakerDoor
+        include ReapDoor
 
         # Where the Signalbox bluebook stands.
         HOME = File.expand_path("../../../signalbox", __dir__)

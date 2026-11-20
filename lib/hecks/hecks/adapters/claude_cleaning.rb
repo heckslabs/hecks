@@ -7,6 +7,7 @@ require_relative "claude_transcript"
 require_relative "claude_cleaning/worktree_check"
 require_relative "claude_cleaning/candidate_rule"
 require_relative "claude_cleaning/reaping"
+require_relative "claude_cleaning/signalbox_wiring"
 require_relative "dispatching/work_items"
 
 module Hecks
@@ -25,6 +26,7 @@ module Hecks
     # `claude rm` itself refuses what the check missed.
     class ClaudeCleaning
       include Reaping
+      include SignalboxWiring
 
       # The command that lists and removes sessions.
       COMMAND = "claude"
@@ -62,12 +64,15 @@ module Hecks
         @tuning = settings
       end
 
-      # Says, for every session, whether it is safe to remove and why not. Removes nothing.
+      # Says, for every session, whether it is safe to remove and why not. Removes nothing. Once
+      # `reaping.signalbox` is on it says Signalbox's ruling on each ended session and each copy.
       #
       # @param _held [Hash] unused
       # @return [Hash{Symbol => String}] `text:` one line per session
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
       def removable(**)
+        return signalbox_removable if ReapingSwitch.on?(@registry)
+
         verdicts = judged
         { text: "#{verdicts.empty? ? "no sessions" : verdicts.map(&:line).join("\n")}\n" }
       end

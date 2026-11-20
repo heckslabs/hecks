@@ -24,13 +24,16 @@ module Hecks
 
         # Removes the sessions no run holds that are done or stopped, in no worktree and older than
         # their {KeepWindow}: `remove_done_after_minutes` for a helper the pipeline launched,
-        # `session_keep` hours for the owner's; then reports the reap.
+        # `session_keep` hours for the owner's; then reports the reap. Once the Tickets world's
+        # `reaping.signalbox` is on, Signalbox reaps instead ({SignalboxReap}).
         #
         # @param held [Hash] the `SessionCleanup` record: `since`
         # @return [Hash{Symbol => Hash}] `report:` the line `removed N sessions and M worktrees;
         #   kept K: <name> (<reason>)`
         # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
         def sweep_plain(**held)
+          return signalbox_report if ReapingSwitch.on?(@registry)
+
           records = @runs.run_records
           swept = sweeper.call(listing, records.map { |run| run[:session] })
           since = held[:since].is_a?(Hash) ? held[:since][:value] : held[:since]
