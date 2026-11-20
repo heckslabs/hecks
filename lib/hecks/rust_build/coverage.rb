@@ -56,7 +56,7 @@ module Hecks
                        "this generated tree predates ir.json (Build.project_rust! writes it now); " \
                        "re-run hecks Build.project_rust! domain.value=… for this domain")
         manifest = read_json(File.join(mod_dir, "manifest.json"),
-                             "re-run hecks Build.project_rust! domain.value=#{domain} to write it")
+                             "re-run hecks Build.project_rust! domain.value=… for this domain to write it")
         [ir, manifest + unaccounted_findings(ir, manifest)]
       end
 
