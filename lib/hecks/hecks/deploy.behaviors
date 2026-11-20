@@ -1,7 +1,7 @@
 Hecks.behaviors "Deploy" do
   vision "A recipe, a lint, a comparison or a projection is recorded as requested before anything outside is asked."
 
-  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "deploy.world", "environments/memory.world", modules: :all
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon", "deploy.world", "environments/memory.world", modules: :all
 
   test "Project keeps a domain that has no world file as a faulted recipe" do
     tests "Project", on: "Recipe"
@@ -70,5 +70,26 @@ Hecks.behaviors "Deploy" do
            realm: { value: "Acme" }, schema: { value: "acme" }, database: { value: "hecks_tenants" }
     input  tenant: "acme", directory: { value: "/tmp/hecks-behaviors-absent/domain" }, database: { value: "hecks_tenants" }
     expect emits: %w[TenantReprovisionRequested ProvisioningRefused ProvisioningAbandoned]
+  end
+
+  test "Request holds a service whose auto-roll switch is off, reading nothing" do
+    tests "Request", on: "StableRoll"
+    input run: { value: "cms-at-4f1c2d3" }, service: { value: "cms" }, project: { value: "/tmp/hecks-behaviors-absent/project" },
+          promoted_commit: { value: "4f1c2d3" }, auto_roll: { value: false }
+    expect emits: %w[StableRollRequested StableRollHeld]
+  end
+
+  test "Request stops a switched-on roll whose box cannot be read, before anything rolls" do
+    tests "Request", on: "StableRoll"
+    input run: { value: "cms-at-4f1c2d3" }, service: { value: "cms" }, project: { value: "/tmp/hecks-behaviors-absent/project" },
+          promoted_commit: { value: "4f1c2d3" }, auto_roll: { value: true }
+    expect emits: %w[StableRollRequested BoxUnreadable StableRollStopped]
+  end
+
+  test "Request refuses a service that is not a container name" do
+    tests "Request", on: "StableRoll"
+    input run: { value: "cms-at-4f1c2d3" }, service: { value: "Not A Service" }, project: { value: "/tmp/hecks-behaviors-absent/project" },
+          promoted_commit: { value: "4f1c2d3" }, auto_roll: { value: true }
+    expect refused: "must match"
   end
 end
