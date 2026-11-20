@@ -32,6 +32,8 @@ Hecks.bluebook "World" do
       attribute :adapter, WiringText
 
       given("a wiring names its verb") { !verb.value.to_s.empty? }
+      # ADR 0179: the tap's verb is named for the EventTap it switches on.
+      given("event_log is now event_tap: write event_tap") { verb.value.to_s != "event_log" }
 
       sets :world_ref
       sets :world

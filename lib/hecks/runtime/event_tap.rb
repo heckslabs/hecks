@@ -12,7 +12,7 @@ module Hecks
     # one per policy delivery. It exists for the domains that persist nothing (Memory keeps no
     # journal), so a reader such as the PipelineBoard can still see them.
     #
-    # It is off unless a world declares it: `event_log "EventTap", path: "...", max_bytes: N`. A
+    # It is off unless a world declares it: `event_tap "EventTap", path: "...", max_bytes: N`. A
     # client's world declares nothing, so a client writes no file. The boot may hand in an
     # override for a process no hecks command runs (a spec run, and the children it starts): a
     # path replaces the world's, and an empty value switches the tap off, so a spec never writes
@@ -22,7 +22,7 @@ module Hecks
     # A generation past the last numbered file is kept in the {Archive} for `keep_hours`.
     class EventTap
       # The world verb that switches the tap on.
-      VERB = "event_log"
+      VERB = "event_tap"
 
       # Bytes after which the log moves to `<path>.1`; older generations shift up one number.
       DEFAULT_MAX_BYTES = 5_000_000
@@ -31,13 +31,13 @@ module Hecks
       # archived.
       KEPT = 5
 
-      # Hours an archived generation is kept: `keep_hours` of the world's `event_log`.
+      # Hours an archived generation is kept: `keep_hours` of the world's `event_tap`.
       DEFAULT_KEEP_HOURS = 48
 
-      # The most bytes the archive holds, whatever its age: `archive_max_bytes` of the `event_log`.
+      # The most bytes the archive holds, whatever its age: `archive_max_bytes` of the `event_tap`.
       DEFAULT_ARCHIVE_MAX_BYTES = 200_000_000
 
-      # The `event_log` settings a tap is built from, besides its path.
+      # The `event_tap` settings a tap is built from, besides its path.
       LIMITS = { max_bytes: DEFAULT_MAX_BYTES, keep_hours: DEFAULT_KEEP_HOURS,
                  archive_max_bytes: DEFAULT_ARCHIVE_MAX_BYTES }.freeze
 
@@ -69,7 +69,7 @@ module Hecks
 
       # Where a world's tap writes: the override when one is given, else the world's path.
       #
-      # @param settings [Hash] the Hecks world's `event_log` settings
+      # @param settings [Hash] the Hecks world's `event_tap` settings
       # @param override [String, nil] a path in place of the world's; empty switches the tap off
       # @return [String, nil] the log file; nil for no declared tap or an empty override
       def self.path_for(settings, override = nil)

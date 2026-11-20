@@ -9,7 +9,7 @@ module Hecks
         # @param directory [String] the domain directory
         # @return [Array(String, String, String)] the row's name, value and source
         def event_tap(directory)
-          declared = declared_event_log(directory)
+          declared = declared_event_tap(directory)
           return ["event tap", "none declared", "default"] if declared.empty?
           return ["event tap", "off", "world"] if declared[:path].to_s.empty?
 
@@ -22,8 +22,8 @@ module Hecks
 
         private
 
-        # The Hecks world's `event_log` settings, empty when it declares none.
-        def declared_event_log(directory)
+        # The Hecks world's `event_tap` settings, empty when it declares none.
+        def declared_event_tap(directory)
           world = Hecks.describe(directory).registry.world("Hecks")
           world&.for_verb(Runtime::EventTap::VERB).to_h
         end

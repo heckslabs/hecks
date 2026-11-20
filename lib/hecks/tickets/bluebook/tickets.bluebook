@@ -743,6 +743,8 @@ Hecks.bluebook "Tickets" do
     attribute :claimed_by, Claimant, optional: true
     attribute :claimed_at, ClaimedAt, optional: true
     attribute :area,   list_of(Word), optional: true
+    # The work items it waits on: Dispatch starts it only once each has landed.
+    attribute :waits_on, list_of(WorkKey), optional: true
     attribute :budget_minutes, Minutes, optional: true
     attribute :category, Category, optional: true
     # The batch work item a batched item waits in: a sweep batch, or the lead of a group one coder
@@ -912,6 +914,7 @@ Hecks.bluebook "Tickets" do
       attribute :detail, WorkText, optional: true, sets: true, default: { value: "" }
       attribute :step,   Step, optional: true, sets: true
       attribute :area,   list_of(Word), optional: true, sets: true, default: []
+      attribute :waits_on, list_of(WorkKey), optional: true, sets: true, default: []
       attribute :interview, InterviewCitation, optional: true, sets: true
       attribute :point,     PointCitation, optional: true, sets: true
       reference_to Adr, as: :decision, optional: true
@@ -952,6 +955,21 @@ Hecks.bluebook "Tickets" do
       given("a dropped work item is not rescoped") { status != "dropped" }
 
       emits "WorkRescoped"
+    end
+
+    # An open work item names the work items it waits on: the whole list is replaced, and an empty
+    # list waits on none. Dispatch starts it only once each has landed. A coder that yields because
+    # one has not landed names it here first, since Yield leaves the list as it is.
+    command "WaitOn" do
+      goal "Replace the work items an open work item waits on; a key no item has, or a cycle, waits forever"
+
+      reference_to Work
+      attribute :waits_on, list_of(WorkKey), sets: true
+
+      given("a done work item waits on nothing") { status != "done" }
+      given("a dropped work item waits on nothing") { status != "dropped" }
+
+      emits "WorkWaitsOnNamed"
     end
 
     # An open work item claims nothing again. An item with no area never overlaps another in

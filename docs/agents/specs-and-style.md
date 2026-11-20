@@ -25,7 +25,7 @@ off, spec_helper points a child's tap at the run's own temporary file (`HECKS_EV
 (`~/.claude/hecks-dev/events.jsonl`), reaches the checkout's own red flag (`.git/hecks-red-flag.json`)
 or moves it during an example; `spec/support/live_ledger_guard.rb` does the same for the ticket and
 agent-run databases. A spec that needs a repository, a flag or a tap builds its own under a temporary
-directory and names it (`checkout:`, a world with a temporary `event_log` path).
+directory and names it (`checkout:`, a world with a temporary `event_tap` path).
 
 Several files cost one launcher boot, not one each:
 `exe/hecks test_suite_run.run_spec_files! "files.value=spec/a_spec.rb spec/b_spec.rb" --wait` reports each

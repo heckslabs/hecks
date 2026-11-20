@@ -87,7 +87,7 @@
       ],
       "cause": "A spec wrote to the owner's real state: a fixture red flag went into the primary checkout's git directory, or fake events went into the live event tap.",
       "check": "spec/support/live_state_guard.rb fails by name a spec that opens the live tap or moves the checkout's red flag.",
-      "fix": "Build the flag and the tap in a temporary directory and name them in the example (checkout:, or an event_log path in a world).",
+      "fix": "Build the flag and the tap in a temporary directory and name them in the example (checkout:, or an event_tap path in a world).",
       "always": "no",
       "area": ["spec"],
       "enforced_by": "spec/support/live_state_guard.rb (5f015240d)",
