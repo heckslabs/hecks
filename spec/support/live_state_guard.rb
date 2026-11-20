@@ -45,7 +45,7 @@ module LiveStateGuard
     def initialize(path:, **options)
       if LiveLedgerGuard.live?(path)
         raise Violation, "a spec opened the live event tap #{path}; boot with boot_hecks_in_memory, " \
-                         "or build a world whose event_log names a temporary path"
+                         "or build a world whose event_tap names a temporary path"
       end
 
       super
