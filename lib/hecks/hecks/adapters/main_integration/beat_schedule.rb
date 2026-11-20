@@ -3,6 +3,7 @@
 require "cgi"
 require "fileutils"
 require "open3"
+require_relative "local_copy"
 
 module Hecks
   module Adapters
@@ -117,6 +118,7 @@ module Hecks
             "mkdir -p \"#{File.dirname(lock)}\" && : >> \"#{lock}\"\n" \
             "zmodload zsh/system && zsystem flock -t 0 \"#{lock}\" 2>/dev/null || #{skipped}\n" \
             "#{FOLLOW_MAIN}\n" \
+            "#{LocalCopy.step}\n" \
             "exe/hecks Heartbeat.Beat! beat=launchd-$(date +%s) --wait > \"#{dev_file("train-beat.log")}\" 2>&1"
         end
 
