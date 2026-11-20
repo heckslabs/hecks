@@ -24,6 +24,10 @@ module Hecks
           @chosen = chosen
         end
 
+        # @param reason [String] a wait's reason, as the plan words it
+        # @return [String] the kind the wait is counted under, `other` when no pattern fits
+        def self.kind_of(reason) = KINDS.find { |pattern, _| pattern.match?(reason) }&.last || "other"
+
         # @return [String] `"; nothing started: ..."`, or an empty string when something was chosen
         def clause = @chosen.positive? ? "" : "; nothing started: #{why}"
 
@@ -35,9 +39,7 @@ module Hecks
           parts.empty? ? "nothing planned" : parts.join(", ")
         end
 
-        def counts = @skipped.map { |skip| kind(skip.reason) }.tally
-
-        def kind(reason) = KINDS.find { |pattern, _| pattern.match?(reason) }&.last || "other"
+        def counts = @skipped.map { |skip| self.class.kind_of(skip.reason) }.tally
       end
     end
   end
