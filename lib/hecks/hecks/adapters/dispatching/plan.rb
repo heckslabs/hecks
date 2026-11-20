@@ -5,6 +5,7 @@ require_relative "parking"
 require_relative "../work_slots"
 require_relative "pressure_limits"
 require_relative "plan_admission"
+require_relative "plan_batch"
 
 module Hecks
   module Adapters
@@ -20,11 +21,15 @@ module Hecks
       # limit is the machine's one stop, and the headroom estimate is reported, never held to.
       class Plan
         include PlanAdmission
+        include PlanBatch
 
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
+        # `batch` is the lead whose batch holds it, and `batch_commit` its commit on the lead's
+        # branch once built; a lead a fill starts for a group carries the work items it builds as
+        # `batched` and the `group` it was asked for ({Batching}).
         Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, :priority,
-                          :epic, keyword_init: true)
+                          :epic, :batch, :batch_commit, :batched, :group, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)
@@ -95,11 +100,11 @@ module Hecks
 
         def consider(item)
           reason = held_reason(item) || stop_reason(item) || limit_reason(item)
-          reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
+          reason ? @skipped << skip_of(item, reason) : @chosen << item
         end
 
         # What holds an item whatever room there is; such an item does not count against the cap.
-        def held_reason(item) = rethink_reason(item) || dependency_reason(item) || parked_reason(item)
+        def held_reason(item) = batch_reason(item) || rethink_reason(item) || dependency_reason(item) || parked_reason(item)
 
         # An item waits until each work item it names has landed, a red one included: it is never
         # chosen, so it is never started and yielded for a dependency.
