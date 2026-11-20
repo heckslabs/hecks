@@ -8,6 +8,7 @@ require_relative "shared_subjects"
 require_relative "run_names"
 require_relative "settled_reads"
 require_relative "settling"
+require_relative "clearing"
 
 module Hecks
   module Adapters
@@ -37,9 +38,9 @@ module Hecks
         # @param run [String] the look that asks, each row's `id`
         # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed,
         #   opened within its kind's window, not filed yet, whose run has not ended and whose
-        #   subject has not settled; a row with `files: "no"` is left out, so is a run started to
-        #   answer a question ({RunNames#answerer?}), and so is a row whose `shares` group already
-        #   holds its subject or its `cap` of open stalls ({SharedSubjects})
+        #   subject has not settled; a row a call for help clears ({Clearing}) is left out, so is
+        #   a run started to answer a question ({RunNames#answerer?}), and so is a row whose
+        #   `shares` group already holds its subject or its `cap` of open stalls ({SharedSubjects})
         def rows(lines, run)
           standing = Standing.new(lines)
           @names = RunNames.new(lines)
@@ -65,8 +66,8 @@ module Hecks
 
         # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed, whose
         #   run has not ended and whose subject has not settled, filed or not, each naming the stall
-        #   it was filed as (`filed`) and its row's `folds`; {Impediments} keeps those past their
-        #   minutes and folds them
+        #   it was filed as (`filed`), how its row clears it (`cleared_by`) and its row's `folds`;
+        #   {Impediments} keeps those past their minutes and folds them
         def open_lines(lines, run)
           standing = Standing.new(lines)
           @names = RunNames.new(lines)
@@ -76,10 +77,10 @@ module Hecks
 
         private
 
-        # The open lines a look may offer to `File`: filed by their row, not handled, not a run
-        # started to answer a question, in the window.
+        # The open lines a look may offer to `File`: cleared by their stall item, not handled, not
+        # a run started to answer a question, in the window.
         def fileable(entries, standing, run)
-          entries.reject { |entry| entry.first[:files] == "no" || handled?(standing, entry) || answerer?(*entry) }
+          entries.reject { |entry| Clearing.help?(entry.first) || handled?(standing, entry) || answerer?(*entry) }
                  .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
                  .select { |row| row[:waited] < row[:forgets] }
         end
@@ -156,7 +157,7 @@ module Hecks
           stall = key(kind, subject)
           { id: run, stall: stall, stall_kind: kind[:kind], subject: subject, opened_at: at.to_s, waited: waited,
             minutes: kind[:minutes], forgets: kind[:forgets], fixer: kind[:fixer], title: title(kind, subject),
-            detail: detail(kind, subject, at, waited), filed: "", count: 1, impediment: stall }
+            detail: detail(kind, subject, at, waited), filed: "", count: 1, impediment: stall, cleared_by: Clearing.of(kind) }
         end
 
         def title(kind, subject) = "#{kind[:kind]} stalled: #{kind[:aggregate]} #{subject}"
