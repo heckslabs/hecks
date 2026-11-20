@@ -13,7 +13,7 @@ RSpec.describe Hecks::Adapters::SourceTree do
 
   it "names a gate run's check by its stage, with the tree's git facts" do
     answer = adapter.examine(operation: { value: "gate" }, stage: { value: "quick" })
-    expect(answer).to include(check_name: { value: "gate-quick" }, linked: a_kind_of(Hash), branch: a_kind_of(Hash))
+    expect(answer).to include(check_name: { value: "gate-quick" }, linked: a_kind_of(Hash), on_branch: a_kind_of(Hash))
   end
 
   context "without the gemspec in the tree" do
