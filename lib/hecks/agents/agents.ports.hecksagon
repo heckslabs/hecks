@@ -87,10 +87,9 @@ Hecks.hecksagon "Agents" do
     end
   end
 
-  # A canary's scratch branch: cut from its base through `LinkedTree.add!`, then the patch applied
-  # and committed in it. Bound by adapters/scratch_branches, which never pushes; the bluebook
-  # decides when a canary is planted and what its verdict means. A refusal that begins "the patch
-  # does not apply" is the patch's; any other may pass.
+  # A canary's scratch branch, cut through `LinkedTree.add!` and the patch committed in it; bound
+  # by adapters/scratch_branches, which never pushes. A refusal that begins "the patch does not
+  # apply" is the patch's; any other may pass.
   Agents::Canary.port "ScratchBranches" do
     asks "CutScratch", to: Canary do
       attribute :canary,  CanaryName
