@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../safe_signal"
+
 module Hecks
   module Adapters
     class Ticking
@@ -48,7 +50,7 @@ module Hecks
 
         # Ends a child still running.
         def stop
-          Process.kill("TERM", @pid) if @state == :running
+          Hecks::Adapters::SafeSignal.to_process("TERM", @pid) if @state == :running
         rescue SystemCallError
           nil
         end

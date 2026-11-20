@@ -1,3 +1,7 @@
+# frozen_string_literal: true
+
+require_relative "../../../hecks/adapters/safe_signal"
+
 module Hecks
   module Adapters
     module Driving
@@ -30,9 +34,9 @@ module Hecks
 
           # Signals the group the child leads, else the child alone when the group is not yet made.
           def signal_group(signal, pid)
-            Process.kill(signal, -pid)
+            Hecks::Adapters::SafeSignal.to_group(signal, pid)
           rescue Errno::ESRCH
-            Process.kill(signal, pid)
+            Hecks::Adapters::SafeSignal.to_process(signal, pid)
           end
 
           # Puts a process in a group. The child does it for itself right after the fork and the

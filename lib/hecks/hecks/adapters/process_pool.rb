@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "safe_signal"
 require "rbconfig"
 require "tempfile"
 require_relative "console_capture"
@@ -157,7 +158,7 @@ module Hecks
       end
 
       def forward(name, pid)
-        Process.kill(name, -pid)
+        SafeSignal.to_group(name, pid)
       rescue Errno::ESRCH
         nil
       end

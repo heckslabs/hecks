@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "hecks/adapters/safe_signal"
+require_relative "../lib/hecks/hecks/adapters/safe_signal"
 
 RSpec.describe Hecks::Adapters::SafeSignal do
   let(:sent) { [] }
@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::SafeSignal do
 
   describe "a signal to a group" do
     [1, 0, -1, -5, nil, "1", 1.0].each do |group|
-      it "refuses group #{group.inspect} by name and sends nothing" do
+      it "refuses group #{group.inspect} by name and sends nothing", :aggregate_failures do
         expect { described_class.to_group("KILL", group, killer: killer) }
           .to raise_error(described_class::Refused, /refused: group #{Regexp.escape(group.inspect)}/)
         expect(sent).to eq([])
@@ -29,7 +29,7 @@ RSpec.describe Hecks::Adapters::SafeSignal do
 
   describe "a signal to one process" do
     [1, 0, -1, nil].each do |pid|
-      it "refuses pid #{pid.inspect} by name and sends nothing" do
+      it "refuses pid #{pid.inspect} by name and sends nothing", :aggregate_failures do
         expect { described_class.to_process("KILL", pid, killer: killer) }
           .to raise_error(described_class::Refused, /refused: process #{Regexp.escape(pid.inspect)}/)
         expect(sent).to eq([])

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../../hecks/adapters/safe_signal"
 require "open3"
 require "rbconfig"
 require "hecks/ci_speed/adapters/local_runner/refused"
@@ -59,7 +60,7 @@ module Hecks
         end
 
         def stop(group)
-          Process.kill("TERM", -group)
+          Hecks::Adapters::SafeSignal.to_group("TERM", group)
         rescue Errno::ESRCH, Errno::EPERM
           nil
         end
