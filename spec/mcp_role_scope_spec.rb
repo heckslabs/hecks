@@ -46,6 +46,9 @@ RSpec.describe "an MCP server that learns its restriction from the agent it serv
     [out, probe_of(err)]
   end
 
+  # The tools an unrestricted server serves: every tool but those only a commands server serves.
+  def unrestricted_names = driving::Mcp::TOOLS.map { |tool| tool[:name] } - driving::McpScope::LauncherDoor::COMMANDS_ONLY_TOOLS
+
   def names(out) = JSON.parse(out.lines.last).dig("result", "tools").map { |tool| tool["name"] }
 
   def call(name)
@@ -81,13 +84,13 @@ RSpec.describe "an MCP server that learns its restriction from the agent it serv
   it "leaves a role with no rows unrestricted" do
     cached
     out, = served("coder")
-    expect(names(out)).to eq(driving::Mcp::TOOLS.map { |tool| tool[:name] })
+    expect(names(out)).to eq(unrestricted_names)
   end
 
   it "leaves a session with no agent unrestricted", :aggregate_failures do
     cached
     out, probe = served(nil)
-    expect(names(out)).to eq(driving::Mcp::TOOLS.map { |tool| tool[:name] })
+    expect(names(out)).to eq(unrestricted_names)
     expect(probe[:framework]).to be(false)
   end
 
