@@ -1,13 +1,15 @@
 require_relative "../reference"
 require "hecks/tools/tools_doc"
 require_relative "cli_catalogue"
+require_relative "marked_catalogue"
 
 module Hecks
   module Doc
     module Pages
       # The live pages of a checkout and the regions each is made of: README's generated regions
-      # and its examples, each section table of `docs/tools.md`, every DSL reference page, every
-      # guide's examples, and the command-line guides' generated sections and prose. Each region
+      # and its examples, the marked regions and prose of the top-level pages (`MarkedCatalogue`),
+      # every DSL reference page, every guide's examples, and the command-line guides' generated
+      # sections and prose. Each region
       # names its source as `<source>:<target>` (see `Sources`).
       class Catalogue
         # One page to declare: its path, title and regions in reading order.
@@ -39,18 +41,14 @@ module Hecks
         end
 
         # @return [Array<Entry>] every live page
-        def pages = [readme, tools] + reference + guides + CliCatalogue.new(@root).pages
+        def pages
+          [readme] + MarkedCatalogue.new(@root).pages + reference + guides + CliCatalogue.new(@root).pages
+        end
 
         # @return [Entry] README: its generated regions, then its examples
         def readme
           regions = Reference.readme_regions(@root).keys.map { |id| projected(id, "readme:#{id}") }
           Entry.new("README.md", title_of("README.md"), regions + [doctested("README.md")])
-        end
-
-        # @return [Entry] `docs/tools.md`: one projected region per section table
-        def tools
-          regions = Tools::ToolsDoc::SECTIONS.map { |section| projected(section, "tools:#{section}") }
-          Entry.new(Tools::ToolsDoc::DOCUMENT, title_of(Tools::ToolsDoc::DOCUMENT), regions)
         end
 
         # @return [Array<Entry>] every DSL reference page, projected whole from the Syntax bluebook;
