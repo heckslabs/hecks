@@ -32,7 +32,7 @@ Hecks.world "Signalbox" do
   # Protection, in `Breaker`'s Order. The helper share is `helpers_percent` of the live coders; the
   # machine fuse is rated by the Tickets world's `cpu_budget`; the model fuse is unrated until ADR
   # 0220's bound is set. `gap` is how far under its rating a load falls before a breaker resets.
-  breakers "Breaker", helpers_percent: 100, shedding_min_coders: 2, reset_gap_percent: 10
+  breakers "Breaker", helpers_percent: 100, reset_gap_percent: 10
 
   # Reaping: a finished pipeline session or a landed copy is kept `ended_minutes`, an owner's own a
   # day, a stale one its `fuses` time rating. The Hecks world's `reaping` line keeps the old sweep's
