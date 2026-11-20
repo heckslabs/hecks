@@ -35,9 +35,18 @@ Hecks.bluebook "Signalbox" do
     # as the beat reckoned them; none while the band is short.
     attribute :coders_fit, Signed, optional: true
     attribute :gates_fit,  Signed, optional: true
+    # When the reading was published, in epoch seconds, and how long it stays current: a reader
+    # sees how old the newest reading is without the event log.
+    attribute :read_at,     Stamp, optional: true
+    attribute :stale_after, Seconds, optional: true
 
     value_object "Key" do
       attribute :value, String, matches: :present
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer, default: 0
+      invariant("a time is not negative") { !value.negative? }
     end
 
     value_object "Megabytes" do
@@ -78,6 +87,14 @@ Hecks.bluebook "Signalbox" do
       transition "Darken"  => "dark",   from: %w[normal tight short dark]
     end
 
+    # The marks are the ones the reading was judged against, as the beat looked them: the world's,
+    # or the adapter's own when no world declares them.
+    query "Latest" do
+      description "The newest reading of the machine: its band, the load on its cores with the tight, short and gap marks it was judged against, the headroom with its target, floor and gap, and when it was read."
+      order_by :read_at, :desc
+      limit 1
+    end
+
     command "Open" do
       role "System"
       goal "Start a machine's pressure signal with the capacity its sessions share"
@@ -108,9 +125,13 @@ Hecks.bluebook "Signalbox" do
       attribute :coders_fit,  Signed, default: { value: 0 }, sets: true
       attribute :gates_fit,   Signed, default: { value: 0 }, sets: true
       attribute :age,         Seconds
-      attribute :stale_after, Seconds
+      attribute :stale_after, Seconds, sets: true
+      attribute :now,         Stamp
+      needs :now
 
       given("a reading is published only while it is current") { age.value <= stale_after.value }
+
+      sets :read_at, to: :now
 
       emits PressureRead
     end
@@ -240,6 +261,12 @@ Hecks.bluebook "Signalbox" do
       mark :rests, "admitted"
       mark :terminal, "closed"
       transition "Close" => "closed", from: "admitted"
+    end
+
+    query "Live" do
+      description "Every session admitted and not yet closed, with its role, tier, owner, purpose and expected draw."
+      where(status: "admitted")
+      order_by :admission
     end
 
     command "Admit" do
@@ -377,6 +404,19 @@ Hecks.bluebook "Signalbox" do
       transition "Wait"  => "waiting",   from: "asked"
     end
 
+    query "Of" do
+      description "How one session answered the band it was asked in: running, deferring its heavy steps, leaving or waiting."
+      attribute :session, SessionKey
+      where(session: :session)
+      order_by :response
+    end
+
+    query "Held" do
+      description "Every answer that holds a session back: a coder deferring its heavy steps, a helper leaving, a gate waiting its turn."
+      where(status: { in: "deferring,leaving,waiting" })
+      order_by :response
+    end
+
     command "Ask" do
       role "System"
       goal "Ask how one session answers the band the signal is in"
@@ -499,6 +539,18 @@ Hecks.bluebook "Signalbox" do
       transition "Reset" => "closed", from: "open"
     end
 
+    query "Tripped" do
+      description "Every breaker that has tripped and not reset, with its level and rating."
+      where(state: "open")
+      order_by :breaker
+    end
+
+    query "Shedding" do
+      description "The shedding breaker while it is tripped, with the session it last rested."
+      where(state: "open", level: "shedding")
+      order_by :breaker
+    end
+
     command "Install" do
       role "System"
       goal "Install one breaker at its level with its rating"
@@ -554,6 +606,278 @@ Hecks.bluebook "Signalbox" do
       end
 
       emits BreakerReset
+    end
+  end
+
+  # The band the machine stands in, kept across beats: a `Pressure` is one beat's reading, so only
+  # this record knows since when the band has stood. A turn is asked only of a standing in another
+  # band, so `since` moves only when the band changes.
+  aggregate "Standing" do
+    description "The band a machine stands in and since when: one record per machine, turned only when a reading settles in another band."
+    created_by "Standing.open!"
+
+    identified_by :standing
+
+    attribute :standing, Key
+    attribute :since,    Stamp, optional: true
+    attribute :pressure, ReadingKey, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    # The `Pressure` reading that last turned the band.
+    value_object "ReadingKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer, default: 0
+      invariant("a time is not negative") { !value.negative? }
+    end
+
+    lifecycle :band, default: "normal" do
+      mark :rests, "normal", "tight", "short", "dark"
+      transition "Tighten" => "tight",  from: %w[normal short dark]
+      transition "Trip"    => "short",  from: %w[normal tight dark]
+      transition "Ease"    => "normal", from: %w[tight short dark]
+      transition "Darken"  => "dark",   from: %w[normal tight short]
+    end
+
+    # No policy darkens a standing yet: a signal gone dark is told by the age of `Pressure.Latest`.
+    query "Now" do
+      description "The band the machine stands in, since when, and the reading that turned it. It does not say dark by itself: a reading older than its stale_after, as Pressure.Latest carries them, is dark."
+      order_by :standing
+      limit 1
+    end
+
+    query "NotTight" do
+      description "The standing while it is in any band but tight."
+      where(band: { in: "normal,short,dark" })
+    end
+
+    query "NotShort" do
+      description "The standing while it is in any band but short."
+      where(band: { in: "normal,tight,dark" })
+    end
+
+    query "NotNormal" do
+      description "The standing while it is in any band but normal."
+      where(band: { in: "tight,short,dark" })
+    end
+
+    query "NotDark" do
+      description "The standing while it is in any band but dark."
+      where(band: { in: "normal,tight,short" })
+    end
+
+    command "Open" do
+      role "System"
+      goal "Start a machine's standing in the normal band, once"
+
+      attribute :standing, Key, sets: true
+      attribute :now,      Stamp
+      needs :now
+
+      sets :since, to: :now
+
+      emits StandingOpened
+    end
+
+    command "Tighten" do
+      role "System"
+      goal "Turn the standing to tight, from when this reading settled there"
+
+      reference_to Standing
+      attribute :pressure, ReadingKey, sets: true
+      attribute :now,      Stamp
+      needs :now
+
+      sets :since, to: :now
+
+      emits StandingTightened
+    end
+
+    command "Trip" do
+      role "System"
+      goal "Turn the standing to short, from when this reading settled there"
+
+      reference_to Standing
+      attribute :pressure, ReadingKey, sets: true
+      attribute :now,      Stamp
+      needs :now
+
+      sets :since, to: :now
+
+      emits StandingFellShort
+    end
+
+    command "Ease" do
+      role "System"
+      goal "Turn the standing back to normal, from when this reading settled there"
+
+      reference_to Standing
+      attribute :pressure, ReadingKey, sets: true
+      attribute :now,      Stamp
+      needs :now
+
+      sets :since, to: :now
+
+      emits StandingEased
+    end
+
+    command "Darken" do
+      role "System"
+      goal "Turn the standing to dark, from when its signal went dark"
+
+      reference_to Standing
+      attribute :pressure, ReadingKey, sets: true
+      attribute :now,      Stamp
+      needs :now
+
+      sets :since, to: :now
+
+      emits StandingDarkened
+    end
+  end
+
+  # Why a session was not started. Each ruling that holds one has its own key, so a hold is never
+  # revised in place: the newest for a subject stands until it is lifted. Whoever decides the fill
+  # records it, and says which side it is: Signalbox's admission, or the dispatch it replaces.
+  aggregate "Hold" do
+    description "One ruling that held a session back: its subject, the reason in plain words, which side decided, and the reading it was judged on."
+    created_by "Hold.record!"
+
+    identified_by :hold
+
+    attribute :hold,       Key
+    attribute :subject,    Word
+    attribute :reason,     Note
+    attribute :decided_by, Side
+    attribute :band,       Band
+    attribute :load,       Hundredths
+    attribute :cores,      Count
+    attribute :load_mark,  Percent
+    attribute :headroom,   Signed
+    attribute :held_at,    Stamp, optional: true
+    attribute :lifted_at,  Stamp, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    # What was held: a Work item's key, or a session's.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :present
+    end
+
+    # `signalbox` while admission by headroom decides the fill, `dispatch` while the cap, the load
+    # limit and the reserve do.
+    value_object "Side" do
+      attribute :value, String
+      invariant("a hold is decided by signalbox or by dispatch") { value == "signalbox" || value == "dispatch" }
+    end
+
+    value_object "Band" do
+      attribute :value, String
+      invariant("a band is normal, tight, short or dark") do
+        value == "normal" || value == "tight" || value == "short" || value == "dark"
+      end
+    end
+
+    value_object "Hundredths" do
+      attribute :value, Integer, default: 0
+      invariant("a load is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Percent" do
+      attribute :value, Integer, default: 0
+      invariant("a mark is not negative") { !value.negative? }
+    end
+
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer, default: 0
+      invariant("a time is not negative") { !value.negative? }
+    end
+
+    lifecycle :status, default: "held" do
+      mark :rests, "held"
+      mark :terminal, "lifted"
+      transition "Lift" => "lifted", from: "held"
+    end
+
+    query "Of" do
+      description "Why one subject was held, newest ruling first: the reason, which side decided, the band, the load and the mark it was judged against, and whether the hold still stands."
+      attribute :subject, Word
+      where(subject: :subject)
+      order_by :held_at, :desc
+    end
+
+    query "Held" do
+      description "Every hold that still stands, newest first."
+      where(status: "held")
+      order_by :held_at, :desc
+    end
+
+    query "HeldOf" do
+      description "The holds of one admitted session that still stand."
+      attribute :admission, Word
+      where(subject: :admission, status: "held")
+    end
+
+    query "Last" do
+      description "The last ruling that held a session, with its reason and whether it still stands: admission is open to that subject once it is lifted."
+      order_by :held_at, :desc
+      limit 1
+    end
+
+    # `load_mark` is the mark the load was judged against, in percent of the cores; nought when
+    # the reason is not the load.
+    command "Record" do
+      role "System"
+      goal "Record that a session was not started, with the reason in plain words and which side decided"
+
+      attribute :hold,       Key, sets: true
+      attribute :subject,    Word, sets: true
+      attribute :reason,     Note, sets: true
+      attribute :decided_by, Side, sets: true
+      attribute :band,       Band, sets: true
+      attribute :load,       Hundredths, default: { value: 0 }, sets: true
+      attribute :cores,      Count, default: { value: 0 }, sets: true
+      attribute :load_mark,  Percent, default: { value: 0 }, sets: true
+      attribute :headroom,   Signed, default: { value: 0 }, sets: true
+      attribute :now,        Stamp
+      needs :now
+
+      sets :held_at, to: :now
+
+      emits SessionHeld
+    end
+
+    command "Lift" do
+      role "System"
+      goal "Lift the hold once its subject is admitted or no longer asks"
+
+      reference_to Hold
+      attribute :now, Stamp
+      needs :now
+
+      sets :lifted_at, to: :now
+
+      emits HoldLifted
     end
   end
 
@@ -1192,6 +1516,45 @@ Hecks.bluebook "Signalbox" do
   policy "PostTheSettledPressure" do
     on  "Pressure.PressureRead"
     ask :post, with: { pressure: :pressure }
+  end
+
+  # A turn asks which standing is in another band, so a reading that settles where the machine
+  # stands turns nothing. Every beat asks to open the standing: after the first it already exists,
+  # which leaves its band and its since as they are.
+  policy "OpenTheMachinesStanding" do
+    on      "Pressure.PressureOpened"
+    trigger Standing::Open, with: { standing: { value: "machine" } }
+  end
+
+  policy "TightenTheStanding" do
+    on       "Pressure.PressureTightened"
+    for_each "Standing.NotTight"
+    trigger  Standing::Tighten, with: { standing: :standing, pressure: :pressure }
+  end
+
+  policy "TripTheStanding" do
+    on       "Pressure.PressureFellShort"
+    for_each "Standing.NotShort"
+    trigger  Standing::Trip, with: { standing: :standing, pressure: :pressure }
+  end
+
+  policy "EaseTheStanding" do
+    on       "Pressure.PressureEased"
+    for_each "Standing.NotNormal"
+    trigger  Standing::Ease, with: { standing: :standing, pressure: :pressure }
+  end
+
+  policy "DarkenTheStanding" do
+    on       "Pressure.PressureDarkened"
+    for_each "Standing.NotDark"
+    trigger  Standing::Darken, with: { standing: :standing, pressure: :pressure }
+  end
+
+  # A session admitted for real is held no more.
+  policy "LiftTheAdmittedSessionsHolds" do
+    on       "Admission.SessionAdmitted"
+    for_each "Hold.HeldOf"
+    trigger  Hold::Lift, with: { hold: :hold }
   end
 
   policy "EverySessionRunsInNormalPressure" do
