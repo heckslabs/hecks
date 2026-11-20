@@ -1803,21 +1803,6 @@ Hecks.bluebook "Tickets" do
     trigger Work::Close, with: { work: :spec, no_change: "a spec run no longer fails the file" }
   end
 
-  # A stall is a signal, not work: one for the orchestrator wakes a run of it (Agents
-  # `WakeWhenAStallIsFiled`) and is settled in place. Only a stall for another role (the pruner's disk)
-  # is a work item for it, keyed as the stall is (`stall-<kind>-<subject>`), so a refiling plans nothing twice.
-  policy "PlanWorkWhenStallFiled" do
-    on      "Stall.StallFiled"
-    where   { fixer.value != "orchestrator" }
-    trigger Work::Plan, with: { work: :stall, title: :title, detail: :detail }
-  end
-
-  # A stall whose run ended can never close, so its work item, when it planned one, is set aside with the reason.
-  policy "DropWorkWhenStallAbandoned" do
-    on      "Stall.StallAbandoned"
-    trigger Work::Drop, with: { work: :stall, reason: :reason }
-  end
-
   # A train pull request whose CI failed past its reruns is one red work item, `red-train-<pr>`, for a
   # coder; the fill starts red items over budget. The key is the dedupe: a second exhausted attempt of
   # the same pull request plans nothing twice.

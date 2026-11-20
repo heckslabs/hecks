@@ -8,9 +8,10 @@ module Hecks
       # coder's and a gate's expected draw. It reads them as the world declares them and compares
       # none.
       class Marks
-        # The world's settings when no world is loaded: the 2026-11-19 starting values.
+        # The world's settings when no world is loaded: the 2026-11-19 starting values, with the
+        # short load mark at the fill's old guard of 20.5 (342 percent of 6 performance cores).
         PRESSURE = { reserve_mb: 8_192, target_mb: 6_144, floor_mb: 3_072, gap_mb: 2_048, stale_after_seconds: 120,
-                     load_tight_percent: 150, load_short_percent: 300, load_gap_percent: 25 }.freeze
+                     load_tight_percent: 150, load_short_percent: 342, load_gap_percent: 25 }.freeze
         DRAWS = { coder_mb: 1_536, gate_mb: 2_560 }.freeze
 
         # @param registry [Runtime::Registry, nil] whose Signalbox world is read

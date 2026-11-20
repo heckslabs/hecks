@@ -151,6 +151,31 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
   end
 
+  # The probe of 2026-11-20 06:29: a load of 19.47 on the six performance cores read short at the
+  # old 300 mark while memory had room for three coders. Against the 342 mark (the fill's old guard
+  # of 20.5) it is tight, and a lower-tier coder is admitted.
+  test "the 06:29 reading: a load of 19.47 on six cores is tight, not short, under the 342 mark" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 6879 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 0 }, stale_after: { value: 120 }, load: { value: 1947 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 342 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
+    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+  end
+
+  test "the 06:29 reading: a lower-tier coder is admitted in the tight band with room for three" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "sim-properties-independent" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "delegate" }, purpose: { value: "sim-properties-independent" },
+          ends_when: { value: "the branch lands or the item yields" }, draw: { value: 474 }, fuse: { value: 4096 },
+          fuse_minutes: { value: 240 }, asked_by: { value: "delegate" }, switch: { value: "on" }, met: { value: "no" },
+          band: { value: "tight" }, headroom: { value: 6879 }, floor: { value: 3072 }, gap: { value: 2048 },
+          memory_pressure_level: { value: 1 }, age: { value: 0 }, stale_after: { value: 120 }, started: { value: 0 },
+          ramp: { value: 1 }, coders: { value: 0 }, helpers: { value: 0 }, share: { value: 0 }, outranked: { value: 0 },
+          seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
   test "memory past its gap does not ease a band the load still holds" do
     tests "Read", on: "Pressure"
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
