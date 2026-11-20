@@ -1,0 +1,4 @@
+load 8.0 (limit 20.5, 12 cpus); started 3 of cap 7; protection: no breaker trips (helpers 0 of 0 helpers, machine 1985 of 2160 boot minutes); headroom 13 of cap 7 (0.9 load per session); this fill: 0 started, 0 yielded of 0; nothing started: 4 held by other, 1 held by parked, 56 held by dependency, 325 held by pause, 4 held by epic, 31 planned without a priority wait for a manual fill; load source: roundhouse 7.5 at 2026-11-20T18:33:54Z; sampler 4.6 differs by 2.9 (over 2.0); frozen: none; at 2026-11-20T18:33:54Z
+the-beat-is-cleared-from-the-train-copy skipped: held: a-red-train-bisects-and-resolves-itself holds the one expedite place
+a-stalled-fill-raises-its-reason parked: run a-stalled-fill-raises-its-reason is started and keeps its key until it ends (already_recorded)
+the-load-pause-lifts-when-the-load-falls skipped: held: a-red-train-bisects-and-resolves-itself holds the one expedite place

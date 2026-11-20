@@ -770,6 +770,7 @@ function renderFan(fan) {
   const slots = fan.fill && !isUnknown(fan.fill) ? fan.fill : {}, next = (slots.would_start || [])[0], flagged = (fan.flags || []).length;
   summarize("fan", [slots.cap !== undefined && slots.started + " of " + slots.cap + " started",
     slots.load !== undefined && [slots.load + " load of " + slots.limit, slots.load >= slots.limit ? "attention" : ""],
+    slots.stale && ["fill stale: last ran " + slots.age_minutes + " min ago", "attention"],
     flagged && [flagged + " flags", "attention"], next ? "next: " + next.slug : "nothing waiting to start"]);
   const sessions = fan.sessions.filter((s) => s.started), now = Date.now(), span = 24 * 3600 * 1000, start = now - span;
   const GLYPH = { busy: "◔ busy", blocked: "▲ blocked", done: "✓ done", failed: "✕ failed" };
