@@ -29,7 +29,7 @@ module Hecks
           return unless AdmissionSwitch.on?(@registry)
 
           @admitting ||= Admitting.new(runs: work_items.runs, now: @standins[:now]&.call || Time.now,
-                                       switch: WorkLimits.switch_on?(@registry))
+                                       switch: WorkLimits.switch_on?(@registry), meter: Admitting.meter(@registry))
         end
       end
     end
