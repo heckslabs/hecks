@@ -1,5 +1,6 @@
 //! The `Adapter` construct: a `.adapter` file's `Hecks.adapter "Name" do ... end` blocks, each
-//! declaring a `port`, `field`s (optionally defaulted) and `secret`s. Printed by
+//! declaring a `port`, `field`s (optionally defaulted), `secret`s and, for a component, the
+//! `imports` it is granted. Printed by
 //! `hecks-parse adapter`; adapters never enter `ir.json`.
 
 use crate::diag::{Diagnostic, ParseResult};
@@ -140,6 +141,19 @@ fn parse_body(
                     1,
                 )?);
             }
+            // Variadic; the argument gate already checked each positional is a symbol.
+            "imports" => {
+                adapter.imports.extend(
+                    gated
+                        .args
+                        .positional
+                        .iter()
+                        .map(|(_, text)| text.trim().trim_start_matches(':').to_string()),
+                );
+                if let Some(raw) = super::named_raw(&gated.args, "hosts") {
+                    adapter.hosts.extend(hosts(file, number, raw)?);
+                }
+            }
             _ => {
                 return Err(super::not_built_yet(
                     "Adapter",
@@ -152,6 +166,30 @@ fn parse_body(
         }
     }
     Ok(adapter)
+}
+
+/// The host names of an `imports ..., hosts: [...]` line: a list of strings, nothing else.
+fn hosts(file: &str, line: usize, raw: &str) -> ParseResult<Vec<String>> {
+    let refused = || {
+        Diagnostic::new(
+            file,
+            line,
+            format!(
+                "'imports' hosts: ({}) must be a list of strings",
+                raw.trim()
+            ),
+        )
+    };
+    let Value::Array(items) = ruby_value::read(raw) else {
+        return Err(refused());
+    };
+    items
+        .into_iter()
+        .map(|item| match item {
+            Value::Str(text) => Ok(text),
+            _ => Err(refused()),
+        })
+        .collect()
 }
 
 /// A JSON-native default: string, integer, boolean or nil. Anything else is refused rather than

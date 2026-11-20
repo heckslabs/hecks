@@ -34,16 +34,31 @@ module Hecks
         end
 
         # The keys only some adapters carry: `provides` when it names a capability, `stays_inside`
-        # when the adapter says it, and a plugin's `answers` and `runs`.
+        # when the adapter says it, `answers` and `runs` when it runs a module, and a component's
+        # `imports` and `hosts`.
         #
         # @param adapter [Bluebook::Hecksagon::Adapter] the adapter to export
         # @return [Hash{String => Object}] the keys it carries beyond the five every adapter has
         def optional_adapter_keys(adapter)
           keys = adapter.capabilities.empty? ? {} : { "provides" => adapter.capabilities }
           keys["stays_inside"] = true if adapter.stays_inside?
-          return keys unless adapter.plugin?
+          keys.merge(module_keys(adapter), grant_keys(adapter))
+        end
 
-          keys.merge("answers" => adapter.answered_queries, "runs" => adapter.runs)
+        # What an adapter that runs a module carries: the queries it answers and the module.
+        #
+        # @param adapter [Bluebook::Hecksagon::Adapter] the adapter to export
+        # @return [Hash{String => Object}] `answers` and `runs`, empty when it runs none
+        def module_keys(adapter)
+          adapter.runs ? { "answers" => adapter.answered_queries, "runs" => adapter.runs } : {}
+        end
+
+        # A component's grant: the `imports` and `hosts` it names, each omitted when empty.
+        #
+        # @param adapter [Bluebook::Hecksagon::Adapter] the adapter to export
+        # @return [Hash{String => Array<String>}] the grant's keys, empty for any other adapter
+        def grant_keys(adapter)
+          { "imports" => adapter.granted_imports, "hosts" => adapter.granted_hosts }.reject { |_, v| v.empty? }
         end
 
         # Loads each `.adapter` file into its own fresh registry and exports what it declared,
