@@ -560,11 +560,12 @@ Hecks.bluebook "Hecks" do
       attribute :commits,  Count,  optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
-      # A revert: the landing's merge commit, the commit that undid it, and whether the landing
-      # never left local main.
+      # A revert: the landing's merge commit, the commit that undid it, whether the landing never
+      # left local main, and why it is undone.
       attribute :culprit,  Word,   optional: true
       attribute :reverted, Word,   optional: true
       attribute :local,    Switch, optional: true
+      attribute :reason,   Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -744,6 +745,7 @@ Hecks.bluebook "Hecks" do
 
       # Undoes one landing on local main with a new commit, holding the line so no boarding overlaps
       # it. A policy dispatches it with the landing a red verification named; nothing is forced.
+      # `reason` is why the landing is undone: the revert's report opens with it.
       command "Unland" do
         role "System"
         goal "Revert one landing on local main with a new commit, in turn with the boardings"
@@ -752,6 +754,7 @@ Hecks.bluebook "Hecks" do
         attribute :culprit,  Word, sets: true
         attribute :checkout, Word, optional: true, sets: true
         attribute :local,    Switch, optional: true, sets: true
+        attribute :reason,   Report, optional: true, sets: true
 
         emits RevertRequested
       end
@@ -1823,13 +1826,17 @@ Hecks.bluebook "Hecks" do
       end
 
       # The three below record how a standing episode goes on and ends. None is a transition:
-      # `status` keeps the decision the search made.
+      # `status` keeps the decision the search made. `Undo` says again the episode's Work item and
+      # finding beside the revert's report, so its event tells Tickets all a reopened item needs.
       command "Undo" do
         role "System"
-        goal "Record the commit that reverted the episode's first bad merge"
+        goal "Record the commit that reverted the episode's first bad merge, with the Work item it reopens and how that work lands again"
 
         reference_to RedEpisode
-        attribute :revert, Report, sets: true
+        attribute :revert,  Report, sets: true
+        attribute :work,    Report, optional: true
+        attribute :finding, Report, optional: true
+        attribute :report,  Report, optional: true
 
         given("the episode still stands") { ended_at == nil || ended_at.value == 0 }
 
@@ -1927,16 +1934,19 @@ Hecks.bluebook "Hecks" do
     policy "RevertTheCulprit" do
       on      "RedEpisode.EpisodeReverting"
       root
-      trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local }
+      trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local,
+                                         reason: :finding }
     end
 
     # Declared before the policies that verify or admit the revert, so the episode holds its revert
-    # before any of them can lower the flag. The revert's key is the episode's run (`Unland`).
+    # before any of them can lower the flag. The revert's key is the episode's run (`Unland`). The
+    # Work item and the finding are the episode's own, read from the row the query answers.
     policy "RecordTheRevertOnTheEpisode" do
       on       "SendTrain.LandingReverted"
       root
       for_each "RedEpisode.Reverting"
-      trigger  RedEpisode::Undo, with: { run: :run, revert: :reverted }
+      trigger  RedEpisode::Undo, with: { run: :run, revert: :reverted, work: :work, finding: :finding,
+                                         report: :report }
     end
 
     policy "AdmitTheRevertOfAPushedMerge" do
