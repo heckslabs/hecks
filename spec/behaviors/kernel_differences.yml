@@ -1,0 +1,22 @@
+# Behaviors tests whose outcome on the Rust kernel still differs from the in-process engine, each
+# with the reason. spec/behaviors_kernel_spec.rb fails on an entry whose outcomes agree, so an
+# entry is removed as soon as the kernel catches up: the list only shrinks. A suite whose domain
+# has no kernel feature in rust/Cargo.toml is not listed here; that spec reports it as pending.
+- file: examples/pizzas/bluebook/pizzas.behaviors
+  test: a sold pizza is no longer Available
+  reason: the kernel's --serve takes no query step
+- file: examples/pizzas/bluebook/pizzas.behaviors
+  test: Available's own row can be checked directly, not just counted
+  reason: the kernel's --serve takes no query step
+- file: examples/pizzas/bluebook/pizzas.behaviors
+  test: CostingLessThan finds a pizza under the ceiling named
+  reason: the kernel's --serve takes no query step
+- file: spec/fixtures/pizza_fixture/bluebook/pizza_fixture.behaviors
+  test: a sold pizza is no longer Available
+  reason: the kernel's --serve takes no query step
+- file: spec/fixtures/pizza_fixture/bluebook/pizza_fixture.behaviors
+  test: Available's own row can be checked directly, not just counted
+  reason: the kernel's --serve takes no query step
+- file: spec/fixtures/pizza_fixture/bluebook/pizza_fixture.behaviors
+  test: CostingLessThan finds a pizza under the ceiling named
+  reason: the kernel's --serve takes no query step
