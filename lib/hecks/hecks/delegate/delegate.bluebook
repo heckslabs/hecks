@@ -1506,11 +1506,9 @@ Hecks.bluebook "Hecks" do
       trigger Roll::Start, with: { run: :roll }
     end
 
-    # A fill that starts nothing while work waits and places are free says why here, once for each
-    # stall. The `Dispatching` port answers facts on each beat of the clock and at each start: how many
-    # rollable items wait, the free places under the cap, how many the plan would start, the minutes
-    # since the last start, and the dominant reason with its reading and what governs it. The policies
-    # below decide. The bluebook reads neither the clock nor the machine.
+    # The `Dispatching` port answers facts on each beat and at each start: the rollable items waiting,
+    # the free places, what the plan would start, the minutes since the last start, and the dominant
+    # reason with its reading and governor. The policies decide; no clock or machine is read here.
     aggregate "FillStall" do
       description "Whether the fill of a store stands stalled, one record per store: nothing has started for 15 minutes while rollable work waits and places are free. FillStalled is recorded once for each stall, with the dominant reason, the reading behind it, how long it has held and the setting or switch that governs it; the first start after it records FillStallCleared."
 
