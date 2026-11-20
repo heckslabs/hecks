@@ -1587,11 +1587,9 @@ Hecks.bluebook "Hecks" do
                                title: :title, cause: :cause }
     end
 
-    # A merge whose specs fail, pass at the last verified commit, and which no revert of the range
-    # undid is the one change to revert, as long as the range holds fewer than three reverts. A
-    # second break in the same range is a second culprit and opens its own episode. A merge a revert
-    # already undid is parked (the wrong merge was blamed), and so is a range at its cap; a spec red
-    # at the base too reverts nothing.
+    # A red merge no revert undid is reverted while the range holds under three reverts; a second
+    # culprit opens its own episode. A merge already undone, or a range at its cap, is parked; a
+    # spec red at the base too reverts nothing.
     policy "RevertWhenAMergeIsRed" do
       on      "Integration.BisectAnswered"
       root
