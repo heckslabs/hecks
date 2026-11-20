@@ -3,6 +3,7 @@
 require "hecks"
 require_relative "shell_reads"
 require_relative "role_server_env"
+require_relative "routing_guard/script_gate"
 require "hecks/role_server_cache"
 
 module Hecks
@@ -26,31 +27,34 @@ module Hecks
       # An `Aggregate.verb` word of a launcher call, in either spelling.
       VERB_WORD = /\A[A-Za-z_]\w*\.\w/
 
-      # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `rows:` a callable answering a value object's name => its rows
-      # @param root [String, nil] unused
+      # @param registry [Runtime::Registry, nil] the boot answering, whose `Script` records the
+      #   script step keeps
+      # @param settings [Hash] `rows:` a callable answering a value object's name => its rows;
+      #   `scripts:` a {ScriptGate::Store} standing in for the registry's
       # @param checkout [String, nil] a checkout whose bluebooks answer, rows and command names
       #   alike, instead of this one's: the one a session will work in
-      def initialize(aggregate: nil, settings: {}, root: nil, checkout: nil)
+      def initialize(registry: nil, settings: {}, checkout: nil, **)
         @rows = settings[:rows] || method(:bluebook_rows)
         @stand_in = settings.key?(:rows)
         @checkout = checkout
+        @scripts = settings.key?(:scripts) ? -> { settings[:scripts] } : -> { ScriptGate.store(registry) }
       end
 
       # @param role [Hash, String] the role asking
       # @param command [Hash, String] the Bash text it asks to run
       # @param agent [Hash, String, nil] the subagent making the call; blank in the role's session
+      # @param session [Hash, String, nil] the Claude session making the call, for the script step
       # @return [Hash{Symbol => String}] `text:` "allowed"
-      # @raise [Refused] when the role's own session has routing rows and the command is not on them
-      def guard(role:, command:, agent: nil)
+      # @raise [Refused] when the role's own session has routing rows and the command is not on
+      #   them, or the session's script is held until it tries hecks
+      def guard(role:, command:, agent: nil, session: nil)
         return { text: "allowed" } unless held(agent).to_s.strip.empty?
 
         name = held(role)
-        rules = rows("RoutingRule", name).map { |row| row[:pattern] }
         text = held(command).to_s.strip
-        return { text: "allowed" } if rules.empty? || allowed?(rules, text, name)
-
-        raise Refused, refusal(name, text)
+        route!(name, text)
+        ScriptGate.from_rows(@rows, @scripts).judge!(session: held(session).to_s, role: name, text: text)
+        { text: "allowed" }
       end
 
       # The variables that start the role's MCP server restricted to the commands its rows name.
@@ -173,6 +177,12 @@ module Hecks
       end
 
       def rows(table, role) = @rows.call(table).select { |row| row[:role] == role }
+
+      # The routing rows' step: a role with rows runs only a call they name.
+      def route!(name, text)
+        rules = rows("RoutingRule", name).map { |row| row[:pattern] }
+        raise Refused, refusal(name, text) unless rules.empty? || allowed?(rules, text, name)
+      end
 
       def held(value) = value.is_a?(Hash) ? value.fetch(:value) { value.fetch("value", nil) } : value
 

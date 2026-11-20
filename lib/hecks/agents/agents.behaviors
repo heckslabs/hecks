@@ -270,4 +270,31 @@ Hecks.behaviors "Agents" do
     input  canary_cadence: "canary", now: { value: 100_100 }
     expect refused: "the window since the last plant has passed"
   end
+
+  test "Attempt holds a session's first script when no hecks command ran" do
+    tests "Attempt", on: "Script"
+    input  session: { value: "s1" }, role: { value: "coder" }, asked: { value: "ruby -e 1" }
+    expect emits: ["ScriptAttempted", "ScriptHeld"]
+  end
+
+  test "Attempt runs a script held once when it is asked again" do
+    tests "Attempt", on: "Script"
+    setup  "Agents::Script.Attempt", session: { value: "s2" }, role: { value: "coder" }, asked: { value: "ruby -e 1" }
+    input  session: { value: "s2" }, role: { value: "coder" }, asked: { value: "ruby -e 1" }
+    expect emits: ["ScriptAttempted", "ScriptRun"]
+  end
+
+  test "Attempt runs a script after a hecks command" do
+    tests "Attempt", on: "Script"
+    setup  "Agents::Script.NoteHecks", session: { value: "s3" }
+    input  session: { value: "s3" }, role: { value: "coder" }, asked: { value: "python3 x.py" }
+    expect emits: ["ScriptAttempted", "ScriptRun"]
+  end
+
+  test "Hold refuses a script after a hecks command" do
+    tests "Hold", on: "Script"
+    setup  "Agents::Script.NoteHecks", session: { value: "s4" }
+    input  script: "s4", command: { value: "ruby -e 1" }
+    expect refused: "no hecks command ran since the last script"
+  end
 end
