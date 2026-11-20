@@ -121,12 +121,12 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
     expect([result.stopped, result.err]).to match([true, include("is gone")])
   end
 
-  it "ends a program whose directory disappears, long before the bound", :aggregate_failures do
+  it "ends a program whose directory disappears, long before the bound", :aggregate_failures, :wall_clock do
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     result = vanishing
     expect(result.stopped).to be(true)
     expect(result.err).to include("its directory", "is gone")
-    expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 10
+    expect_wall_clock(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, under: 10)
   end
 
   it "refuses to start a program in a directory that is gone", :aggregate_failures do

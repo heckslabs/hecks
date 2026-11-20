@@ -141,9 +141,11 @@ RSpec.describe "the resident's handshake" do
       streams.times { ends.first.send_io(File.open(File::NULL)) }
     end
 
-    it "is dropped within the one deadline of the whole exchange, and its line is not run", :aggregate_failures do
-      expect(held_for).to be < 2
+    it "is dropped within the one deadline of the whole exchange, and its line is not run", :aggregate_failures,
+       :wall_clock do
+      held = held_for
       expect(server).not_to have_received(:launch)
+      expect_wall_clock(held, under: 2)
     end
 
     it "has the streams it had sent closed" do

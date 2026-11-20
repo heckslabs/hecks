@@ -28,10 +28,10 @@ RSpec.describe "a launcher through its resident" do
     expect(resident_answers).to eq(expected)
   end
 
-  it "answers a line in less than half the time a cold boot takes" do
+  it "answers a line in less than half the time a cold boot takes", :wall_clock do
     start_resident
     warm = [timed(*SLOW), timed(*SLOW)].min
-    expect(warm).to be < timed(*SLOW, resident: false) / 2
+    expect_wall_clock(warm, under: timed(*SLOW, resident: false) / 2, stretched: false)
   end
 
   it "keeps the resident standing across lines, one process serving them all", :aggregate_failures do

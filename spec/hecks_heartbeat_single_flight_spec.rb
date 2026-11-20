@@ -19,7 +19,7 @@ RSpec.describe "a heartbeat's single flight" do
       expect(facts[:names]).not_to include("Beaten", "SweepRequested")
     end
 
-    it("is declined in under a second") { expect(facts[:seconds]).to be < 1 }
+    it("is declined in under a second", :wall_clock) { expect_wall_clock(facts[:seconds], under: 1) }
 
     it("names the holder") { expect(facts[:refusal]).to match(/\Abeat already running \(pid #{facts[:pid]}, age \d+ s\)\z/) }
   end
