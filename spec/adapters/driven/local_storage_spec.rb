@@ -1,4 +1,5 @@
 require "hecks"
+require_relative "../../support/persistence_adapter_examples"
 
 # Mechanically identical to Memory (spec/adapters/driven/memory_spec.rb)
 # on purpose — see local_storage.rb's own header for why a Ruby-side
@@ -101,5 +102,14 @@ RSpec.describe Hecks::Adapters::LocalStorage do
 
     expect(local_storage.reset!).to equal(local_storage)
     expect(local_storage.count).to eq(0)
+  end
+
+  describe "archiving an ended occupant" do
+    include_context "with the archiving Ticket aggregate"
+
+    let(:aggregate) { ticket_aggregate("LocalStorageArchiving") }
+    let(:store) { Hecks::Ports::Persistence::AppendOnly.new(described_class.new(aggregate: aggregate)) }
+
+    it_behaves_like "an archiving atomic_put adapter"
   end
 end

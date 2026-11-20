@@ -18,4 +18,12 @@ RSpec.describe "SQLite execution-plan capabilities" do
   end
 
   it_behaves_like "an atomic_put adapter"
+
+  describe "archiving an ended occupant" do
+    include_context "with the archiving Ticket aggregate"
+
+    let(:aggregate) { ticket_aggregate("SqliteArchiving") }
+
+    it_behaves_like "an archiving atomic_put adapter"
+  end
 end
