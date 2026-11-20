@@ -286,6 +286,32 @@ RSpec.describe "a red main reverting its one bad merge" do
     expect(event_names).to include("WorkReopened", "WorkPrioritized")
   end
 
+  # The detail the culprit's finished Work item is reopened with.
+  def reopened_detail
+    finished_work_item("two")
+    fail_the_last_landing
+    episode_payload("WorkReopened").dig(:detail, :value).to_s
+  end
+
+  it "tells the reopened work item what broke, the revert commit and how to land again", :aggregate_failures do
+    detail = reopened_detail
+    expect(detail).to include("spec spec/bad_spec.rb", "reverted as #{git("rev-parse", "main").strip}")
+    expect(detail).to include("revert that revert", "Never rebase or re-merge the old branch")
+  end
+
+  it "says the work item and the finding again on the revert the episode records", :aggregate_failures do
+    fail_the_last_landing
+    made = episode_payload("EpisodeRevertMade")
+    expect(made.dig(:work, :value)).to eq("two")
+    expect(made.dig(:finding, :value)).to include("culprit #{@bad}")
+  end
+
+  it "reopens nothing when the revert is refused" do
+    finished_work_item("two")
+    verify_over_a_dirty_checkout
+    expect(event_names).not_to include("WorkReopened")
+  end
+
   it "keeps the step or retry suffix out of the work item the episode names" do
     expect(Hecks::Adapters::MainIntegration::Searching::WORK_SUFFIX.match?("a-b-step2")).to be(true)
   end
