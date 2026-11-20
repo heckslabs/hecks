@@ -166,6 +166,27 @@ Hecks.behaviors "Tickets" do
     expect status: "started", claimed_by: { value: "session-1" }
   end
 
+  test "Plan takes the work items a work item waits on" do
+    tests "Plan", on: "Work"
+    input  work: { value: "w16" }, title: { value: "Later" }, waits_on: [{ value: "w17" }]
+    expect status: "planned", emits: ["WorkPlanned", "AreaNamed"]
+  end
+
+  test "WaitOn replaces the work items a planned work item waits on" do
+    tests "WaitOn", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w18" }, title: { value: "Held" }, waits_on: [{ value: "w19" }]
+    input  work: { value: "w18" }, waits_on: [{ value: "w20" }, { value: "w21" }]
+    expect status: "planned", emits: ["WorkWaitsOnNamed"]
+  end
+
+  test "WaitOn refuses a done work item" do
+    tests "WaitOn", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w22" }, title: { value: "Finished" }
+    setup  "Tickets::Work.Close", work: { value: "w22" }, no_change: { value: "a verify" }
+    input  work: { value: "w22" }, waits_on: [{ value: "w23" }]
+    expect refused: "done"
+  end
+
   test "ClearArea empties the area and keeps the claim" do
     tests "ClearArea", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w15" }, title: { value: "Scoped" }
