@@ -1,5 +1,4 @@
 require "json"
-require "open3"
 require_relative "replay"
 require_relative "properties"
 require_relative "self_consistency"
@@ -7,6 +6,8 @@ require_relative "rust_gap_manifest"
 require_relative "../rust_build/kernel_input"
 require_relative "nondeterministic"
 require_relative "differential/wire_comparison"
+require_relative "differential/serve_engine"
+require_relative "replay/engine/kernel"
 
 module Hecks
   module Fuzzing
@@ -72,24 +73,34 @@ module Hecks
         history[:self_consistency].values.flatten(1)
       end
 
+      # Replays `steps` on Ruby and on `engine`; a binary path runs as `Engine::Kernel`.
+      #
       # @param differ [Object] duck-typed `RustConformanceHelpers` interface
       # @param domain_path [String] the domain directory to replay
       # @param steps [Array<Hash>] the step sequence replayed on both engines
-      # @param binary [String] the compiled Rust conformance binary
-      # @param options [Hash] `modes:` (required), an Array of Symbols: `:differential` (always
-      #   run), `:self_consistency`, `:properties_in_differential`, `:adapter_parity_sqlite`; and
-      #   `adapter_parity_sqlite:`, the caller's comparison as a Proc, or `nil` (the default) to
-      #   skip that mode
+      # @param engine [#call, String] answers `call(domain_path, steps)` and `#binary`, as
+      #   {ServeEngine} does; or a binary path, the batch fallback until ADR 0188 step 3
+      # @param options [Hash] `modes:` (required), Symbols among `:differential`,
+      #   `:self_consistency`, `:properties_in_differential` and `:adapter_parity_sqlite`;
+      #   `adapter_parity_sqlite:`, a Proc or nil
       # @return [Hash{Symbol => Array<Hash>}] one divergence list per active mode
-      def diff(differ, domain_path, steps, binary, **options)
+      def diff(differ, domain_path, steps, engine, **options)
         modes, adapter_parity = diff_options(options)
         ruby_result = Replay.call(domain_path, steps, self_consistency: modes.include?(:self_consistency))
         outcomes = mode_outcomes(ruby_result, modes, adapter_parity)
-        stdout, status = Open3.capture2(binary, stdin_data: RustBuild::KernelInput.json(domain_path, steps))
-        return outcomes.merge(differential: [process_failure(status, stdout)]) unless status.success?
+        engine = engine_for(engine)
+        outcomes.merge(engine_outcomes(differ, ruby_result, engine, modes) { engine.call(domain_path, steps) })
+      end
 
-        rust_outcomes = rust_outcomes(differ, ruby_result, JSON.parse(stdout), binary, modes.include?(:self_consistency))
-        outcomes.merge(rust_outcomes)
+      # @param engine [#call, String] an engine, or a binary path to run as `Engine::Kernel`
+      # @return [#call] the engine
+      def engine_for(engine) = engine.is_a?(String) ? Engine::Kernel.new(engine) : engine
+
+      # The outcomes of the engine's run (the block), or one `process` divergence when it fails.
+      def engine_outcomes(differ, ruby_result, engine, modes)
+        rust_outcomes(differ, ruby_result, yield, engine.binary, modes.include?(:self_consistency))
+      rescue Engine::Kernel::Failed => e
+        { differential: [{ field: "process", detail: "rust binary failed: #{e.message}" }] }
       end
 
       # Splits the keywords of `diff` into the modes and the parity hook, refusing any other.
@@ -117,10 +128,6 @@ module Hecks
         outcomes[:properties_in_differential] = property_divergences(ruby_result) if modes.include?(:properties_in_differential)
         outcomes[:adapter_parity_sqlite] = adapter_parity.call if modes.include?(:adapter_parity_sqlite) && adapter_parity
         outcomes
-      end
-
-      def process_failure(status, stdout)
-        { field: "process", detail: "rust binary exited #{status.exitstatus}: #{stdout}" }
       end
 
       def rust_self_consistency(ruby_result, binary, differ, rust_live_instances)
