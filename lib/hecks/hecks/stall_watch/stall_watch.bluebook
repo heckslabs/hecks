@@ -298,9 +298,12 @@ Hecks.bluebook "Hecks" do
         attribute :closes,    String
         attribute :fixer,     String
         attribute :move,      String
+        # How it is cleared, as `StallKind.cleared_by` says it: "help", since no look files it.
+        attribute :cleared_by, String
 
         member kind: "branches-share-files", read: "shared-files", aggregate: "Tickets::Work", opens: "WorkStarted",
                closes: "WorkFinished,WorkYielded,WorkReleased,WorkRefused,WorkDropped,WorkLapsed", fixer: "orchestrator",
+               cleared_by: "help",
                move: "Two started work items edit the same files, so the later landing meets a conflict. " \
                      "AgentRun.answer! each run naming the other work item and the shared files, so the two agree " \
                      "who lands first and the other rebases; when one must wait, Work.wait_on! it on the other."
