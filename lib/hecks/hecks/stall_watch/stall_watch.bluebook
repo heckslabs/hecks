@@ -55,6 +55,10 @@ Hecks.bluebook "Hecks" do
         attribute :settled_aggregate, String
         attribute :settled_by,        String
         attribute :settled_on,        String
+        # A read the adapter makes at look time that settles a subject the tap cannot, as
+        # `settled_by` does: "boarded-on-origin", the commit the opening line links as `boarded`
+        # is on origin/main (a merge the tap never recorded). The adapter refuses any other value.
+        attribute :settled_read,      String
         # Whether a line past its minutes is filed as a stall: empty (the default) files it, "no"
         # only lists it among the impediments, for a source another handler already acts on.
         attribute :files,             String
@@ -261,11 +265,12 @@ Hecks.bluebook "Hecks" do
                      "already pushed the commit (BranchPushed), report that and stop. Otherwise fix the cause the " \
                      "refusal names and board again (SendTrain.board! --confirm); never use --no-verify or HECKS_OWNER_PUSH."
         # A queued boarding whose pull request has not merged in 45 minutes: its checks are slow or stuck.
-        # Failed checks close it (`train-checks-failed` takes over); a merge or a pull request closed
-        # unmerged settles the boarding, so a filed stall is abandoned and its Work item dropped.
+        # Failed checks close it (`train-checks-failed` takes over); a merge, a close unmerged or its
+        # boarded commit on origin/main settles it, so a filed stall is abandoned and its Work item dropped.
         member kind: "train-unmerged", aggregate: "Hecks::SendTrain", state: "queued", opens: "BoardingQueued",
                closes: "BranchPushed,TrainChecksFailed,PushFaulted,BoardingClosed", minutes: 45, forgets: 1440, fixer: "orchestrator",
                settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed,BoardingClosed",
+               settled_read: "boarded-on-origin",
                move: "Read the train pull request with SendTrain.watch! to=<boarding> (gh pr view <pr> --json mergeStateStatus,statusCheckRollup): " \
                      "BLOCKED on pending checks is only slow, so leave it; CLEAN without a merge means auto-merge " \
                      "is off: turning it on merges main, so Work.plan! one work item for a coder naming the pull request. The launchd beat records a merge GitHub made: start none, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log."

@@ -36,8 +36,12 @@ module Hecks
         # @return [String, nil] the branch the subject's standing opening line links, none when it
         #   links none or the subject stands closed
         def branch(subject)
-          standing[subject]&.dig("links", "branch")
+          links(subject)["branch"]
         end
+
+        # @param subject [String] an opening line's aggregate id
+        # @return [Hash] the links of the subject's standing opening line, empty when it has none
+        def links(subject) = standing[subject]&.dig("links") || {}
 
         private
 
