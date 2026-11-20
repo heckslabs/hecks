@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "support/stand_in_claude"
 
 # The Tickets bluebook is attached to the Hecks domain: Finding, Adr, Epic, Work, Lesson and
 # Sighting are declared in it, the finding's lifecycle drives GitHub through the GitHubIssues port,
@@ -63,9 +64,15 @@ RSpec.describe "the Tickets bluebook" do
     @hecks.dispatch_flat("Tickets::Adr.Draft", adr: adr, title: "Settle it", settles: settles)
   end
 
-  it "accepts an Adr that settles a finding which exists" do
-    report_without_a_repository("f-settled")
-    expect { draft_adr("0901", "f-settled") }.not_to raise_error
+  # A drafted decision asks the architect, so the draft starts an architect run: a stand-in
+  # `claude` takes it, never a real session.
+  context "with the architect's session stood in for" do
+    include_context "with a stand-in claude"
+
+    it "accepts an Adr that settles a finding which exists" do
+      report_without_a_repository("f-settled")
+      expect { draft_adr("0901", "f-settled") }.not_to raise_error
+    end
   end
 
   it "refuses an Adr that settles a finding no one reported" do
