@@ -3,12 +3,13 @@
 module Hecks
   module Adapters
     class Dispatching
-      # Why a planned work item waits for another to land. An item names what it depends on in its
-      # detail, on a line of its own: `Depends on: <work key>`, with more keys after commas.
+      # Why a planned work item waits for another to land. A work item holds the keys it waits on
+      # (`waits_on`, set by `Work.plan!` or `Work.wait_on!`); it may also name them in its detail,
+      # on a line of its own: `Depends on: <work key>`, with more keys after commas.
       #
-      # The line is a convention nothing validates, since a plan accepts any detail: a label spelt
-      # another way names no dependency and the item starts. It stands in for a dependency the
-      # `Tickets::Work` aggregate would hold itself.
+      # The detail line is a convention nothing validates, since a plan accepts any detail: a label
+      # spelt another way names no dependency. It stands in for `waits_on` until the open work
+      # items that carry one name their keys through `Work.wait_on!`, and is read beside it.
       #
       # A dependency has landed when a landed `Landing` names its branch, which is what
       # {LandingFacts#landed_commits} reads. A work item stays started until its landing job
@@ -20,12 +21,17 @@ module Hecks
         # What separates one named key from the next.
         BETWEEN = /[,\s]+/
 
-        # @param item [#key, #detail] a work item
-        # @return [Array<String>] the keys its detail names, without its own
+        # @param item [#key, #detail] a work item; its `waits_on` is read when it answers to it
+        # @return [Array<String>] the keys it waits on, then the keys its detail names, without its
+        #   own
         def self.of(item)
-          names = named_lines(item).flat_map { |(keys)| keys.split(BETWEEN) }
-          names.map { |name| name.delete_suffix(".") }.reject(&:empty?).uniq - [item.key.to_s]
+          names = declared(item) + named_lines(item).flat_map { |(keys)| keys.split(BETWEEN) }
+          names.map { |name| name.to_s.delete_suffix(".") }.reject(&:empty?).uniq - [item.key.to_s]
         end
+
+        # @param item [#key] a work item
+        # @return [Array<String>] the keys its `waits_on` holds, none when it has no such field
+        def self.declared(item) = item.respond_to?(:waits_on) ? Array(item.waits_on) : []
 
         # @param item [#detail] a work item
         # @return [Array<Array<String>>] what follows the label on each line that names dependencies

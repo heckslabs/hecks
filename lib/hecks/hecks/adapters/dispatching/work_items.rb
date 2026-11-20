@@ -158,8 +158,8 @@ module Hecks
         end
 
         def item(record)
-          Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
-                         detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
+          Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s, detail: field(record, :detail).to_s,
+                         area: StartedWork.words(field(record, :area)), waits_on: StartedWork.words(field(record, :waits_on)),
                          priority: field(record, :priority).to_s, epic: field(record, :epic).to_s,
                          **in_batch(record), **yielded(record))
         end
