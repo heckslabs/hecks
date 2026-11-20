@@ -2,8 +2,7 @@ require "spec_helper"
 require "hecks/hecks/adapters/dispatching"
 
 # A planned work item names what it waits on (its `waits_on`, or a line of its detail) and
-# waits until that work item has landed. A landed branch ends the wait; a work item's status
-# alone does not.
+# waits until that work item is met: done, or named by a landed branch.
 RSpec.describe Hecks::Adapters::Dispatching::Dependencies do
   let(:statuses) { { "dep" => "done", "late" => "done", "open" => "started", "gone" => "dropped" } }
 
@@ -26,12 +25,21 @@ RSpec.describe Hecks::Adapters::Dispatching::Dependencies do
     expect(described_class.of(item("This depends on a, which is not built."))).to eq([])
   end
 
-  it "waits on a work item that has not landed, whether it is started or done", :aggregate_failures do
+  it "waits on a work item that is started and has not landed", :aggregate_failures do
     expect(reason("Depends on: open")).to eq("skipped: waits on open")
-    expect(reason("depends on: dep, late")).to eq("skipped: waits on late")
+    expect(reason("depends on: dep, late, open")).to eq("skipped: waits on open")
   end
 
   it "lets an item start once a landed branch names its dependency" do
+    expect(reason("Depends on: dep")).to be_nil
+  end
+
+  it "lets an item waiting on a done work item start, though no landing names it" do
+    expect(reason("Depends on: late")).to be_nil
+  end
+
+  it "lets an item start on a landed dependency whose status is not yet done" do
+    statuses["dep"] = "started"
     expect(reason("Depends on: dep")).to be_nil
   end
 
