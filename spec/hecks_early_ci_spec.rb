@@ -67,8 +67,8 @@ RSpec.describe "early CI" do
       Thread.current[:hecks_reaction_depth] = outer
     end
 
-    def request(branch, sha = "abcdef1234", clean: true, run: branch)
-      launch("EarlyCi.request!", "run.value=#{run}", "branch.value=#{branch}", "sha.value=#{sha}",
+    def request(branch, sha = "abcdef1234", clean: true)
+      launch("EarlyCi.request!", "run.value=#{branch}", "branch.value=#{branch}", "sha.value=#{sha}",
              "checkout.value=/tmp", "clean.value=#{clean}", "--wait")
     end
 
@@ -98,10 +98,11 @@ RSpec.describe "early CI" do
       expect(fake.calls).to include(["git", "push", "origin", "abcdef1234:refs/heads/ci/coder-green"])
     end
 
+    # Each coder call is its own process, so the record is new while ci/<branch> on the remote is
+    # still the pre-rebase tip an earlier request pushed.
     it "replaces ci/<branch> after a rebase: the second request is accepted and observed", :aggregate_failures do
-      request("coder-rebased", "aaaaaaa111")
-      expect(request("coder-rebased", "bbbbbbb222", run: "coder-rebased-2"))
-        .to include("EarlyCiRequested", "EarlyCiObserved", "passed")
+      fake.remote_ci["refs/heads/ci/coder-rebased"] = "aaaaaaa111"
+      expect(request("coder-rebased", "bbbbbbb222")).to include("EarlyCiRequested", "EarlyCiObserved", "passed")
       expect(fake.calls).to include(["git", "push", "--force-with-lease=refs/heads/ci/coder-rebased:aaaaaaa111",
                                      "origin", "bbbbbbb222:refs/heads/ci/coder-rebased"])
     end
