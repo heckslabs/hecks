@@ -2,6 +2,8 @@
 
 require "time"
 require_relative "openings"
+require_relative "clearing"
+require_relative "key"
 
 module Hecks
   module Adapters
@@ -10,14 +12,15 @@ module Hecks
       # same files against main, naming the files. A `ComputedSignal` row says which tap lines
       # open and close a work item, who fixes the pair and the move; a branch is open while its
       # work item's latest such line is the opening one. The row is never filed: only the
-      # impediment view carries it. Its key holds both tips, so a pair is one entry until either
-      # tip moves, and its age runs from the later tip's commit.
+      # impediment view carries it, with how its row says it is cleared ({Clearing}). Its key
+      # holds both tips, so a pair is one entry, and one call for help, until either tip moves,
+      # and its age runs from the later tip's commit.
       class SharedFiles
         # The reads a row may name.
         READS = %w[shared-files].freeze
 
         # @param signals [Array<Hash>] the `ComputedSignal` rows: `kind`, `read`, `aggregate`,
-        #   `opens`, `closes`, `fixer`, `move`
+        #   `opens`, `closes`, `fixer`, `move`, `cleared_by`
         # @param now [Integer] the clock's answer, in Unix epoch seconds
         # @param branches [#call] answers the open work keys with `branch:`, `tip:`, `at:` and
         #   `files:` of each that is a local branch ({OpenBranches})
@@ -60,12 +63,17 @@ module Hecks
         def by_name(open) = @branches.call(open).sort_by { |branch| branch[:branch] }
 
         def row(signal, run, one, other)
-          subject = "#{one[:branch]}+#{other[:branch]}"
           opened = [one[:at], other[:at]].max
-          { id: run, stall: "stall-#{signal[:kind]}-#{subject}-#{one[:tip]}-#{other[:tip]}", stall_kind: signal[:kind],
-            subject: subject, opened_at: opened, waited: waited(opened), minutes: 0, forgets: 0, fixer: signal[:fixer],
+          stall = key(signal, one, other)
+          { id: run, stall: stall, stall_kind: signal[:kind], subject: "#{one[:branch]}+#{other[:branch]}",
+            opened_at: opened, waited: waited(opened), minutes: 0, forgets: 0, fixer: signal[:fixer],
             title: "#{signal[:kind]}: #{one[:branch]} and #{other[:branch]}", detail: detail(signal, one, other),
-            filed: "", count: 1 }
+            filed: "", count: 1, impediment: stall, cleared_by: Clearing.of(signal) }
+        end
+
+        # Both branches and both tips, in words a call for help's key may hold ({Key}).
+        def key(signal, one, other)
+          Key.of(signal[:kind], "#{one[:branch]}.#{other[:branch]}-#{one[:tip]}-#{other[:tip]}")
         end
 
         def waited(at) = [(@now - Time.iso8601(at).to_i) / 60, 0].max
