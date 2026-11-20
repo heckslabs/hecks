@@ -36,8 +36,9 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # `.port` — real, non-synthetic port declarations the framework binds
     # against (`Hecks.port "..." do verb "..." ; signal :... end` calls).
     File.join(InMemoryDomain::ROOT, "lib/hecks/ports", "*.port"),
-    # `.adapter` — same reasoning, one artifact over: real driven adapters.
-    File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven", "*.adapter")
+    # `.adapter` — same reasoning, one artifact over: real driven adapters, a component's in the
+    # directory it shares with its module (`resend/resend.adapter`).
+    File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven", "**", "*.adapter")
   ].freeze
 
   # `**` must stay recursive to reach nested sub-language files, but that
@@ -98,11 +99,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "revisions (Hecksagon)"             =>
                                            "Postgres-only, and no tracked parity corpus binds a Postgres adapter, so no " \
                                            "corpus hecksagon sets it. The word is exercised by spec/hecksagon_revisions_spec.rb.",
-    "runs (Adapter)"                    =>
-                                           "the one real adapter that declares it is a wasm plugin shipped by a package " \
-                                           "outside this corpus, and the word is exercised by its own spec " \
-                                           "(spec/wasm_plugin_spec.rb), against an adapter written for it. The scan once " \
-                                           "counted a `sets :runs` line that wrote a field spelled the same way.",
     "inspect_query (Query)"             =>
                                            "a real declaration would be vacuous: no adapter in this codebase implements the " \
                                            "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \
