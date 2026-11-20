@@ -678,6 +678,24 @@
               ],
               [
                 "aggregate",
+                "Probe"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a probe is opened by the turn's own call and looked at by the machine's beat, in a process of its own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "Roll"
               ],
               [
