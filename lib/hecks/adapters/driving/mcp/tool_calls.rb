@@ -1,4 +1,5 @@
 require_relative "../../.."
+require_relative "launcher_run"
 
 module Hecks
   module Adapters
@@ -19,7 +20,8 @@ module Hecks
             "domains"   => :domains_tool,
             "history"   => :history_tool,
             "behaviors" => :behaviors_tool,
-            "follow"    => :follow_tool
+            "follow"    => :follow_tool,
+            "run"       => :run_tool
           }.freeze
 
           module_function
@@ -73,6 +75,9 @@ module Hecks
                                       source: args["source"], role: args["role"], actor_id: args["actor_id"],
                                       surface: "mcp")
           end
+
+          # A launcher command, admitted and run by `LauncherRun`.
+          def run_tool(args) = LauncherRun.call(args)
 
           def events_tool(args)
             Storehouse.events(runtime: Mcp.boot(args["domain"]), aggregate: args["aggregate"], id: args["id"],
