@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/tools/project_cli"
+require "hecks/hecks/adapters/local_files/project_cli"
 require "json"
 require "open3"
 require "rbconfig"
@@ -155,12 +155,12 @@ RSpec.describe "client launcher smoke" do
 
   def self.generate(root)
     ENV["HECKS_ENVIRONMENT"] ||= "memory"
-    Hecks::Tools::ProjectCli.call(%w[pizzas], program: "hecks project_cli", root: root, remove_stale_bin: false)
+    Hecks::Adapters::LocalFiles::ProjectCli.call(%w[pizzas], program: "hecks project_cli", root: root, remove_stale_bin: false)
   end
 
   before(:all) do
     @plain_root = self.class.client("plain")
-    @out = capture_stdout { self.class.generate(@plain_root) }
+    @out = self.class.generate(@plain_root).text
     @plain = self.class.launch_all(@plain_root, CALLS)
 
     @old_root = self.class.client("pre_3_0")
@@ -173,7 +173,7 @@ RSpec.describe "client launcher smoke" do
       world:    'launcher "Launcher", run_keys: true, names: { "make" => "order.create_pizza" }',
       bluebook: self.class.method(:add_run_and_confirm)
     )
-    capture_stdout { self.class.generate(@opted_root) }
+    self.class.generate(@opted_root)
     opted_calls = {
       alias:      %w[make! name=A pizza.price_cents=1 pizza.size=small],
       alias_help: %w[make! --help],
@@ -191,15 +191,6 @@ RSpec.describe "client launcher smoke" do
   end
 
   after(:all) { FileUtils.rm_rf(self.class.scratch) }
-
-  def capture_stdout
-    saved = $stdout
-    $stdout = StringIO.new
-    yield
-    $stdout.string
-  ensure
-    $stdout = saved
-  end
 
   def created(result)
     expect(result[:status]).to eq(0), result.inspect

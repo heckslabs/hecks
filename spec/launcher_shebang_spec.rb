@@ -1,19 +1,19 @@
 require "spec_helper"
 require "open3"
 require "rbconfig"
-require "hecks/tools/project_cli"
+require "hecks/hecks/adapters/local_files/project_cli"
 
 # The executable launcher starts Ruby without rubygems, so a line a resident serves skips the
 # ~20 ms their load costs, and it loads them itself once the probe has missed. Every other launcher
 # has no probe and starts as it always did.
 RSpec.describe "the launcher's shebang" do
   let(:root) { InMemoryDomain::ROOT }
-  let(:prelude) { Hecks::Tools::ProjectCli::LaunchPrelude }
+  let(:prelude) { Hecks::Adapters::LocalFiles::ProjectCli::LaunchPrelude }
 
   def first_line(source) = source.lines.first.chomp
 
   def source(**options)
-    Hecks::Tools::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli", **options)
+    Hecks::Adapters::LocalFiles::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli", **options)
   end
 
   # Runs a launcher line cold, in a new process, so rubygems and bundler come from the launcher.

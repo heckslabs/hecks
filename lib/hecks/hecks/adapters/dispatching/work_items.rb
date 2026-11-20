@@ -79,8 +79,15 @@ module Hecks
           planned.select { |item| rolls?(item, stalls) }
         end
 
-        # @return [Array<Plan::Item>] the started work items
-        def started = having("started").map(&:last)
+        # @return [Array<Plan::Item>] the started work items, each carrying as `batched` the work
+        #   items waiting in its batch
+        def started
+          members = batched.group_by(&:batch)
+          having("started").map { |entry| Plan::Item.new(**entry.last.to_h, batched: members.fetch(entry.last.key, [])) }
+        end
+
+        # @return [Array<Plan::Item>] the work items waiting in a batch, each naming its batch
+        def batched = having("batched").map(&:last)
 
         # @return [Array<Hash>] every lesson the Tickets store holds, as {LessonTraps} reads it
         def lessons
@@ -154,8 +161,10 @@ module Hecks
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
                          detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
                          priority: field(record, :priority).to_s, epic: field(record, :epic).to_s,
-                         **yielded(record))
+                         **in_batch(record), **yielded(record))
         end
+
+        def in_batch(record) = { batch: field(record, :batch).to_s, batch_commit: field(record, :batch_commit).to_s }
 
         def yielded(record)
           { yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
