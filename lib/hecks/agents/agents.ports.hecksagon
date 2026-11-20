@@ -9,6 +9,12 @@ Hecks.hecksagon "Agents" do
     answers_query "ServerEnv"
   end
 
+  # Which scripts the sessions ran twice or more, counted from the `Script` records. Bound by
+  # adapters/script_records, which only reads the records.
+  Agents::Script.port "ScriptRecords" do
+    answers_query "Candidates"
+  end
+
   # What the machine holds after sessions are removed: the process table, the daemon's log, the
   # worktrees and the temp directory. Bound by adapters/sweeping, which stops a spare daemon only when
   # the log traces it to a removed session.
