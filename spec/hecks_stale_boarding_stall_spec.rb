@@ -34,12 +34,12 @@ RSpec.describe "StallWatch stale-boarding" do
   include_context "with a stall watch tap"
   include StaleBoardingLooks
 
-  it "files a boarding begun 15 minutes ago, naming the run and its Work item", :aggregate_failures do
+  it "files a boarding begun 15 minutes ago, naming the run, and plans no work item", :aggregate_failures do
     write_integration([["MainBoardingStarted", "aaa111", 15]])
     detect("look-1")
 
     expect(keys("Hecks", "Stall", :stall)).to eq([stall])
-    expect(keys("Tickets", "Work", :work)).to eq([stall])
+    expect(keys("Tickets", "Work", :work)).to be_empty
   end
 
   StaleBoardingLooks::CASES.each do |name, (rows, filed)|
