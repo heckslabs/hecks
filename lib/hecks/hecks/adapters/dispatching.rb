@@ -4,6 +4,7 @@ require_relative "console_capture"
 require_relative "dispatching/settings"
 require_relative "dispatching/work_items"
 require_relative "dispatching/plan"
+require_relative "dispatching/batch_reads"
 require_relative "dispatching/headroom"
 require_relative "dispatching/headroom_reads"
 require_relative "dispatching/admission_reads"
@@ -50,6 +51,7 @@ module Hecks
       include Launching
       include Shedding
       include Narrowing
+      include BatchReads
 
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
@@ -191,7 +193,7 @@ module Hecks
       # The skips, with those the load alone caused said once: the reason, the count and the first
       # few that start when the load falls.
       def waiting_lines(skips)
-        loaded, others = skips.partition { |skip| skip.reason.start_with?("skipped: load") }
+        loaded, others = skips.partition { |skip| skip.reason.start_with?("skipped: load") && !Batching.group_skip?(skip) }
         others.map { |skip| skipped_line(skip) } + load_line_for(loaded)
       end
 
@@ -204,8 +206,7 @@ module Hecks
       # The planned work items, held to those whose key starts with `only` when one is named, and
       # to those a roll may start when `rolling`.
       def planned(only, rolling: false)
-        items = rolling ? work_items.rollable : work_items.planned
-        items.select { |item| only.empty? || item.key.to_s.start_with?(only) }
+        held_to(rolling ? work_items.rollable : work_items.planned, only)
       end
 
       def header(plan, tally = "this fill would start #{plan.chosen.size}")
@@ -221,9 +222,7 @@ module Hecks
 
       def frozen_line = machine.frozen.empty? ? "none" : machine.frozen.join(", ")
 
-      def chosen_line(item) = "would start #{item.key}: #{BriefText.new("outcome" => item.title).first_line}"
-
-      def skipped_line(skip) = "#{skip.key} #{skip.reason}"
+      def chosen_line(item) = "would start #{Batching.name_of(item)}: #{BriefText.new("outcome" => item.title).first_line}"
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
