@@ -9,11 +9,10 @@ module BehaviorsOnKernel
   GLOBS = %w[examples/**/*.behaviors lib/hecks/**/*.behaviors spec/**/*.behaviors].freeze
   DIFFERENCES = File.join(ROOT, "spec", "behaviors", "kernel_differences.yml")
 
-  # One test to twin, or one whole suite left pending because its domain has no kernel feature.
-  Case = Struct.new(:file, :test, :suite, :reason, :pending, keyword_init: true) do
+  # One test to twin, with the reason it is listed when its outcomes still differ.
+  Case = Struct.new(:file, :test, :suite, :reason, keyword_init: true) do
     # @return [String] the example's description
     def title
-      return "#{file} runs on the kernel" if pending
       return "#{file}: #{test.description} (still differs: #{reason})" if reason
 
       "#{file}: #{test.description}"
@@ -25,24 +24,27 @@ module BehaviorsOnKernel
   # @return [Array<String>] every `.behaviors` file, relative to the repository root, sorted
   def files = GLOBS.flat_map { |glob| Dir.glob(glob, base: ROOT) }.sort
 
-  # @return [Array<Case>] a case per test of each suite with a kernel feature, and a pending case
-  #   per suite without one; a file that does not parse is left to the in-process leg
+  # @return [Array<Case>] a case per test of each suite whose domain has a kernel feature; a file
+  #   that does not parse is left to the in-process leg
   def cases
     listed = differences
-    files.flat_map do |file|
-      parsed = Hecks::Behaviors.parse(File.join(ROOT, file))
-      parsed.parse_error ? [] : cases_of(file, parsed.suite, parsed.tests, listed)
+    parsed_suites.select { |_, parsed| kernel_feature?(parsed.suite) }.flat_map do |file, parsed|
+      parsed.tests.map { |test| Case.new(file: file, test: test, suite: parsed.suite, reason: listed[[file, test.description]]) }
     end
   end
 
-  # @return [Array<Case>] the cases of one parsed suite
-  def cases_of(file, suite, tests, listed)
-    feature = feature(suite)
-    unless feature && Hecks::RustBuild::KernelEngine.feature?(feature)
-      return [Case.new(file: file, suite: suite, pending: "rust/Cargo.toml declares no feature #{feature.inspect}")]
-    end
+  # @return [Array<String>] the suites that wait for a kernel feature, as files
+  def waiting = parsed_suites.reject { |_, parsed| kernel_feature?(parsed.suite) }.map(&:first)
 
-    tests.map { |test| Case.new(file: file, test: test, suite: suite, reason: listed[[file, test.description]]) }
+  # @return [Array<Array(String, Hecks::Behaviors::ParseResult)>] each file that parses, parsed
+  def parsed_suites
+    files.map { |file| [file, Hecks::Behaviors.parse(File.join(ROOT, file))] }.reject { |_, parsed| parsed.parse_error }
+  end
+
+  # @return [Boolean] whether `rust/Cargo.toml` declares the feature the suite's domain names
+  def kernel_feature?(suite)
+    name = feature(suite)
+    !name.nil? && Hecks::RustBuild::KernelEngine.feature?(name)
   end
 
   # @param suite [Hecks::Behaviors::BehaviorsSuite] a parsed suite
@@ -60,10 +62,7 @@ module BehaviorsOnKernel
 
   # @return [Array<Array(String, String)>] listed tests that no `.behaviors` file holds
   def unknown_differences
-    known = files.flat_map do |file|
-      parsed = Hecks::Behaviors.parse(File.join(ROOT, file))
-      parsed.parse_error ? [] : parsed.tests.map { |test| [file, test.description] }
-    end
+    known = parsed_suites.flat_map { |file, parsed| parsed.tests.map { |test| [file, test.description] } }
     differences.keys - known
   end
 
