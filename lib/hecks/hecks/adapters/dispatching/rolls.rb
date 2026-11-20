@@ -78,7 +78,7 @@ module Hecks
 
         # What the beat asks of the machine, each asked only once its flag says it could matter.
         def beat_questions
-          { stopped: -> { machine.boot_stop }, frees_at: -> { machine.boot_frees_at }, cleared: -> { machine_clear? },
+          { stopped: -> { fuse_stop }, frees_at: -> { machine.boot_frees_at }, cleared: -> { machine_clear? },
             room: -> { free_starts } }
         end
 

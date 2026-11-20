@@ -160,7 +160,7 @@ module Hecks
       def limits
         gauge = machine
         { cap: gauge.cap, urgent_reserve: gauge.urgent_reserve, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen,
-          cpus: gauge.cpus.to_f, epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: gauge.boot_stop,
+          cpus: gauge.cpus.to_f, epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: fuse_stop,
           exempt: WorkItems.method(:urgent?),
           stall: SettleRule.stall(work_items), **headroom_limit(gauge), **cached_reads(gauge) }
       end
@@ -209,7 +209,7 @@ module Hecks
       end
 
       def header(plan, tally = "this fill would start #{plan.chosen.size}")
-        "#{load_line}; #{cap_clause}; #{headroom_clause(plan)}; " \
+        "#{load_line}; #{cap_clause}#{protection_clause}; #{headroom_clause(plan)}; " \
           "#{tally}; #{load_reading_clause}; frozen: #{frozen_line}; at #{ran_at}"
       end
 

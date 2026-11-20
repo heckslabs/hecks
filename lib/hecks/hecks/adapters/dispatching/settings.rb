@@ -127,6 +127,9 @@ module Hecks
         # @return [Float, nil] the hours of launcher boots a day the world allows, nil for none
         def boot_budget = declared(BOOT_BUDGET)[:boot_hours_per_day]&.to_f
 
+        # @return [BootBudget] what the day's boots cost, which protection reads too
+        attr_reader :boots
+
         # @return [String, nil] why no session starts: the day's boots have spent the world's
         #   budget; nil when they have not, or the world sets none
         def boot_stop
