@@ -4,13 +4,6 @@
 # events the tooling recorded. The bluebook names the questions and never fetches, shells out or
 # opens a file.
 #
-# The read model is typed. `Board` answers one `Snapshot`: its `Stage` rows (the strip), its
-# `Reading` rows (every other number, one key each), what is stuck, the roles, the runs, the
-# train, the release and the newest events. Every other query answers rows of a value object
-# declared here, and the runtime refuses an adapter's answer that is not that shape. Only the
-# two texts drawn for a terminal (`Snapshot`, the panel, and `TurnBlock`) answer a `Document`.
-# `Board` takes the name `Snapshot` when the panel's command moves.
-#
 # The commands are `Serve` and `Act`. `Serve` opens the page on 127.0.0.1 and answers `GET /` and
 # `GET /api/state` until it is stopped. `Act` is the page's one way to change anything: `POST
 # /api/act` runs one of the steps in the `ActionRule` rows (answer a blocked session, reply, check
@@ -61,7 +54,9 @@ Hecks.bluebook "PipelineBoard" do
       attribute :value, String, matches: :present
     end
 
-    # A text drawn for a terminal: the panel, or one turn's block. Never JSON.
+    # A text drawn for a terminal: the panel (`Snapshot`) or one turn's block (`TurnBlock`). Never
+    # JSON: every other query answers rows of a value object declared here, and the runtime
+    # refuses an adapter's answer that is not that shape.
     value_object "Document" do
       attribute :text, String
     end
@@ -724,6 +719,7 @@ Hecks.bluebook "PipelineBoard" do
       emits BoardRefused
     end
 
+    # Named `Board` while the text panel's command holds the name `Snapshot`.
     query "Board" do
       description "The board's whole read model as one Snapshot: the strip's stages, every other reading under its one key, what is stuck, the roles, the runs, the open train pull requests, the release and the newest events. It reads only, and the board need not be running."
       returns Snapshot
