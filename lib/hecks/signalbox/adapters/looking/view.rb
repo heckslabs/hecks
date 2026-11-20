@@ -19,12 +19,24 @@ module Hecks
           @shell = shell
         end
 
-        # @return [Hash] `head:`, `main:` and `missing:`
+        # The push train's copy, the designated source of the beat.
+        TRAIN_COPY = "hecks-train"
+
+        # @return [Hash] `head:`, `main:` and `missing:`; the train copy's head is main's tip while
+        #   it is detached at an ancestor of main, because the train moves it only between landings
         def facts
-          { head: git("rev-parse", "HEAD"), main: git("rev-parse", "refs/heads/main"), missing: missing }
+          main = git("rev-parse", "refs/heads/main")
+          { head: train_behind?(main) ? main : git("rev-parse", "HEAD"), main: main, missing: missing }
         end
 
         private
+
+        def train_behind?(main)
+          File.basename(File.expand_path(@root)) == TRAIN_COPY && main != "unknown" &&
+            @shell.capture("git", "merge-base", "--is-ancestor", "HEAD", main, chdir: @root).ok?
+        rescue SystemCallError
+          false
+        end
 
         def missing
           primary = File.dirname(git("rev-parse", "--path-format=absolute", "--git-common-dir"))
