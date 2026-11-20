@@ -1108,7 +1108,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: LanguageRun do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "LanguageAnswered"
       refuses "LanguageRefused"
@@ -1127,7 +1127,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: KernelRun do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "KernelAnswered"
       refuses "KernelRefused"
@@ -1144,7 +1144,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: ConformanceRun do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "ConformanceAnswered"
       refuses "ConformanceRefused"
@@ -1161,7 +1161,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: RegenerationRun do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "RegenerationAnswered"
       refuses "RegenerationRefused"
@@ -1178,7 +1178,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: GateRun do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "GateAnswered"
       refuses "GateRefused"
@@ -1239,7 +1239,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: CodemodRun do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "CodemodAnswered"
       refuses "CodemodRefused"
@@ -1256,7 +1256,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: TestSuiteRun do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "TestSuiteAnswered"
       refuses "TestSuiteRefused"
@@ -1287,7 +1287,7 @@ Hecks.hecksagon "Hecks" do
     asks "Perform", to: Server do
       attribute :run, RunKey
       attribute :linked,     Switch, optional: true
-      attribute :branch,     Report, optional: true
+      attribute :on_branch, Report, optional: true
       attribute :check_name, Report, optional: true
       answers "ServerAnswered"
       refuses "ServerRefused"
@@ -1627,7 +1627,7 @@ Hecks.hecksagon "Coder" do
     on AgentRun::JobRead
     root
     where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
-    trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
+    trigger Submission::Submit, with: { on_branch: :on_branch, sha: :sha, checkout: :checkout, clean: :clean }
   end
 end
 
@@ -1662,7 +1662,7 @@ Hecks.hecksagon "Delivery" do
 
   translates "FindWorkWhenBranchLanded" do
     on      Landing::BranchLanded
-    ask     :find_landed_work, with: { branch: :branch, landed: :landed }
+    ask     :find_landed_work, with: { on_branch: :on_branch, landed: :landed }
   end
 
   subscribe "Coder.WorkSubmitted"
@@ -1673,7 +1673,7 @@ Hecks.hecksagon "Delivery" do
   translates "LandWhenWorkIsSubmitted" do
     on      Submission::WorkSubmitted
     root
-    trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
+    trigger Landing::Submit, with: { run: :sha, checkout: :checkout, on_branch: :on_branch, confirm: true }
   end
 
   # GitHub merges the train's pull request in a merge commit local main does not hold yet, so

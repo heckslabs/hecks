@@ -20,7 +20,7 @@ module Hecks
         # @param root [String] the tree's root directory
         # @param operation [String] the operation the run names
         # @param stage [String, nil] a gate's stage
-        # @return [Hash{Symbol => Hash}] `linked:`, `branch:` and `check_name:`
+        # @return [Hash{Symbol => Hash}] `linked:`, `on_branch:` and `check_name:`
         def answer(root, operation, stage = nil)
           of(root).merge(check_name: { value: check_name(operation, stage) })
         end
@@ -35,14 +35,14 @@ module Hecks
         # @param root [String] the tree's root directory
         # @param git [Git] runs git; a new one when nil
         # @return [Hash{Symbol => Hash}] `linked:` whether the git directory is not the common one,
-        #   and `branch:` the checked-out branch, `HEAD` when detached; outside git, not linked on
-        #   `HEAD`
+        #   and `on_branch:` the checked-out branch, `HEAD` when detached; outside git, not linked
+        #   on `HEAD`
         def of(root, git: nil)
           git ||= Git.new
           dirs = %w[--git-dir --git-common-dir].map { |flag| said(git, root, "--path-format=absolute", flag) }
           branch = said(git, root, "--abbrev-ref", "HEAD")
-          { linked: { value: dirs.none?(&:empty?) && dirs.uniq.size > 1 },
-            branch: { value: branch.empty? ? DETACHED : branch } }
+          { linked:    { value: dirs.none?(&:empty?) && dirs.uniq.size > 1 },
+            on_branch: { value: branch.empty? ? DETACHED : branch } }
         end
 
         # What git calls a checkout on no branch.

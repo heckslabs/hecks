@@ -4,10 +4,13 @@ require "securerandom"
 # How the specs of a blank run answer drive one: a KernelRun whose ports are stand-ins, so
 # nothing outside the scratch boot is reached.
 module BlankRunAnswerHelpers
+  # The tree facts every Run kind's examine answers, as the primary checkout on main.
+  TREE_FACTS = { linked: { value: false }, on_branch: { value: "main" }, check_name: { value: "measure" } }.freeze
+
   # A stand-in whose examine lets the run through and whose perform answers the block's answer.
   def port(answer)
     Object.new.tap do |stand_in|
-      stand_in.define_singleton_method(:examine) { |**| { checkout: { value: true } } }
+      stand_in.define_singleton_method(:examine) { |**| { checkout: { value: true } }.merge(TREE_FACTS) }
       stand_in.define_singleton_method(:perform) { |**| answer.call }
     end
   end
