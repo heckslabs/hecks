@@ -3,6 +3,7 @@
 require "time"
 require "hecks/roundhouse/adapters/metering"
 require_relative "signalbox_door"
+require_relative "admission_grants"
 
 module Hecks
   module Adapters
@@ -13,6 +14,8 @@ module Hecks
       #
       # One beat is read per fill. Each coder this fill already admitted takes its expected draw off
       # the headroom and counts against the ramp, beside the runs started inside the ramp window.
+      # The ruling a fill makes just before a start ({#admit!}) is the one the start's check keeps
+      # ({AdmissionGrants}), so the two never stand on either side of a mark.
       class Admitting
         # The ramp when the Signalbox world declares none: one start a minute.
         RAMP = { step: 1, window_seconds: 60 }.freeze
@@ -39,15 +42,30 @@ module Hecks
           @fuse = FUSE.merge(door.setting("fuses"))
           @recent = runs.select { |_key, run| recent?(run[:started_at], now) }.keys
           @switch = switch
+          @now = now
         end
 
         # @param item [Plan::Item] the planned coder
         # @param chosen [Integer] the coders this fill already admitted
         # @param outranked [Integer] the coders earlier in merit order this fill left waiting
-        # @return [String, nil] `skipped: signalbox: <the given>`, nil when it is admitted
+        # @return [String, nil] `skipped: signalbox: <the given>`, nil when it is admitted or when
+        #   a fill admitted it just before its start ({#admit!}), a grant this takes
         def reason(item, chosen: 0, outranked: 0)
+          return if AdmissionGrants.take?(item.key, within: @ramp[:window_seconds].to_i, now: @now)
+
           refused = @door.refusal(facts(item, chosen, outranked))
           "skipped: signalbox: #{refused}" if refused
+        end
+
+        # The ruling a fill makes just before it starts a work item: refused, the item is not
+        # started; admitted, the start's own check keeps this ruling.
+        #
+        # @param item [Plan::Item] the chosen coder
+        # @return [String, nil] `skipped: signalbox: <the given>`, nil when it is admitted
+        def admit!(item)
+          refused = reason(item)
+          AdmissionGrants.grant(item.key, at: @now) unless refused
+          refused
         end
 
         # The band is the worse of the memory band and the load band, so the clause sets the load
