@@ -4,6 +4,7 @@ Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/shell"
 require "tmpdir"
 require "open3"
+require_relative "support/landing_claims_registry"
 
 # Retiring a landed worktree keeps everything that might hold work, and the overlap check sees a
 # rename's old path. Every example builds its own throwaway repository; the real one is never read.
@@ -311,11 +312,13 @@ RSpec.describe Hecks::Adapters::GitLanding do
       Object.new.tap { |git| git.define_singleton_method(:capture) { |*argv, **opts| shell.capture("git", *argv, **opts) } }
     end
 
+    def rivals = described_class::Rivals.new(rivals_git, repo, LandingClaimsRegistry.landing_claims_registry)
+
     it "sees the old path of a rename" do
       rename_in_tree
       holds("lib/old name.rb")
 
-      expect(described_class::Rivals.new(rivals_git, repo, nil).refusal("work/a", "main")).to include("lib/old name.rb")
+      expect(rivals.refusal("work/a", "main")).to include("lib/old name.rb")
     end
   end
 end
