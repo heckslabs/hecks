@@ -1,4 +1,5 @@
 require_relative "../../ports/persistence/append_only"
+require_relative "../../ports/persistence/archiving_put"
 require_relative "../../ports/query/in_memory"
 require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
@@ -8,6 +9,8 @@ module Hecks
     # Declares browser-local storage; in Ruby it behaves like Memory (in-process, ephemeral).
     # Only a real browser page, holding the rust/web `dispatch` snapshot, gets durability.
     class LocalStorage
+      include Ports::Persistence::ArchivingPut
+
       # Trivially tenant-capable, as Memory is: a browser tab is one origin and one user.
       #
       # @return [Boolean] true, always
@@ -100,21 +103,17 @@ module Hecks
       end
 
       # Writes an entry through an existence check, refusing to replace an existing record
-      # when asked.
+      # when asked, and archiving an ended occupant first.
       #
       # @param entry [Persistence::Entry] the entry to persist (its `id` checked for an
       #   existing record)
-      # @param insert_only [Boolean] true to refuse replacing a record that already exists
-      # @return [Symbol] `:conflicted` when `insert_only` met an existing record and nothing
-      #   was written; `:inserted` or `:replaced` otherwise
-      def atomic_put(entry, insert_only: false)
-        exists = @records.key?(entry.id.to_s)
-        return :conflicted if insert_only && exists
-
-        status = exists ? :replaced : :inserted
-        append(entry)
-        project(entry)
-        status
+      # @param insert_only [Boolean] true to refuse replacing a record the rule does not replace
+      # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended
+      #   and is archived under `<id>~<n>` before the write
+      # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met a
+      #   live record and nothing was written
+      def atomic_put(entry, insert_only: false, replace_when: nil)
+        archiving_put(entry, insert_only, replace_when)
       end
 
       # Journals and projects the removal of one record.
@@ -149,6 +148,8 @@ module Hecks
       end
 
       private
+
+      def occupied?(id) = @records.key?(id.to_s)
 
       def copy(state) = Ports::Persistence::StateCodec.copy(@aggregate, state)
 

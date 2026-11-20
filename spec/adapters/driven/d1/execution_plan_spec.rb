@@ -1,5 +1,6 @@
 require "spec_helper"
 require "sqlite3"
+require_relative "../../../support/persistence_adapter_examples"
 
 RSpec.describe "D1 execution-plan capabilities" do
   # A connection that answers `batch` the way D1 classifies it, and refuses independent `execute`s.
@@ -189,6 +190,17 @@ RSpec.describe "D1 execution-plan capabilities" do
 
       expect(real_db.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
     end
+  end
+
+  # The SQL gates run here, against a real SQLite batch, so the status table checks D1's SQL
+  # against the lifecycle's own rule.
+  describe "archiving an ended occupant in one batch" do
+    include_context "with the archiving Ticket aggregate"
+
+    let(:aggregate) { ticket_aggregate("D1Archiving") }
+    let(:store) { Hecks::Ports::Persistence::AppendOnly.new(adapter_on_real_sqlite(aggregate)) }
+
+    it_behaves_like "an archiving atomic_put adapter"
   end
 
   # One mocked HTTP round trip, asserted twice: the request sent and the rows parsed back.

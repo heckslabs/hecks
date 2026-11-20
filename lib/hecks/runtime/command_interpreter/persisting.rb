@@ -2,6 +2,7 @@ require_relative "../errors"
 require_relative "../dependency_planning"
 require_relative "../rebuild_sweep"
 require_relative "../../rendering"
+require_relative "../../ports/persistence/replace_when"
 
 module Hecks
   module Runtime
@@ -28,7 +29,7 @@ module Hecks
 
         def persist_and_check(ctx)
           seed_projected_fields(ctx)
-          archive_occupant(ctx)
+          archive_occupant(ctx) unless atomic_put?(ctx)
           ctx.persistence_outcome = persist_instance(ctx)
           raise_for_persistence_outcome!(ctx)
         end
@@ -44,13 +45,15 @@ module Hecks
         end
 
         def persist_instance(ctx)
-          if ctx.strategy == DependencyPlanning::ATOMIC_PUT
+          if atomic_put?(ctx)
             # `insert_only:` asks the adapter to refuse atomically rather than
             # this interpreter reading the record first to check — a
             # `repository.find` before every atomic_put would be exactly the
-            # read this strategy exists to skip. An ended occupant, archived by now, is
-            # replaced: hydration read it and found it reusable.
-            ctx.repository.atomic_put(ctx.instance, insert_only: insert_only?(ctx), mints_era: mints_era?(ctx))
+            # read this strategy exists to skip. `replace_when:` lets the adapter archive an
+            # ended occupant and write in the same step, so a live record that took the id
+            # after hydration read it is refused, never overwritten.
+            ctx.repository.atomic_put(ctx.instance, insert_only: insert_only?(ctx), mints_era: mints_era?(ctx),
+                                                    replace_when: replace_when(ctx))
           else
             # `expected_version:` is nil for a brand-new record or a
             # non-CAS repository, either of which falls through to a
@@ -60,10 +63,18 @@ module Hecks
           end
         end
 
-        # Whether the atomic write must find no record there. A `creates_or_acts` command may act
-        # on the record it found, so it never inserts only.
+        def atomic_put?(ctx) = ctx.strategy == DependencyPlanning::ATOMIC_PUT
+
+        # Whether the atomic write must find no live record there. A `creates_or_acts` command
+        # may act on the record it found, so it never inserts only.
         def insert_only?(ctx)
-          ctx.command.creates? && ctx.archiving.nil? && !creates_or_acts?(ctx.command)
+          ctx.command.creates? && !creates_or_acts?(ctx.command)
+        end
+
+        # When the adapter may take an occupied id: only for a command that inserts only, so a
+        # `creates_or_acts` command never archives the record it means to act on.
+        def replace_when(ctx)
+          Ports::Persistence::ReplaceWhen.for(ctx.aggregate) if insert_only?(ctx)
         end
 
         # The one-write allowance this command's record holds through an unminted boot: the
