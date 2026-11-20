@@ -81,6 +81,8 @@ Hecks.bluebook "Hecks" do
                reason: "the board reads the last rolling fill's report, which another process recorded"
         member domain: "Hecks", aggregate: "GithubEvent", checkout: "both",
                reason: "a delivery is recorded by the webhook listener and read by the watchers, in processes of their own"
+        member domain: "Hecks", aggregate: "RedEpisode", checkout: "main",
+               reason: "a red episode is decided by one process and read back by later ones, across a restart"
         member domain: "Delivery", aggregate: "Revision", checkout: "both",
                reason: "a landing reads back the revision it landed by run id"
         member domain: "Delivery", aggregate: "Landing", checkout: "both",
