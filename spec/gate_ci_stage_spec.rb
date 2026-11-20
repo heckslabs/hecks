@@ -82,7 +82,7 @@ RSpec.describe "the ci gate stage" do
     it "runs in the push the seconds-long checks and no others" do
       expect(ids("quick")).to eq(
         %w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words io_spec_list
-           command_names workflow_pagination role_files role_world_list]
+           command_names remedy_names workflow_pagination role_files role_world_list]
       )
     end
 

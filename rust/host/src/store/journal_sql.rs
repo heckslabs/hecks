@@ -424,7 +424,8 @@ pub async fn held_eras<C: GenericClient>(client: &C, domain: &str) -> anyhow::Re
                 if &digest != stored {
                     anyhow::bail!(
                         "cannot boot {domain}: era {ordinal}'s held text does not match its own recorded digest \
-                         — this row was edited outside the lineage tooling; run hecks reattest to acknowledge \
+                         — this row was edited outside the lineage tooling; \
+                         run hecks SchemaRevision.reattest! domain.value=… era.value=… to acknowledge \
                          the change and re-seal it (Runtime::EraTamper's own recovery path)"
                     );
                 }

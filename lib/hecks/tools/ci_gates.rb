@@ -83,7 +83,7 @@ module Hecks
         end
 
         warn "ci_gates: out of date: #{stale.map { |path| path.delete_prefix("#{root}/") }.join(", ")} " \
-             "(run hecks project_ci_gates)"
+             "(run hecks RegenerationRun.project_ci_gates! --confirm)"
         1
       end
 
