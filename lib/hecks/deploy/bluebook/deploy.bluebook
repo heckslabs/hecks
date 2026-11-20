@@ -1249,14 +1249,10 @@ Hecks.bluebook "Deploy" do
     trigger ServiceRoll::FlagSmoke, with: { service_roll: :run, smoke: :refusal, refusal: :refusal }
   end
 
-  # A service that follows the stable lane. `Request` records one service to roll onto a promoted
-  # commit; the policies below read the box, begin the roll only on a box that is ready, run it
-  # through `ServiceRoll.Run` and its smoke, and end it as rolled or stopped. Nothing here restores
-  # anything: a stopped roll keeps the tag the service ran before and the ADR 0105 restore point,
-  # and a person decides. `promoted_commit` is the commit stable moved to; the roll builds the
-  # project as it stands and does not compare the box's commit with it.
+  # Nothing here restores anything: a stopped roll keeps the way back and a person decides. The
+  # roll builds the project as it stands and does not compare the box's commit with promoted_commit.
   aggregate "StableRoll" do
-    description "One service rolled because stable moved: held while its auto-roll switch is off, else rolled or stopped, with the reason and the way back."
+    description "One service rolled because stable moved to promoted_commit: held while its auto-roll switch is off; otherwise the box is read, the roll begins only on a box that is ready, runs through ServiceRoll.Run and its smoke, and ends rolled or stopped with the reason, the tag the service ran before and the ADR 0105 restore point."
 
     attribute :run,             RunKey
     attribute :service,         ServiceName
@@ -1445,11 +1441,8 @@ Hecks.bluebook "Deploy" do
     trigger StableRoll::Stop, with: { reason: :refusal }
   end
 
-  # `Begin` carries the project and the service the box read answered with, since an event holds
-  # only what its command was given.
-  # The roll itself is a `ServiceRoll` under the stable roll's own key, so its smoke policies run
-  # as they do for a roll asked for by hand, and its outcome finds this record by that key.
-  # The roll is a root: its own chain, through the smoke to this record's end, is as deep as a
+  # A `ServiceRoll` under the stable roll's own key, with the project and service `Begin` carried
+  # from the box read. A root: its chain through the smoke to this record's end is as deep as a
   # reaction chain may go, so it cannot also count the box read before it.
   policy "RollServiceWhenStableRollBegun" do
     on      "StableRoll.StableRollBegun"
@@ -1457,10 +1450,8 @@ Hecks.bluebook "Deploy" do
     trigger ServiceRoll::Run, with: { project: :project, run: :run, service: :service }
   end
 
-  # The endings read the smoke's own events, not the `ServiceRoll`'s record of them: the roll's
-  # chain through the smoke is as deep as a chain may go, and these stand beside its last step.
-  # Each asks `StableRoll.Rolling` for the roll under the event's key, so a `ServiceRoll` or a
-  # smoke that no stable roll asked for finds no row and triggers nothing.
+  # The endings read the smoke's own events, beside the chain's last step and not after it. Each
+  # asks `StableRoll.Rolling` for the event's key, so a roll no stable roll asked for finds no row.
   policy "SettleStableRollWhenSmokePassed" do
     on       "SmokeRun.SmokePassed"
     where    { after.value == "service_roll" }
