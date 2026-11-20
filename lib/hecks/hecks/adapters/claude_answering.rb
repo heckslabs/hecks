@@ -11,12 +11,14 @@ module Hecks
     # delivery of an answer to a working one, and the resume of an idle or gone one. Which of them
     # an answer takes is the bluebook's `AnswerTheSessionWhereItIs` rule.
     module ClaudeAnswering
-      # Says where the run's session is before it is answered (see {SessionPresence}).
+      # Says where the run's session is before it is answered (see {SessionPresence}), and which
+      # other live session holds the run's pinned role ({PinnedRoleHolders}).
       #
-      # @param held [Hash] the `AgentRun` record: `session`
-      # @return [Hash{Symbol => Object}] `listed:`, `status:`, `state:` and `note:`
+      # @param held [Hash] the `AgentRun` record: `session`, `agent` and `works_as`
+      # @return [Hash{Symbol => Object}] `listed:`, `status:`, `state:`, `note:`, `pinned_role:`,
+      #   `role_holder:` and `role_note:`
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
-      def present(**held) = @presence.call(plain(held[:session]))
+      def present(**held) = @presence.call(plain(held[:session])).merge(@holder.roles.call(held))
 
       # Leaves the answer in a working session's inbox, which its hooks hand to the model; the
       # session is not stopped.
@@ -36,14 +38,15 @@ module Hecks
       #   answer comes with the session's next step (it leads the prompt), and `agent` when the run
       #   has a role, which the resume passes as `--agent` so its MCP server narrows itself again
       # @return [Hash{Symbol => Object}] `resumed_at:` an ISO 8601 string; `session:` the id the
-      #   run follows, its own unless the CLI started a copy; and `note:` what the CLI said of that
-      #   copy, when it did
+      #   run follows, its own unless the CLI started a copy; `note:` what the CLI said of that
+      #   copy, when it did; and `pinned_role:` the run's pinned role, empty when it has none
       # @raise [ConsoleCapture::Failure] when the session is not listed or the command refuses
       def resume(**held)
         id = plain(held[:session])
-        @jobs.woken(ClaudeResumption.new(@command, @shell, nice: niceness)
-                                    .call(id, listed(id), prompt(held), env: named(held), chdir: plain(held[:repo]),
-                                                                        agent: plain(held[:agent])))
+        started = ClaudeResumption.new(@command, @shell, nice: niceness)
+                                  .call(id, listed(id), prompt(held), env: named(held), chdir: plain(held[:repo]),
+                                                                      agent: plain(held[:agent]))
+        @jobs.woken(started).merge(pinned_role: @holder.pinned_role(held))
       end
 
       private

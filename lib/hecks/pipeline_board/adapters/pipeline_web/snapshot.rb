@@ -105,6 +105,14 @@ module Hecks
           @lock.synchronize { with_age(@held || placeholder) }
         end
 
+        # @return [Boolean] whether a read state is held and not stale; always true without the
+        #   background thread, which reads when asked
+        def held?
+          return true unless @background
+
+          @lock.synchronize { !@read_at.nil? && (@now.call - @read_at) <= period * STALE_AFTER }
+        end
+
         private
 
         def refresh_forever

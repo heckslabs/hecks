@@ -2,7 +2,6 @@
 
 require "fiddle"
 require "time"
-require "hecks/signalbox/adapters/pressure_signal"
 
 module Hecks
   module Adapters
@@ -78,7 +77,7 @@ module Hecks
         #   drives, else the load above the limit
         def loaded?
           signal = @pressure.call
-          over = signal ? PressureSignal.short?(signal) : @load.call.to_f > @limit.call.to_f
+          over = signal ? signals.short?(signal) : @load.call.to_f > @limit.call.to_f
           @since = over ? (@since || @now.call) : nil
           over
         end
@@ -90,16 +89,26 @@ module Hecks
 
           signal = @pressure.call
           shown = { load: @load.call.to_f.round(1), limit: @limit.call.to_f.round(1), since: @since.iso8601 }
-          signal ? shown.merge(pressure: PressureSignal.said(signal)) : shown
+          signal ? shown.merge(pressure: signals.said(signal)) : shown
         end
 
         # @param program [String] what was not run
         # @return [String] why, as a reader's section shows it
         def refusal(program)
           signal = @pressure.call
-          return "#{program} not run: #{PressureSignal.said(signal)}" if signal
+          return "#{program} not run: #{signals.said(signal)}" if signal
 
           "#{program} not run: load #{@load.call.to_f.round(1)} is above #{@limit.call.to_f.round(1)}"
+        end
+
+        private
+
+        # Signalbox's reading of a signal, loaded only once a signal is present: the caller that
+        # wires `pressure` runs with the load path, and the board's restart code loads this file
+        # without one.
+        def signals
+          require "hecks/signalbox/adapters/pressure_signal"
+          PressureSignal
         end
       end
     end
