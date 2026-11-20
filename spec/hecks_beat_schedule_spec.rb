@@ -31,7 +31,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
     expect(lines[5]).to start_with("exe/hecks Heartbeat.Beat!")
   end
 
-  # The copy's local files are made the main checkout's after the copy follows main, before the beat.
+  # The copy's local files are made the main checkout's after it follows main, before the beat.
   it "copies the main checkout's local files between the follow step and the beat" do
     lines = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines.map(&:strip)
 
