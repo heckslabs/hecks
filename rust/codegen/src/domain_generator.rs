@@ -356,10 +356,7 @@ pub fn generate(
     let mut aggregate_files: Vec<GeneratedFile> = Vec::new();
     let mut registry_aggregates: Vec<AggregateEntry> = Vec::new();
     let mut manifest = Manifest::default();
-    let sagas: Vec<Json> = ir
-        .get("sagas")
-        .map_or_default(Json::each)
-        .to_vec();
+    let sagas: Vec<Json> = ir.get("sagas").map_or_default(Json::each).to_vec();
 
     // Owner of each value object across the whole domain: a command attribute can name a value
     // object declared by another aggregate. Last writer wins per name.
@@ -957,8 +954,7 @@ pub fn generate(
                 &json_codec::emit_to_json_flat_sparse(exemplar, &args_struct, cmd_attrs),
             );
             puts_blank(&mut out);
-            let allowlist =
-                json_codec::command_argument_allowlist(aggregate, command, &sagas, &[]);
+            let allowlist = json_codec::command_argument_allowlist(aggregate, command, &sagas, &[]);
             puts_str(
                 &mut out,
                 &json_codec::emit_from_json_flat(
