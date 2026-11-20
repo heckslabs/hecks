@@ -5,7 +5,7 @@ module Hecks
     module Booted
       class << self
         # Boots a domain directory and holds the dispatcher it answers. Under `HECKS_ENGINE=kernel`
-        # that is a `Runtime::KernelDispatcher`: `registry`, `declaration` and `door` still read
+        # that is the kernel engine's dispatcher: `registry`, `declaration` and `door` still read
         # the described declarations, and the door dispatches through the kernel.
         #
         # @param path [String] the directory holding the app's bluebooks
