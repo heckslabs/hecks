@@ -21,8 +21,8 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
     end
   end
 
-  def adapter(planned, load: 1.0)
-    items = instance_double(described_class::WorkItems, planned: planned, started: [], runs: {}, lessons: [])
+  def adapter(planned, load: 1.0, batched: [])
+    items = instance_double(described_class::WorkItems, planned: planned, batched: batched, started: [], runs: {}, lessons: [])
     described_class.new(settings: { load: -> { load }, cpus: 10, cap: 6, work_items: items, runner: runner })
   end
 
@@ -72,13 +72,13 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
   def committed_to(lead) = item("m#{lead}", batch: lead, commit: "abc123")
 
   it "resumes a group under the work item that already leads members committed on its branch" do
-    preview = adapter([*three, committed_to("b")]).preview(repo: "/repo", only: "group:lib/x")[:text]
+    preview = adapter(three, batched: [committed_to("b")]).preview(repo: "/repo", only: "group:lib/x")[:text]
 
     expect(preview).to include("would start group lib/x (3 items): Outcome: Title b")
   end
 
   it "resumes under the first in plan order when two work items lead committed members" do
-    preview = adapter([*three, committed_to("c"), committed_to("b")]).preview(repo: "/repo", only: "group:lib/x")[:text]
+    preview = adapter(three, batched: [committed_to("c"), committed_to("b")]).preview(repo: "/repo", only: "group:lib/x")[:text]
 
     expect(preview).to include("would start group lib/x (3 items): Outcome: Title b")
   end

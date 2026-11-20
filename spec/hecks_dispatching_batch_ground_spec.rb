@@ -11,13 +11,13 @@ RSpec.describe Hecks::Adapters::Dispatching::BatchGround do
     plan_class::Item.new(key: key, title: key, area: area, batch: batch, batch_commit: commit)
   end
 
-  def lead = item("a", %w[lib/x/a.rb lib/x/b lib/x/c])
+  def lead = plan_class::Item.new(key: "a", title: "a", area: %w[lib/x/a.rb lib/x/b lib/x/c], batched: members)
 
   def members = [item("b", %w[lib/x/b], batch: "a", commit: "abc123"), item("c", %w[lib/x/c], batch: "a")]
 
   def branch = ->(work) { Hecks::Adapters::Dispatching::EffectiveArea.choose(work.area, changed.fetch(work.key, [])) }
 
-  def ground = described_class.new(branch, members, root: "/repo")
+  def ground = described_class.new(branch, root: "/repo")
 
   def plan(other) = plan_class.new([other], [lead], cap: 6, load: 1.0, max_load: 10.0, frozen: [], effective: ground)
 
@@ -34,6 +34,6 @@ RSpec.describe Hecks::Adapters::Dispatching::BatchGround do
   end
 
   it "reads a work item that leads no batch by its branch alone" do
-    expect(described_class.new(branch, []).call(lead)).to eq(%w[lib/x/a.rb lib/x/b/b.rb])
+    expect(described_class.new(branch).call(item("a", lead.area))).to eq(%w[lib/x/a.rb lib/x/b/b.rb])
   end
 end

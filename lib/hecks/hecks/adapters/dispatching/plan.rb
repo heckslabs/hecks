@@ -104,7 +104,7 @@ module Hecks
         end
 
         # What holds an item whatever room there is; such an item does not count against the cap.
-        def held_reason(item) = batch_reason(item) || rethink_reason(item) || dependency_reason(item) || parked_reason(item)
+        def held_reason(item) = rethink_reason(item) || dependency_reason(item) || parked_reason(item)
 
         # An item waits until each work item it names has landed, a red one included: it is never
         # chosen, so it is never started and yielded for a dependency.

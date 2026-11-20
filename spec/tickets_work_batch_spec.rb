@@ -1,10 +1,11 @@
 require "spec_helper"
 require "json"
 require_relative "support/new_work_started"
+require "hecks/hecks/adapters/dispatching"
 
-# A batch is one coder session for several planned work items: its lead is started and each other
-# member is held by naming the lead, closes with the lead's landing once committed, and goes back
-# to the plan on its own when the batch lets it go.
+# A group batch is one coder session for several work items: its lead is started and each other
+# member is batched under the lead, closes with the lead's landing, stays with a lead that yields
+# once committed, and goes back to the plan on its own when the batch lets it go.
 RSpec.describe "a batch of work items" do
   include_context "with new work started"
 
@@ -15,7 +16,7 @@ RSpec.describe "a batch of work items" do
     out
   end
 
-  def keys(query) = JSON.parse(cli(query, "work=a")).map { |work| work["work"] }
+  def keys(query) = JSON.parse(cli(query, "work=a")).map { |work| work["work"] }.sort
 
   def status(key) = JSON.parse(cli("work.undone")).find { |work| work["work"] == key }&.fetch("status") || "done"
 
@@ -27,40 +28,47 @@ RSpec.describe "a batch of work items" do
 
   def commit_b = cli("work.commit!", "to=b", "batch_commit.value=abc123")
 
-  it "holds a planned member by naming its lead" do
+  it "takes each member out of the plan into its lead's batch", :aggregate_failures do
     batch_of_three
 
-    expect(keys("work.batch_of")).to eq(%w[b c])
+    expect(keys("work.in_batch")).to eq(%w[b c])
+    expect(status("b")).to eq("batched")
   end
 
-  it "closes a committed member with its lead's landing and lets the other go", :aggregate_failures do
+  it "closes the members with their lead's landing" do
     batch_of_three
     commit_b
     cli("work.close!", "to=a", "landing.value=def456")
 
-    expect([status("b"), status("c")]).to eq(%w[done planned])
-    expect(keys("work.batch_of")).to be_empty
+    expect([status("b"), status("c")]).to eq(%w[done done])
   end
 
-  it "keeps a committed member with a lead that yields and lets the others go", :aggregate_failures do
+  it "keeps a committed member with a lead that yields and returns the others", :aggregate_failures do
     batch_of_three
     commit_b
     cli("work.yield!", "to=a", "reason.value=load", "yield_kind.value=load")
 
-    expect(keys("work.batch_of")).to eq(%w[b])
-    expect(keys("work.uncommitted_in")).to be_empty
+    expect(keys("work.in_batch")).to eq(%w[b])
+    expect(status("c")).to eq("planned")
   end
 
-  it "lets one member leave and keeps the rest" do
+  it "returns one member to the plan and keeps the rest" do
     batch_of_three
-    cli("work.leave!", "to=b", "reason.value=architect: rethink")
+    cli("work.return!", "to=b", "reason.value=architect: rethink")
 
-    expect(keys("work.batch_of")).to eq(%w[c])
+    expect(keys("work.in_batch")).to eq(%w[c])
   end
 
-  it "refuses to hold a started work item in a batch" do
+  it "refuses to record a commit for a work item in no batch" do
     batch_of_three
 
-    expect(cli("work.enlist!", "to=a", "batch.value=b")).to include("only a planned work item is held in a batch")
+    expect(cli("work.commit!", "to=a", "batch_commit.value=abc123")).to include("only a batched work item is committed")
+  end
+
+  it "reads a started lead for the fill with the members waiting in its batch" do
+    batch_of_three
+    lead = Hecks::Adapters::Dispatching::WorkItems.new(hecks.registry).started.find { |item| item.key == "a" }
+
+    expect(lead.batched.map(&:key).sort).to eq(%w[b c])
   end
 end
