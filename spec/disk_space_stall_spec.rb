@@ -44,12 +44,19 @@ RSpec.describe "the DiskSpace stall", :aggregate_failures do
     expect([events_named("VolumeRose"), events_named("VolumeEased")]).to eq([0, 0])
   end
 
-  it "files a volume high past half an hour once, for the pruner" do
+  it "files a volume high past half an hour once, with its relief" do
     write_volume_tap(["VolumeRose", 40])
     detect("look-1")
 
     expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-disk-data])
-    expect(keys("Tickets", "Work", :detail).first).to include("Relief.relieve!", "never remove them")
+    expect(keys("Hecks", "Stall", :detail).first).to include("Landing.retire!", "AgentRun.tidy!", "never remove them")
+  end
+
+  it "wakes the orchestrator once for the volume and plans no work item" do
+    write_volume_tap(["VolumeRose", 40])
+    detect("look-1")
+
+    expect([events_named("CoordinatorWoken"), keys("Tickets", "Work", :work)]).to eq([1, []])
   end
 
   it "files nothing for a volume that eased" do
