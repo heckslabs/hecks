@@ -895,6 +895,7 @@ Hecks.bluebook "Tickets" do
       transition "Close"  => "done",    from: %w[planned started batched]
       transition "Drop"   => "dropped", from: %w[planned started batched]
       transition "Lapse"  => "dropped", from: %w[planned started batched]
+      transition "Misname" => "dropped", from: "planned"
       transition "Reopen" => "planned", from: %w[done dropped]
       # A batched item waits on its batch work item, which closes it or hands it back: nothing times it.
       mark :rests, "batched"
@@ -968,16 +969,14 @@ Hecks.bluebook "Tickets" do
       emits "WorkAreaCleared"
     end
 
-    # A planned work item whose area names nothing in the checkout is refused: the reason names
-    # each word, and the policy on its event drops it. A started one keeps its claim (a coder holds
-    # it), so the refusal is the given's.
+    # A planned work item whose area names nothing in the checkout is dropped, its reason naming
+    # each word. A started one keeps its claim (a coder holds it): the transition refuses it. It
+    # emits no WorkDropped, as Lapse does not, so no epic is reviewed for a typo.
     command "Misname" do
-      goal "Refuse a planned work item whose area names nothing in the checkout, naming each word"
+      goal "Drop a planned work item whose area names nothing in the checkout, naming each word"
 
       reference_to Work
-      attribute :reason, WorkText
-
-      given("a started, done or dropped work item is not refused for its area") { status == "planned" }
+      attribute :reason, WorkText, sets: true
 
       emits "WorkMisnamed"
     end
@@ -1574,11 +1573,6 @@ Hecks.bluebook "Tickets" do
   policy "MisnameWhenAreaUnnamed" do
     on      "Work.AreaUnnamed"
     trigger Work::Misname, with: { reason: :refusal }
-  end
-
-  policy "DropWhenMisnamed" do
-    on      "Work.WorkMisnamed"
-    trigger Work::Drop, with: { reason: :reason }
   end
 
   # A started work item asks the WorkLimits port whether it is one too many for the concurrency cap.
