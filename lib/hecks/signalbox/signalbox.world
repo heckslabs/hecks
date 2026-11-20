@@ -32,6 +32,12 @@ Hecks.world "Signalbox" do
   # 0220's bound is set. `gap` is how far under its rating a load falls before a breaker resets.
   breakers "Breaker", helpers_percent: 100, shedding_min_coders: 2, reset_gap_percent: 10
 
+  # Reaping. A finished pipeline session or a landed copy is kept `ended_minutes` (its report is
+  # read in that time); an owner's own ended session `owner_minutes`, a day. A stale session is
+  # kept its role's fuse time rating (`fuses`). The Hecks world's `reaping` line holds the old
+  # sweep's 30-minute helper window until phase 4 deletes that sweep.
+  reaping "Reaping", ended_minutes: 5, owner_minutes: 1_440
+
   # One standing orchestrator seat at most; a gone seat is the only one restarted.
   seats "Admission", orchestrator: 1
 end

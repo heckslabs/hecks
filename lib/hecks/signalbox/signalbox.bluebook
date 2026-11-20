@@ -595,6 +595,87 @@ Hecks.bluebook "Signalbox" do
     end
   end
 
+  # Reaping (ADR 0222, phase 3, reaping): Signalbox rules on each subject of Roundhouse's `Ended`
+  # meter, an ended session or a copy of the checkout, before anything is removed. It decides;
+  # `Ruling` only records a decision beside Delegate's. A reap pass is cleared first (`Clearance`),
+  # so a stale copy reaps nothing. `keep` is the subject's own window: the ended window for a
+  # finished session, its fuse's time rating for a stale one, none for a copy.
+  aggregate "Reaping" do
+    description "Signalbox's ruling that one ended session or one copy of the checkout is reaped, from Roundhouse's meter."
+    created_by "Reaping.rule!"
+
+    identified_by :reaping
+
+    attribute :reaping, Key
+    attribute :subject, Word
+    attribute :kind,    Kind
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # A finished session is listed done or stopped; a stale one has lost its process while listed
+    # otherwise; a copy is a worktree of the checkout.
+    value_object "Kind" do
+      attribute :value, String
+      invariant("a reap is of a finished session, a stale session or a copy") do
+        value == "finished" || value == "stale" || value == "copy"
+      end
+    end
+
+    value_object "Answer" do
+      attribute :value, String
+      invariant("an answer is yes or no") { value == "yes" || value == "no" }
+    end
+
+    value_object "Minutes" do
+      attribute :value, Integer, default: 0
+      invariant("a duration is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    command "Rule" do
+      role "System"
+      goal "Rule that one ended session or one landed copy is reaped, only with nothing unsaved and nothing holding it"
+
+      attribute :reaping, Key, sets: true
+      attribute :subject, Word, sets: true
+      attribute :kind,    Kind, sets: true
+      attribute :state,   Word
+      attribute :role,    Word
+      attribute :live,    Answer
+      attribute :idle,    Minutes
+      attribute :keep,    Minutes
+      attribute :unsaved, Count
+      attribute :pinned,  Answer
+      attribute :open,    Answer
+      attribute :landed,  Answer
+
+      given("a session with unsaved work is never reaped") { unsaved.value.zero? }
+      given("a pinned session is never reaped") { pinned.value == "no" }
+      given("the standing seat and a person's session are never reaped") do
+        role.value != "orchestrator" && role.value != "person"
+      end
+      given("what a started run or a live session holds is never reaped") { open.value == "no" }
+      given("a finished session is listed done or stopped") do
+        kind.value != "finished" || state.value == "done" || state.value == "stopped"
+      end
+      given("a stale session has no live process") { kind.value != "stale" || live.value == "no" }
+      given("a copy is reaped only once its branch is on main") { kind.value != "copy" || landed.value == "yes" }
+      given("a session is reaped only once it has been idle its keep window") { idle.value >= keep.value }
+
+      emits ReapingRuled
+    end
+  end
+
   # The pressure beat (ADR 0222, phase 2, the shadow): the record owns what its one look through
   # the `Looking` port found. It is cleared only from the main checkout's current view.
   aggregate "Beat" do
