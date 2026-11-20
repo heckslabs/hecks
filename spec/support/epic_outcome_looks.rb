@@ -2,6 +2,7 @@ require "json"
 require "time"
 require "tmpdir"
 require "hecks/tickets/bluebook/adapters/outcome_readings"
+require "hecks/tickets/bluebook/adapters/measure_readings"
 
 # An epic whose members close against a throwaway event tap, in a Hecks domain booted in Memory.
 # The `OutcomeReadings` port reads the spec's own tap; every other port is the booted one.
@@ -10,9 +11,10 @@ module EpicOutcomeLooks
     Hecks::Runtime::AdapterLookup.standing_in(method(:adapter_for)) { run_cli(argv) }
   end
 
-  # The spec's tap reader for `OutcomeReadings`, and the booted adapter for every other port.
+  # The spec's tap reader for the two ports that read the tap, the booted adapter for every other.
   def adapter_for(port, asked)
-    return Hecks::Adapters::OutcomeReadings.new(registry: hecks.registry, tap: tap) if port.to_s == "OutcomeReadings"
+    reader = { "OutcomeReadings" => Hecks::Adapters::OutcomeReadings, "MeasureReadings" => Hecks::Adapters::MeasureReadings }
+    return reader[port.to_s].new(registry: hecks.registry, tap: tap) if reader.key?(port.to_s)
 
     lookup = Hecks::Runtime::AdapterLookup
     lookup.standing_in(nil) { lookup.call(hecks.registry, port, asked: asked) }
@@ -70,6 +72,11 @@ module EpicOutcomeLooks
   def status = plain(the_epic.status)
 
   def evidence = plain(the_epic.evidence).to_s
+
+  def measured = plain(the_epic.measured).to_s
+
+  # What a query that answers a JSON document holds: its entries.
+  def answered(query) = JSON.parse(JSON.parse(cli(query)).first.fetch("text"))
 
   def work(key) = stored("Work").find { |item| plain(item.work) == key }
 
