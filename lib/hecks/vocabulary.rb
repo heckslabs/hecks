@@ -627,7 +627,6 @@ module Hecks
         {"script"=>"release_gem", "section"=>"Codebase", "aggregate"=>"PublishingRun", "verb"=>"publish_gem"}.freeze,
         {"script"=>"(new)", "section"=>"Codebase", "aggregate"=>"GateRun", "verb"=>"gate"}.freeze,
         {"script"=>"qa_tick", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"tick"}.freeze,
-        {"script"=>"qa_event_pump", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"tick", "note"=>"its last step, the event_pump setting; EventDelivery Pump.Run on the ledger"}.freeze,
         {"script"=>"qa_sweep", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"run", "passes"=>"--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"}.freeze,
         {"script"=>"qa_sweep", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"release"}.freeze,
         {"script"=>"qa_pr_check", "section"=>"QualityControl", "aggregate"=>"Clearance", "verb"=>"check_pull_requests"}.freeze,
