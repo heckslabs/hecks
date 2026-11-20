@@ -1,9 +1,9 @@
 require "spec_helper"
-require "hecks/tools/stores"
+require "hecks/hecks/adapters/in_process_boot/stores"
 
 # `stores` reads one record without dumping the rest: the document narrows to an aggregate's dump,
 # or to that aggregate's one record as its plain fields.
-RSpec.describe Hecks::Tools::Stores, ".narrow" do
+RSpec.describe Hecks::Adapters::InProcessBoot::Stores, ".narrow" do
   let(:document) do
     { "book"  => { "authoritative" => [{ "id" => "dune", "title" => "Dune" }, { "id" => "emma", "title" => "Emma" }] },
       "shelf" => { "authoritative" => [] } }

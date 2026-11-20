@@ -23,17 +23,17 @@ module McpLightHelper
 
   # Reports, after the server ends, whether the framework loaded and the process's resident memory.
   CHILD = <<~RUBY.freeze
-    require "hecks/tools/mcp"
+    require "hecks/adapters/driving/mcp/stdio_entry"
     at_exit do
       kb = `ps -o rss= -p \#{Process.pid}`.to_i
       $stderr.puts "probe framework=\#{defined?(Hecks::Assembly) ? 1 : 0} rss_kb=\#{kb}"
     end
-    Hecks::Tools::Mcp.call(ARGV)
+    Hecks::Adapters::Driving::Mcp.serve_stdio(ARGV)
   RUBY
 
   # The same probe around the query-ir server.
-  QUERY_IR_CHILD = CHILD.sub('require "hecks/tools/mcp"', 'require "hecks/tools/serve_query_ir_mcp"')
-                        .sub("Hecks::Tools::Mcp.call(ARGV)", "Hecks::Tools::ServeQueryIrMcp.call(ARGV)").freeze
+  QUERY_IR_CHILD = CHILD.sub('require "hecks/adapters/driving/mcp/stdio_entry"', 'require "hecks/query_ir_mcp/stdio_entry"')
+                        .sub("Hecks::Adapters::Driving::Mcp.serve_stdio(ARGV)", "Hecks::QueryIrMcp.serve_stdio(ARGV)").freeze
 
   def repo_root = File.expand_path("../..", __dir__)
 

@@ -4,7 +4,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
-require "hecks/tools/shard_planner"
+require "hecks/ci_speed/shard_planner"
 
 module Hecks
   module Adapters
@@ -34,7 +34,7 @@ module Hecks
       # @raise [Unavailable] when there is no run, no artifact or no readable timing
       def fetch(**held)
         name, from = held.values_at(:name, :timings_from).map { |value| value.is_a?(Hash) ? value[:value] : value }
-        table = Tools::ShardPlanner.merge(logs_in(from == "main" ? download(name) : from))
+        table = ShardPlanner.merge(logs_in(from == "main" ? download(name) : from))
         raise Unavailable, "no timings found in #{from}" if table.empty?
 
         { timings: { value: table.map { |file, seconds| "#{file}:#{seconds}" }.sort.join("\n") } }

@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/tools/project_cli"
+require "hecks/hecks/adapters/local_files/project_cli"
 
 # `exe/hecks` is written by `hecks project_cli` from the Hecks bluebook and its world's `launcher`
 # setting. The committed file is the bootstrap: this spec fails when it drifts from the generator,
@@ -15,8 +15,9 @@ RSpec.describe "exe/hecks" do
   end
 
   it "matches what project_cli generates for the Hecks bluebook" do
-    expect { Hecks::Tools::ProjectCli.call(["lib/hecks/hecks", "--check"], program: "hecks", root: root) }
-      .to output(%r{exe/hecks  ->  Hecks}).to_stdout
+    outcome = Hecks::Adapters::LocalFiles::ProjectCli.call(["lib/hecks/hecks"], program: "hecks", root: root, check: true)
+
+    expect(outcome.written).to eq(["  exe/hecks  ->  Hecks"])
   end
 
   it "is executable" do
