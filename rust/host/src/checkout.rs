@@ -1,9 +1,10 @@
 //! Stripe checkout and webhook mechanics for the registration routes: HMAC
-//! signature verification, an embedded Checkout Session, and a mock session.
+//! signature verification, a mock session, and the facts of an embedded Checkout Session
+//! (its API version, currency and shortest hold). The session itself is opened by
+//! `payments::stripe`.
 
 use crate::crypto::{constant_time_eq, hex_encode};
 use hmac::{Hmac, Mac};
-use serde_json::Value;
 use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -96,26 +97,11 @@ pub fn mock_checkout_session(
     url.to_string()
 }
 
-// Embedded, not Stripe-hosted, so Stripe returns a `client_secret` instead of
-// a `url`. `ui_mode` must be `embedded_page`; Stripe rejects the older
-// `embedded` value. No success_url/cancel_url: the browser stays on the site
-// and learns of completion from Stripe.js, with the webhook settling payment.
-
 // Pinned: `embedded_page` needs this version line, not whatever the account defaults to.
 pub const STRIPE_API_VERSION: &str = "2026-04-22.dahlia";
 
 /// The currency every Checkout Session charges in, lower-case as Stripe writes it.
 pub const CURRENCY: &str = "usd";
-
-pub struct StripeAuth<'a> {
-    pub api_key: &'a str,
-    pub base_url: &'a str,
-}
-
-pub struct EmbeddedSession {
-    pub session_id: String,
-    pub client_secret: String,
-}
 
 // 31, not 30: Stripe requires an expiry at least 30 minutes out. This floor is a
 // fact about the processor, so it lives here in the adapter; the domain declares
@@ -130,66 +116,6 @@ pub fn effective_hold_seconds(hold_seconds: i64) -> i64 {
 
 pub fn session_expires_at(now: i64, hold_seconds: i64) -> i64 {
     now + effective_hold_seconds(hold_seconds)
-}
-
-// Errors carry Stripe's message when it refuses, never a secret.
-pub async fn create_checkout_session(
-    auth: &StripeAuth<'_>,
-    price_cents: i64,
-    product_name: &str,
-    registration_id: &str,
-    expires_at: i64,
-) -> anyhow::Result<EmbeddedSession> {
-    let unit_amount = price_cents.to_string();
-    let expires_at = expires_at.to_string();
-    let params = [
-        ("mode", "payment"),
-        ("ui_mode", "embedded_page"),
-        ("redirect_on_completion", "never"),
-        ("expires_at", expires_at.as_str()),
-        ("line_items[0][price_data][currency]", CURRENCY),
-        (
-            "line_items[0][price_data][unit_amount]",
-            unit_amount.as_str(),
-        ),
-        (
-            "line_items[0][price_data][product_data][name]",
-            product_name,
-        ),
-        ("line_items[0][quantity]", "1"),
-        ("metadata[registration_id]", registration_id),
-    ];
-
-    let response = crate::http::client()
-        .post(format!("{}/v1/checkout/sessions", auth.base_url))
-        .bearer_auth(auth.api_key)
-        .header("Stripe-Version", STRIPE_API_VERSION)
-        .form(&params)
-        .send()
-        .await?;
-
-    let status = response.status();
-    let body: Value = response.json().await?;
-    if !status.is_success() {
-        let message = body
-            .get("error")
-            .and_then(|e| e.get("message"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown Stripe error");
-        anyhow::bail!("Stripe checkout session creation failed ({status}): {message}");
-    }
-
-    let text = |field: &str| body.get(field).and_then(|v| v.as_str()).map(String::from);
-    match (text("id"), text("client_secret")) {
-        (Some(session_id), Some(client_secret)) => Ok(EmbeddedSession {
-            session_id,
-            client_secret,
-        }),
-        // The body is left out of the message: it may carry the client secret.
-        _ => anyhow::bail!(
-            "Stripe's response carried no \"id\" and \"client_secret\" for the embedded session"
-        ),
-    }
 }
 
 #[cfg(test)]
