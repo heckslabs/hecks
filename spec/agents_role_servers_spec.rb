@@ -33,7 +33,8 @@ module RoleServerRows
   def server_roles = role_table("RoleFile").reject { |row| named_servers(row).empty? }
 end
 
-# A role whose brief uses an MCP server's tools starts that server and can wait for it to connect.
+# A role whose brief uses an MCP server's tools starts that server, can wait for it to connect, and
+# reads without it once it has failed twice.
 RSpec.describe "the Role aggregate's RoleServer rows" do
   include RoleServerRows
 
@@ -44,6 +45,18 @@ RSpec.describe "the Role aggregate's RoleServer rows" do
 
   it "go with ToolSearch, so a session waits for a server still connecting" do
     expect(server_roles.reject { |row| tools_of(row).include?("ToolSearch") }.map { |row| row[:role] }).to be_empty
+  end
+
+  it "go with Bash, the way a session reads once its server has failed twice" do
+    expect(server_roles.reject { |row| tools_of(row).include?("Bash") }.map { |row| row[:role] }).to be_empty
+  end
+
+  it "say to call a failed tool once more before reading without the server" do
+    expect(server_roles.reject { |row| row[:steps].include?("is called once more") }).to be_empty
+  end
+
+  it "say a review ends with its verdict whatever the server does" do
+    expect(server_roles.reject { |row| row[:steps].include?("never end a review without its Verdict line") }).to be_empty
   end
 
   it "name only servers their role's tools use" do
