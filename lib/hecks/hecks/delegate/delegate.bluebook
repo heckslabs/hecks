@@ -1842,18 +1842,96 @@ Hecks.bluebook "Hecks" do
       trigger Machine::Decline, with: { refusal: :refusal }
     end
 
+    aggregate "LoadStanding" do
+      description "Where the machine's load stands against its marks, below or above: one record per store, " \
+                  "never a reading's own memory of the reading before it. Every reading asks it to turn and " \
+                  "it refuses a turn it already made, so a rise is recorded once and the first reading under " \
+                  "the low mark after it records the fall, each on the reading that heard it, whichever key " \
+                  "took either. What pauses the fill reads it."
+
+      attribute :standing, LoadKey
+      attribute :load,     Side
+      attribute :reading,  TurnedBy, optional: true
+      identified_by :standing
+
+      value_object "LoadKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # The side of its marks the load stands on.
+      value_object "Side" do
+        attribute :value, String, default: "below"
+        invariant("the load stands below or above") { value == "below" || value == "above" }
+      end
+
+      # The key of the Machine reading that turned the standing last.
+      value_object "TurnedBy", String
+
+      command "Open" do
+        role "System"
+        goal "Open the one load standing of a store, with the load below its marks"
+
+        attribute :standing, LoadKey, sets: true
+
+        emits LoadStandingOpened
+      end
+
+      command "Rise" do
+        role "System"
+        goal "Turn the standing above: a reading left the load over its high mark"
+
+        reference_to LoadStanding
+        attribute :reading, TurnedBy, sets: true
+
+        given("the load does not stand above yet") { load.value != "above" }
+
+        sets :load, to: { value: "above" }
+
+        emits LoadStandingRose
+      end
+
+      command "Fall" do
+        role "System"
+        goal "Turn the standing below: a reading left the load under its low mark"
+
+        reference_to LoadStanding
+        attribute :reading, TurnedBy, sets: true
+
+        given("the load stands above") { load.value == "above" }
+
+        sets :load, to: { value: "below" }
+
+        emits LoadStandingFell
+      end
+    end
+
+    policy "OpenTheLoadStandingWhenTheMachineIsRead" do
+      on      "Machine.MachineSampled"
+      trigger LoadStanding::Open, with: { standing: "machine" }
+    end
+
     policy "HearTheLoadFall" do
       on      "Machine.MachineSampled"
       root
-      where   { load_state == "below" && load_before == "above" }
-      trigger Machine::FallBelow, with: { machine: :id }
+      where   { load_state == "below" }
+      trigger LoadStanding::Fall, with: { load_standing: "machine", reading: :id }
     end
 
     policy "HearTheLoadRise" do
       on      "Machine.MachineSampled"
       root
-      where   { load_state == "above" && load_before != "above" }
-      trigger Machine::RiseAbove, with: { machine: :id }
+      where   { load_state == "above" }
+      trigger LoadStanding::Rise, with: { load_standing: "machine", reading: :id }
+    end
+
+    policy "RecordTheFallOnItsReading" do
+      on      "LoadStanding.LoadStandingFell"
+      trigger Machine::FallBelow, with: { machine: :reading }
+    end
+
+    policy "RecordTheRiseOnItsReading" do
+      on      "LoadStanding.LoadStandingRose"
+      trigger Machine::RiseAbove, with: { machine: :reading }
     end
 
     policy "HearMemoryRunLow" do
@@ -1890,16 +1968,23 @@ Hecks.bluebook "Hecks" do
     # low". The reading's own key keys the roll, so one reading rolls once. Only a reading that moved a
     # state frees capacity rolls (the load fell, the memory recovered or the test lane went idle): a rise
     # or a beat that leaves the machine as it stood changes nothing a fill could act on, and the events
-    # that free capacity or add work roll on their own. One policy keyed by the reading, so a reading
-    # that crosses two marks rolls once.
+    # that free capacity or add work roll on their own. Each roll is keyed by the reading, so a reading
+    # that crosses two marks rolls once. Memory and the test lane roll here.
     policy "RollWhenTheMachineMoves" do
       on      "Machine.MachineSampled"
       root
       where   {
-        (load_state == "below" && load_before == "above") ||
-          (memory_state == "ok" && memory_before == "low") ||
+        (memory_state == "ok" && memory_before == "low") ||
           (lane_state == "idle" && lane_before == "busy")
       }
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :id }
+    end
+
+    # The load's fall rolls from the crossing itself, which the standing records once, under the
+    # key of the reading that heard it.
+    policy "RollWhenTheLoadFalls" do
+      on      "Machine.LoadFellBelow"
+      root
       trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :id }
     end
 
