@@ -4,7 +4,7 @@ module Hecks
   module QualityControlCli
     class QaEventPump
       # The domains the pump reads and reacts for: each name with the directory that boots it. The
-      # ledger, `QualityControl`, is the one whose `EventCursor` rows hold the positions.
+      # ledger, `QualityControl`, attaches EventDelivery, whose `Consumer` rows hold the positions.
       class Attached
         # @param root [String] the repository root the default directories are found under
         # @param env [Hash{String => String}] `QA_SWEEP_DOMAIN_DIR` overrides the ledger's directory

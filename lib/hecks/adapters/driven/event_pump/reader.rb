@@ -4,8 +4,8 @@ require "json"
 require "hecks/hecks/adapters/in_process_boot"
 
 module Hecks
-  module QualityControlCli
-    class QaEventPump
+  module Adapters
+    class EventPump
       # Reads a domain's event log past a cursor through the `Operation.Follow` query, and turns
       # each entry back into an event a policy can react to.
       module Reader

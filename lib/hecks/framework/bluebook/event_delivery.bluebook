@@ -277,8 +277,9 @@ Hecks.bluebook "EventDelivery" do
   end
 
   # One run that moves every consumer of a set of domains forward. It has an identity so a run can
-  # be reported on. `Run` records the request; the port that carries it out and the adapter that
-  # answers it with `Complete` or `Fault` are the hecksagon's, bound with the Ruby outbox.
+  # be reported on. `Run` records the request; the `Pumping` port (event_delivery.ports.hecksagon)
+  # carries it out, and the policies after the aggregate record its answer with `Complete` or
+  # `Fault`. The adapter is the deployment's, bound by the hecksagon that attaches this bluebook.
   aggregate "Pump" do
     description "One run moving every consumer of a set of domains past the events it has not yet answered, and what the run reported."
 
@@ -343,5 +344,21 @@ Hecks.bluebook "EventDelivery" do
       description "Every pump run, with its state and report."
       order_by :run
     end
+  end
+
+  # A requested run is carried out by the `Pumping` port, and its answer recorded on the run.
+  policy "PumpOnRequest" do
+    on  "Pump.PumpRequested"
+    ask :carry, with: { run: :run }
+  end
+
+  policy "CompleteOnPumpCarried" do
+    on      "Pump.PumpCarried"
+    trigger Pump::Complete, with: { run: :run, report: :text }
+  end
+
+  policy "FaultOnPumpRefused" do
+    on      "Pump.PumpCarryRefused"
+    trigger Pump::Fault, with: { run: :run, report: :refusal }
   end
 end
