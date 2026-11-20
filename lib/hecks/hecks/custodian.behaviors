@@ -343,6 +343,12 @@ Hecks.behaviors "Custodian" do
     expect refused: "must match"
   end
 
+  test "BuildComponent refuses a crate name that is not a Cargo name" do
+    tests "BuildComponent", on: "Build"
+    input component: { value: "../resend" }, run: { value: "component" }
+    expect refused: "must match"
+  end
+
   test "PruneRust refuses a build that is not named" do
     tests "PruneRust", on: "Build"
     input run: { value: "" }

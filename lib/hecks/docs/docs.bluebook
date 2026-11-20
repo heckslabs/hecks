@@ -129,4 +129,160 @@ Hecks.bluebook "Docs" do
       order_by :path
     end
   end
+
+  # The Page says where a prose region sits; the Prose says what its words claim. The words stay
+  # in the .md between the region's markers. Detecting a body's terms and resolving each mention
+  # against the live model belong to whoever answers a port for it, not to this bluebook.
+  aggregate "Prose" do
+    description "What one prose region of a page claims: its purpose, the model terms it mentions, what it rests on, and whether it still holds: current, needing review, confirmed or revised."
+    created_by "Prose.write!"
+
+    identified_by :prose
+
+    attribute :prose,             ProseKey
+    reference_to Page
+    attribute :anchor,            Anchor
+    attribute :purpose,           Purpose
+    attribute :mentions,          list_of(Mention)
+    attribute :supports,          list_of(Support)
+    attribute :confirmed_against, ModelStamp, optional: true
+
+    # The region's page path and anchor as `<path>#<anchor>`: `docs/query-dsl.md#Why queries`.
+    value_object "ProseKey" do
+      attribute :value, String, pattern: '^[^/#][^#]*[.]md#.+$'
+    end
+
+    # The heading the region sits under, as its page spells it.
+    value_object "Anchor" do
+      attribute :value, String, matches: :present
+    end
+
+    # What the words are for: a concept explained, the why of a decision, a tutorial step, a warning.
+    value_object "Purpose" do
+      attribute :value, String, pattern: '^(concept|why|tutorial|warning)$'
+    end
+
+    # The kind of model term a mention names.
+    value_object "MentionKind" do
+      attribute :value, String, pattern: '^(verb|aggregate|command|keyword|route|adr)$'
+    end
+
+    # A model term as the body spells it, such as `Page` or `Declare`.
+    value_object "Term" do
+      attribute :value, String, matches: :present
+    end
+
+    # One model term the body mentions, typed.
+    value_object "Mention" do
+      attribute :kind, MentionKind
+      attribute :term, Term
+    end
+
+    # The kind of thing the words rest on.
+    value_object "SupportKind" do
+      attribute :value, String, pattern: '^(bluebook_node|ir_element|code_file|doc)$'
+    end
+
+    # What the words rest on, named as its kind spells it: a bluebook node, an IR element, a
+    # repository path, or another page.
+    value_object "SupportTarget" do
+      attribute :value, String, matches: :present
+    end
+
+    # One thing the words rest on; a change to it puts the words up for review.
+    value_object "Support" do
+      attribute :kind,   SupportKind
+      attribute :target, SupportTarget
+    end
+
+    # The model the words were last confirmed against, such as a fingerprint of its IR.
+    value_object "ModelStamp" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "current" do
+      transition "FlagForReview" => "needs_review", from: %w[current confirmed revised]
+      transition "Confirm"       => "confirmed",    from: %w[current needs_review revised]
+      transition "Revise"        => "revised",      from: "needs_review"
+      # Every state waits on a maintainer reading the words, never on a clock.
+      mark :rests, "current", "needs_review", "confirmed", "revised"
+    end
+
+    command "Write" do
+      role "Maintainer"
+      goal "Write down what one prose region of a page is for, keyed by its page and anchor"
+
+      attribute :prose,   ProseKey
+      reference_to Page
+      attribute :anchor,  Anchor
+      attribute :purpose, Purpose
+
+      sets :prose
+      sets :page
+      sets :anchor
+      sets :purpose
+
+      emits "ProseWritten"
+    end
+
+    command "Mention" do
+      role "Maintainer"
+      goal "Declare one model term the prose mentions, with its kind"
+
+      reference_to Prose
+      attribute :kind, MentionKind
+      attribute :term, Term
+
+      sets :mentions, append: { kind: :kind, term: :term }
+
+      emits "ProseMentioned"
+    end
+
+    command "AddSupport" do
+      role "Maintainer"
+      goal "Name one thing the prose rests on: a bluebook node, an IR element, a code file or another page"
+
+      reference_to Prose
+      attribute :kind,   SupportKind
+      attribute :target, SupportTarget
+
+      sets :supports, append: { kind: :kind, target: :target }
+
+      emits "SupportAdded"
+    end
+
+    command "FlagForReview" do
+      role "Maintainer"
+      goal "Put the prose up for review because something it mentions or rests on changed"
+
+      reference_to Prose
+
+      emits "ProseFlaggedForReview"
+    end
+
+    command "Confirm" do
+      role "Maintainer"
+      goal "Record that the prose still holds against the model as it stands"
+
+      reference_to Prose
+      attribute :confirmed_against, ModelStamp, sets: true
+
+      emits "ProseConfirmed"
+    end
+
+    command "Revise" do
+      role "Maintainer"
+      goal "Record that prose up for review was rewritten in its page"
+
+      reference_to Prose
+
+      emits "ProseRevised"
+    end
+
+    query "NeedsReview" do
+      description "Every prose region up for review, by key."
+      where(status: "needs_review")
+      order_by :prose
+    end
+  end
 end
