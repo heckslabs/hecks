@@ -20,6 +20,8 @@ Hecks.bluebook "Hecks" do
       attribute :steps,    Count,      optional: true
       attribute :days,     Count,      optional: true
       attribute :dry_run,  Switch,     optional: true
+      attribute :component, ComponentName, optional: true
+      attribute :check,    Switch,     optional: true
       attribute :output,   Report,     optional: true
       attribute :refusal,  Report,     optional: true
       identified_by :run
@@ -78,6 +80,11 @@ Hecks.bluebook "Hecks" do
       # Whether the host build may download a published binary instead of compiling it.
       value_object "Switch", Boolean
 
+      # An adapter component's crate: a directory under `rust/adapters/`, named as Cargo names it.
+      value_object "ComponentName" do
+        attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      end
+
       value_object "CodegenName" do
         attribute :value, String, pattern: '^(ruby|rust)$'
       end
@@ -128,6 +135,20 @@ Hecks.bluebook "Hecks" do
         attribute :dry_run, Switch, optional: true, sets: true
 
         emits RustPruneRequested
+      end
+
+      # Compiles an adapter crate under `rust/adapters/` to a `wasm32-wasip2` component and writes
+      # it beside the crate with its sha256, the pair the host embeds. With `check` it compiles
+      # nothing and refuses when the committed component does not match its digest file.
+      command "BuildComponent" do
+        role "Operator"
+        goal "Compile an adapter crate to a Wasm component and record its digest"
+
+        attribute :component, ComponentName, sets: true
+        attribute :run,       BuildKey, sets: true
+        attribute :check,     Switch, optional: true, sets: true
+
+        emits ComponentBuildRequested
       end
 
       command "BuildParser" do
@@ -262,6 +283,11 @@ Hecks.bluebook "Hecks" do
     policy "CompileWasmWhenRequested" do
       on      "Build.WasmBuildRequested"
       ask     :wasm, with: { run: :run }
+    end
+
+    policy "BuildComponentWhenRequested" do
+      on      "Build.ComponentBuildRequested"
+      ask     :component, with: { run: :run }
     end
 
     policy "BuildParserWhenRequested" do
