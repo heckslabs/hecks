@@ -27,13 +27,13 @@ module Hecks
         valid_caller!(request.role, request.actor_id)
       end
 
-      # Required on dispatch/query/state: what makes an audit row legible later.
+      # Required on dispatch/query/state: what makes a trace line legible later.
       # :nodoc:
       def require_summary!(summary)
         return unless summary.nil? || summary.to_s.strip.empty?
 
         raise Runtime::TypeMismatch,
-              "a one-line summary: is required on dispatch/query/state — it is what makes an audit row legible later"
+              "a one-line summary: is required on dispatch/query/state — it is what makes a trace line legible later"
       end
 
       # :nodoc:

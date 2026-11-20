@@ -9,7 +9,7 @@ module Hecks
         # Answers a `run` call: the command is admitted by the server's scope, then run by
         # `CliRunner` itself, so its resolution, parsing, write forwarding, settling and refusals
         # are the launcher's. A role-gated command needs `role:`, as `dispatch` does; a role given
-        # is self-asserted and bound for the run. Each run writes one line to the audit log. The
+        # is self-asserted and bound for the run. Each run writes one line to the trace. The
         # server's list is admitted across the attached bluebooks (`McpScope::LauncherAdmission`),
         # where `dispatch` admits it against the domain's own bluebook only.
         module LauncherRun
@@ -27,7 +27,7 @@ module Hecks
             runtime = Mcp.boot(args["domain"])
             plan    = admitted(runtime, args)
             answer  = launched(runtime, args)
-            audit(runtime, plan, args, answer)
+            trace(runtime, plan, args, answer)
             answer
           end
 
@@ -64,8 +64,8 @@ module Hecks
             text
           end
 
-          # One audit line under the domain's own bluebook, where `follow` reads.
-          def audit(runtime, plan, args, answer)
+          # One trace line under the domain's own bluebook, where `follow` reads.
+          def trace(runtime, plan, args, answer)
             domain = Storehouse.bluebook_for(runtime)
             Storehouse.record!(domain.name, tool: "run", outcome: answer.slice(:ok, :error),
                                                              verb: plan[:spec][:command], summary: args["summary"],
