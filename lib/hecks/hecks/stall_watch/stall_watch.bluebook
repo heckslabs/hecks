@@ -236,6 +236,18 @@ Hecks.bluebook "Hecks" do
                      "AgentRun.answer! that run naming the processes and asking it to end the processes its " \
                      "commands start and to bound how many it starts. Never kill a pid. If no pipeline " \
                      "session owns them, Work.plan! a work item with the process list as its detail and leave it to the owner."
+        # A pressure beat that looked and was never cleared: `Clearance.Grant` refused its copy (behind
+        # main, or missing a local file of the main checkout), so no reading was published and the load
+        # pause froze on the last one. A refusal writes no line, so the row times the beat that stayed
+        # looked; any later beat published or faulted closes it, and a stuck copy files one stall.
+        member kind: "beat-uncleared", only_about: "launchd-", aggregate: "Signalbox::Beat", opens: "BeatRecorded",
+               closes: "BeatPublished,BeatFaulted", closed_by: "any", state: "looked", folds: "kind",
+               minutes: 5, forgets: 1440, fixer: "orchestrator",
+               move: "Read the beat log (~/.claude/hecks-dev/train-beat.log) for the refused given of Clearance.Grant: " \
+                     "a head behind main means the train copy did not follow (the beat job's follow step); " \
+                     "'every local file the main checkout has' means a *.local.world or *.local.hecksagon differs " \
+                     "from the main checkout's (the beat job's copy step). Bring the copy to local main and copy the files, " \
+                     "then the next beat clears; Work.plan! a work item when the beat job itself does not run them."
         # A landing job (`Landing.Carry`) neither landed nor refused in ten minutes: a quick gate takes a few.
         # The tap holds no process data, so the move names the check. `Landing.Finish` is not timed: it has
         # no closing line when it refuses before its merge.
