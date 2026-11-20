@@ -1,6 +1,6 @@
 Hecks.bluebook "Hecks" do
   domain_module "StallWatch" do
-    vision "A stall is noticed by data, not by a person watching: each kind is a row, and every stall found becomes one Work item for its fixer."
+    vision "A stall is noticed by data, not by a person watching: each kind is a row, and a stall for the orchestrator wakes one run of it, keyed by the stall, that settles it in place and is never a Work item."
 
     # One look at the event tap for stalls. The clock's beat asks it (`DetectOnHeartbeat`), and so may
     # anyone (`StallWatch.detect!`). The `Watching` port reads the tap and answers the opening lines
@@ -20,11 +20,11 @@ Hecks.bluebook "Hecks" do
       # One kind of stall, one row each: the aggregate and event that open it, the events on the same
       # aggregate id that close it (comma separated), the minutes it may stay open before it is a
       # stall, the minutes after which an open line is history rather than a stall, the role that
-      # fixes it, and the move it makes (its Work item's detail). The opening line's aggregate id is
-      # the subject. `closed_by` says which closing lines close it: "id" (the default) those on the
-      # same aggregate id, "any" every closing line on the aggregate after it. `evidence` names a
-      # read the detail carries: "processes" is the busiest class and its session. `not_about` is a
-      # subject prefix never filed for ("stall-").
+      # fixes it, and the move it makes (the brief of the run that settles it). The
+      # opening line's aggregate id is the subject. `closed_by` says which closing lines close it:
+      # "id" (the default) those on the same aggregate id, "any" every closing line on the aggregate
+      # after it. `evidence` names a read the detail carries: "processes" is the busiest class and its
+      # session. `not_about` is a subject prefix never filed for ("stall-").
       value_object "StallKind" do
         attribute :kind,      String
         attribute :aggregate, String
@@ -345,8 +345,9 @@ Hecks.bluebook "Hecks" do
     end
 
     # One stall, filed once: `stall-<kind>-<subject>`. Its key is the dedupe, so a stall seen by a
-    # later look is refused as already filed; the Work item it becomes carries the same key, so a
-    # look after a restart, when this store is empty again, is refused by Tickets instead.
+    # later look is refused as already filed, and a look after a restart, when this store is empty
+    # again, finds it filed on the tap. Its key also keys the orchestrator run its wake starts; that run
+    # plans a Work item, citing the key, only when the fix needs code.
     aggregate "Stall" do
       description "One stall: an opening event whose closing event did not come within its kind's minutes, and the role that fixes it."
       created_by "Stall.file!"
@@ -383,7 +384,8 @@ Hecks.bluebook "Hecks" do
         invariant("minutes are not negative") { !value.negative? }
       end
 
-      # The role a stall's Work item is for: one of the pipeline's agent roles.
+      # The role that settles a stall: one of the pipeline's agent roles. An orchestrator stall wakes a
+      # run of it; a stall for another role (the pruner's disk) is still a Work item for that role.
       value_object "Fixer" do
         attribute :value, String, one_of: %w[orchestrator coder architect planner reviewer pruner]
       end
@@ -414,7 +416,7 @@ Hecks.bluebook "Hecks" do
       end
 
       # A stall whose run ended or whose subject settled needs no fixer: it is closed here, once,
-      # with the reason; Tickets drops its work item. Like
+      # with the reason, and its orchestrator run is told to end. Like
       # `File` it creates the record by its key, so a look in a fresh process can name it.
       command "Abandon" do
         role "System"
@@ -464,7 +466,7 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Answer,
               with: { run: :stall,
                       answer: "The stall you were started for has settled or its run has ended, so the stall " \
-                              "watch abandoned it and its work item is dropped. Make no move for it: commit " \
+                              "watch abandoned it. Make no move for it: commit " \
                               "nothing, start nothing, and end your turn now." }
     end
   end
