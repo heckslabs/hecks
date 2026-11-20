@@ -44,7 +44,7 @@ One server opened on a checkout, until it is stopped.
 - `hecks Server.compose! [<port>] [domains=] [agent=]`: Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped
 - `hecks Server.preview! <directory> [port=]`: Serve one directory of static files, such as a website, on a local port until stopped
 - `hecks Server.serve_query_ir_mcp!`: Serve the IR queries to an MCP client over stdio until it closes
-- `hecks Server.mcp! [--stdio]`: Serve the storehouse bus to an MCP client over stdio until it closes
+- `hecks mcp! [--stdio]`: Serve the storehouse bus to an MCP client over stdio until it closes
 
 ### Board
 

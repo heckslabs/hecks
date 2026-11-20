@@ -1,5 +1,6 @@
 require "hecks"
 require "hecks/tools/tools_doc"
+require "hecks/command_names"
 
 module Hecks
   module Doc
@@ -55,15 +56,33 @@ module Hecks
         # @return [Array<String>] the aggregates a module groups, in declaration order
         def members(name) = @bluebook.modules.select { |row| row.name == name }.map(&:aggregate)
 
-        # @return [Hash] one listed verb: its call, its launcher form and its goal
+        # @return [Hash] one listed verb: its call, the words after `hecks`, whether the launcher
+        #   accepts the call, and its goal
         def verb(spec)
-          words = Tools::ToolsDoc.argument_words(spec)
-          { call: call(spec), form: ["hecks", call(spec), *words].join(" "), summary: spec[:summary].to_s }
+          words = [launched(spec), *Tools::ToolsDoc.argument_words(spec)].join(" ")
+          { call: call(spec), words: words, reached: reached?(launched(spec)), summary: spec[:summary].to_s }
         end
 
-        # @return [String] the call as the launcher prints it: `Aggregate.verb`, a command's banged
+        # @return [String] the call as a bluebook spells it: `Aggregate.verb`, a command's banged
         def call(spec)
-          "#{spec[:group]}.#{spec[:short].to_s.split(".").last}#{"!" if spec[:kind] == :command}"
+          "#{spec[:group]}.#{spec[:short].to_s.split(".").last}#{bang(spec)}"
+        end
+
+        # @return [String] the call as the launcher takes it: its routed word when it has one
+        def launched(spec)
+          route = routes.key(spec[:key]) || routes.key(spec[:short].to_s)
+          route ? "#{route}#{bang(spec)}" : call(spec)
+        end
+
+        def bang(spec) = ("!" if spec[:kind] == :command)
+
+        # @return [Hash{String => String}] each word the launcher routes to a Hecks command or query
+        def routes = (Adapters::Driving::LauncherOptions.settings(@runtime, "Hecks") || {})[:names] || {}
+
+        # @return [Boolean] whether the launcher accepts the call as typed
+        def reached?(typed)
+          @names ||= CommandNames::Index.new(Adapters::Driving::CliRunner.name_index(runtime: @runtime))
+          @names.problem([typed]).nil?
         end
 
         # @return [String] the first sentence of the aggregate's description, or `""`
@@ -82,10 +101,10 @@ module Hecks
         def bluebooks = @runtime.bluebooks
 
         # @param name [String] a bluebook the boot holds
-        # @return [Array<Hash>] its projected commands, then its queries
+        # @return [Array<Hash>] its projected commands, then its queries, each with its `key`
         def all_specs(name)
           cli = projection(name)
-          cli[:commands].values + cli[:questions].values
+          cli[:commands].merge(cli[:questions]).map { |key, spec| spec.merge(key: key) }
         end
 
         # @return [Hash] the launcher's projection of one bluebook

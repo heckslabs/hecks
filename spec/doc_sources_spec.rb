@@ -28,6 +28,7 @@ RSpec.describe Hecks::Doc::Sources do
   end
 
   it "names a CLI guide section that still lists a renamed command" do
+    # dead-name-check: skip
     sources = editing("docs/implemented/guides/cli/migrate.md", "`hecks SchemaRevision.compact!", "`hecks Era.compact!")
     expect(sources.drift("docs/implemented/guides/cli/migrate.md", region("cli:migrate")))
       .to include("project_tools_doc!")

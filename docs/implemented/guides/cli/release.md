@@ -63,9 +63,9 @@ One move of a lane onto a commit, or the rehearsal of it: judged by the facts, t
 
 A bluebook registry repository: packages versioned in it and released as tags.
 
-- `hecks Registry.release! <package> [root=]`: Tag a package of this registry at the version its bluebook.yml carries
-- `hecks Registry.check [<root>]`: Judge every package against its latest release: a changed package needs a newer version and a changelog entry.
-- `hecks Registry.digest <package> [root=]`: Print a package's content digest and shape labels, as its bluebook.lock records them.
+- `hecks package.release! <package> [root=]`: Tag a package of this registry at the version its bluebook.yml carries
+- `hecks package.check [<root>]`: Judge every package against its latest release: a changed package needs a newer version and a changelog entry.
+- `hecks package.digest <package> [root=]`: Print a package's content digest and shape labels, as its bluebook.lock records them.
 
 ### Package
 

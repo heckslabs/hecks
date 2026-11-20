@@ -47,7 +47,7 @@ One thing an operator ran against a domain, and how it ended.
 - `hecks Operation.redrive_outbox! <subject> [row=] [--claimed]`: Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled
 - `hecks Operation.abandon_outbox_row! <subject> row= [reason=]`: Settle one stalled outbox row as failed without running it: subject.value is the domain, row.value its delivery id or uuid
 - `hecks Operation.run_behaviors! <subject>`: Run a domain's behavior tests and keep the verdict
-- `hecks Operation.console! [<subject>]`: Open an interactive console on a domain
+- `hecks console! [<subject>]`: Open an interactive console on a domain
 - `hecks Operation.smoke_test! [<subject>]`: Dispatch one synthesized call per command and report of a wired domain
 - `hecks Operation.smoke_http! [<url>] path= [header=] [scheme=] [payload=] [payload_file=] [health_path=] [state_path=]`: Check that a running service refuses bad signatures and accepts a good one
 - `hecks Operation.bootstrap_admin! <subject> email= [name=] [role=]`: Admit the first administrator of a domain's membership bluebook and grant them access
