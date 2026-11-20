@@ -105,13 +105,16 @@ module Hecks
         end
 
         # The fresh runner starts under the Tickets world's `nice` increment in a linked worktree,
-        # so a spec run yields to the owner's work. It gets no shared target directory: a spec
-        # sees the environment CI gives it, and the Rust builds a spec starts read the setting
-        # themselves.
+        # so a spec run yields to the owner's work. It runs with UTF-8 as both default encodings,
+        # as the launcher does, so a spec reads text the same whatever locale its caller has (a
+        # launchd job has none, and Ruby then defaults to `US-ASCII`). It gets no shared target
+        # directory: a spec sees the environment CI gives it, and the Rust builds a spec starts
+        # read the setting themselves.
         #
         # @return [Array<String>] the fresh runner's command
         def build_command(args)
-          Hecks::RustBuild::SessionBuild.command([RbConfig.ruby, "-e", FRESH_RUNNER, "--", *args], root: @tree.root)
+          command = [RbConfig.ruby, "-EUTF-8:UTF-8", "-e", FRESH_RUNNER, "--", *args]
+          Hecks::RustBuild::SessionBuild.command(command, root: @tree.root)
         end
 
         private

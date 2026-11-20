@@ -113,4 +113,29 @@ RSpec.describe Hecks::Adapters::Codebase::TestRunner do
       expect(out).to include("1 example, 0 failures")
     end
   end
+
+  it "starts a fresh child with UTF-8 as both default encodings" do
+    command = described_class.new(tree).build_command(["one_spec.rb"])
+    expect(command.each_cons(2).to_a).to include(["-EUTF-8:UTF-8", "-e"])
+  end
+
+  # Writes a spec that passes only when its process runs with UTF-8 as both default encodings; the
+  # spec helper sets only the external one, so the internal one comes from how the child started.
+  def write_encoding_spec(dir)
+    File.join(dir, "encodings_spec.rb").tap do |path|
+      File.write(path, <<~RUBY)
+        RSpec.describe("encodings") do
+          it("are UTF-8") { expect([Encoding.default_external, Encoding.default_internal]).to all(eq(Encoding::UTF_8)) }
+        end
+      RUBY
+    end
+  end
+
+  it "runs a fresh child in UTF-8 when the caller sets no locale", :process do
+    Dir.mktmpdir do |dir|
+      path = write_encoding_spec(dir)
+      unset = { "LANG" => nil, "LC_ALL" => nil, "LC_CTYPE" => nil }
+      expect(described_class.new(tree).outcome([path], env: unset, fresh: true)).to start_with(0)
+    end
+  end
 end

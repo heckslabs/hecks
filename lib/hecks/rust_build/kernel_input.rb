@@ -44,17 +44,28 @@ module Hecks
       # @return [Hash{String => Hash{String => Object}}] empty when the IR is absent or has none
       def defaults_for(domain_path) = tables_for(domain_path).fetch("defaults")
 
-      # The three tables of one domain: `"defaults"`, `"needs"` and `"query_needs"`.
+      # The tables of one domain, read from its generated `ir.json` (see {tables_of}).
       #
       # @param domain_path [String] the domain's directory
-      # @return [Hash{String => Hash}] each table, empty when the IR is absent or declares none
-      def tables_for(domain_path)
-        tables = { "defaults" => {}, "needs" => {}, "query_needs" => {}, "run_required" => [] }
-        ir = generated_ir(domain_path) or return tables
-        domain = ir["name"].to_s
-        Array(ir["aggregates"]).each do |aggregate|
-          collect(aggregate, "#{domain}::#{aggregate["name"]}", tables)
-          tables["run_required"].concat(run_required_of(aggregate, "#{domain}::#{aggregate["name"]}"))
+      # @return [Hash{String => Hash, Array}] each table, empty when the IR is absent or declares
+      #   none
+      def tables_for(domain_path) = tables_of(generated_ir(domain_path))
+
+      # The tables one domain's IR declares, added to `tables` when given, so several domains'
+      # IR can fill one set.
+      #
+      # @param domain_ir [Hash, nil] a domain's canonical IR, string-keyed as `ir.json` holds it
+      # @param tables [Hash, nil] the tables to add to; a fresh empty set when nil
+      # @return [Hash{String => Hash, Array}] `"defaults"`, `"needs"`, `"query_needs"` and
+      #   `"run_required"`, each empty when the IR is nil or declares none
+      def tables_of(domain_ir, tables = nil)
+        tables ||= { "defaults" => {}, "needs" => {}, "query_needs" => {}, "run_required" => [] }
+        return tables unless domain_ir
+
+        Array(domain_ir["aggregates"]).each do |aggregate|
+          prefix = "#{domain_ir["name"]}::#{aggregate["name"]}"
+          collect(aggregate, prefix, tables)
+          tables["run_required"].concat(run_required_of(aggregate, prefix))
         end
         tables
       end
