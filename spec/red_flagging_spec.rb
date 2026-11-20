@@ -14,7 +14,8 @@ RSpec.describe Hecks::Adapters::RedFlagging do
   let(:runs) { [] }
   let(:flagging) { described_class.new(checkout: repo, runner: ->(argv, **) { gh(argv) }) }
 
-  after { FileUtils.remove_entry(dir) }
+  # rm_rf, not remove_entry: a detached `git maintenance` may still hold a lock in the repository.
+  after { FileUtils.rm_rf(dir) }
 
   def git(*args, chdir: repo)
     out, status = Open3.capture2e("git", "-c", "user.name=t", "-c", "user.email=t@t", *args, chdir: chdir)
@@ -34,7 +35,14 @@ RSpec.describe Hecks::Adapters::RedFlagging do
   def repository
     FileUtils.mkdir_p(repo)
     git("init", "-b", "main")
+    quiet_git
     git("commit", "--allow-empty", "-m", "first")
+  end
+
+  # No background maintenance or gc: either can outlive the example and race its removal.
+  def quiet_git
+    git("config", "maintenance.auto", "false")
+    git("config", "gc.auto", "0")
   end
 
   def red_run = [{ "databaseId" => 7, "status" => "completed", "conclusion" => "failure", "headSha" => "abcdef1234567" }]
