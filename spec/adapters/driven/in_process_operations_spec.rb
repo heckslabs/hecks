@@ -391,12 +391,13 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(stream_first_then_rest).to eq([["Shelved"], ["Lent"]])
     end
 
-    it "ends at its timeout when nothing arrives", :aggregate_failures do
+    it "ends at its timeout when nothing arrives", :aggregate_failures, :wall_clock do
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       cursor = adapter.stream(domain: @dir, since: 1, timeout: 0.3, interval: 0.05) { raise "no entry expected" }
 
-      expect(cursor).to eq(1)
-      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be_between(0.25, 2)
+      waited = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      expect([cursor, waited >= 0.25]).to eq([1, true])
+      expect_wall_clock(waited, under: 2)
     end
 
     it "ends quietly when the reader goes away" do

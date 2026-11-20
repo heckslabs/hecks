@@ -128,10 +128,11 @@ RSpec.describe "a resident under concurrent launchers" do
     expect(summary[:outcomes].fetch("served", 0)).to be >= CALLERS / 2
   end
 
-  it "answers every line and keeps the slowest near a cold boot when every core is busy", :aggregate_failures do
+  it "answers every line and keeps the slowest near a cold boot when every core is busy", :aggregate_failures,
+     :wall_clock do
     cold = cold_seconds
     results, summary = measured("busy") { loaded { fire(BUSY_CALLERS) } }
     expect(results.map(&:first).uniq).to eq([0]), -> { said }
-    expect(summary[:slowest]).to be < busy_bound(cold)
+    expect_wall_clock(summary[:slowest], under: busy_bound(cold), stretched: false)
   end
 end

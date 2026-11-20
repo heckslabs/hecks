@@ -152,10 +152,10 @@ RSpec.describe "Memory with a large nested value object" do
       expect(allocations_per_step(5, "large")).to be < allocations_per_step(5, "small") * 2
     end
 
-    it "takes about the same time per step with 200 cells in the value object as with 20" do
+    it "takes about the same time per step with 200 cells in the value object as with 20", :wall_clock do
       ratios = Array.new(2) { |attempt| large_to_small_ratio(attempt) }
 
-      expect(ratios.min).to be < 3
+      expect_wall_clock(ratios.min, under: 3, stretched: false)
     end
 
     it "saves a journal that gains one cell per save for the cost of the new cell" do

@@ -46,11 +46,11 @@ RSpec.describe Hecks::Adapters::LedgerKeeping do
       end
     end
 
-    it "returns within the wait instead of waiting for the holder", :aggregate_failures do
+    it "returns within the wait instead of waiting for the holder", :aggregate_failures, :wall_clock do
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       while_held(path) { expect { ledger_at(path).compactable }.to raise_error(Hecks::Adapters::LedgerKeeping::Held) }
-      expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 2
+      expect_wall_clock(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, under: 2)
     end
 
     it "refuses the vacuum by name and leaves the file as it was", :aggregate_failures do
