@@ -13,8 +13,8 @@ module Hecks
       # A small HTTP/1.1 server on the loopback address and nothing else. It answers the pages,
       # scripts and JSON listed in `SERVED`, the deep links of {DeepLinks} (the board page under
       # `/runs/<run>`, the Events page under `/trains/<run>`, their JSON under `/api`), another
-      # project's planning page under `/plan/<name>` ({ProjectPlans}) and the
-      # `/api/events` stream,
+      # project's planning page under `/plan/<name>` ({ProjectPlans}), the text panel under
+      # `/api/snapshot` ({SnapshotRoute}) and the `/api/events` stream,
       # and refuses the rest.
       # The one write it takes is `POST /api/act`, a JSON body naming one step the app passes to
       # its `act`, which runs that
@@ -89,7 +89,7 @@ module Hecks
           @open << socket
           verb, target = socket.gets.to_s.split
           headers = read_headers(socket)
-          answer(socket, verb, target.to_s.split("?").first, headers)
+          answer(socket, verb, headers, *target.to_s.split("?", 2))
         rescue SystemCallError, IOError
           nil
         ensure
@@ -106,11 +106,11 @@ module Hecks
           headers
         end
 
-        def answer(socket, verb, path, headers)
+        def answer(socket, verb, headers, path = "", query = nil)
           return post(socket, path, headers) if verb == "POST" && path == ActRoute::PATH
           return reply(socket, 405, "text/plain", "method not allowed", "Allow" => "GET") unless verb == "GET"
 
-          linked = PathLinks.answer(@app, path)
+          linked = PathLinks.answer(@app, path, query)
           return reply(socket, *linked) if linked
           return reply(socket, 404, "text/plain", "not found") unless SERVED.key?(path) || path == "/api/events"
 
