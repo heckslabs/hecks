@@ -6,6 +6,7 @@ require "hecks/adapters/driving/resident/outcome"
 require "hecks/adapters/driving/resident/stuck"
 require "hecks/adapters/driving/resident/trace"
 require "hecks/adapters/driving/resident/waiting"
+require "hecks/adapters/driving/resident/standing_answer"
 
 module Hecks
   module Adapters
@@ -48,6 +49,7 @@ module Hecks
             Trace.launched(::HECKS_LAUNCHED_AT) if defined?(::HECKS_LAUNCHED_AT)
             return Outcome.note(Outcome::BYPASS) if bypass?
 
+            StandingAnswer.serve(ARGV)
             root = Paths.root_for(script)
             reason = Paths.unusable_reason(root)
             Outcome.note(reason ? unusable(reason) : attempt(root, script))
