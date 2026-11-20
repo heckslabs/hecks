@@ -565,6 +565,17 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The same outside, asked on each beat and at each start whether the fill stands stalled: it answers
+  # facts (`waiting`, `room`, `chosen`, `idle_minutes`, the record's `standing` and `since`, `now`, and
+  # the dominant `reason` with its `reading` and what it is `governed_by`); the bluebook decides.
+  Hecks::FillStall.port "Dispatching" do
+    asks "Gauge", to: FillStall do
+      attribute :run, StallKey
+      answers "FillGauged"
+      refuses "FillUngauged"
+    end
+  end
+
   # The outside a merge window reaches: the pipeline's sessions, its landings in flight and its started
   # work. It stops and ends what the window is for and answers what it did as facts; it decides nothing.
   Hecks::MergeWindow.port "Quieting" do
