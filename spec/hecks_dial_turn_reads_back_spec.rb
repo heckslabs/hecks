@@ -95,4 +95,53 @@ RSpec.describe Hecks::Adapters::DialTurning do
   it "settles every Dial.turn! from the launcher, so it answers turned or refused, never just requested" do
     expect(Array(registry.world("Hecks").for_verb("launcher")[:settled])).to include("dial.turn")
   end
+
+  # Settings turned to a value inside their bounds: the text turned to and the value read back.
+  APPLIED = {
+    "reaping.session_keep"    => ["1", 1],
+    "machine_marks.load_high" => ["26", 26.0],
+    "machine_marks.load_low"  => ["22", 22.0],
+    "dispatch_max_load.limit" => ["25", 25.0]
+  }.freeze
+
+  # Values outside each setting's bounds, which a turn refuses.
+  OUT_OF_BOUNDS = [
+    ["reaping.session_keep", "0"], ["reaping.session_keep", "169"], ["dispatch_max_load.limit", "41"],
+    ["machine_marks.load_high", "1"], ["machine_marks.load_low", "41"]
+  ].freeze
+
+  # Turns one setting in a new folder and answers what the world loader reads back for it.
+  def read_after_turn(setting, text)
+    verb, key = setting.split(".")
+    world = rows.find { |row| row[:setting] == setting }[:world]
+    Dir.mktmpdir do |folder|
+      turn_in(folder, setting, text)
+      read_back(folder).world(world).for_verb(verb)[key.to_sym]
+    end
+  end
+
+  # Turns one setting to a value in a new folder and answers why the turn refused, or what it wrote.
+  def refusal_of(setting, text)
+    Dir.mktmpdir { |folder| turn_in(folder, setting, text) }
+  rescue Hecks::Adapters::ConsoleCapture::Failure => e
+    e.message
+  end
+
+  APPLIED.each do |setting, (text, value)|
+    it "applies #{setting} turned to #{text}, so the world reads back #{value}" do
+      expect(read_after_turn(setting, text)).to eq(value)
+    end
+  end
+
+  OUT_OF_BOUNDS.each do |setting, text|
+    it "refuses #{setting} turned to #{text}, naming its bounds" do
+      expect(refusal_of(setting, text)).to include("#{setting} is turned between")
+    end
+  end
+
+  it "refuses a setting no row turns, naming the turnable ones", :aggregate_failures do
+    message = refusal_of("reaping.nothing", "1")
+    expect(message).to include("is not a setting a turn sets")
+    expect(message).to include("reaping.session_keep")
+  end
 end
