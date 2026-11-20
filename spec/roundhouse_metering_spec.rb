@@ -100,6 +100,21 @@ RSpec.describe Hecks::Adapters::Metering do
                                               person_mb: 400, load: 3397, cores: 6, sessions: 3)
   end
 
+  it "meters a coder's draw as the median of the live coders' memory" do
+    expect(metering.machine_facts).to include(coder_draw_mb: 810)
+  end
+
+  it "passes on the kernel's memory pressure level as the number it reads" do
+    machine_reads = { memsize: 1, perf_cores: 6, loadavg: "{ 1.0 }", vm_stat: "", memory_pressure_level: "1\n" }
+    gauge = Hecks::Adapters::Metering::MachineGauge.new(machine_reads)
+
+    expect(gauge.memory_pressure_level).to eq(1)
+  end
+
+  it "reads no memory pressure level as 0, unread" do
+    expect(metering.machine_facts).to include(memory_pressure_level: 0)
+  end
+
   it "answers the Machine query as a JSON document" do
     expect(JSON.parse(metering.machine.fetch(:text))).to include("capacity_mb" => 36_864)
   end
