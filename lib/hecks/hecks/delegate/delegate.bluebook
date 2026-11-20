@@ -60,6 +60,10 @@ Hecks.bluebook "Hecks" do
       # run retires itself, so a trial run is told from a real one in the ledger.
       value_object "Trial", Boolean
 
+      # Whether the look kept the run: its session is still listed, or could not be looked for. Only
+      # the reaction to `AgentRunUnretired` sets it, so `Retired` refuses a kept run by name.
+      value_object "Kept", Boolean
+
       # Whether an answer is on its way to the session. Delivering one stops the session and wakes
       # it again, so a job that reads `stopped` meanwhile is the answer's own stop, not the
       # session's end. `Answer` sets it; `Answered` and `Unanswered` clear it.
@@ -514,6 +518,9 @@ Hecks.bluebook "Hecks" do
         emits AgentRunRetireRequested
       end
 
+      # A run the look kept (`Unretired`) is sent here once more, marked `kept`, and refused: the
+      # refusal is the reaction's own, so `retire! --wait` exits refused with the sentence below and
+      # the run keeps the listing's words as its `refusal`.
       command "Retired" do
         role "System"
         goal "Record that the run was closed because its session is gone, and what the listing said"
@@ -521,6 +528,11 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :detail, Report, sets: true
         attribute :condition, Condition, default: "gone", sets: true
+        attribute :kept, Kept, default: false
+
+        given("a run whose session is still listed, or could not be looked for, is not retired: answer it, stop it, or let its check end a helper blocked past the window") do
+          kept != true
+        end
 
         emits AgentRunRetired
       end
@@ -2410,16 +2422,19 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Finish, with: { condition: "stopped", detail: :report, checkout: :checkout }
     end
 
-    # A helper (not coder or orchestrator) blocked past `abandon_after_minutes` ends `abandoned`,
-    # its question kept as the detail, and is reaped; a coder, a pinned session or one being
+    # A helper blocked past `abandon_after_minutes` ends `abandoned`, its question kept as the
+    # detail, and is reaped. A helper is every run but a coder's and the standing seat's
+    # (`orchestrator-seat`): a reviewer, an architect, a planner, a pruner, and an orchestrator run
+    # that is not the seat, so a stall fixer's (`stall-`), an advice run and one started by hand,
+    # which is spared only when its session is pinned. A coder, a pinned session or one being
     # answered is left. It fires once: `Check` reads only a started run's job.
     policy "AbandonTheUnansweredHelper" do
       on      "AgentRun.JobRead"
       root
       where   do
-        state == "blocked" && agent != "coder" && agent != "orchestrator" && agent != "" && abandon_after > 0 &&
-          blocked_minutes >= abandon_after && pin_listed == false && resuming != true && reviewing != true &&
-          !run.start_with?("live-") && !run.start_with?("resume-")
+        state == "blocked" && agent != "coder" && (agent != "orchestrator" || run != "orchestrator-seat") && agent != "" &&
+          abandon_after > 0 && blocked_minutes >= abandon_after && pin_listed == false && resuming != true &&
+          reviewing != true && !run.start_with?("live-") && !run.start_with?("resume-")
       end
       trigger AgentRun::Finish, with: { condition: "abandoned", detail: :detail, checkout: :checkout }
     end
@@ -2509,12 +2524,27 @@ Hecks.bluebook "Hecks" do
     # holds its process and the MCP servers that process started, though nobody is in it: the
     # board starts a new session for the Work, never this one. It is stopped, so its process ends
     # and the session stays listed for a person to resume or remove. A session a person took over
-    # may be attached right now and is never stopped, nor one working or blocked; a stopped one
-    # reads `stopped` at the next reap, so it is asked once. A refused stop is asked again at the
-    # next reap, and the refusal is in the journal as `StopRefused`.
+    # may be attached right now and is never stopped, nor one working, nor one blocked whose run
+    # has not ended abandoned (`StopTheKeptAbandonedSession` below); a stopped one reads `stopped`
+    # at the next reap, so it is asked once. A refused stop is asked again at the next reap, and
+    # the refusal is in the journal as `StopRefused`.
     policy "StopTheKeptDoneSession" do
       on      "AgentRun.SessionReviewed"
       where   { listed != false && taken_over == false && live == "done" && ((work_open == true && no_product != true && ended_as != "abandoned") || unmerged == true || dirty == true) }
+      ask     :stop_session, with: { run: :run }
+    end
+
+    # A run ended `abandoned` waits on a question nobody will answer. The reap removes its session,
+    # which stops it; one kept for its worktree's uncommitted files or unmerged commits would hold
+    # its process, blocked, for as long as it is kept, so it is stopped (`claude stop`, never a
+    # kill) and stays listed with its work. One a person took over is never stopped. A stopped one
+    # no longer reads `blocked` (`live`) at the next reap, so it is asked once.
+    policy "StopTheKeptAbandonedSession" do
+      on      "AgentRun.SessionReviewed"
+      where   do
+        listed != false && taken_over == false && ended_as == "abandoned" && live == "blocked" &&
+          (unmerged == true || dirty == true)
+      end
       ask     :stop_session, with: { run: :run }
     end
 
@@ -2740,6 +2770,14 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Unretired, with: { refusal: :refusal }
     end
 
+    # A kept run is not retired, and the command that asked says so: `Retired` refuses the run the
+    # look kept, by name. A sweep's own look (`LookForTheUnreadSession`) that keeps a run is refused
+    # the same way, so a check of a run whose job cannot be read while its session is listed says so.
+    policy "RefuseTheRetireOfAKeptRun" do
+      on      "AgentRun.AgentRunUnretired"
+      trigger AgentRun::Retired, with: { detail: :refusal, kept: true }
+    end
+
     # A run keyed `live-*` or `resume-*` is a test run: left alone it stays blocked or working for
     # ever, so the first reading that finds it working or blocked retires it.
     policy "RetireTheTrialRun" do
@@ -2751,7 +2789,8 @@ Hecks.bluebook "Hecks" do
 
     # A job reading `working` over a session that is not listed records nothing, so its run stays
     # started. The reading only filters: `Retire` looks again and keeps a young, listed or unreadable
-    # one. A blocked one is left (`AbandonTheUnansweredHelper` ends a helper's); a trial run has its own.
+    # one. A blocked one is left (`AbandonTheUnansweredHelper` ends a helper's, a stall fixer's too); a
+    # trial run has its own.
     policy "RetireTheRunWhoseSessionIsNotListed" do
       on      "AgentRun.JobRead"
       root
