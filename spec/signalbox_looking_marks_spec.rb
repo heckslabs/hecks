@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "hecks/signalbox/adapters/looking"
+require "hecks/hecks/adapters/dispatching"
 
 # The pressure beat reads its marks and draws from the Signalbox world, and keeps the starting value
 # of any the world leaves out.
@@ -16,5 +17,11 @@ RSpec.describe Hecks::Adapters::Looking::Marks do
 
   it "keeps the starting value of a mark the world leaves out" do
     expect(described_class.new(registry).facts).to include(floor: 3_072, stale_after: 120)
+  end
+
+  # The marks the Signalbox world itself declares, as the beat reads them.
+  it "puts the short load mark at the fill's old guard of 20.5: 342 percent of six cores" do
+    registry = boot_hecks_in_memory(Hecks::Adapters::Dispatching::SignalboxDoor::HOME).registry
+    expect(described_class.new(registry).facts).to include(load_tight: 150, load_short: 342)
   end
 end
