@@ -35103,6 +35103,32 @@
             [
               [
                 "name",
+                "remedy_names"
+              ],
+              [
+                "id",
+                "remedy_names"
+              ],
+              [
+                "title",
+                "remedy names, every command a Ruby refusal or a Rust host refusal names as its remedy resolves"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/remedy_names_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a refusal in lib/ or rust/host/src/ tells its reader to run a launcher name that is not a command, or one only a record runs (ADR 0190 point 7). The failure names each file:line and the nearest valid name; write the remedy as the command's help line prints it (`hecks Build.project_rust! domain.value=…`), with the remedy word (run, with, then) on the same line. Mark a line that is shown and not run with `dead-name-check: skip`."
+              ]
+            ],
+            [
+              [
+                "name",
                 "workflow_pagination"
               ],
               [
@@ -35934,7 +35960,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,workflow_pagination,role_files,role_world_list"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,remedy_names,workflow_pagination,role_files,role_world_list"
               ]
             ],
             [
