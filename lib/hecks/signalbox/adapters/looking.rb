@@ -29,16 +29,24 @@ module Hecks
 
       # @param held [Hash] the `Beat` record: `beat`
       # @return [Hash{Symbol => Hash}] each answered field as `{ value: }`
-      # @raise [Unlooked] when the machine's capacity cannot be read
+      # @raise [Unlooked] when the machine's capacity or the world's marks cannot be read
       def look(**held)
         beat = held[:beat].is_a?(Hash) ? held[:beat][:value] : held[:beat]
         machine = @machine.call
+        marks = marks_read
         raise Unlooked, "the machine's memory could not be read" unless machine[:capacity_mb].to_i.positive?
 
-        wrap(beat: beat, **@view.call, **reading(machine), **@marks.call, **rulings(beat), **@delegate.call)
+        wrap(beat: beat, **@view.call, **reading(machine), **marks, **rulings(beat), **@delegate.call)
       end
 
       private
+
+      # The world's marks, a refusal of the look when the world declares a line that cannot be read.
+      def marks_read
+        @marks.call
+      rescue Marks::Unread => e
+        raise Unlooked, e.message
+      end
 
       # A reading is taken as it is looked at, so its age is nought. The kernel's memory pressure
       # level and the metered coder's draw are passed on as read; the bluebook judges the level
