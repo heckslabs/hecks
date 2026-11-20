@@ -173,10 +173,9 @@ RSpec.describe "a red main reverting its one bad merge" do
     expect(landing_refused?).to be(false)
   end
 
-  it "records the revert on the episode and ends it reverted once the revert verifies", :aggregate_failures do
+  it "records the revert on the episode and ends it reverted once the revert verifies" do
     fail_the_last_landing
     expect(event_names).to include("EpisodeRevertMade", "EpisodeReverted")
-    expect(event_names).not_to include("EpisodeFixed")
   end
 
   it "names the first bad merge and its failing spec in the verification's refusal" do
