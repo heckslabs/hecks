@@ -21,9 +21,19 @@ module Hecks
           # @return [Hash] the definition, narrowed for this server
           def present(scope, tool, guide)
             tool = domain_optional(tool, scope.default_domain) if scope.default_domain
-            return tool unless scope.commands_mode? && tool[:name] == "dispatch"
+            return tool unless scope.commands_mode?
+            return narrow_run(tool, scope.allowed_commands) if tool[:name] == "run"
+            return tool unless tool[:name] == "dispatch"
 
             narrow_dispatch(tool, guide, scope.allowed_commands)
+          end
+
+          # `run`, naming the commands the server runs. They stay out of an enum, since `run` takes
+          # every launcher spelling of each.
+          def narrow_run(tool, commands)
+            note = "This server runs only these commands, in any launcher spelling, an attached bluebook's " \
+                   "included (`dispatch` admits only the domain's own bluebook's): #{commands.join(", ")}."
+            tool.merge(description: "#{tool[:description]} #{note}")
           end
 
           # `dispatch`, with the commands the server serves as typed choices.
@@ -71,8 +81,10 @@ module Hecks
 
           # What a commands server says about itself when it starts.
           def commands_notes(domains, commands)
-            ["Commands mode (#{TOOLS_VARIABLE}=#{COMMANDS}): serves #{READER_TOOLS.join(", ")} and dispatch of only " \
-             "#{COMMANDS_VARIABLE}: #{commands.join(", ")}; refuses behaviors and every other tool.",
+            ["Commands mode (#{TOOLS_VARIABLE}=#{COMMANDS}): serves #{READER_TOOLS.join(", ")}, and dispatch and run " \
+             "of only #{COMMANDS_VARIABLE}: #{commands.join(", ")}; refuses behaviors and every other tool.",
+             "run reads the list across the attached bluebooks and refuses a command that declares confirm; " \
+             "dispatch reads it against the domain's own bluebook only.",
              "domain: boots only #{DOMAINS_VARIABLE}: #{domains.join(", ")}.",
              "Commands mode limits reach and identifies no one; role: stays self-asserted and it is not authentication."]
           end
