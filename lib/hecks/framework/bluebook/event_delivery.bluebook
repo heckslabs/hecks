@@ -276,10 +276,8 @@ Hecks.bluebook "EventDelivery" do
     end
   end
 
-  # One run that moves every consumer of a set of domains forward. It has an identity so a run can
-  # be reported on. `Run` records the request; the `Pumping` port (event_delivery.ports.hecksagon)
-  # carries it out, and the policies after the aggregate record its answer with `Complete` or
-  # `Fault`. The adapter is the deployment's, bound by the hecksagon that attaches this bluebook.
+  # `Run` records the request; the `Pumping` port (event_delivery.ports.hecksagon) carries it out,
+  # and the policies below record its answer. The adapter is bound by whoever attaches this bluebook.
   aggregate "Pump" do
     description "One run moving every consumer of a set of domains past the events it has not yet answered, and what the run reported."
 
