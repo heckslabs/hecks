@@ -1794,17 +1794,25 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The reviewer's judgment of a failing spec: a real bug, or a stale expectation. A real bug is
-  # never fixed by an agent on its own; it goes to a person.
+  # The reviewer's verdict on a submitted commit, and the evidence it stands on. A real bug is never
+  # fixed by an agent on its own; it goes to a person. A clean verdict is counted from the kept run
+  # records the reviewer cites, never from its prose.
   aggregate "SubmissionReview" do
-    description "One judgment by the reviewer role of a submission's failing spec: asked as an event, answered with a verdict, and a real bug handed to a person."
+    description "One verdict by the reviewer role on a submitted commit: asked as an event, scoped to the domains and bluebooks the commit touches, answered with clean, real_bug, stale_expectation or missing_behavior on the evidence of the kept behaviors and model_check runs it cites, and a real bug handed to a person."
 
     identified_by :submission
 
     attribute :submission, SubmissionRef
-    attribute :work, WorkKey, optional: true
-    attribute :judgment, Judgment, optional: true
-    attribute :hops, HopCount, optional: true
+    attribute :work,       WorkKey, optional: true
+    attribute :judgment,   Judgment, optional: true
+    attribute :hops,       HopCount, optional: true
+    attribute :repo,       RepoPath, optional: true
+    attribute :tier,       TierWord, optional: true
+    attribute :domains,    TouchedList, optional: true
+    attribute :bluebooks,  TouchedList, optional: true
+    attribute :evidence,   list_of(EvidenceRun), optional: true
+    attribute :findings,   FindingsText, optional: true
+    attribute :reason,     ReasonText, optional: true
 
     # The commit the coder submitted: the review's key, and the key of the reviewer's run.
     value_object "SubmissionRef" do
@@ -1824,15 +1832,59 @@ Hecks.bluebook "Agents" do
 
     value_object "BriefText", String
 
+    # The commit's review tier, `full` or `verify_only`, as ChangeReview's `ReviewTier` rows give it.
+    value_object "TierWord", String
+
+    # The domain directories the commit touches, or those whose bluebook it changed, each between
+    # bars (`|lib/hecks/agents|`), as the `SubmittedPaths` port reads them from ChangeReview's rows.
+    value_object "TouchedList", String
+
+    # What a run of evidence is: `behaviors` (an `Operation.RunBehaviors` run) or `model_check` (a
+    # `ModelCheckRun`).
+    value_object "EvidenceKind" do
+      attribute :value, String, matches: :present
+    end
+
+    # A run's key. The reviewer names the submitted commit in it, so the run is of this commit.
+    value_object "EvidenceRunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "EvidenceSubject", String
+
+    # How the kept record ended, as it says: `succeeded` or `failed` for a behaviors run, `clean` or
+    # `flagged` for a model check.
+    value_object "EvidenceStatus", String
+
+    value_object "ScenarioCount", Integer
+
+    # One cited run, read from its kept record: its kind, key, the domain directory it ran on, how
+    # it ended and how many scenarios it ran.
+    value_object "EvidenceRun" do
+      attribute :kind,      String
+      attribute :run,       String
+      attribute :subject,   String
+      attribute :status,    String
+      attribute :scenarios, Integer
+    end
+
+    # The reviewer's findings: for missing_behavior, the scenario that is missing.
+    value_object "FindingsText", String
+
+    # Why the scope or a cited run could not be read, as the port refused.
+    value_object "ReasonText" do
+      attribute :value, String, matches: :present
+    end
+
     command "Request" do
       role "System"
-      goal "Ask the reviewer to judge a submission's failing spec"
+      goal "Ask the reviewer to judge a submitted commit"
 
       attribute :submission, SubmissionRef, sets: true
       attribute :work, WorkKey, sets: true
       attribute :hops, HopCount, sets: true
       attribute :role, RoleRef
-      attribute :repo, RepoPath
+      attribute :repo, RepoPath, sets: true
       attribute :brief, BriefText
 
       given("the request is under the hop limit") { hops.value < 3 }
@@ -1840,17 +1892,110 @@ Hecks.bluebook "Agents" do
       emits "SubmissionReviewRequested"
     end
 
+    command "Scope" do
+      role "System"
+      goal "Record the tier of a submitted commit and the domains and bluebooks it touches"
+
+      reference_to SubmissionReview
+      attribute :tier,      TierWord, sets: true
+      attribute :domains,   TouchedList, sets: true
+      attribute :bluebooks, TouchedList, sets: true
+
+      emits "SubmissionScoped"
+    end
+
+    # Git could not read the commit: the review keeps the reason, and no clean can be counted.
+    command "Unscope" do
+      role "System"
+      goal "Record that a submitted commit's scope could not be read, with the reason"
+
+      reference_to SubmissionReview
+      attribute :reason, ReasonText, sets: true
+
+      emits "SubmissionUnscoped"
+    end
+
+    # The reviewer names a run it made as evidence; the kept record, not the reviewer, says how it
+    # ended.
+    command "Cite" do
+      role "System"
+      goal "Name a behaviors or model_check run the reviewer made of the submitted commit as evidence"
+
+      reference_to SubmissionReview
+      attribute :kind, EvidenceKind
+      attribute :run,  EvidenceRunKey
+
+      given("the evidence is a behaviors run or a model check") do
+        kind.value == "behaviors" || kind.value == "model_check"
+      end
+      given("the run is of the submitted commit: its key names the commit") do
+        run.value.include?(submission.value)
+      end
+
+      emits "EvidenceCited"
+    end
+
+    command "Count" do
+      role "System"
+      goal "Count a cited run's kept record as evidence of the review"
+
+      reference_to SubmissionReview
+      attribute :kind,      EvidenceKind
+      attribute :run,       EvidenceRunKey
+      attribute :subject,   EvidenceSubject
+      attribute :status,    EvidenceStatus
+      attribute :scenarios, ScenarioCount
+
+      given("a behaviors run is of a domain the commit touches") do
+        kind.value != "behaviors" || domains.value.split("|").any? { |domain| domain == subject.value }
+      end
+      given("a model check is of a domain whose bluebook the commit changed") do
+        kind.value != "model_check" || bluebooks.value.split("|").any? { |bluebook| bluebook == subject.value }
+      end
+
+      sets :evidence, append: { kind: :kind, run: :run, subject: :subject, status: :status, scenarios: :scenarios }
+
+      emits "EvidenceCounted"
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record that a cited run has no kept record that ended, with the reason"
+
+      reference_to SubmissionReview
+      attribute :reason, ReasonText, sets: true
+
+      emits "EvidenceDeclined"
+    end
+
     command "Judge" do
       role "System"
-      goal "Record whether the failing spec is a real bug or a stale expectation"
+      goal "Record the reviewer's verdict on the submitted commit"
 
       reference_to SubmissionReview
       attribute :judgment, Judgment, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
 
       # `landed` ends a review whose branch landed before it ran: the landing ran the gates, and
       # it hands nothing to a person.
       given("the judgment is one the reviewer gives") do
-        judgment.value == "real_bug" || judgment.value == "stale_expectation" || judgment.value == "landed"
+        judgment.value == "clean" || judgment.value == "real_bug" || judgment.value == "stale_expectation" ||
+          judgment.value == "missing_behavior" || judgment.value == "landed"
+      end
+      # A verify_only clean waits for a kept record of the gates and the tier's proof.
+      given("a clean verdict is of a full-tier commit") { judgment.value != "clean" || tier.value == "full" }
+      given("a clean verdict has a passing behaviors run for every domain the commit touches") do
+        judgment.value != "clean" || (evidence.any? { |run| run.kind == "behaviors" } &&
+          domains.value.split("|").all? { |domain| domain == "" || evidence.any? { |run| run.kind == "behaviors" && run.subject == domain && run.status == "succeeded" } })
+      end
+      given("a clean verdict has a clean model check for every domain whose bluebook the commit changed") do
+        judgment.value != "clean" || bluebooks.value.split("|").all? { |bluebook| bluebook == "" || evidence.any? { |run| run.kind == "model_check" && run.subject == bluebook && run.status == "clean" } }
+      end
+      given("a clean verdict has no failed evidence") do
+        judgment.value != "clean" || evidence.all? { |run| run.status == "succeeded" || run.status == "clean" }
+      end
+      given("a missing behavior names the scenario that is missing") do
+        judgment.value != "missing_behavior" || findings.to_s != ""
       end
 
       emits "SpecFailureJudged"
@@ -1868,8 +2013,47 @@ Hecks.bluebook "Agents" do
     end
 
     query "Reviews" do
-      description "Every submission review, by commit: the judgment once the reviewer has given it."
+      description "Every submission review, by commit: its tier, the domains and bluebooks it touches, the evidence counted, and the judgment once the reviewer has given it."
       order_by :submission
+    end
+
+    query "OfSubmission" do
+      description "The review of one submitted commit, with the evidence its verdict stands on."
+      attribute :submission, SubmissionRef
+      where(submission: :submission)
+    end
+
+    # Which domains and bluebooks a commit touches is a fact of its git checkout.
+    policy "ReadTheSubmissionScope" do
+      on      "SubmissionReview.SubmissionReviewRequested"
+      ask     :read_scope, with: { submission: :submission, checkout: :repo }
+    end
+
+    policy "RecordTheSubmissionScope" do
+      on      "SubmissionReview.ScopeRead"
+      trigger SubmissionReview::Scope, with: { submission: :submission, tier: :tier, domains: :domains, bluebooks: :bluebooks }
+    end
+
+    policy "RecordTheUnreadScope" do
+      on      "SubmissionReview.ScopeUnread"
+      trigger SubmissionReview::Unscope, with: { submission: :submission, reason: :refusal }
+    end
+
+    # How a cited run ended is a fact of its kept record, in the Hecks domain's store.
+    policy "ReadTheCitedRun" do
+      on      "SubmissionReview.EvidenceCited"
+      ask     :read, with: { submission: :submission, kind: :kind, run: :run }
+    end
+
+    policy "CountTheCitedRun" do
+      on      "SubmissionReview.RunRead"
+      trigger SubmissionReview::Count, with: { submission: :submission, kind: :kind, run: :run, subject: :subject,
+                                               status: :status, scenarios: :scenarios }
+    end
+
+    policy "DeclineTheUnkeptRun" do
+      on      "SubmissionReview.RunUnkept"
+      trigger SubmissionReview::Decline, with: { submission: :submission, reason: :refusal }
     end
 
     policy "RealBugGoesToAPerson" do

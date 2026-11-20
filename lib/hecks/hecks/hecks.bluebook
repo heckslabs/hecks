@@ -65,6 +65,10 @@ Hecks.bluebook "Hecks" do
                reason: "a beat, a landing and a session's end ask for the one turn to reap from processes of their own"
         member domain: "Hecks", aggregate: "TrainPr", checkout: "both",
                reason: "a failed CI attempt's jobs are read after the rerun that cleared them"
+        member domain: "Hecks", aggregate: "Operation", checkout: "both",
+               reason: "a behaviors run a reviewer cites as evidence is read back by key in a later call"
+        member domain: "Hecks", aggregate: "ModelCheckRun", checkout: "both",
+               reason: "a model check a reviewer cites as evidence is read back by key in a later call"
         member domain: "Hecks", aggregate: "Shipment", checkout: "main",
                reason: "a shipment is judged, landed and boarded by launcher calls of their own"
         member domain: "Hecks", aggregate: "Overload", checkout: "both",
