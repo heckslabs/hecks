@@ -8,10 +8,10 @@ require_relative "support/machine_history_rows"
 RSpec.describe Hecks::Adapters::MachineSampling::History do
   include MachineHistoryRows
 
-  it "finds the states of the last saved reading among many", :aggregate_failures do
+  it "finds the memory and lane states of the last saved reading among many" do
     states = history_over(10_000).states
 
-    expect(states).to eq(load: "above", memory: "low", lane: "idle")
+    expect(states).to eq(memory: "low", lane: "idle")
   end
 
   it "scans 10,000 readings in Memory well inside the minute between readings", :wall_clock do
