@@ -11,7 +11,7 @@ require_relative "runtime/errors"
 require_relative "storehouse/confinement"
 require_relative "storehouse/source_tags"
 require_relative "storehouse/callers"
-require_relative "storehouse/audit"
+require_relative "storehouse/trace"
 require_relative "storehouse/identity"
 require_relative "storehouse/dispatching"
 require_relative "storehouse/querying"
@@ -20,13 +20,13 @@ require_relative "storehouse/bluebook_words"
 
 module Hecks
   # Dispatch/query/state and introspection over one booted domain, pure
-  # beyond its own JSONL audit log — booting stays the caller's job.
+  # beyond its own JSONL trace — booting stays the caller's job.
   #
-  # The tools are in `Dispatching`, `Querying`, `Introspection` and `Audit`, extended onto this
+  # The tools are in `Dispatching`, `Querying`, `Introspection` and `Trace`, extended onto this
   # module; what is here is what they share: the boot root, the alias table, and the checks on who
   # is calling.
   module Storehouse
-    # Which surface a call came in through, so the audit line says what made it: a person at a shell
+    # Which surface a call came in through, so the trace line says what made it: a person at a shell
     # (`cli`), an agent over the MCP server (`mcp`), or the domain itself (`policy`, `saga`,
     # `reaction`).
     SURFACES = %w[cli mcp policy saga reaction].freeze
@@ -41,7 +41,7 @@ module Hecks
     end
 
     extend Callers
-    extend Audit
+    extend Trace
     extend Identity
     extend Dispatching
     extend Querying
@@ -121,14 +121,14 @@ module Hecks
       end
     end
 
-    # Runs one audited tool call: the block's outcome, or the refusal it raised, is written to the
-    # audit log under `tool`, and the outcome answered without its `:verb`.
+    # Runs one traced tool call: the block's outcome, or the refusal it raised, is written to the
+    # trace under `tool`, and the outcome answered without its `:verb`.
     #
     # @param request [Request] the call, its `bluebook` set
-    # @param tool [String] what the audit line calls the call
+    # @param tool [String] what the trace line calls the call
     # @yieldreturn [Hash] the call's outcome
     # :nodoc:
-    def audited(request, tool)
+    def traced(request, tool)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       outcome = yield
       record_call!(request, tool, started, verb: outcome[:verb], outcome: outcome)
@@ -139,14 +139,14 @@ module Hecks
       outcome.merge(ids: ids_of(request, outcome))
     end
 
-    # Writes the audit line for one audited call, timed from `started`.
+    # Writes the trace line for one traced call, timed from `started`.
     # :nodoc:
     def record_call!(request, tool, started, **fields)
-      record!(request.bluebook_name, tool: tool, duration_ms: elapsed_ms(started), **audit_fields(request), **fields)
+      record!(request.bluebook_name, tool: tool, duration_ms: elapsed_ms(started), **trace_fields(request), **fields)
     end
 
     # :nodoc:
-    def audit_fields(request) = request.to_h.slice(:summary, :source, :role, :actor_id, :surface)
+    def trace_fields(request) = request.to_h.slice(:summary, :source, :role, :actor_id, :surface)
 
     # dry_run? (Runtime::Dispatcher) only understands the pre-envelope flat
     # args shape; this is the one entry point back into it from dispatch's own envelope.
