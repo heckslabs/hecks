@@ -774,12 +774,8 @@ Hecks.bluebook "Tickets" do
     end
 
     # A path prefix or glob a claim covers, or a bluebook's declarations (`x.bluebook#Coder,Brief`).
-    # Areas overlap by `Hecks::Adapters::AreaOverlap`, which keeps different declarations of one
-    # bluebook apart; a work item with no area claims nothing. A planned or rescoped area is read
-    # against the checkout (the WorkAreas port's CheckNames): each word names a path that exists,
-    # a file not yet written in a directory that exists, a glob that matches, or declarations the
-    # bluebook holds, and a planned item whose area names nothing is set aside by name. The area
-    # a `Start` carries is not read so.
+    # Areas overlap by `Hecks::Adapters::AreaOverlap`; a plan or rescope reads each word against the
+    # checkout (`Hecks::Adapters::AreaNames`). The area a `Start` carries is not read so.
     value_object "Word" do
       attribute :value, String, matches: :present
     end
