@@ -575,9 +575,6 @@
       ]
     }
   ],
-  "process_managers": [
-
-  ],
   "provides": [
 
   ],
@@ -617,6 +614,9 @@
 
       ]
     }
+  ],
+  "sagas": [
+
   ],
   "version": null,
   "vision": "An event arrives and a command fires — the whole of a policy, in one aggregate."

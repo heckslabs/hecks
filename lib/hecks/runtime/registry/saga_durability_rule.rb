@@ -11,7 +11,7 @@ module Hecks
         # `default_adapter` or by an attaching chapter has process managers too.
         def refuse_forgetful_sagas!
           @declared.bluebooks.each_key do |domain|
-            process_managers_of(domain).each { |process_manager| refuse_forgetful_saga!(domain, process_manager) }
+            sagas_of(domain).each { |process_manager| refuse_forgetful_saga!(domain, process_manager) }
           end
         end
 

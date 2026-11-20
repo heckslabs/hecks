@@ -85,7 +85,7 @@ module Hecks
         end
 
         def saga_targets(bluebook)
-          bluebook.process_managers.flat_map do |saga|
+          bluebook.sagas.flat_map do |saga|
             saga.handlers.flat_map do |handler|
               handler.dispatches.map do |dispatch|
                 [:saga, "#{bluebook.name}::#{saga.name} on #{handler.event_type}", "#{bluebook.name}::#{dispatch.command_name}"]

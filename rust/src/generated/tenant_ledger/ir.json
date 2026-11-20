@@ -894,7 +894,7 @@
   "policies": [
 
   ],
-  "process_managers": [
+  "sagas": [
     {
       "name": "SettleAcrossRegions",
       "correlates_by": "reference.value",

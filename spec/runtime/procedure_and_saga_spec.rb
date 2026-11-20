@@ -51,7 +51,7 @@ RSpec.describe "a saga, and when it compensates" do
   end
 
   def hiring
-    in_registry { Hecks.bluebook("Hiring", &HIRING_DOMAIN) }.bluebook("Hiring").process_managers.first
+    in_registry { Hecks.bluebook("Hiring", &HIRING_DOMAIN) }.bluebook("Hiring").sagas.first
   end
 
   # Banking's settlement compensates. Booted once per file; nothing dispatches.
@@ -61,7 +61,7 @@ RSpec.describe "a saga, and when it compensates" do
       MemoryPorts.load!
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
     end
-    @settlement = registry.bluebook("Banking").process_managers.find { |pm| pm.name == "Settlement" }
+    @settlement = registry.bluebook("Banking").sagas.find { |pm| pm.name == "Settlement" }
   end
 
   attr_reader :settlement

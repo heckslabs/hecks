@@ -2,7 +2,7 @@ require "spec_helper"
 
 RSpec.describe "resuming a faulted saga" do
   let(:store)       { Struct.new(:saved) { def save_saga(**opts) = saved << opts }.new([]) }
-  let(:blueprint)   { Struct.new(:process_managers).new([Struct.new(:name).new("GateAndBoard")]) }
+  let(:blueprint)   { Struct.new(:sagas).new([Struct.new(:name).new("GateAndBoard")]) }
   let(:registry) do
     Struct.new(:saga_instances, :saga_mutex, :blueprint, :store) do
       def bluebook(_domain) = blueprint

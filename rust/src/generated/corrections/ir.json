@@ -681,7 +681,7 @@
   "policies": [
 
   ],
-  "process_managers": [
+  "sagas": [
     {
       "name": "CorrectionWatch",
       "correlates_by": "reference.value",

@@ -388,7 +388,7 @@ declared inside them; the rest are the bluebook's.
 Opens a stateful saga spanning several events and commands — `correlates_by`, `starts_on`/`ends_on`, its `handler`s. Bluebook-level only, like `report` and top-level `policy`, since it belongs to no single aggregate. See the ProcessManager reference page.
 
 ```ruby
-runtime.registry.bluebook("Banking").process_managers.map(&:name)  # => ["Onboarding", "Settlement", "ExternalSettlement"]
+runtime.registry.bluebook("Banking").sagas.map(&:name)  # => ["Onboarding", "Settlement", "ExternalSettlement"]
 ```
 
 ## domain_module
