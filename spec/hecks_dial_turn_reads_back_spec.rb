@@ -77,6 +77,21 @@ RSpec.describe Hecks::Adapters::DialTurning do
     expect(line).to include('worktree_scratch: ["tmp", ".ruby-lsp"')
   end
 
+  # Two turns of different settings in one folder, each by a process that booted before the other.
+  def turn_two_settings
+    Dir.mktmpdir do |folder|
+      turn_in(folder, "signalbox_response.drives", "on")
+      turn_in(folder, "reaping.session_keep", "1")
+      read_back(folder)
+    end
+  end
+
+  it "holds both settings when two turns of different settings follow each other", :aggregate_failures do
+    read = turn_two_settings
+    expect(read.world("Tickets").for_verb("signalbox_response")[:drives]).to be(true)
+    expect(read.world("Hecks").for_verb("reaping")[:session_keep]).to eq(1)
+  end
+
   it "settles every Dial.turn! from the launcher, so it answers turned or refused, never just requested" do
     expect(Array(registry.world("Hecks").for_verb("launcher")[:settled])).to include("dial.turn")
   end
