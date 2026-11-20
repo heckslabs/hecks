@@ -1024,8 +1024,7 @@ Hecks.bluebook "Bluebook" do
     #
     # `quick` is what every push of `main` runs, and what a commit should have passed: the checks
     # that finish in seconds and that only the author can fix cheaply (a storage shape with no edge,
-    # a style offense, a comment past the guide, a leaked secret, a dead launcher name or refusal
-    # remedy, a workflow
+    # a style offense, a comment past the guide, a leaked secret, a dead launcher name, a workflow
     # list read from its first page, a syntax error RuboCop reads). Everything slower runs after
     # the push, in CI (`ci`, `ci_suite`) and the nightly run, and holds `stable`, not `main`.
     # `pre_push` is the whole suite for a person who asks for it (`full_gate.value=true`).
