@@ -1,5 +1,6 @@
 require "spec_helper"
 require "hecks/agents/adapters/routing_guard"
+require "hecks/agents/adapters/script_records"
 
 # The orchestrator's allowlist is data on the Agents bluebook's Role aggregate; the guard, the
 # hook and the role file only read or forward it. Nothing here touches a live ledger or tap.
@@ -286,6 +287,65 @@ RSpec.describe "the orchestrator routing guard" do
 
   it "does not guard a role with no routing rows" do
     expect(verdict("cat lib/x.rb", role: "coder")).to eq(text: "allowed")
+  end
+
+  # The `Script` rule, kept by the Agents bluebook in Memory here: one process stands in for the
+  # durable store the hook's processes share.
+  describe "a script before hecks" do
+    let(:registry) { Hecks::Runtime::Registry.new }
+    let(:store) { boot_scripts }
+    let(:scripts) { Hecks::Adapters::RoutingGuard.new(settings: { scripts: store }) }
+
+    def boot_scripts
+      Hecks.with_registry(registry) do
+        [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
+         InMemoryDomain::PRISM_ADAPTER, File.join(root, "lib/hecks/agents/agents.bluebook")].each { |file| Kernel.load(file) }
+      end
+      script = registry.bluebook("Agents").aggregates.find { |aggregate| aggregate.hecks_name == "Script" }
+      Hecks::Adapters::RoutingGuard::ScriptGate::Store.new(Hecks::Runtime::Dispatcher.new(registry),
+                                                           registry.repository("Agents", script))
+    end
+
+    def call(command, session: "s1")
+      scripts.guard(role: { value: "coder" }, command: { value: command }, session: { value: session })
+    rescue Hecks::Adapters::RoutingGuard::Refused => e
+      e.message
+    end
+
+    def ran(session = "s1")
+      record = store.record(session)
+      Array(Hecks::Adapters::StartedWork.value(record, :ran)).map { |entry| entry.respond_to?(:value) ? entry.value : entry }
+    end
+
+    it "refuses the first script with no hecks call before it, with the hint" do
+      expect(call("ruby -e 1")).to include("Try hecks first: exe/hecks --all; run it again if no command fits")
+    end
+
+    it "allows the same script asked again and records it with its session and role", :aggregate_failures do
+      call("ruby -e 1")
+      expect(call("ruby -e 1")).to eq(text: "allowed")
+      expect(ran).to eq(["ruby -e 1"])
+    end
+
+    it "allows a script after a hecks call" do
+      call("exe/hecks tickets Work.undone")
+      expect(call("python3 x.py")).to eq(text: "allowed")
+    end
+
+    it "holds a script again once the session ran one since its last hecks call" do
+      call("exe/hecks tickets Work.undone")
+      call("python3 x.py")
+      expect(call("node y.js")).to include("Try hecks first")
+    end
+
+    it "does not judge a call with no session" do
+      expect(call("ruby -e 1", session: "")).to eq(text: "allowed")
+    end
+
+    it "lists a script run twice as a missing-command candidate" do
+      %w[s2 s3].each { |session| call("exe/hecks Work.undone", session: session) && call("ruby -e 1", session: session) }
+      expect(Hecks::Adapters::ScriptRecords.new(records: -> { store.records }).candidates[:text]).to eq("2  ruby -e 1")
+    end
   end
 
   describe "the hook" do
