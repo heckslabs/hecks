@@ -359,4 +359,78 @@ RSpec.describe "a red main reverting its one bad merge" do
     expect(event_names).to include("RevertRefused", "CoordinatorWoken")
     expect(landing_refused?).to be(true)
   end
+
+  # Each file is a break of its own: a gate red while it stands, a spec red where it stands.
+  BREAKS = { "bad.rb" => "spec/bad_spec.rb", "bad2.rb" => "spec/bad2_spec.rb", "bad3.rb" => "spec/bad3_spec.rb",
+             "bad4.rb" => "spec/bad4_spec.rb" }.freeze
+
+  def standing_breaks(directory) = BREAKS.select { |file, _| File.exist?(File.join(directory, file)) }.values
+
+  def stub_breaks
+    Hecks::Adapters::MainVerification.runner = breaking_gate
+    Hecks::Adapters::MainVerification.impacted = lambda do |_changed, _since|
+      Hecks::Adapters::GitShallowCheck::ImpactedRun::Outcome.new([], [], 0, 0)
+    end
+    Hecks::Adapters::MainVerification.specs = breaking_probe
+  end
+
+  def breaking_gate
+    lambda do |argv, chdir:|
+      standing = standing_breaks(chdir)
+      next [true, "ok"] unless argv.include?("gate_run.gate!") && standing.any?
+
+      [false, "[gate quick] red: #{standing.map { |spec| "rspec #{spec}" }.join("\n")}"]
+    end
+  end
+
+  def breaking_probe
+    lambda do |directory, files|
+      red = standing_breaks(directory) & files
+      raise Hecks::Adapters::ConsoleCapture::Failure, "failing spec: #{red.first}\n  1) #{red.first} example" if red.any?
+    end
+  end
+
+  # The last verified commit, then one landing for each break and a last one that breaks nothing.
+  def landings_breaking(files)
+    @base = git("rev-parse", "main").strip
+    Hecks::Adapters::MainIntegration::LastVerified.write(File.join(repo, ".git"), @base)
+    files.each { |file| merge_branch(File.basename(file, ".rb"), file) }
+    merge_branch("last", "last.rb")
+  end
+
+  def verify_breaking(*files)
+    stub_breaks
+    verify(landings_breaking(files))
+  end
+
+  def revert_messages
+    git("log", "--first-parent", "--format=%B%x1e", "-12").split("\x1e").select { |text| text.include?("Revert \"Merge") }
+  end
+
+  it "reverts two merges that break different examples, each in its own episode", :aggregate_failures do
+    verify_breaking("bad.rb", "bad2.rb")
+    expect(reverts).to eq(2)
+    expect(event_names.count("EpisodeReverting")).to eq(2)
+    expect(landing_refused?).to be(false)
+  end
+
+  it "writes the spec and example a revert was made for into its commit message", :aggregate_failures do
+    verify_breaking("bad.rb")
+    expect(revert_messages.first).to include("Hecks-Reverted-Spec: spec/bad_spec.rb")
+    expect(revert_messages.first).to include("Hecks-Reverted-Example: ")
+  end
+
+  it "reads the spec and example of a standing revert back from git", :aggregate_failures do
+    verify_breaking("bad.rb")
+    found = Hecks::Adapters::MainIntegration::Repository.new(repo).reverts(@base, "main").first
+    expect(found[:spec]).to eq("spec/bad_spec.rb")
+    expect(found[:example]).not_to be_empty
+  end
+
+  it "parks the range after three reverts instead of reverting a fourth culprit", :aggregate_failures do
+    verify_breaking("bad.rb", "bad2.rb", "bad3.rb", "bad4.rb")
+    expect(reverts).to eq(3)
+    expect(event_names).to include("EpisodeParked")
+    expect(landing_refused?).to be(true)
+  end
 end
