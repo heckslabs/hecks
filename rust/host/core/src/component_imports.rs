@@ -7,7 +7,7 @@ use crate::component_runner::RunState;
 use std::sync::Arc;
 use wasmtime::component::{HasSelf, Linker};
 
-mod wit {
+pub(crate) mod wit {
     wasmtime::component::bindgen!({
         path: "../wit",
         world: "granted",
@@ -76,9 +76,16 @@ pub(crate) fn none() -> Arc<dyn Imports> {
     Arc::new(NoGrants)
 }
 
+/// The longest one `clock.sleep` waits, whatever the component asks.
+pub const LONGEST_SLEEP: std::time::Duration = std::time::Duration::from_secs(5);
+
 impl clock::Host for RunState {
     fn now_seconds(&mut self) -> i64 {
         crate::clock::unix_now()
+    }
+
+    fn sleep(&mut self, ms: u32) {
+        std::thread::sleep(std::time::Duration::from_millis(u64::from(ms)).min(LONGEST_SLEEP));
     }
 }
 

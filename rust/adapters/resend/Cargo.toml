@@ -1,0 +1,24 @@
+# The Resend email adapter as a Wasm component (world `email-adapter` in rust/host/wit/email.wit).
+# Built to resend.wasm, with its digest in resend.wasm.sha256, by
+# `exe/hecks Build.build_component! crate.value=rust/adapters/resend run.value=<key> --wait`;
+# the committed .wasm is that build's output and the host embeds it.
+[package]
+name = "resend"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.46"
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1
+
+[workspace]

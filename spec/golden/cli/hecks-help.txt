@@ -26,6 +26,7 @@ commands:
     project_rust!
     build_wasm!
     prune_rust!
+    build_component!
     build_parser!
     build_host!
     build_browser_wasm!
