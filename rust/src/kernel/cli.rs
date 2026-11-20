@@ -12,7 +12,7 @@ use super::{
 use crate::generated::active::{
     command_attributes_for_verb, command_creates, dispatch_by_name, entity_identity_head_for_path,
     identity_head_for_aggregate, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES,
-    POLICIES, SAGAS, QUERIES, READ_MODELS,
+    POLICIES, QUERIES, READ_MODELS, SAGAS,
 };
 use std::collections::HashMap;
 
