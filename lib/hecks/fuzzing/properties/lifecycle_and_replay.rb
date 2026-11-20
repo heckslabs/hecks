@@ -54,7 +54,7 @@ module Hecks
         # The `(from_state, to_state)` pairs each process manager's handlers declare.
         def saga_edges(bluebook)
           edges = Hash.new { |h, k| h[k] = [] }
-          bluebook.process_managers.each do |pm|
+          bluebook.sagas.each do |pm|
             pm.handlers.each { |handler| edges[pm.name] << [handler.from_state, handler.to_state] }
           end
           edges

@@ -197,7 +197,7 @@
   "policies": [
 
   ],
-  "process_managers": [
+  "sagas": [
     {
       "name": "Delivery",
       "correlates_by": "tag.value",

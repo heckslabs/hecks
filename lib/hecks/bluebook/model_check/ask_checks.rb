@@ -80,7 +80,7 @@ module Hecks
 
         def reached_port_verbs(bluebook)
           from_policies = bluebook.policies.map { |policy| policy.trigger_command.to_s }
-          from_sagas = bluebook.process_managers.flat_map do |manager|
+          from_sagas = bluebook.sagas.flat_map do |manager|
             manager.handlers.flat_map { |handler| handler.dispatches.map(&:command_name) }
           end
           (from_policies + from_sagas).to_set { |verb| Naming.split_verb("#{bluebook.name}::#{verb}") }

@@ -174,8 +174,8 @@ static PING_SPEC: DispatchSpec = DispatchSpec {
     compensates: None,
 };
 
-static PROCESS_MANAGERS: [ProcessManagerDef; 5] = [
-    ProcessManagerDef {
+static SAGAS: [SagaDef; 5] = [
+    SagaDef {
         name: "Transfer",
         correlates_by: "ref",
         starts_on: "Started",
@@ -192,7 +192,7 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 5] = [
             }],
         }],
     },
-    ProcessManagerDef {
+    SagaDef {
         name: "Risky",
         correlates_by: "ref",
         starts_on: "RiskyStarted",
@@ -224,7 +224,7 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 5] = [
             },
         ],
     },
-    ProcessManagerDef {
+    SagaDef {
         name: "Plain",
         correlates_by: "ref",
         starts_on: "PlainStarted",
@@ -241,7 +241,7 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 5] = [
             }],
         }],
     },
-    ProcessManagerDef {
+    SagaDef {
         name: "Early",
         correlates_by: "ref",
         starts_on: "EarlyStarted",
@@ -277,7 +277,7 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 5] = [
             },
         ],
     },
-    ProcessManagerDef {
+    SagaDef {
         name: "Edge",
         correlates_by: "ref",
         starts_on: "EdgeStarted",
@@ -340,7 +340,7 @@ fn tables() -> Tables<'static> {
     Tables {
         policies: &POLICIES,
         cross_domain_policies: &CROSS_POLICIES,
-        process_managers: &PROCESS_MANAGERS,
+        sagas: &SAGAS,
         reference_key_fn: no_key,
         queries: &QUERIES,
         command_creates_fn: creates,
@@ -352,7 +352,7 @@ fn tables() -> Tables<'static> {
 
 fn ping_leg() -> SagaLeg<'static> {
     SagaLeg {
-        pm: &PROCESS_MANAGERS[0],
+        pm: &SAGAS[0],
         correlation: "x1",
         domain_name: "D",
     }
@@ -407,7 +407,7 @@ impl World {
             store: &mut self.bus,
             dispatch_fn: script,
             tables: tables(),
-            sagas: &mut self.sagas,
+            saga_instances: &mut self.sagas,
             occurred_at: None,
             all_events: &mut self.all_events,
             mutations: &mut self.mutations,
@@ -1288,7 +1288,7 @@ fn an_entity_command_is_routed_to_the_parent_named_by_the_event_when_the_project
 
 #[test]
 fn resolve_with_reads_the_correlation_then_the_payload_then_the_memory_then_null() {
-    let pm = &PROCESS_MANAGERS[0];
+    let pm = &SAGAS[0];
     let e = event(
         "E",
         "D::Xfer",

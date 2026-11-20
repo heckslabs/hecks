@@ -480,24 +480,23 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
-    &[crate::kernel::ProcessManagerDef {
-        name: "Route",
-        correlates_by: "tag.value",
-        starts_on: "RunStarted",
-        ends_on: "RunLogged",
-        initial_state: "started",
-        handlers: &[crate::kernel::Handler {
-            event_type: "RunLegged",
-            from_state: "started",
-            to_state: "logged",
-            dispatches: &[crate::kernel::DispatchSpec {
-                command_name: "Run.Log",
-                with: &[("run", crate::kernel::WithValue::Ref("tag"))],
-                compensates: None,
-            }],
+pub const SAGAS: &[crate::kernel::SagaDef] = &[crate::kernel::SagaDef {
+    name: "Route",
+    correlates_by: "tag.value",
+    starts_on: "RunStarted",
+    ends_on: "RunLogged",
+    initial_state: "started",
+    handlers: &[crate::kernel::Handler {
+        event_type: "RunLegged",
+        from_state: "started",
+        to_state: "logged",
+        dispatches: &[crate::kernel::DispatchSpec {
+            command_name: "Run.Log",
+            with: &[("run", crate::kernel::WithValue::Ref("tag"))],
+            compensates: None,
         }],
-    }];
+    }],
+}];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {

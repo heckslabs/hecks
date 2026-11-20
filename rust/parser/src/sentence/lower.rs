@@ -193,7 +193,7 @@ impl Parser<'_> {
                 Step::Phrase(m) if m.id == "policy" => policies.push(self.policy(&m)?),
                 Step::Phrase(m) if m.id == "process" => {
                     let pm = self.process(&m)?;
-                    declaration.process_managers.push(pm);
+                    declaration.sagas.push(pm);
                 }
                 Step::Phrase(m) if m.id == "report" => {
                     let model = self.report(&m)?;
