@@ -1,0 +1,7 @@
+# Binds the `ScriptRecords` port of `Script` to `ScriptRecords`, which counts the scripts the sessions ran.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/script_records"
+
+Hecks.adapter "ScriptRecords" do
+  port "ScriptRecords"
+end

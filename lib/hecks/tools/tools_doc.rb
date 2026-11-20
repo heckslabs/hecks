@@ -14,6 +14,9 @@ module Hecks
     # Only the tables between the `generated:begin tools` and `generated:end tools` comments are
     # written; the prose around them is hand-written and left alone. With `--check` nothing is
     # written: the tool answers 1 and names the sections that differ from the rows.
+    #
+    # The same run writes the command-line guides' generated sections (`Doc::CliGuides`), whose
+    # forms are rendered by `argument_words` here.
     module ToolsDoc
       # The document, relative to the checkout.
       DOCUMENT = "docs/tools.md"
@@ -28,9 +31,17 @@ module Hecks
 
       # @param argv [Array<String>] `--check` to compare without writing
       # @param root [String] the checkout
-      # @return [Integer] 0, or 1 when `--check` finds a section out of date
+      # @return [Integer] 0, or 1 when `--check` finds a section or a CLI guide out of date
       # @raise [SystemExit] when a section has no marked table
       def main(argv, root: Tools::ROOT)
+        require "hecks/doc/cli_guides"
+        [tools_main(argv, root), Doc::CliGuides.main(argv.include?("--check"), root: root)].max
+      end
+
+      # @param argv [Array<String>] `--check` to compare without writing
+      # @param root [String] the checkout
+      # @return [Integer] 0, or 1 when `--check` finds a section of docs/tools.md out of date
+      def tools_main(argv, root)
         path = File.join(root, DOCUMENT)
         text = File.read(path, encoding: "UTF-8")
         fresh = projection(text, root)
