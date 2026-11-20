@@ -5,6 +5,7 @@ require_relative "../ledger_gate"
 require_relative "plan_tile"
 require_relative "integration_tile"
 require_relative "stale"
+require_relative "help_queue"
 require_relative "../pipeline_github/log_backoff"
 
 module Hecks
@@ -37,7 +38,7 @@ module Hecks
           train_flakes: %i[github flakes plain],
           release: %i[github latest_release plain], local: %i[git local_main plain],
           train: %i[git train plain], stable: %i[git stable plain],
-          open_work: %i[tickets undone_work rows], counts: %i[tickets counts plain],
+          open_work: %i[tickets undone_work rows], help: %i[tickets open_help plain], counts: %i[tickets counts plain],
           landed: %i[tickets landed_branches plain], stopped_runs: %i[tickets stopped_runs plain],
           stopped_times: %i[journal stopped_times plain],
           sessions: %i[jobs rows rows],
@@ -91,12 +92,17 @@ module Hecks
         end
 
         # The sessions, each blocked one marked as the owner's to answer or not (see {OwnerQueue}),
-        # against the checkout the board is pointed at, else its own.
+        # against the checkout the board is pointed at, else its own. The Waiting-on-you reading
+        # holds the sessions' `count` and `ids` and, under `help`, the calls for help the owner is
+        # shown (see {HelpQueue}).
         def owned(data)
           named = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
-          root = named.empty? ? @root : named
-          marked = PipelineBoard::OwnerQueue.mark(data[:sessions], data[:open_work], root)
-          data.merge(sessions: marked, waiting_on_you: PipelineBoard::OwnerQueue.reading(marked))
+          marked = PipelineBoard::OwnerQueue.mark(data[:sessions], data[:open_work], named.empty? ? @root : named)
+          data.merge(sessions: marked, waiting_on_you: waiting_on_you(marked, data[:help]))
+        end
+
+        def waiting_on_you(sessions, help)
+          PipelineBoard::OwnerQueue.reading(sessions).merge(PipelineBoard::HelpQueue.reading(help, @now.call))
         end
 
         def read_seconds = @read_seconds || READ_SECONDS

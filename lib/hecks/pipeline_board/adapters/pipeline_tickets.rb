@@ -9,6 +9,7 @@ require_relative "pipeline_tickets/stopped_runs"
 require_relative "pipeline_tickets/finished_times"
 require_relative "pipeline_tickets/closed_work"
 require_relative "pipeline_tickets/project_work"
+require_relative "pipeline_tickets/open_help"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
@@ -23,6 +24,7 @@ module Hecks
       include PipelineBoard::StoppedRuns
       include PipelineBoard::FinishedTimes
       include PipelineBoard::ProjectWork
+      include PipelineBoard::OpenHelp
 
       # The statuses a stand-in list of Work items is not open in; a store is asked `Work.Undone`.
       DONE = %w[done dropped].freeze
@@ -36,7 +38,8 @@ module Hecks
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `work_items:`, `landings:` and `findings:` stand in for the
-      #   registry's Work, Landing and Finding records; `projects_dir:` is where the projects'
+      #   registry's Work, Landing and Finding records, and `help:` for its open calls for help;
+      #   `projects_dir:` is where the projects'
       #   checkouts sit, for `ProjectWork` (the parent of the board's own checkout when absent)
       # @param root [String, nil] unused
       # `live_store:` in `settings` stands in for the {PipelineBoard::LiveStore} read when the board
@@ -48,7 +51,7 @@ module Hecks
         @standin, @epics_standin = settings.values_at(:work_items, :epics)
         @landed, @stopped = settings.values_at(:landings, :findings)
         @finished, @work_times = settings.values_at(:finished_times, :work_times)
-        @projects_dir = settings[:projects_dir]
+        @projects_dir, @help = settings.values_at(:projects_dir, :help)
       end
 
       # @return [Array<Hash>] the open Work items as `WorkLine` rows: slug, status, area, who

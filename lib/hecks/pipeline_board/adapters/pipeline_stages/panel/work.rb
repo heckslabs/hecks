@@ -25,13 +25,13 @@ module Hecks
           # @return [Integer] how many rows a long list shows
           attr_reader :limit
 
-          # @return [Array<Array(String, String)>] the sessions by state, blocked first, each state
-          #   under a heading
+          # @return [Array<Array(String, String)>] the calls for help the owner is shown, then the
+          #   sessions by state, blocked first, each state under a heading
           def sessions
             found = @state[:sessions]
-            return [unknown(found)] unless found.is_a?(Array)
+            return [*help, unknown(found)] unless found.is_a?(Array)
 
-            GROUPS.flat_map { |status, heading| group(status, heading, found.select { |row| state_of(row) == status }) }
+            help + GROUPS.flat_map { |status, heading| group(status, heading, found.select { |row| state_of(row) == status }) }
           end
 
           # A blocked session is shown as blocked on you only when it is the owner's to answer.
@@ -68,6 +68,15 @@ module Hecks
           end
 
           private
+
+          # The calls for help the owner is shown, one line each under a heading; none when the
+          # reading holds none.
+          def help
+            lines = Array((@state[:waiting_on_you] || {})[:help])
+            return [] if lines.empty?
+
+            [["needs you (#{lines.size})", "blocked"], *lines.map { |row| ["  #{row[:line]}", "blocked"] }]
+          end
 
           def unknown(found)
             reason = found.is_a?(Hash) ? found[:unknown] : "no data"
