@@ -1519,6 +1519,9 @@ Hecks.bluebook "Hecks" do
       # two meters are read side by side before the switch turns (ADR 0222, phase 3, metering).
       attribute :source,        MachineNote, optional: true
       attribute :metered_load,  Gauge, optional: true
+      # When the reading was taken (ISO-8601 UTC), stamped by the Sampling port's adapter: the
+      # reading taken latest is the one whose states the next reading stands on.
+      attribute :taken_at,      MachineNote, optional: true
       attribute :refusal,       MachineNote, optional: true
       identified_by :run
 
@@ -1580,6 +1583,7 @@ Hecks.bluebook "Hecks" do
         attribute :lane_state,    Standing, sets: true
         attribute :source,        MachineNote, optional: true, sets: true
         attribute :metered_load,  Gauge, optional: true, sets: true
+        attribute :taken_at,      MachineNote, optional: true, sets: true
 
         emits MachineRead
       end
@@ -1674,7 +1678,7 @@ Hecks.bluebook "Hecks" do
       trigger Machine::Record, with: { cpu_idle: :cpu_idle, swap_used: :swap_used, compressor_gb: :compressor_gb,
                                        load: :load, lane_waiting: :lane_waiting, load_state: :load_state,
                                        memory_state: :memory_state, lane_state: :lane_state, source: :source,
-                                       metered_load: :metered_load }
+                                       metered_load: :metered_load, taken_at: :taken_at }
     end
 
     policy "RecordTheUnreadMachine" do

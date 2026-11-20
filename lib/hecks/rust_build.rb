@@ -40,7 +40,8 @@ module Hecks
       "rust_conformance"      => ["rust_build/conformance", :Conformance],
       "rust_conformance_fuzz" => ["rust_build/conformance_fuzz", :ConformanceFuzz],
       "rust_coverage"         => ["rust_build/coverage", :Coverage],
-      "build_parser"          => ["rust_build/parser", :Parser]
+      "build_parser"          => ["rust_build/parser", :Parser],
+      "build_component"       => ["rust_build/component", :Component]
     }.freeze
 
     # The process-wide lock a call holds while it swaps `ENV`, `$stdout` and `$stderr`; the same

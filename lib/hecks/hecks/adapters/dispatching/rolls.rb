@@ -6,6 +6,7 @@ require_relative "filling"
 require_relative "last_roll"
 require_relative "pending"
 require_relative "planned_cache"
+require_relative "quiet_beat"
 require_relative "wake"
 
 module Hecks
@@ -34,7 +35,8 @@ module Hecks
 
         # Says whether the clock alone has made something eligible to start: a retry time passed,
         # the boot budget freed, a roll was refused while a filling ran, or a slot is free that a
-        # filling would use. A beat that finds none of these is refused as quiet and starts nothing.
+        # filling would use. A beat that finds none of these is refused as quiet and starts nothing;
+        # when Signalbox's admission held the free slot, the refusal names the given ({QuietBeat}).
         #
         # @param held [Hash] the `Wake` record: `run`, the beat's key
         # @return [Hash{Symbol => Hash}] `roll:` the key of the roll to start, and `reason:`
@@ -42,8 +44,9 @@ module Hecks
         def notice(**held)
           raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
 
-          reason = Wake.reason(beat_items, now: clock, **beat_questions)
-          raise ConsoleCapture::Failure, "quiet: nothing has become eligible by the clock" unless reason
+          admission = []
+          reason = Wake.reason(beat_items, now: clock, **beat_questions(admission))
+          raise ConsoleCapture::Failure, QuietBeat.message(admission.first) unless reason
 
           { roll: { value: "due-#{plain(held[:run])}" }, reason: { value: reason } }
         end
@@ -77,23 +80,24 @@ module Hecks
         end
 
         # What the beat asks of the machine, each asked only once its flag says it could matter.
-        def beat_questions
+        # `held` collects why admission left the free slot unused, for this beat's refusal alone.
+        def beat_questions(held)
           { stopped: -> { fuse_stop }, frees_at: -> { machine.boot_frees_at }, cleared: -> { machine_clear? },
-            room: -> { free_starts } }
+            room: -> { free_starts(held) } }
         end
 
         # How many planned items a rolling filling would start now, planned from the items the beat
         # keeps. The plan is made only when no filling runs in this process and something is
         # planned; the plan itself holds every item back on load or a pause. A full cap answers
         # nought before any plan, unless Signalbox admits by headroom, where the plan asks
-        # admission in place of the cap.
-        def free_starts
+        # admission in place of the cap, and the reason admission held an item goes into `held`.
+        def free_starts(held = [])
           return 0 if Filling.running? || (items = beat_items).empty?
 
           started = work_items.started
           return 0 if !admitting && started.size >= machine.cap
 
-          Plan.new(items, started, **limits).chosen.size
+          QuietBeat.starts(Plan.new(items, started, **limits), held)
         end
 
         # Whether the load is back under its limit and no crossing pauses the starts.
