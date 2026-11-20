@@ -15,7 +15,7 @@ module Hecks
       # Standing alone, the bluebook beside these adapters is described once and kept.
       module Rules
         BLUEBOOK_DIR = File.expand_path("..", __dir__)
-        TABLES = %w[Verdict Setting Tile Finding StaleStatus ActionRule CycleStage HealthCheck ProjectBoard].freeze
+        TABLES = %w[Verdict Setting Tile Finding StaleStatus ActionRule CycleStage HealthCheck ProjectBoard StuckKind].freeze
 
         module_function
 

@@ -81,7 +81,8 @@ Hecks.bluebook "PipelineBoard" do
       end
     end
 
-    # One node of the strip: a `Reading` and where it stands, left to right.
+    # One node of the strip: a `Reading` and where it stands, left to right. The strip is as long
+    # as what is read: no number of stages is fixed.
     value_object "Stage" do
       attribute :key,      String, matches: :present
       attribute :label,    String
@@ -100,14 +101,31 @@ Hecks.bluebook "PipelineBoard" do
       end
     end
 
-    # One thing the pipeline is stuck on: `kind` is `blocked_run`, `red_main`, `stalled_session`,
-    # `train_blocked` or `owner_ask`, and `owner_run` the run that owns it.
+    # One thing the pipeline is stuck on: `kind` is a `StuckKind`, `group` the group that row
+    # gives it, `waits_on` who it waits on where that is known, and `owner_run` the run that owns it.
     value_object "StuckItem" do
       attribute :kind,      String
+      attribute :group,     String, default: ""
       attribute :what,      String
       attribute :since,     String, default: ""
+      attribute :waits_on,  String, default: ""
       attribute :owner_run, String, default: ""
       attribute :link,      String, default: ""
+    end
+
+    # The kinds of stuck item and the group the board sorts each into: `waiting on a person` or
+    # `standing too long`. `waits_on` is who a kind always waits on; where it is empty the item
+    # says it itself (a blocked run's `Session owner` word) or names only its `owner_run`.
+    value_object "StuckKind" do
+      attribute :kind,     String
+      attribute :group,    String
+      attribute :waits_on, String
+
+      member kind: "owner_ask",       group: "waiting on a person", waits_on: "owner"
+      member kind: "blocked_run",     group: "waiting on a person", waits_on: ""
+      member kind: "red_main",        group: "standing too long",   waits_on: ""
+      member kind: "stalled_session", group: "standing too long",   waits_on: ""
+      member kind: "train_blocked",   group: "standing too long",   waits_on: ""
     end
 
     # One run: its role, session and condition, the Work item it holds, the seconds since its
@@ -314,6 +332,17 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Sessions",   position: 1, measure: "blocked",      op: ">",       than: "0", scale: 1, state: "attention"
       member stage: "Sessions",   position: 2, measure: "busy",         op: ">",       than: "0", scale: 1, state: "working"
       member stage: "Sessions",   position: 3, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      # Signalbox's signal: `short` is 1 while it says the machine is short of room, 0 while it
+      # says there is room, and unread while the signal does not drive.
+      member stage: "Signal",     position: 1, measure: "short",        op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "Signal",     position: 2, measure: "short",        op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Signal",     position: 3, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      # The last fill: the seats left under the cap, unread when no fill has reported them.
+      member stage: "Fill",       position: 1, measure: "headroom",     op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "Fill",       position: 2, measure: "headroom",     op: "<=",      than: "0", scale: 1, state: "attention"
+      member stage: "Fill",       position: 3, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
 
       member stage: "Local main", position: 1, measure: "ahead",        op: ">",       than: "0", scale: 1, state: "attention"
       member stage: "Local main", position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
