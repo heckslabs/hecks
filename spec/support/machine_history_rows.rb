@@ -28,6 +28,18 @@ module MachineHistoryRows
     Hecks::Adapters::MachineSampling::History.new(HeldRegistry.new(booted.bluebook("Hecks"), store))
   end
 
+  # A history over a SQLite table holding exactly the given readings, saved in order.
+  #
+  # @param readings [Array<Array(String, Hash)>] each reading's key and state
+  # @param dir [String] a temporary directory for the database file
+  # @return [Hecks::Adapters::MachineSampling::History]
+  def sqlite_history_of(readings, dir)
+    booted = boot_hecks_in_memory(File.expand_path("../../lib/hecks/hecks", __dir__)).registry
+    store = Hecks::Adapters::Sqlite.new(aggregate: machine_of(booted), settings: { database: "machine.db" }, root: dir)
+    readings.each { |key, state| store.save(Row.new(key, { run: key, memory_state: "ok", lane_state: "idle" }.merge(state))) }
+    Hecks::Adapters::MachineSampling::History.new(HeldRegistry.new(booted.bluebook("Hecks"), store))
+  end
+
   HeldRegistry = Struct.new(:held, :store) do
     def bluebook(_name) = held
 
