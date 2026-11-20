@@ -30,7 +30,7 @@ module Hecks
       #
       # @return [String, nil]
       def compensation_for(bluebook, command)
-        dispatch = bluebook.process_managers
+        dispatch = bluebook.sagas
                            .flat_map { |manager| manager.handlers.flat_map(&:dispatches) }
                            .find { |candidate| same_command?(candidate.command_name, command) && candidate.compensates }
         compensation = dispatch&.compensates

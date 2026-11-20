@@ -12,7 +12,7 @@ module Hecks
         # @param elsewhere [Array<String>, nil] every event the scan's other bluebooks emit
         # @return [Array<Finding>]
         def saga_findings_of(bluebook, elsewhere = nil)
-          bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager, elsewhere) }
+          bluebook.sagas.flat_map { |process_manager| saga_findings(bluebook, process_manager, elsewhere) }
         end
 
         # Runs every saga-shaped check for one process manager.
@@ -71,7 +71,7 @@ module Hecks
         # The compensating leg answers `REFUSED`, a synthetic trigger no command
         # ever emits by name — deliberately exempt from the deaf-handler check.
         def deaf_handler_findings(process_manager, emitted, handler)
-          return [] if handler.event_type == ProcessManager::REFUSED || emitted.include?(bare(handler.event_type))
+          return [] if handler.event_type == Saga::REFUSED || emitted.include?(bare(handler.event_type))
 
           [Finding.new(kind: :deaf_handler, severity: :error, subject: process_manager.name,
                        message: "a handler answers #{handler.event_type.inspect}, which no command " \
@@ -96,7 +96,7 @@ module Hecks
         # runs for this process manager, so a declared compensates is structurally
         # unreachable — a dead declaration, not a style warning.
         def unarmed_compensation_findings(process_manager, handler)
-          return [] if process_manager.saga?
+          return [] if process_manager.compensates?
 
           handler.dispatches.select(&:compensates).map do |dispatch|
             compensated = dispatch.compensates
@@ -109,10 +109,10 @@ module Hecks
 
         # Checks whether a saga's own compensation leaves an unreachable state.
         def dead_compensation_findings(process_manager, reached)
-          return [] unless process_manager.saga?
+          return [] unless process_manager.compensates?
 
-          saga = process_manager.saga
-          left = saga.from_state
+          compensation = process_manager.compensation
+          left = compensation.from_state
           return [] if reached.include?(left)
 
           [Finding.new(kind: :dead_compensation, severity: :error, subject: process_manager.name,
@@ -138,7 +138,7 @@ module Hecks
         #
         # @return [Set, nil] truthy when the target state was newly reached
         def reach_handler(handler, reached, emitted)
-          return unless handler.event_type == ProcessManager::REFUSED || emitted.include?(bare(handler.event_type))
+          return unless handler.event_type == Saga::REFUSED || emitted.include?(bare(handler.event_type))
           return unless reached.include?(handler.from_state)
 
           reached.add?(handler.to_state)

@@ -12,7 +12,7 @@ RSpec.describe "the model's shape, held to the language" do
     "Policy"         => Hecks::Bluebook::Policy,
     "Query"          => Hecks::Bluebook::Query,
     "ReadModel"      => Hecks::Bluebook::ReadModel,
-    "ProcessManager" => Hecks::Bluebook::ProcessManager
+    "ProcessManager" => Hecks::Bluebook::Saga
   }.freeze
 
   # Named `DEVIATIONS`, not `D`: spec/syntax_conformance_spec claims `D`, and a top-level

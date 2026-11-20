@@ -5,7 +5,7 @@ module Hecks
       # `CONTRACTS` merges every group.
       SAGAS = {
         "ProcessManager" => Contract.new(
-          holder: ProcessManager, make: :new,
+          holder: Saga, make: :new,
           fields: {
             name:          [:name,          :plain],
             # Must be a Symbol: SagaInterpreter looks it up as a symbol-keyed hash
@@ -28,7 +28,7 @@ module Hecks
         # identity (a saga answers each event once), so unlike other entities
         # it has no walk-minted `position` to derive.
         "Handler"        => Contract.new(
-          holder: ProcessManagerHandler, make: :new,
+          holder: SagaHandler, make: :new,
           fields: {
             event_type: [:event_type, :plain],
             from_state: [:from_state, :plain],

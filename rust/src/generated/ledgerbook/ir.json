@@ -287,7 +287,7 @@
       "where_ast": null
     }
   ],
-  "process_managers": [
+  "sagas": [
 
   ],
   "attaches_to": [

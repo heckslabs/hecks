@@ -89,7 +89,7 @@ pub struct Handler {
 }
 
 /// One `process_manager` block; `initial_state` is the first declared state.
-pub struct ProcessManagerDef {
+pub struct SagaDef {
     pub name: &'static str,
     pub correlates_by: &'static str,
     pub starts_on: &'static str,
@@ -120,13 +120,13 @@ pub struct CompletedCompensation {
 }
 
 // Build refuses two legs on one (event, state) pair, so the first match is the only one.
-fn select_leg<'a>(pm: &'a ProcessManagerDef, event: &str, state: &str) -> Option<&'a Handler> {
+fn select_leg<'a>(pm: &'a SagaDef, event: &str, state: &str) -> Option<&'a Handler> {
     pm.handlers
         .iter()
         .find(|h| h.event_type == event && h.from_state == state)
 }
 
-fn leg_mismatch(pm: &ProcessManagerDef, event: &str, state: &str) -> String {
+fn leg_mismatch(pm: &SagaDef, event: &str, state: &str) -> String {
     let mut expected: Vec<String> = Vec::new();
     for h in pm.handlers.iter().filter(|h| h.event_type == event) {
         let spelled = format!("{:?}", h.from_state);
@@ -143,7 +143,7 @@ fn correlation_head(correlates_by: &str) -> &str {
 
 // An empty correlation counts as absent, so callers need only one check.
 fn correlation_of(
-    pm: &ProcessManagerDef,
+    pm: &SagaDef,
     event: &Event,
     reference_key_fn: fn(&str) -> Option<&'static str>,
 ) -> Option<String> {
@@ -176,7 +176,7 @@ fn correlation_of(
 }
 
 fn resolve_with(
-    pm: &ProcessManagerDef,
+    pm: &SagaDef,
     value: &WithValue,
     event: &Event,
     correlation: &str,
@@ -207,7 +207,7 @@ fn qualify_saga_command_name(domain_name: &str, command_name: &str) -> String {
 }
 
 fn build_dispatch_args(
-    pm: &ProcessManagerDef,
+    pm: &SagaDef,
     spec: &DispatchSpec,
     event: &Event,
     correlation: &str,
@@ -236,7 +236,8 @@ fn build_dispatch_args(
 pub struct Tables<'a> {
     pub policies: &'a [PolicyRule],
     pub cross_domain_policies: &'a [CrossDomainPolicyRule],
-    pub process_managers: &'a [ProcessManagerDef],
+    // The declared sagas; their live instances travel apart, as a cascade's `saga_instances`.
+    pub sagas: &'a [SagaDef],
     pub reference_key_fn: fn(&str) -> Option<&'static str>,
     pub queries: &'a [crate::kernel::QueryDef],
     pub command_creates_fn: fn(&str) -> bool,
@@ -265,7 +266,7 @@ struct Cascade<'a, S: AggregateScan> {
     store: &'a mut S,
     dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
-    sagas: &'a mut HashMap<(String, String), SagaInstance>,
+    saga_instances: &'a mut HashMap<(String, String), SagaInstance>,
     // One host-supplied moment for the whole cascade.
     occurred_at: Option<&'a str>,
     all_events: &'a mut Vec<Event>,
@@ -278,7 +279,7 @@ struct Cascade<'a, S: AggregateScan> {
 /// One process-manager instance's leg of a cascade: which manager, which conversation, and the
 /// domain its commands are qualified with.
 struct SagaLeg<'a> {
-    pm: &'a ProcessManagerDef,
+    pm: &'a SagaDef,
     correlation: &'a str,
     domain_name: &'a str,
 }
@@ -307,7 +308,7 @@ pub fn orchestrate<S: AggregateScan>(
     store: &mut S,
     dispatch_fn: DispatchFn<S>,
     tables: Tables<'static>,
-    sagas: &mut HashMap<(String, String), SagaInstance>,
+    saga_instances: &mut HashMap<(String, String), SagaInstance>,
     verb: &str,
     args: &Json,
     caller_role: Option<&str>,
@@ -327,7 +328,7 @@ pub fn orchestrate<S: AggregateScan>(
         store,
         dispatch_fn,
         tables,
-        sagas,
+        saga_instances,
         occurred_at,
         all_events,
         mutations,
@@ -925,7 +926,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
     // Silent when `event.name != pm.starts_on` or the instance already exists.
     fn begin_saga(&mut self, event: &Event) {
         let tables = self.tables;
-        for pm in tables.process_managers {
+        for pm in tables.sagas {
             if event.name != pm.starts_on {
                 continue;
             }
@@ -944,11 +945,11 @@ impl<S: AggregateScan> Cascade<'_, S> {
             };
 
             let key = (pm.name.to_string(), correlation.clone());
-            if self.sagas.contains_key(&key) {
+            if self.saga_instances.contains_key(&key) {
                 continue;
             }
 
-            self.sagas.insert(
+            self.saga_instances.insert(
                 key,
                 SagaInstance {
                     state: pm.initial_state.to_string(),
@@ -969,7 +970,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
     // Silent when no handler answers the event or correlation resolves to nothing.
     fn advance_saga(&mut self, event: &Event, depth: usize) {
         let tables = self.tables;
-        for pm in tables.process_managers {
+        for pm in tables.sagas {
             if !pm.handlers.iter().any(|h| h.event_type == event.name) {
                 continue;
             }
@@ -988,7 +989,11 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 Json::obj(fields)
             };
 
-            let Some(state) = self.sagas.get(&key).map(|instance| instance.state.clone()) else {
+            let Some(state) = self
+                .saga_instances
+                .get(&key)
+                .map(|instance| instance.state.clone())
+            else {
                 self.saga_log.push(record(vec![
                     ("advanced", Json::Bool(false)),
                     (
@@ -1007,7 +1012,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 continue;
             };
 
-            if let Some(slot) = self.sagas.get_mut(&key) {
+            if let Some(slot) = self.saga_instances.get_mut(&key) {
                 slot.state = handler.to_state.to_string();
             }
             self.saga_log.push(record(vec![
@@ -1017,7 +1022,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
             ]));
 
             let memory = self
-                .sagas
+                .saga_instances
                 .get(&key)
                 .map_or(Json::Null, |instance| instance.memory.clone());
             // `event.aggregate` is `{domain}::{aggregate}`, so the domain is read from it.
@@ -1095,7 +1100,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
         let key = leg.key();
         let mut compensation_recorded = false;
         if let (Some(compensates_spec), Some(r_args)) = (spec.compensates, compensation_args) {
-            if let Some(slot) = self.sagas.get_mut(&key) {
+            if let Some(slot) = self.saga_instances.get_mut(&key) {
                 slot.completed_compensations.push(CompletedCompensation {
                     command_name: compensates_spec.command_name.to_string(),
                     args: r_args,
@@ -1117,7 +1122,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 // This leg failed, so its speculative entry was never earned. `pop` is safe: any
                 // entry pushed after it by a nested call was already drained by `compensate`.
                 if compensation_recorded {
-                    if let Some(slot) = self.sagas.get_mut(&key) {
+                    if let Some(slot) = self.saga_instances.get_mut(&key) {
                         slot.completed_compensations.pop();
                     }
                 }
@@ -1190,7 +1195,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
     // Silent when `event.name != pm.ends_on`, correlation is absent, or no instance existed.
     fn end_saga(&mut self, event: &Event) {
         let tables = self.tables;
-        for pm in tables.process_managers {
+        for pm in tables.sagas {
             if event.name != pm.ends_on {
                 continue;
             }
@@ -1198,7 +1203,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 continue;
             };
             let key = (pm.name.to_string(), correlation.clone());
-            if self.sagas.remove(&key).is_none() {
+            if self.saga_instances.remove(&key).is_none() {
                 continue;
             }
 
@@ -1217,7 +1222,10 @@ impl<S: AggregateScan> Cascade<'_, S> {
     fn compensate(&mut self, leg: &SagaLeg, event: &Event, memory: &Json, depth: usize) {
         let (pm, correlation, domain_name) = (leg.pm, leg.correlation, leg.domain_name);
         let key = leg.key();
-        let Some(current_state) = self.sagas.get(&key).map(|instance| instance.state.clone())
+        let Some(current_state) = self
+            .saga_instances
+            .get(&key)
+            .map(|instance| instance.state.clone())
         else {
             return;
         };
@@ -1248,7 +1256,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
             return;
         };
 
-        if let Some(slot) = self.sagas.get_mut(&key) {
+        if let Some(slot) = self.saga_instances.get_mut(&key) {
             slot.state = compensation.to_state.to_string();
         }
         self.saga_log.push(record(vec![
@@ -1261,7 +1269,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
         // snapshotted: a nested reaction may push onto it mid-drain. If one removes the instance
         // mid-drain, the loop stops early.
         loop {
-            let entry = match self.sagas.get_mut(&key) {
+            let entry = match self.saga_instances.get_mut(&key) {
                 Some(instance) => instance.completed_compensations.pop(),
                 None => None,
             };
@@ -1317,8 +1325,8 @@ mod tests {
         assert_eq!(read_literal_wire("officer"), Json::str("officer"));
     }
 
-    fn pm(correlates_by: &'static str) -> ProcessManagerDef {
-        ProcessManagerDef {
+    fn pm(correlates_by: &'static str) -> SagaDef {
+        SagaDef {
             name: "TestSaga",
             correlates_by,
             starts_on: "Started",
@@ -1617,7 +1625,7 @@ mod tests {
             },
         ];
 
-        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+        static SAGAS: &[SagaDef] = &[SagaDef {
             name: "TestMultiLeg",
             correlates_by: "id",
             starts_on: "Started",
@@ -1632,7 +1640,7 @@ mod tests {
         let tables = Tables {
             policies: POLICIES,
             cross_domain_policies: CROSS_DOMAIN_POLICIES,
-            process_managers: PROCESS_MANAGERS,
+            sagas: SAGAS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
             command_creates_fn: multi_leg_always_creates,
@@ -1735,12 +1743,12 @@ mod tests {
     fn run_strict_now(verb: &str, args: &Json, occurred_at: Option<&str>) -> Result<(), Refusal> {
         static NONE_P: &[PolicyRule] = &[];
         static NONE_X: &[CrossDomainPolicyRule] = &[];
-        static NONE_M: &[ProcessManagerDef] = &[];
+        static NONE_M: &[SagaDef] = &[];
         static NONE_Q: &[crate::kernel::QueryDef] = &[];
         let tables = Tables {
             policies: NONE_P,
             cross_domain_policies: NONE_X,
-            process_managers: NONE_M,
+            sagas: NONE_M,
             reference_key_fn: multi_leg_no_reference_key,
             queries: NONE_Q,
             command_creates_fn: multi_leg_always_creates,
@@ -1850,7 +1858,7 @@ mod tests {
             }],
         }];
 
-        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+        static SAGAS: &[SagaDef] = &[SagaDef {
             name: "TestPacking",
             correlates_by: "id",
             starts_on: "Started",
@@ -1865,7 +1873,7 @@ mod tests {
         let tables = Tables {
             policies: POLICIES,
             cross_domain_policies: CROSS_DOMAIN_POLICIES,
-            process_managers: PROCESS_MANAGERS,
+            sagas: SAGAS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
             command_creates_fn: multi_leg_always_creates,
@@ -1969,7 +1977,7 @@ mod tests {
         Tables {
             policies: &[],
             cross_domain_policies: &[],
-            process_managers: &[],
+            sagas: &[],
             reference_key_fn: routed_reference_key_never_found,
             queries: &[],
             command_creates_fn: routed_never_creates,
@@ -2231,7 +2239,7 @@ mod tests {
         Tables {
             policies: &[],
             cross_domain_policies: &[],
-            process_managers: &[],
+            sagas: &[],
             reference_key_fn: bug10_reference_key_never_found,
             queries: &[],
             command_creates_fn: bug10_never_creates,
@@ -2350,7 +2358,7 @@ mod tests {
                 }],
             },
         ];
-        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+        static SAGAS: &[SagaDef] = &[SagaDef {
             name: "Delivery",
             correlates_by: "id",
             starts_on: "Posted",
@@ -2365,7 +2373,7 @@ mod tests {
         let tables = Tables {
             policies: POLICIES,
             cross_domain_policies: CROSS_DOMAIN_POLICIES,
-            process_managers: PROCESS_MANAGERS,
+            sagas: SAGAS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
             command_creates_fn: multi_leg_always_creates,
@@ -2477,7 +2485,7 @@ mod tests {
                 compensates: None,
             }],
         }];
-        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+        static SAGAS: &[SagaDef] = &[SagaDef {
             name: "Route",
             correlates_by: "id",
             starts_on: "Started",
@@ -2502,7 +2510,7 @@ mod tests {
         let tables = Tables {
             policies: POLICIES,
             cross_domain_policies: CROSS_DOMAIN_POLICIES,
-            process_managers: PROCESS_MANAGERS,
+            sagas: SAGAS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
             command_creates_fn: multi_leg_always_creates,
@@ -2566,7 +2574,7 @@ mod tests {
                 dispatches: &[],
             },
         ];
-        let pm = ProcessManagerDef {
+        let pm = SagaDef {
             name: "Delivery",
             correlates_by: "id",
             starts_on: "Posted",
