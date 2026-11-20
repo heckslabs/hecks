@@ -83,13 +83,15 @@ module Hecks
         end
 
         # How many planned items a rolling filling would start now, planned from the items the beat
-        # keeps. The plan is made only when no filling runs in this process, something is planned
-        # and the cap has a free slot; the plan itself holds every item back on load or a pause.
+        # keeps. The plan is made only when no filling runs in this process and something is
+        # planned; the plan itself holds every item back on load or a pause. A full cap answers
+        # nought before any plan, unless Signalbox admits by headroom, where the plan asks
+        # admission in place of the cap.
         def free_starts
           return 0 if Filling.running? || (items = beat_items).empty?
 
           started = work_items.started
-          return 0 if started.size >= machine.cap
+          return 0 if !admitting && started.size >= machine.cap
 
           Plan.new(items, started, **limits).chosen.size
         end
