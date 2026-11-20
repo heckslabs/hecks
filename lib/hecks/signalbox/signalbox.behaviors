@@ -49,7 +49,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+    expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], band: "tight"
   end
 
   test "headroom under the floor puts the machine in the short band" do
@@ -57,7 +57,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 1200 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+    expect emits: %w[PressureRead PressureFellShort StandingFellShort PressurePosted], band: "short"
   end
 
   # Phase 3b: the settled reading is posted as the machine's one signal, with the room it leaves.
@@ -66,7 +66,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           coders_fit: { value: 3 }, gates_fit: { value: 1 }, age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: %w[PressureRead PressureTightened PressurePosted], coders_fit: 3
+    expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], coders_fit: 3
   end
 
   # The short band admits nothing, and says so on every reading while it holds, not only the first.
@@ -107,7 +107,7 @@ Hecks.behaviors "Signalbox" do
           gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
     input pressure: "m3-pro", headroom: { value: 8500 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: %w[PressureRead PressureEased PressurePosted], band: "normal"
+    expect emits: %w[PressureRead PressureEased StandingEased PressurePosted], band: "normal"
   end
 
   # Decided 2026-11-19: CPU is the second pressure input. The 1-minute load is read in hundredths
@@ -119,7 +119,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 3200 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
-    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+    expect emits: %w[PressureRead PressureFellShort StandingFellShort PressurePosted], band: "short"
   end
 
   test "the band is the worse of the two: a load past the tight mark tightens a machine with memory to spare" do
@@ -128,7 +128,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
-    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+    expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], band: "tight"
   end
 
   # The reopened probe of 2026-11-20 05:30: 9086 MB of headroom at the OS's normal level is not
@@ -139,7 +139,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 9086 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 0 }, stale_after: { value: 120 }, load: { value: 1055 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
-    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+    expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], band: "tight"
   end
 
   test "the 05:30 reading: the same memory with a load past 18.00 on six cores is short by the load" do
@@ -148,7 +148,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 9086 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 0 }, stale_after: { value: 120 }, load: { value: 1900 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
-    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+    expect emits: %w[PressureRead PressureFellShort StandingFellShort PressurePosted], band: "short"
   end
 
   # The probe of 2026-11-20 06:29: a load of 19.47 on the six performance cores read short at the
@@ -160,7 +160,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 6879 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 0 }, stale_after: { value: 120 }, load: { value: 1947 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 342 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
-    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+    expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], band: "tight"
   end
 
   test "the 06:29 reading: a lower-tier coder is not started in the tight band, though memory has room for three" do
@@ -224,7 +224,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 700 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
-    expect emits: %w[PressureRead PressureEased PressurePosted], band: "normal"
+    expect emits: %w[PressureRead PressureEased StandingEased PressurePosted], band: "normal"
   end
 
   # The probe of 2026-11-19 22:55-23:25: the headroom read 2.1 to 4.5 GB while the OS read its
@@ -242,7 +242,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 2100 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 0 }
-    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+    expect emits: %w[PressureRead PressureFellShort StandingFellShort PressurePosted], band: "short"
   end
 
   test "the OS's warning level tightens the band whatever the headroom" do
@@ -250,7 +250,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 2 }
-    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+    expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], band: "tight"
   end
 
   test "the OS's warning level with headroom under the floor is short, and only short" do
@@ -258,7 +258,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 2100 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 2 }
-    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+    expect emits: %w[PressureRead PressureFellShort StandingFellShort PressurePosted], band: "short"
   end
 
   test "the OS's critical level puts the machine in the short band whatever the headroom" do
@@ -266,7 +266,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, memory_pressure_level: { value: 4 }
-    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+    expect emits: %w[PressureRead PressureFellShort StandingFellShort PressurePosted], band: "short"
   end
 
   test "the OS's normal level does not ease a load past its tight mark" do
@@ -275,7 +275,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 2100 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }, memory_pressure_level: { value: 1 }
-    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+    expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], band: "tight"
   end
 
   # ---- Law 3: local response ----
@@ -633,7 +633,7 @@ Hecks.behaviors "Signalbox" do
     tests "Darken", on: "Pressure"
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", age: { value: 900 }, stale_after: { value: 120 }
-    expect emits: ["PressureDarkened"], band: "dark"
+    expect emits: ["PressureDarkened", "StandingDarkened"], band: "dark"
   end
 
   test "black start: only the repair seat is admitted while the signal is dark" do
@@ -1019,14 +1019,14 @@ Hecks.behaviors "Signalbox" do
   test "the beat: a quiet machine's look from main is cleared, published and ruled on" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-quiet" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead
                      PressureEased PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
   test "the beat: the helper storm's look puts the machine in the short band" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-storm" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead PressureFellShort
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead PressureFellShort StandingFellShort
                      PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
@@ -1067,5 +1067,169 @@ Hecks.behaviors "Signalbox" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-quiet" }
     expect coder_draw: 1536, metered_draw: 0
+  end
+  # ---- What a reader asks: the standing pressure, the holds, the answers and the breakers ----
+
+  test "Latest is the newest reading, with the load and the marks it was judged against" do
+    tests "Latest", on: "Pressure", kind: :query
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0900" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0900", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }, now: { value: 900 }
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0901" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0901", headroom: { value: 9000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          load: { value: 2110 }, cores: { value: 6 }, load_tight: { value: 150 }, load_short: { value: 342 },
+          load_gap: { value: 25 }, age: { value: 0 }, stale_after: { value: 120 }, now: { value: 960 }
+    expect count: 1, pressure: { value: "beat-0901" }, band: "short", load: { value: 2110 }, cores: { value: 6 },
+           load_tight: { value: 150 }, load_short: { value: 342 }, read_at: { value: 960 }, stale_after: { value: 120 }
+  end
+
+  test "the standing turns when a reading settles in another band, and names that reading" do
+    tests "Now", on: "Standing", kind: :query
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0900" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0900", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect count: 1, standing: { value: "machine" }, band: "tight", pressure: { value: "beat-0900" }
+  end
+
+  # Since when: the next beat's reading is tight too, so the standing is not turned and still
+  # names the reading that turned it.
+  test "the standing holds since the first reading of its band, across beats" do
+    tests "Now", on: "Standing", kind: :query
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0900" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0900", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0901" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0901", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect count: 1, band: "tight", pressure: { value: "beat-0900" }
+  end
+
+  test "a reading in the band the machine stands in turns nothing and still posts" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0900" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0900", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0901" }, capacity: { value: 28672 }
+    input pressure: "beat-0901", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
+  end
+
+  test "the standing turns again when the next beat falls short" do
+    tests "Now", on: "Standing", kind: :query
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0900" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0900", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    setup "Signalbox::Pressure.Open", pressure: { value: "beat-0901" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "beat-0901", headroom: { value: 1200 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect count: 1, band: "short", pressure: { value: "beat-0901" }
+  end
+
+  test "Of says why a work item was held, newest ruling first, and which side decided" do
+    tests "Of", on: "Hold", kind: :query
+    setup "Signalbox::Hold.Record", hold: { value: "board-reads-today:1" }, subject: { value: "board-reads-today" },
+            reason: { value: "its area overlaps a running item" }, decided_by: { value: "dispatch" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 900 }
+    setup "Signalbox::Hold.Record", hold: { value: "board-reads-today:2" }, subject: { value: "board-reads-today" },
+            reason: { value: "only an urgent coder is admitted while pressure is short" }, decided_by: { value: "signalbox" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 960 }
+    setup "Signalbox::Hold.Record", hold: { value: "measures-are-read-live:1" }, subject: { value: "measures-are-read-live" },
+            reason: { value: "at most the ramp step starts in one ramp window" }, decided_by: { value: "signalbox" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 961 }
+    input subject: { value: "board-reads-today" }
+    expect count: 2
+  end
+
+  test "Last is the last ruling that held a session" do
+    tests "Last", on: "Hold", kind: :query
+    setup "Signalbox::Hold.Record", hold: { value: "board-reads-today:1" }, subject: { value: "board-reads-today" },
+            reason: { value: "its area overlaps a running item" }, decided_by: { value: "dispatch" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 900 }
+    setup "Signalbox::Hold.Record", hold: { value: "measures-are-read-live:1" }, subject: { value: "measures-are-read-live" },
+            reason: { value: "at most the ramp step starts in one ramp window" }, decided_by: { value: "signalbox" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 961 }
+    expect count: 1, subject: { value: "measures-are-read-live" }, decided_by: { value: "signalbox" }
+  end
+
+  test "an admitted session's holds are lifted" do
+    tests "Admit", on: "Admission"
+    setup "Signalbox::Hold.Record", hold: { value: "board-reads-today:1" }, subject: { value: "board-reads-today" },
+            reason: { value: "its area overlaps a running item" }, decided_by: { value: "dispatch" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 900 }
+    input admission: { value: "board-reads-today" }, role: { value: "coder" }, tier: { value: "normal" }, owner: { value: "delegate" }, purpose: { value: "board-reads-today" }, ends_when: { value: "the branch lands or the item yields" },
+            draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+            switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+            stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 0 }, helpers: { value: 0 },
+            share: { value: 0 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect emits: %w[SessionAdmitted HoldLifted], status: "admitted"
+  end
+
+  test "Held lists only the holds that still stand" do
+    tests "Held", on: "Hold", kind: :query
+    setup "Signalbox::Hold.Record", hold: { value: "board-reads-today:1" }, subject: { value: "board-reads-today" },
+            reason: { value: "its area overlaps a running item" }, decided_by: { value: "dispatch" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 900 }
+    setup "Signalbox::Hold.Record", hold: { value: "measures-are-read-live:1" }, subject: { value: "measures-are-read-live" },
+            reason: { value: "at most the ramp step starts in one ramp window" }, decided_by: { value: "signalbox" }, band: { value: "short" },
+            load: { value: 2110 }, cores: { value: 6 }, load_mark: { value: 342 }, headroom: { value: 9000 }, now: { value: 961 }
+    setup "Signalbox::Admission.Admit", admission: { value: "board-reads-today" }, role: { value: "coder" }, tier: { value: "normal" }, owner: { value: "delegate" }, purpose: { value: "board-reads-today" }, ends_when: { value: "the branch lands or the item yields" },
+            draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+            switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+            stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 0 }, helpers: { value: 0 },
+            share: { value: 0 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect count: 1, subject: { value: "measures-are-read-live" }
+  end
+
+  test "a hold names the side that decided it" do
+    tests "Record", on: "Hold"
+    input hold: { value: "board-reads-today:1" }, subject: { value: "board-reads-today" },
+          reason: { value: "the cap is full" }, decided_by: { value: "the board" }, band: { value: "normal" }
+    expect refused: "a hold is decided by signalbox or by dispatch"
+  end
+
+  test "Live lists the sessions admitted and not yet closed" do
+    tests "Live", on: "Admission", kind: :query
+    setup "Signalbox::Admission.Admit", admission: { value: "board-reads-today" }, role: { value: "coder" }, tier: { value: "normal" }, owner: { value: "delegate" }, purpose: { value: "board-reads-today" }, ends_when: { value: "the branch lands or the item yields" },
+            draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+            switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+            stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 0 }, helpers: { value: 0 },
+            share: { value: 0 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    setup "Signalbox::Admission.Admit", admission: { value: "measures-are-read-live" }, role: { value: "coder" }, tier: { value: "normal" }, owner: { value: "delegate" }, purpose: { value: "board-reads-today" }, ends_when: { value: "the branch lands or the item yields" },
+            draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+            switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+            stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 0 }, helpers: { value: 0 },
+            share: { value: 0 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    setup "Signalbox::Admission.Close", admission: "board-reads-today"
+    expect count: 1, admission: { value: "measures-are-read-live" }
+  end
+
+  test "Held lists the answers that hold a session back, never one that keeps running" do
+    tests "Held", on: "Response", kind: :query
+    setup "Signalbox::Response.Ask", response: { value: "ask-1" }, session: { value: "coder-7" }, role: { value: "coder" },
+          tier: { value: "normal" }, band: { value: "short" }
+    setup "Signalbox::Response.Ask", response: { value: "ask-2" }, session: { value: "coder-8" }, role: { value: "coder" },
+          tier: { value: "urgent" }, band: { value: "short" }
+    expect count: 1, session: { value: "coder-7" }, status: "deferring"
+  end
+
+  test "Of says how one session answered the band" do
+    tests "Of", on: "Response", kind: :query
+    setup "Signalbox::Response.Ask", response: { value: "ask-1" }, session: { value: "gate-3" }, role: { value: "gate" },
+          tier: { value: "normal" }, band: { value: "short" }
+    setup "Signalbox::Response.Ask", response: { value: "ask-2" }, session: { value: "coder-8" }, role: { value: "coder" },
+          tier: { value: "urgent" }, band: { value: "short" }
+    input session: { value: "gate-3" }
+    expect count: 1, status: "waiting"
+  end
+
+  test "Tripped lists the breakers that tripped and have not reset" do
+    tests "Tripped", on: "Breaker", kind: :query
+    setup "Signalbox::Breaker.Install", breaker: { value: "helpers" }, level: { value: "helpers" }, rating: { value: 3 }
+    setup "Signalbox::Breaker.Install", breaker: { value: "shedding" }, level: { value: "shedding" }, rating: { value: 2 }
+    setup "Signalbox::Breaker.Trip", breaker: "helpers", load: { value: 5 }, smaller_ready: { value: 0 }
+    expect count: 1, breaker: { value: "helpers" }, state: "open"
+  end
+
+  test "Shedding is the tripped shedding breaker with the coder it rested" do
+    tests "Shedding", on: "Breaker", kind: :query
+    setup "Signalbox::Breaker.Install", breaker: { value: "helpers" }, level: { value: "helpers" }, rating: { value: 3 }
+    setup "Signalbox::Breaker.Install", breaker: { value: "shedding" }, level: { value: "shedding" }, rating: { value: 2 }
+    setup "Signalbox::Breaker.Trip", breaker: "helpers", load: { value: 5 }, smaller_ready: { value: 0 }
+    setup "Signalbox::Breaker.Trip", breaker: "shedding", load: { value: 4 }, smaller_ready: { value: 0 }
+    setup "Signalbox::Breaker.Shed", breaker: "shedding", shed: { value: "coder-7" }, tier: { value: "low" }, lower_ranked: { value: 0 }
+    expect count: 1, level: { value: "shedding" }, shed: { value: "coder-7" }
   end
 end
