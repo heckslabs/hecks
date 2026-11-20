@@ -20,10 +20,15 @@ module Hecks
       QUIET = { capacity_mb: 36_864, used_mb: 20_463, load: 700, cores: 6 }.freeze
       STORM = { capacity_mb: 36_864, used_mb: 33_000, load: 3_397, cores: 6 }.freeze
 
+      # The quiet machine with its live coders metered at a median of 1,100 MB, the OS reading its
+      # memory pressure normal.
+      METERED = QUIET.merge(coder_draw_mb: 1_100, memory_pressure_level: 1).freeze
+
       # The looks each beat name replays.
       RECORDINGS = {
         "beat-quiet"    => { view: MAIN, machine: QUIET, delegate: STARTED },
         "beat-storm"    => { view: MAIN, machine: STORM, delegate: STARTED },
+        "beat-metered"  => { view: MAIN, machine: METERED, delegate: STARTED },
         "beat-worktree" => { view: MAIN.merge(head: "9b81245"), machine: QUIET, delegate: STARTED },
         "beat-unread"   => { view: MAIN, machine: { capacity_mb: 0 }, delegate: STARTED }
       }.freeze

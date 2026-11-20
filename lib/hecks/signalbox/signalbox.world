@@ -13,7 +13,8 @@ Hecks.world "Signalbox" do
   helper_share "Admission", share_percent: 100
 
   # Expected draw by role. A helper is about 300 MB (the storm: about 22 GB over 80 sessions);
-  # the coder and gate figures are estimates until Roundhouse meters every session.
+  # the coder and gate figures are estimates. A beat takes a coder's draw from the median Roundhouse
+  # meters of the live coders, and the coder figure here only while no coder is metered.
   draws "Admission", coder_mb: 1_536, helper_mb: 300, gate_mb: 2_560, orchestrator_mb: 400, repair_mb: 400
 
   # Law 5. Each role's own fuse, about three times its draw, and a time rating that ends phantom
