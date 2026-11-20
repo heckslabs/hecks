@@ -20,15 +20,16 @@ module Hecks
       # @param registry [Runtime::Registry, nil] the booted registry; its Hecks world names the tap
       # @param aggregate [Bluebook::Aggregate, nil] `StallWatch`, whose `StallKind` rows are read
       # @param tap [String, nil] a log in place of the world's, for a spec; a boot never passes it
-      # @param processes [#line, nil] the `processes` evidence read, for a spec; the machine's
-      #   {MachineSampling::ProcessClasses} when nil
-      # @param slots [#line, nil] the `slots` evidence read, for a spec; {SlotEvidence} when nil
-      def initialize(registry: nil, aggregate: nil, tap: nil, processes: nil, slots: nil)
-        @slots = slots
+      # @param reads [Hash] the machine reads, each for a spec: `processes:` the `processes`
+      #   evidence ({MachineSampling::ProcessClasses} when absent), `slots:` the `slots` evidence
+      #   ({SlotEvidence}), `origin:` whether a commit is on origin/main ({SettledReads}, git)
+      def initialize(registry: nil, aggregate: nil, tap: nil, **reads)
         @registry = registry
         @aggregate = aggregate
         @tap = tap
-        @processes = processes
+        @processes = reads[:processes]
+        @slots = reads[:slots]
+        @settled_read = SettledReads.new(origin: reads[:origin])
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
@@ -38,7 +39,7 @@ module Hecks
         path = tap_path
         return [] unless path
 
-        Sightings.new(kinds, SystemClock.now, evidence: method(:evidence)).rows(lines(path), plain(run).to_s)
+        sightings.rows(lines(path), plain(run).to_s)
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
@@ -48,7 +49,7 @@ module Hecks
         path = tap_path
         return [] unless path
 
-        Sightings.new(kinds, SystemClock.now).abandoned(lines(path), plain(run).to_s)
+        sightings.abandoned(lines(path), plain(run).to_s)
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
@@ -58,10 +59,12 @@ module Hecks
         path = tap_path
         return [] unless path
 
-        Impediments.new(Sightings.new(kinds, SystemClock.now).open_lines(lines(path), plain(run).to_s)).rows
+        Impediments.new(sightings.open_lines(lines(path), plain(run).to_s)).rows
       end
 
       private
+
+      def sightings = Sightings.new(kinds, SystemClock.now, evidence: method(:evidence), settled_read: @settled_read)
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
