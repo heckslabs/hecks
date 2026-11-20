@@ -588,6 +588,42 @@
               ],
               [
                 "aggregate",
+                "Operation"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a behaviors run a reviewer cites as evidence is read back by key in a later call"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "ModelCheckRun"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a model check a reviewer cites as evidence is read back by key in a later call"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "Shipment"
               ],
               [
