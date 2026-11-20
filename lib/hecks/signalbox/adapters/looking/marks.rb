@@ -8,6 +8,10 @@ module Hecks
       # coder's and a gate's expected draw. It reads them as the world declares them and compares
       # none.
       class Marks
+        # The world declares a setting line that cannot be read. The beat is refused with this,
+        # rather than judged on starting values the world did not set.
+        class Unread < StandardError; end
+
         # The world's settings when no world is loaded: the 2026-11-19 starting values, with the
         # short load mark at the fill's old guard of 20.5 (342 percent of 6 performance cores).
         PRESSURE = { reserve_mb: 8_192, target_mb: 6_144, floor_mb: 3_072, gap_mb: 2_048, stale_after_seconds: 120,
@@ -15,6 +19,7 @@ module Hecks
         DRAWS = { coder_mb: 1_536, gate_mb: 2_560 }.freeze
 
         # @param registry [Runtime::Registry, nil] whose Signalbox world is read
+        # @raise [Unread] when a line the world declares cannot be read
         def initialize(registry)
           world = registry&.world("Signalbox")
           @pressure = PRESSURE.merge(setting(world, "pressure"))
@@ -33,11 +38,18 @@ module Hecks
 
         private
 
+        # A world or line that is not declared keeps the starting values; one that is declared and
+        # cannot be read raises {Unread}.
         def setting(world, verb)
           found = world&.for_verb(verb)
-          found.is_a?(Hash) ? found.transform_keys(&:to_sym) : {}
-        rescue StandardError
-          {}
+          return {} if found.nil?
+          raise Unread, "the Signalbox world's #{verb} line is not a set of marks" unless found.is_a?(Hash)
+
+          found.transform_keys(&:to_sym)
+        rescue Unread
+          raise
+        rescue StandardError => e
+          raise Unread, "the Signalbox world's #{verb} line could not be read: #{e.message}"
         end
       end
     end
