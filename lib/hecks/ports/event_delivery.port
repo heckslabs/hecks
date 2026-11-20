@@ -1,0 +1,6 @@
+Hecks.port "event_delivery" do
+  verb    "delivered_by"
+  signal  :reply
+  answers :deliveries
+  answers :reacted?
+end
