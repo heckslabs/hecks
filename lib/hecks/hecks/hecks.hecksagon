@@ -226,6 +226,32 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The same file, written back: a probe that found its turn hurt the pipeline sets the setting to
+  # what it was before the turn.
+  Hecks::Probe.port "Turning" do
+    asks "Restore", to: Probe do
+      attribute :run, ProbeKey
+      answers "ProbeRestored"
+      refuses "ProbeRestoreRefused"
+    end
+  end
+
+  # Read-only: counts the pipeline's starts, landings, quick yields and oldest unanswered block from
+  # the event log, over the span before a turn and over the window after it.
+  Hecks::Probe.port "Measuring" do
+    asks "Measure", to: Probe do
+      attribute :run, ProbeKey
+      answers "ProbeMeasured"
+      refuses "ProbeUnmeasured"
+    end
+
+    asks "Judge", to: Probe do
+      attribute :run, ProbeKey
+      answers "ProbeRead"
+      refuses "ProbeUnread"
+    end
+  end
+
   # The webhook listener: opens 127.0.0.1 on its own port, checks each delivery's signature
   # against the secret file and records the kinds the pipeline follows. It refuses to start
   # without the secret.
