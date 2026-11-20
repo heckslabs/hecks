@@ -33,6 +33,8 @@ module BoardStateFixture
     ["Read", { value: 4.0 }, "ok"], ["Read", { value: nil }, "unknown"],
     ["Session idle", { idle_seconds: 901 }, "attention"], ["Session idle", { idle_seconds: 900 }, "working"],
     ["Train PR", { red: 1, pending: 2 }, "failed"], ["Train PR", { red: 0, pending: 2 }, "working"],
+    ["Signal", { short: nil }, "unknown"], ["Signal", { short: 1 }, "attention"], ["Signal", { short: 0 }, "ok"],
+    ["Fill", { headroom: nil }, "unknown"], ["Fill", { headroom: 0 }, "attention"], ["Fill", { headroom: 2 }, "ok"],
     ["Train PR", { red: 0, pending: 0 }, "ok"], ["Role", { live: 2 }, "working"], ["Role", { live: 0 }, "ok"]
   ].freeze
 

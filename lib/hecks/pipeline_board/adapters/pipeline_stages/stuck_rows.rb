@@ -23,14 +23,25 @@ module Hecks
         # @return [Array<Hash>] the red main's row while its flag stands
         def red(stages)
           flag = stages.is_a?(Array) && stages.find { |row| row[:name] == RED }
-          flag ? [{ kind: "red_main", what: flag[:detail].to_s, since: "", owner_run: "", link: "/" }] : []
+          return [] unless flag
+
+          [{ kind: "red_main", what: flag[:detail].to_s, since: "", owner_run: "", link: "/" }.merge(sorted("red_main"))]
+        end
+
+        # @param kind [String] a `StuckKind`
+        # @param said [String] who the item itself says it waits on, used where the row names none
+        # @return [Hash] the `group` the kind's row gives and who it `waits_on`
+        def sorted(kind, said = "")
+          found = Rules.rows("StuckKind").find { |held| held[:kind] == kind } || {}
+          { group: found[:group].to_s, waits_on: found[:waits_on].to_s.empty? ? said.to_s : found[:waits_on] }
         end
 
         # @return [Hash, nil] a blocked session's row: the owner's to answer, or held for another
         def blocked(session)
           return unless session[:status] == "blocked"
 
-          item(session, session[:owner] == true ? "owner_ask" : "blocked_run", session[:detail])
+          kind = session[:owner] == true ? "owner_ask" : "blocked_run"
+          item(session, kind, session[:detail]).merge(sorted(kind, session[:held]))
         end
 
         # @return [Hash, nil] a busy session's row when its job has written nothing for too long
@@ -39,6 +50,7 @@ module Hecks
           return unless Rules.verdict("Session idle", { idle_seconds: session[:idle_seconds] }) == "attention"
 
           item(session, "stalled_session", "no word for #{session[:idle_seconds].to_i / 60} min")
+            .merge(sorted("stalled_session"))
         end
 
         # @return [Hash] one `StuckItem`
