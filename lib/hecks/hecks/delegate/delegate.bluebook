@@ -1494,10 +1494,8 @@ Hecks.bluebook "Hecks" do
       trigger Roll::Start, with: { run: :roll }
     end
 
-    # The fill's own silence, said once. Each beat asks the `FillWatching` port whether no work item
-    # has started for fifteen minutes while planned work waits and the preview shows room; the answer
-    # names the dominant reason, the reading behind it, how long it has held and the setting that
-    # governs it. A stall already said is not said again, and a start clears it.
+    # The fill's own silence, said once: each beat asks the `FillWatching` port whether nothing has
+    # started for fifteen minutes while work waits and the preview shows room; a start clears it.
     aggregate "FillWatch" do
       description "The one watch over the fill of a store: whether it stands stalled, and why."
 

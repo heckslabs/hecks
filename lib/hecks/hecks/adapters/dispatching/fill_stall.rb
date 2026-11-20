@@ -46,10 +46,10 @@ module Hecks
         module_function
 
         # @param skips [Array<Plan::Skip>] the work items left waiting and why
-        # @return [String] the reason most waiting items share, as "held by <kind>: <n> wait"
+        # @return [String] the reason most waiting items share, with how many of them give it
         def dominant(skips)
-          reason = skips.map(&:reason).tally.max_by { |_, count| count }&.first.to_s
-          "#{reason.sub(/\Askipped: /, "")} (#{skips.count { |skip| skip.reason == reason }} of #{skips.size} waiting)"
+          reason = commonest(skips)
+          "#{reason.delete_prefix("skipped: ")} (#{skips.count { |skip| skip.reason == reason }} of #{skips.size} waiting)"
         end
 
         # @param facts [Hash] `reason:`, `reading:`, `governed_by:` and `minutes:` of a stall
@@ -63,8 +63,15 @@ module Hecks
         # @param skips [Array<Plan::Skip>] the work items left waiting and why
         # @return [String] the setting or switch behind the dominant reason
         def governor(skips)
-          reason = skips.map(&:reason).tally.max_by { |_, count| count }&.first.to_s
+          reason = commonest(skips)
           GOVERNORS.find { |lead, _| reason.start_with?(lead) }&.last || "the plan's own rules (Dispatch.preview)"
+        end
+
+        # @param skips [Array<Plan::Skip>] the work items left waiting and why
+        # @return [String] the reason the most of them give
+        def commonest(skips)
+          counts = skips.map(&:reason).tally
+          counts.max_by { |_, count| count }&.first.to_s
         end
       end
     end
