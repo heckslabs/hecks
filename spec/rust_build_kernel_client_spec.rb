@@ -127,6 +127,27 @@ RSpec.describe Hecks::RustBuild::KernelClient, :io do
     end
   end
 
+  describe "a callback whose answerer raises" do
+    let(:client) { described_class.open(binary, tables: { "needs" => needs }) { |_fact, _type, _verb| raise "no clock" } }
+
+    it "raises the answerer's error once the kernel has answered" do
+      client.dispatch("Pizzas::Order.CreatePizza", create)
+      expect { client.dispatch("Pizzas::Order.AddTopping", basil) }.to raise_error(RuntimeError, "no clock")
+    end
+
+    def topped_and_failed
+      client.dispatch("Pizzas::Order.CreatePizza", create)
+      client.dispatch("Pizzas::Order.AddTopping", basil)
+    rescue RuntimeError
+      nil
+    end
+
+    it "keeps the pipe in step for the next message" do
+      topped_and_failed
+      expect(margherita(client)).not_to be_nil
+    end
+  end
+
   describe "version negotiation" do
     it "refuses a client that speaks no version the kernel does" do
       expect { described_class.open(binary, protocols: [2]) }
