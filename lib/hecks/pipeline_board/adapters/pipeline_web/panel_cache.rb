@@ -10,8 +10,9 @@ module Hecks
       # one drawing per window and one read of the open train pull requests.
       #
       # A drawing is kept by the state's `version` and the panel's width, colour and limit: a new
-      # version draws again at once. The held state's age (`stale_seconds`) is part of the
-      # drawing, so a kept panel may show an age up to the window's seconds old.
+      # version draws again at once. The panel's title names when the held state was read
+      # (`generated_at`), so a reader tells an old state from a new one; a kept panel is at most
+      # the window's seconds older than the state the board holds.
       class PanelCache
         # Seconds a drawing, and the train pull requests it shows, are kept.
         SECONDS = 5

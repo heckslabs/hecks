@@ -11,6 +11,10 @@ module Hecks
         # that is down, slow or not yet holding a state answers nothing, and the line goes on to
         # the resident or the boot as it always has.
         #
+        # It asks the one board on `HECKS_BOARD_PORT` from whatever checkout it runs in, so a line
+        # run from a linked worktree or the train copy gets the primary checkout's board. The panel
+        # is read-only, so that is accepted.
+        #
         # It uses only the standard library: it runs before `bundler/setup`, like {Client}.
         module StandingAnswer
           # The questions answered here, spelled as {Client.plain} spells them. This is the one

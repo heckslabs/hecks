@@ -53,6 +53,11 @@ RSpec.describe Hecks::Adapters::Driving::Resident::StandingAnswer do
     expect(described_class.answer(["PipelineBoard.snapshot"])).to be_nil
   end
 
+  it "asks the default port when the port variable is not a number" do
+    stub_const("ENV", ENV.to_h.merge(described_class::PORT_VARIABLE => "board"))
+    expect(described_class.port).to eq(described_class::PORT)
+  end
+
   ["PipelineBoard.stages", "PipelineBoard.snapshot --help", "PipelineBoard.snapshot extra=1"].each do |line|
     it "does not ask the board for #{line}" do
       expect(described_class.asked(line.split)).to be_nil
