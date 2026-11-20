@@ -69,6 +69,7 @@ queries (nothing here changes anything):
     …
     status
     timeline
+    failures
   BoardingHold:
     …
     status
