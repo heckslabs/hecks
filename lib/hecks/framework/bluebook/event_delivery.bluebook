@@ -2,12 +2,9 @@ Hecks.bluebook "EventDelivery" do
   vision "An event committed is owed to each of its consumers until each has answered it once."
   supporting
 
-  # ADR 0178: one bounded context for the outbox and the inbox. The core emits events and names
-  # their consumers; this context carries an event to each of them, at least once, and records each
-  # answer once so that delivering it again changes nothing. The Ruby outbox (`Runtime::Outbox`) is
-  # the adapter that keeps these promises; this bluebook names no store, clock or process.
-  #
-  # The runtime reaches the context by this capability, read from the IR rather than the name.
+  # ADR 0178: the outbox and the inbox are one context. It carries each event to each consumer at
+  # least once and records each answer once. The runtime reaches it by this capability, read from
+  # the IR, and the Ruby outbox is the adapter that keeps its promises.
   provides "event_delivery",
            enqueue: "Delivery.Enqueue",
            claim:   "Delivery.Claim",
@@ -21,10 +18,9 @@ Hecks.bluebook "EventDelivery" do
            reacted: "Reaction.ForKey",
            pump:    "Pump.Run"
 
-  # One event owed to one consumer: the outbox row, named for what it is. Its states are the
-  # runtime's own five, so the adapter maps one to one: ADR 0178 names pending, delivered and
-  # failed, and the runtime also claims a row before it runs it and refuses one a consumer turned
-  # down, which no redrive takes back.
+  # The outbox row, named for what it is. ADR 0178 names pending, delivered and failed; the
+  # runtime also claims a row before running it and refuses one its consumer turned down, so the
+  # states are the runtime's five and the adapter maps them one to one.
   aggregate "Delivery" do
     description "One committed event owed to one consumer, from the moment the event commits until the consumer has answered it."
 
