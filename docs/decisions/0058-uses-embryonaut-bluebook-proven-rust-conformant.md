@@ -128,7 +128,7 @@ corpus member since none of them vendors anything.
 ## What was explicitly NOT touched
 
 [0030](0030-rust-mints-its-own-eras-at-boot.md)'s Consequences section, and the fuller
-scoping in [0030-vendored-lineage-scoping.md](0030-vendored-lineage-scoping.md), already
+scoping in [0228-vendored-lineage-scoping.md](0228-vendored-lineage-scoping.md), already
 name a real, accepted, pre-existing gap: `rust/host`'s boot-time self-mint only
 provisions head-snapshot tables for the TARGET domain's own aggregates
 (`Exporter.lineage`'s `capable_aggregates`), never a `uses_framework`- or

@@ -153,11 +153,12 @@ RSpec.describe "the Adr store read from decision files" do
     expect { adapter_over("docs/nowhere", @root) }.to raise_error(Hecks::Runtime::WiringError, %r{docs/nowhere})
   end
 
-  it "accounts for every file under the checkout's docs/decisions, held or named as left out" do
-    root    = InMemoryDomain::ROOT
-    adapter = adapter_over(File.join(root, "docs/decisions"), root)
-    files   = Dir.glob([File.join(root, "docs/decisions/[0-9]*-*.md"), File.join(root, "docs/decisions/[0-9]*-*/[0-9]*-*.md")])
+  # The gate on the checkout's own records: a shared number or a status word no StatusWord row
+  # names fails here with the adapter's own line. docs/implemented/decisions is not read by the
+  # store; spec/adr_numbers_unique_spec.rb holds its numbers.
+  it "holds every file under the checkout's docs/decisions and leaves none out" do
+    root = InMemoryDomain::ROOT
 
-    expect(adapter.count + adapter.left_out.sum { |line| line.scan(/\S+\.md/).size }).to eq(files.size)
+    expect(adapter_over(File.join(root, "docs/decisions"), root).left_out).to eq([])
   end
 end

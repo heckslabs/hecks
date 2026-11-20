@@ -1,5 +1,7 @@
 # `corrects` — retroactive correction is an appended fact, never a rewrite
 
+Numbered 0036 until 2026-11-20, a number it shared with [0036](../../decisions/0036-postgres-era-cross-runtime-concurrency-gap-investigated-not-yet-closed.md); renumbered so one number names one decision.
+
 **Status:** Implemented.
 
 ## Context

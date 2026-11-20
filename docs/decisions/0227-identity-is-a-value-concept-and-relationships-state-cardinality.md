@@ -1,5 +1,7 @@
 # Identity is a value concept and relationships state their cardinality
 
+Numbered 0029 until 2026-11-20, a number it shared with [0029](0029-rust-reads-and-writes-any-era-ruby-mints.md); renumbered so one number names one decision.
+
 **Status:** Accepted — implementation in progress.
 
 ## Context
