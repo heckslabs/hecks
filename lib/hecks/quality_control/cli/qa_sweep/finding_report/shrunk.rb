@@ -13,10 +13,15 @@ module Hecks
             path = write_shrunk!(shrunk, seed)
             budget = shrunk[:exhausted] ? ", budget exhausted — may shrink further" : ""
             puts "shrunk:      [#{shrunk[:mode]}] #{shrunk[:original_size]} -> #{shrunk[:steps].size} step(s) " \
-                 "(#{shrunk[:attempts]} candidate checks#{budget})"
+                 "(#{shrunk[:attempts]} candidate checks, #{candidate_cost(shrunk)}#{budget})"
             puts "file:        #{path.delete_prefix("#{@root}/")}"
             puts "replay:      #{replay_command(shrunk, path)}"
             print_shrunk_steps(shrunk)
+          end
+
+          # The time one candidate check took on average, and the engine that ran it.
+          def candidate_cost(shrunk)
+            "#{(shrunk[:seconds_per_candidate].to_f * 1000).round(1)} ms each on #{shrunk[:engine]}"
           end
 
           def replay_command(shrunk, path)
