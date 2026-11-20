@@ -7,7 +7,7 @@
 # own world naming a temporary path.
 Hecks.world "Hecks" do
   default_adapter "Memory"
-  event_log "None"
+  event_tap "None"
 end
 
 Hecks.world "Governance" do
