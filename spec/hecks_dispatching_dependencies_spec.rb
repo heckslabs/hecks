@@ -1,12 +1,15 @@
 require "spec_helper"
 require "hecks/hecks/adapters/dispatching"
 
-# A planned work item names what it depends on in its detail and waits until that work item has
-# landed. A landed branch ends the wait; a work item's status alone does not.
+# A planned work item names what it waits on (its `waits_on`, or a line of its detail) and
+# waits until that work item has landed. A landed branch ends the wait; a work item's status
+# alone does not.
 RSpec.describe Hecks::Adapters::Dispatching::Dependencies do
   let(:statuses) { { "dep" => "done", "late" => "done", "open" => "started", "gone" => "dropped" } }
 
-  def item(detail) = Hecks::Adapters::Dispatching::Plan::Item.new(key: "w", title: "w", detail: detail, area: [])
+  def item(detail, waits_on: nil)
+    Hecks::Adapters::Dispatching::Plan::Item.new(key: "w", title: "w", detail: detail, area: [], waits_on: waits_on)
+  end
 
   def facts
     reads = Struct.new(:statuses) do
@@ -35,5 +38,13 @@ RSpec.describe Hecks::Adapters::Dispatching::Dependencies do
   it "says when no landing can end the wait", :aggregate_failures do
     expect(reason("Depends on: nobody")).to eq("skipped: waits on nobody (no such work item)")
     expect(reason("Depends on: gone")).to eq("skipped: waits on gone (dropped)")
+  end
+
+  it "reads the keys the item waits on first, then its detail's, never its own" do
+    expect(described_class.of(item("Depends on: a, b", waits_on: %w[b open w]))).to eq(%w[b open a])
+  end
+
+  it "waits on a declared work item that has not landed" do
+    expect(described_class.new(facts).reason(item("", waits_on: %w[dep open]))).to eq("skipped: waits on open")
   end
 end

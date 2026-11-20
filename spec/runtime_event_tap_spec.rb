@@ -5,7 +5,7 @@ require "tmpdir"
 require "hecks/runtime/event_tap"
 require "hecks/runtime/event_log"
 
-# The opt-in event log: off unless the Hecks world declares `event_log`, then one JSON line per
+# The opt-in event log: off unless the Hecks world declares `event_tap`, then one JSON line per
 # event and per policy delivery, never a payload, rotated by size, and never a refused command.
 # An override handed in at boot (the Assembly reads it from `HECKS_EVENT_TAP`) moves a declared
 # tap or, empty, switches it off.
@@ -17,7 +17,7 @@ RSpec.describe Hecks::Runtime::EventTap do
   after { FileUtils.rm_rf(dir) }
 
   def world(**settings)
-    Hecks::Bluebook::DSL::WorldBuilder.build("Hecks") { event_log "EventTap", **settings }
+    Hecks::Bluebook::DSL::WorldBuilder.build("Hecks") { event_tap "EventTap", **settings }
   end
 
   def registry_with(declared)
@@ -31,9 +31,14 @@ RSpec.describe Hecks::Runtime::EventTap do
 
   def lines = File.readlines(path).map { |text| JSON.parse(text) }
 
-  it "installs nothing when no world declares an event log", :aggregate_failures do
+  it "installs nothing when no world declares an event tap", :aggregate_failures do
     expect(described_class.install(registry_with(nil))).to be_nil
     expect(File.exist?(path)).to be(false)
+  end
+
+  it "refuses a world that still spells the verb event_log, naming event_tap" do
+    stale = -> { Hecks::Bluebook::DSL::WorldBuilder.build("Hecks") { event_log "EventTap", path: "x" } }
+    expect(&stale).to raise_error(Hecks::Bluebook::DSL::Malformed, /write event_tap/)
   end
 
   it "writes where the override points, not where the world does", :aggregate_failures do
