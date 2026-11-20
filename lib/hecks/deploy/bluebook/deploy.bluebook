@@ -1376,6 +1376,29 @@ Hecks.bluebook "Deploy" do
       where(status: "flagged")
       order_by :run
     end
+
+    # What the box holds now, read live and never stored: the facts a roll checks before it changes
+    # anything. It states no verdict. Whether the box is on the commit stable last rolled, mid-roll or
+    # without a restore point is the roll's rule, said where the roll is declared.
+    # `running` is one line per container (service, image tag, status); `commit` is each distinct
+    # revision the running images carry, separated by spaces, and empty for images built without one;
+    # `restore_point` is the database instance, the latest moment it can be restored to and the days
+    # its backups are kept, and empty when the backups cannot be read; `rolling` says another command
+    # is still running on the box.
+    value_object "BoxState" do
+      attribute :box,           String
+      attribute :running,       String
+      attribute :commit,        String
+      attribute :restore_point, String
+      attribute :rolling,       Boolean
+    end
+
+    query "BoxState" do
+      description "The app box as it is now: what is running, the commit it runs, its restore point and whether a command is still running on it. Read live from the box and the database's backups, never from a roll's record; it changes nothing on the box and records nothing. Refused when the box cannot be read."
+      attribute :project, Location
+      attribute :script,  Location, optional: true
+      returns BoxState
+    end
   end
 
   policy "RollBoxWhenRequested" do

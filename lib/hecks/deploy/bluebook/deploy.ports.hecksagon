@@ -1,0 +1,10 @@
+# The port Deploy declares for every hecksagon that attaches the bluebook (`Bluebooks` loads this
+# file with it), so a query answered from outside has its answer path wherever Deploy is booted.
+Hecks.hecksagon "Deploy" do
+  # Read-only towards the box: what is running on it, the commit it runs, its restore point and
+  # whether a command is still running there. The adapter beside this file asks AWS; nothing on the
+  # box changes and no record is written.
+  Deploy::BoxRoll.port "BoxState" do
+    answers_query "BoxState"
+  end
+end
