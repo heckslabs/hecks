@@ -72,8 +72,12 @@ module StallWatchLooks
 
   def watching
     aggregate = registry.bluebook("Hecks").aggregate("StallWatch")
-    Hecks::Adapters::StallWatching.new(registry: registry, aggregate: aggregate, tap: tap)
+    Hecks::Adapters::StallWatching.new(registry: registry, aggregate: aggregate, tap: tap, branches: branch_read)
   end
+
+  # The open branches a look reads: none, so no spec reads the checkout it runs in. A group that
+  # needs branches defines its own.
+  def branch_read = ->(_keys) { [] }
 
   # Runs the block with `Watching` reading the spec's own tap and every other port stood in.
   def with_tap(&)
