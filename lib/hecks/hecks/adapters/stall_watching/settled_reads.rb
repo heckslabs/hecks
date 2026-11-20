@@ -1,32 +1,23 @@
 # frozen_string_literal: true
 
-require_relative "../shell"
+require_relative "../main_integration/carried_check"
 
 module Hecks
   module Adapters
     class StallWatching
       # The `settled_read` reads a `StallKind` row may name: each settles a subject the tap cannot,
-      # by reading the machine at look time and changing nothing. `boarded-on-origin` asks git
-      # whether the commit the opening line links as `boarded` is on the local `origin/main`
-      # (`git merge-base --is-ancestor`, no fetch); a stale ref or a failed read is "not settled".
+      # by reading the machine at look time and changing nothing. `boarded-on-origin` asks
+      # {MainIntegration::CarriedCheck} whether `origin/main`, as last fetched, holds the commit the
+      # opening line links as `boarded`; a stale ref or a commit git cannot place is "not settled".
       class SettledReads
         # The reads a row may name.
         NAMES = %w[boarded-on-origin].freeze
 
-        # @param origin [#call, nil] answers whether a commit is on origin/main (true, false or nil
-        #   when unknown); git through {Shell} in the working directory when nil
+        # @param origin [#call, nil] answers whether a commit is on origin/main, truthy when it is;
+        #   {MainIntegration::CarriedCheck} on the working directory's checkout when nil
         def initialize(origin: nil)
-          @origin = origin || ->(sha) { self.class.on_origin?(Shell.new, sha) }
+          @origin = origin || ->(sha) { MainIntegration::CarriedCheck.new(Dir.pwd).by_known(sha) }
           @seen = {}
-        end
-
-        # @param shell [#capture] runs git
-        # @param sha [String] a commit
-        # @return [Boolean, nil] true when it is an ancestor of origin/main, false when it is not,
-        #   nil when git could not say
-        def self.on_origin?(shell, sha)
-          result = shell.capture("git", "merge-base", "--is-ancestor", sha, "origin/main")
-          { 0 => true, 1 => false }[result.exit_code]
         end
 
         # @param kind [Hash] a `StallKind` row
@@ -48,7 +39,7 @@ module Hecks
           return if sha.empty?
 
           @seen[sha] = @origin.call(sha) unless @seen.key?(sha)
-          "its boarded commit #{sha} is on origin/main" if @seen[sha] == true
+          "its boarded commit #{sha} is on origin/main" if @seen[sha]
         end
       end
     end

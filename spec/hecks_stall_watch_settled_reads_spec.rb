@@ -1,8 +1,8 @@
 require "spec_helper"
 require "hecks/hecks/adapters/stall_watching"
 
-# The `settled_read` reads: git's exit status says whether a boarded commit is on origin/main, and a
-# row naming a read the adapter does not know is refused.
+# The `settled_read` reads: a boarded commit origin/main holds settles its subject, and a row naming
+# a read the adapter does not know is refused.
 RSpec.describe Hecks::Adapters::StallWatching::SettledReads do
   it "refuses a row naming a read it does not know" do
     reads = described_class.new(origin: ->(_sha) { true })
@@ -10,9 +10,11 @@ RSpec.describe Hecks::Adapters::StallWatching::SettledReads do
     expect { reads.call({ settled_read: "guess" }, {}) }.to raise_error(ArgumentError, /unknown settled_read "guess"/)
   end
 
-  it "reads git's answer: 0 is on origin, 1 is not, anything else unknown" do
-    shell = ->(code) { instance_double(Hecks::Adapters::Shell, capture: Struct.new(:exit_code).new(code)) }
+  it "settles a boarded commit only when origin holds it" do
+    reads = described_class.new(origin: ->(sha) { sha == "abc" && "is contained in origin/main" })
+    kind = { settled_read: "boarded-on-origin" }
 
-    expect([0, 1, 128].map { |code| described_class.on_origin?(shell.call(code), "abc") }).to eq([true, false, nil])
+    expect([reads.call(kind, { "boarded" => "abc" }), reads.call(kind, { "boarded" => "def" })])
+      .to eq(["its boarded commit abc is on origin/main", nil])
   end
 end
