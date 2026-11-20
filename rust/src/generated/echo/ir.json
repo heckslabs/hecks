@@ -388,6 +388,417 @@
       "acknowledgements": [
 
       ]
+    },
+    {
+      "name": "Fuse",
+      "description": null,
+      "identified_by": [
+        "name.value"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": "Name",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Name",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Lay",
+          "role": null,
+          "goal": "Lay a fuse",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "Name",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "FuseLaid"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Arm",
+          "role": null,
+          "goal": "Arm a fuse",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Armed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Prime",
+          "role": null,
+          "goal": "Prime an armed fuse",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Primed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Unprime",
+          "role": null,
+          "goal": "Take back a priming",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Unprimed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Strike",
+          "role": null,
+          "goal": "Strike a fuse, which sparks, hisses, glows and burns",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Struck"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Spark",
+          "role": null,
+          "goal": "Spark a struck fuse",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Sparked"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Hiss",
+          "role": null,
+          "goal": "Hiss a sparked fuse",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Hissed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Glow",
+          "role": null,
+          "goal": "Glow a hissing fuse",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Glowed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Burn",
+          "role": null,
+          "goal": "Burn a glowing fuse",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Burnt"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Blow",
+          "role": null,
+          "goal": "Blow a fuse that was never armed",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Blown"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Scrap",
+          "role": null,
+          "goal": "Scrap a fuse that would not blow",
+          "references": "Fuse",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Scrapped"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "laid",
+        "transitions": [
+          {
+            "command": "Arm",
+            "to_state": "armed",
+            "from_state": "laid"
+          },
+          {
+            "command": "Blow",
+            "to_state": "blown",
+            "from_state": "laid"
+          }
+        ],
+        "marks": {
+          "rests": [
+            "laid"
+          ],
+          "terminal": [
+            "armed",
+            "blown"
+          ]
+        }
+      },
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
+      "acknowledgements": [
+
+      ]
     }
   ],
   "read_models": [
@@ -421,9 +832,145 @@
 
       ],
       "where_ast": null
+    },
+    {
+      "name": "SparkOnStrike",
+      "on_event": "Struck",
+      "trigger_command": "Fuse.Spark",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "root": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "HissOnSpark",
+      "on_event": "Sparked",
+      "trigger_command": "Fuse.Hiss",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "root": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "GlowOnHiss",
+      "on_event": "Hissed",
+      "trigger_command": "Fuse.Glow",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "root": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "BurnOnGlow",
+      "on_event": "Glowed",
+      "trigger_command": "Fuse.Burn",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "root": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
     }
   ],
   "process_managers": [
+    {
+      "name": "Charge",
+      "correlates_by": "name.value",
+      "starts_on": "FuseLaid",
+      "ends_on": "Scrapped",
+      "endings": [
+        "Scrapped"
+      ],
+      "resumes": [
+
+      ],
+      "states": [
+        "laid",
+        "armed",
+        "burning",
+        "fizzled"
+      ],
+      "handlers": [
+        {
+          "event_type": "Armed",
+          "from_state": "laid",
+          "to_state": "armed",
+          "dispatches": [
+            {
+              "command_name": "Fuse.Prime",
+              "with_spec": [
+                [
+                  "fuse",
+                  ":name"
+                ]
+              ],
+              "compensates": {
+                "command_name": "Fuse.Unprime",
+                "with_spec": [
+                  [
+                    "fuse",
+                    ":name"
+                  ]
+                ],
+                "compensates": null
+              }
+            }
+          ]
+        },
+        {
+          "event_type": "Burnt",
+          "from_state": "armed",
+          "to_state": "burning",
+          "dispatches": [
+            {
+              "command_name": "Fuse.Blow",
+              "with_spec": [
+                [
+                  "fuse",
+                  ":name"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        },
+        {
+          "event_type": "refused",
+          "from_state": "burning",
+          "to_state": "fizzled",
+          "dispatches": [
+            {
+              "command_name": "Fuse.Scrap",
+              "with_spec": [
+                [
+                  "fuse",
+                  ":name"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "Watch",
       "correlates_by": "name.value",
@@ -564,6 +1111,11 @@
         "name": "Lamp",
         "storage_name": "lamp",
         "adapter": "Memory"
+      },
+      {
+        "name": "Fuse",
+        "storage_name": "fuse",
+        "adapter": "Memory"
       }
     ]
   },
@@ -592,5 +1144,5 @@
   "translations": [
 
   ],
-  "source_text": "Hecks.bluebook \"Echo\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.4).\n  # One policy that answers its own command's event with the same command, so a single Ping\n  # starts a chain that never ends on its own. The reaction depth bound is the only thing that\n  # stops it: five reactions below the root run, the sixth is recorded undelivered.\n  vision \"A ping is answered by another ping, until the reaction depth bound says enough.\"\n  core\n\n  aggregate \"Beacon\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    command \"Light\" do\n      goal \"Light a beacon\"\n      attribute :name, Name\n      emits \"BeaconLit\"\n    end\n\n    command \"Ping\" do\n      goal \"Ping a beacon, which makes the beacon ping again\"\n      reference_to Beacon\n      emits \"Pinged\"\n    end\n\n    policy \"PingAgain\" do\n      on      \"Pinged\"\n      trigger Beacon::Ping\n    end\n  end\n\n  # THE SAME BOUND, SEEN FROM A SAGA (C10.4). A lamp flickers into another flicker forever. The\n  # saga marks the lamp when it is lit, and that mark is compensable; the flicker the sixth\n  # reaction announces reaches the saga at the ceiling, so its leg is refused and the saga\n  # unwinds. The compensation is itself a reaction at that depth, so it is refused as well.\n  aggregate \"Lamp\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    command \"Install\" do\n      goal \"Install a lamp\"\n      attribute :name, Name\n      emits \"LampInstalled\"\n    end\n\n    command \"Light\" do\n      goal \"Light a lamp\"\n      reference_to Lamp\n      emits \"Lit\"\n    end\n\n    command \"Flicker\" do\n      goal \"Flicker a lamp, which makes the lamp flicker again\"\n      reference_to Lamp\n      emits \"Flickered\"\n    end\n\n    command \"Mark\" do\n      goal \"Mark a flicker as seen\"\n      reference_to Lamp\n      emits \"Marked\"\n    end\n\n    command \"Unmark\" do\n      goal \"Take back a mark\"\n      reference_to Lamp\n      emits \"Unmarked\"\n    end\n\n    command \"Retire\" do\n      goal \"Retire a lamp\"\n      reference_to Lamp\n      emits \"LampRetired\"\n    end\n\n    policy \"FlickerAgain\" do\n      on      \"Flickered\"\n      trigger Lamp::Flicker\n    end\n  end\n\n  process_manager \"Watch\" do\n    correlates_by :\"name.value\"\n    starts_on \"LampInstalled\"\n    ends_on   \"LampRetired\"\n\n    transition \"Lit\" => \"lit\", from: \"installed\" do\n      dispatch Lamp::Mark, with: { lamp: :name } do\n        compensates Lamp::Unmark, with: { lamp: :name }\n      end\n    end\n\n    transition \"Flickered\" => \"flickering\", from: \"lit\" do\n      dispatch Lamp::Mark, with: { lamp: :name }\n    end\n\n    transition :refused => \"unwound\", from: \"flickering\" do\n      dispatch Lamp::Retire, with: { lamp: :name }\n    end\n  end\nend\n"
+  "source_text": "Hecks.bluebook \"Echo\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.4).\n  # One policy that answers its own command's event with the same command, so a single Ping\n  # starts a chain that never ends on its own. The reaction depth bound is the only thing that\n  # stops it: five reactions below the root run, the sixth is recorded undelivered.\n  vision \"A ping is answered by another ping, until the reaction depth bound says enough.\"\n  core\n\n  aggregate \"Beacon\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    command \"Light\" do\n      goal \"Light a beacon\"\n      attribute :name, Name\n      emits \"BeaconLit\"\n    end\n\n    command \"Ping\" do\n      goal \"Ping a beacon, which makes the beacon ping again\"\n      reference_to Beacon\n      emits \"Pinged\"\n    end\n\n    policy \"PingAgain\" do\n      on      \"Pinged\"\n      trigger Beacon::Ping\n    end\n  end\n\n  # THE SAME BOUND, SEEN FROM A SAGA (C10.4). A lamp flickers into another flicker forever. The\n  # saga marks the lamp when it is lit, and that mark is compensable; the flicker the sixth\n  # reaction announces reaches the saga at the ceiling, so its leg is refused and the saga\n  # unwinds. The compensation is itself a reaction at that depth, so it is refused as well.\n  aggregate \"Lamp\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    command \"Install\" do\n      goal \"Install a lamp\"\n      attribute :name, Name\n      emits \"LampInstalled\"\n    end\n\n    command \"Light\" do\n      goal \"Light a lamp\"\n      reference_to Lamp\n      emits \"Lit\"\n    end\n\n    command \"Flicker\" do\n      goal \"Flicker a lamp, which makes the lamp flicker again\"\n      reference_to Lamp\n      emits \"Flickered\"\n    end\n\n    command \"Mark\" do\n      goal \"Mark a flicker as seen\"\n      reference_to Lamp\n      emits \"Marked\"\n    end\n\n    command \"Unmark\" do\n      goal \"Take back a mark\"\n      reference_to Lamp\n      emits \"Unmarked\"\n    end\n\n    command \"Retire\" do\n      goal \"Retire a lamp\"\n      reference_to Lamp\n      emits \"LampRetired\"\n    end\n\n    policy \"FlickerAgain\" do\n      on      \"Flickered\"\n      trigger Lamp::Flicker\n    end\n  end\n\n  # One level below the bound (C10.4): a strike sets off four reactions, so Burnt comes at depth\n  # four; the Blow it dispatches runs fifth and is refused (a fuse blows only unarmed), so the saga\n  # unwinds under the ceiling and its Unprime and Scrap still run.\n  aggregate \"Fuse\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    lifecycle :status, default: \"laid\" do\n      transition \"Arm\"  => \"armed\", from: \"laid\"\n      transition \"Blow\" => \"blown\", from: \"laid\"\n      mark :rests, \"laid\"\n      mark :terminal, \"armed\", \"blown\"\n    end\n\n    command \"Lay\" do\n      goal \"Lay a fuse\"\n      attribute :name, Name\n      emits \"FuseLaid\"\n    end\n\n    command \"Arm\" do\n      goal \"Arm a fuse\"\n      reference_to Fuse\n      emits \"Armed\"\n    end\n\n    command \"Prime\" do\n      goal \"Prime an armed fuse\"\n      reference_to Fuse\n      emits \"Primed\"\n    end\n\n    command \"Unprime\" do\n      goal \"Take back a priming\"\n      reference_to Fuse\n      emits \"Unprimed\"\n    end\n\n    command \"Strike\" do\n      goal \"Strike a fuse, which sparks, hisses, glows and burns\"\n      reference_to Fuse\n      emits \"Struck\"\n    end\n\n    command \"Spark\" do\n      goal \"Spark a struck fuse\"\n      reference_to Fuse\n      emits \"Sparked\"\n    end\n\n    command \"Hiss\" do\n      goal \"Hiss a sparked fuse\"\n      reference_to Fuse\n      emits \"Hissed\"\n    end\n\n    command \"Glow\" do\n      goal \"Glow a hissing fuse\"\n      reference_to Fuse\n      emits \"Glowed\"\n    end\n\n    command \"Burn\" do\n      goal \"Burn a glowing fuse\"\n      reference_to Fuse\n      emits \"Burnt\"\n    end\n\n    command \"Blow\" do\n      goal \"Blow a fuse that was never armed\"\n      reference_to Fuse\n      emits \"Blown\"\n    end\n\n    command \"Scrap\" do\n      goal \"Scrap a fuse that would not blow\"\n      reference_to Fuse\n      emits \"Scrapped\"\n    end\n\n    policy \"SparkOnStrike\" do\n      on      \"Struck\"\n      trigger Fuse::Spark\n    end\n\n    policy \"HissOnSpark\" do\n      on      \"Sparked\"\n      trigger Fuse::Hiss\n    end\n\n    policy \"GlowOnHiss\" do\n      on      \"Hissed\"\n      trigger Fuse::Glow\n    end\n\n    policy \"BurnOnGlow\" do\n      on      \"Glowed\"\n      trigger Fuse::Burn\n    end\n  end\n\n  process_manager \"Charge\" do\n    correlates_by :\"name.value\"\n    starts_on \"FuseLaid\"\n    ends_on   \"Scrapped\"\n\n    transition \"Armed\" => \"armed\", from: \"laid\" do\n      dispatch Fuse::Prime, with: { fuse: :name } do\n        compensates Fuse::Unprime, with: { fuse: :name }\n      end\n    end\n\n    transition \"Burnt\" => \"burning\", from: \"armed\" do\n      dispatch Fuse::Blow, with: { fuse: :name }\n    end\n\n    transition :refused => \"fizzled\", from: \"burning\" do\n      dispatch Fuse::Scrap, with: { fuse: :name }\n    end\n  end\n\n  process_manager \"Watch\" do\n    correlates_by :\"name.value\"\n    starts_on \"LampInstalled\"\n    ends_on   \"LampRetired\"\n\n    transition \"Lit\" => \"lit\", from: \"installed\" do\n      dispatch Lamp::Mark, with: { lamp: :name } do\n        compensates Lamp::Unmark, with: { lamp: :name }\n      end\n    end\n\n    transition \"Flickered\" => \"flickering\", from: \"lit\" do\n      dispatch Lamp::Mark, with: { lamp: :name }\n    end\n\n    transition :refused => \"unwound\", from: \"flickering\" do\n      dispatch Lamp::Retire, with: { lamp: :name }\n    end\n  end\nend\n"
 }

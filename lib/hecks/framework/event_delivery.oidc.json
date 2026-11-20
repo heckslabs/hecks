@@ -1,0 +1,69 @@
+{
+  "audience": "EventDelivery",
+  "scopes": [
+    {
+      "scope": "event_delivery:consumer.advance",
+      "verb": "EventDelivery::Consumer.Advance",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:consumer.start",
+      "verb": "EventDelivery::Consumer.Start",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:delivery.claim",
+      "verb": "EventDelivery::Delivery.Claim",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:delivery.deliver",
+      "verb": "EventDelivery::Delivery.Deliver",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:delivery.enqueue",
+      "verb": "EventDelivery::Delivery.Enqueue",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:delivery.fail",
+      "verb": "EventDelivery::Delivery.Fail",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:delivery.redrive",
+      "verb": "EventDelivery::Delivery.Redrive",
+      "role": "Maintainer"
+    },
+    {
+      "scope": "event_delivery:delivery.refuse",
+      "verb": "EventDelivery::Delivery.Refuse",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:pump.complete",
+      "verb": "EventDelivery::Pump.Complete",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:pump.fault",
+      "verb": "EventDelivery::Pump.Fault",
+      "role": "System"
+    },
+    {
+      "scope": "event_delivery:pump.run",
+      "verb": "EventDelivery::Pump.Run",
+      "role": "Maintainer"
+    },
+    {
+      "scope": "event_delivery:reaction.record",
+      "verb": "EventDelivery::Reaction.Record",
+      "role": "System"
+    }
+  ],
+  "roles": [
+    "Maintainer",
+    "System"
+  ]
+}

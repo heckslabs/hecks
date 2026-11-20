@@ -1,0 +1,347 @@
+Hecks.bluebook "EventDelivery" do
+  vision "An event committed is owed to each of its consumers until each has answered it once."
+  supporting
+
+  # ADR 0178: the outbox and the inbox are one context. It carries each event to each consumer at
+  # least once and records each answer once. The runtime reaches it by this capability, read from
+  # the IR, and the Ruby outbox is the adapter that keeps its promises.
+  provides "event_delivery",
+           enqueue: "Delivery.Enqueue",
+           claim:   "Delivery.Claim",
+           deliver: "Delivery.Deliver",
+           fail:    "Delivery.Fail",
+           refuse:  "Delivery.Refuse",
+           redrive: "Delivery.Redrive",
+           pending: "Delivery.Pending",
+           advance: "Consumer.Advance",
+           react:   "Reaction.Record",
+           reacted: "Reaction.ForKey",
+           pump:    "Pump.Run"
+
+  # The outbox row, named for what it is. ADR 0178 names pending, delivered and failed; the
+  # runtime also claims a row before running it and refuses one its consumer turned down, so the
+  # states are the runtime's five and the adapter maps them one to one.
+  aggregate "Delivery" do
+    description "One committed event owed to one consumer, from the moment the event commits until the consumer has answered it."
+
+    identified_by :delivery_id
+
+    attribute :delivery_id, DeliveryId
+    attribute :event_id,    EventId
+    attribute :domain,      SourceDomain
+    attribute :consumer,    ConsumerName
+    attribute :kind,        DeliveryKind
+    attribute :error,       DeliveryError, optional: true
+
+    # The event's uid and the consumer it is owed to, as the runtime spells it: "<uid>/<consumer>".
+    value_object "DeliveryId" do
+      attribute :value, String, matches: :present
+      invariant("a delivery is named") { !value.to_s.empty? }
+    end
+
+    value_object "EventId" do
+      attribute :value, String, matches: :present
+      invariant("a delivery names the event it carries") { !value.to_s.empty? }
+    end
+
+    # The domain whose event log the event was committed to.
+    value_object "SourceDomain" do
+      attribute :value, String, matches: :present
+      invariant("a delivery names the domain its event came from") { !value.to_s.empty? }
+    end
+
+    # The consumer as the runtime spells it: "policy:<Home>::<Policy>" or "saga:<Home>::<Saga>".
+    value_object "ConsumerName" do
+      attribute :value, String, matches: :present
+      invariant("a delivery names its consumer") { !value.to_s.empty? }
+    end
+
+    # How the runtime runs the consumer: "reaction" runs a policy or saga step in process, and
+    # "effect" calls an outbound port. The word "reaction" here is the runtime's kind of row; what a
+    # consumer answered is the Reaction aggregate below.
+    value_object "DeliveryKind" do
+      attribute :value, String, matches: :present
+      invariant("a delivery says how its consumer runs") { value == "reaction" || value == "effect" }
+    end
+
+    value_object "DeliveryError" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "Claim"   => "claimed",   from: "pending"
+      transition "Deliver" => "delivered", from: "claimed"
+      transition "Fail"    => "failed",    from: "claimed"
+      transition "Refuse"  => "refused",   from: "claimed"
+      transition "Redrive" => "pending",   from: "failed"
+      mark :failure, "failed", "refused"
+      mark :terminal, "delivered", "refused"
+    end
+
+    command "Enqueue" do
+      role "System"
+      goal "Owe one committed event to one consumer, in the same transaction that commits the event"
+
+      attribute :delivery_id, DeliveryId,   sets: true
+      attribute :event_id,    EventId,      sets: true
+      attribute :domain,      SourceDomain, sets: true
+      attribute :consumer,    ConsumerName, sets: true
+      attribute :kind,        DeliveryKind, sets: true
+
+      emits "DeliveryEnqueued"
+    end
+
+    command "Claim" do
+      role "System"
+      goal "Take a pending delivery to run its consumer, so no other run takes it at the same time"
+
+      reference_to Delivery
+
+      emits "DeliveryClaimed"
+    end
+
+    command "Deliver" do
+      role "System"
+      goal "Record that the consumer answered the delivery it was owed"
+
+      reference_to Delivery
+
+      emits "DeliveryDelivered"
+    end
+
+    command "Fail" do
+      role "System"
+      goal "Record that running the consumer broke, and why, so a redrive can try it again"
+
+      reference_to Delivery
+      attribute :error, DeliveryError, sets: true
+
+      emits "DeliveryFailed"
+    end
+
+    command "Refuse" do
+      role "System"
+      goal "Record that the consumer turned the delivery down, and why; a refusal is an answer and is not redriven"
+
+      reference_to Delivery
+      attribute :error, DeliveryError, sets: true
+
+      emits "DeliveryRefused"
+    end
+
+    command "Redrive" do
+      role "Maintainer"
+      goal "Owe a failed delivery to its consumer again"
+
+      reference_to Delivery
+
+      emits "DeliveryRedriven"
+    end
+
+    query "Pending" do
+      description "Every delivery still owed to its consumer."
+      where(status: "pending")
+      order_by :delivery_id
+    end
+
+    query "Failed" do
+      description "Every delivery whose consumer broke, waiting for a redrive."
+      where(status: "failed")
+      order_by :delivery_id
+    end
+
+    query "All" do
+      description "Every delivery, in every state."
+      order_by :delivery_id
+    end
+  end
+
+  # One consumer as a reader of one domain's event log, with the position it has read to.
+  aggregate "Consumer" do
+    description "One policy or process manager reading one domain's event log, and how many of its entries it has answered. One per (log, consumer)."
+
+    identified_by :key
+
+    attribute :key,      CursorKey
+    attribute :log,      LogDomain
+    attribute :consumer, ConsumerName
+    attribute :position, CursorPosition
+
+    value_object "CursorKey" do
+      attribute :value, String, matches: :present
+      invariant("a consumer is keyed by its log and its name") { !value.to_s.empty? }
+    end
+
+    value_object "LogDomain" do
+      attribute :value, String, matches: :present
+      invariant("a consumer names the log it reads") { !value.to_s.empty? }
+    end
+
+    value_object "ConsumerName" do
+      attribute :value, String, matches: :present
+      invariant("a consumer is named") { !value.to_s.empty? }
+    end
+
+    value_object "CursorPosition" do
+      attribute :value, Integer, default: 0
+      invariant("a position is not negative") { !value.negative? }
+    end
+
+    command "Start" do
+      role "System"
+      goal "Open a consumer's cursor on one domain's event log, at the start of the log"
+
+      attribute :key,      CursorKey,    sets: true
+      attribute :log,      LogDomain,    sets: true
+      attribute :consumer, ConsumerName, sets: true
+
+      emits "ConsumerStarted"
+    end
+
+    command "Advance" do
+      role "System"
+      goal "Move a consumer's cursor past the entries it has answered"
+
+      reference_to Consumer
+      attribute :to, CursorPosition
+
+      given("a cursor never moves back") { to.value >= position.value }
+
+      sets :position, to: :to
+
+      emits "ConsumerAdvanced"
+    end
+
+    query "All" do
+      description "Every consumer, with the position it has read to."
+      order_by :key
+    end
+  end
+
+  # What one consumer's policy answered to one event, recorded once. A reaction recorded is a
+  # dispatch applied: the runtime checks for one before it runs the policy, so an event delivered
+  # twice is answered once, whatever a cursor says.
+  aggregate "Reaction" do
+    description "One consumer's policy having answered one event, delivered or refused. One per (consumer, event, policy)."
+
+    identified_by :key
+
+    attribute :key,      ReactionKey
+    attribute :consumer, ConsumerName
+    attribute :event_id, EventId
+    attribute :policy,   PolicyName
+
+    value_object "ReactionKey" do
+      attribute :value, String, matches: :present
+      invariant("a reaction is keyed by its consumer, event and policy") { !value.to_s.empty? }
+    end
+
+    value_object "ConsumerName" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names its consumer") { !value.to_s.empty? }
+    end
+
+    value_object "EventId" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names the event it answered") { !value.to_s.empty? }
+    end
+
+    value_object "PolicyName" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names its policy") { !value.to_s.empty? }
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record that one consumer's policy has answered one event, so it is not run for that event again"
+
+      attribute :key,      ReactionKey,  sets: true
+      attribute :consumer, ConsumerName, sets: true
+      attribute :event_id, EventId,      sets: true
+      attribute :policy,   PolicyName,   sets: true
+
+      emits "EventReacted"
+    end
+
+    query "ForKey" do
+      description "The reaction recorded under one key, if any: whether that dispatch is already applied."
+      attribute :key, ReactionKey
+      where(key: :key)
+      order_by :key
+    end
+
+    query "All" do
+      description "Every reaction recorded, by its key."
+      order_by :key
+    end
+  end
+
+  # One run that moves every consumer of a set of domains forward. It has an identity so a run can
+  # be reported on. `Run` records the request; the port that carries it out and the adapter that
+  # answers it with `Complete` or `Fault` are the hecksagon's, bound with the Ruby outbox.
+  aggregate "Pump" do
+    description "One run moving every consumer of a set of domains past the events it has not yet answered, and what the run reported."
+
+    identified_by :run
+
+    attribute :run,     PumpRun
+    attribute :domains, list_of(PumpDomain), optional: true
+    attribute :report,  PumpReport,          optional: true
+
+    value_object "PumpRun" do
+      attribute :value, String, matches: :present
+      invariant("a pump run is named") { !value.to_s.empty? }
+    end
+
+    value_object "PumpDomain" do
+      attribute :value, String, matches: :present
+      invariant("a pump names each domain it moves") { !value.to_s.empty? }
+    end
+
+    value_object "PumpReport" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Complete" => "completed", from: "requested"
+      transition "Fault"    => "faulted",   from: "requested"
+      mark :failure, "faulted"
+      mark :terminal, "completed", "faulted"
+    end
+
+    command "Run" do
+      role "Maintainer"
+      goal "Run the consumers of a set of domains once, past every event they have not yet answered"
+
+      attribute :run,     PumpRun,             sets: true
+      attribute :domains, list_of(PumpDomain), optional: true, sets: true
+
+      emits "PumpRequested"
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the run finished, and what each consumer answered"
+
+      reference_to Pump
+      attribute :report, PumpReport, sets: true
+
+      emits "PumpCompleted"
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the run could not be carried out, and why"
+
+      reference_to Pump
+      attribute :report, PumpReport, sets: true
+
+      emits "PumpFaulted"
+    end
+
+    query "All" do
+      description "Every pump run, with its state and report."
+      order_by :run
+    end
+  end
+end
