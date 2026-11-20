@@ -41,6 +41,10 @@ Hecks.bluebook "Hecks" do
         attribute :not_about,      String
         # The reverse of `not_about`: only openings whose id starts with it are timed.
         attribute :only_about,     String
+        # Subject ids the row never times, comma separated and matched exactly on the subject
+        # (never the branch): a standing run that waits by design and never finishes. It filters
+        # only the openings; a closing line still closes the subject as `closes` says.
+        attribute :exempt,         String
         # The lifecycle state of the row's aggregate that the row times, which model_check holds
         # it to. A row that times something else, as agent-run-blocked times a session's
         # condition, names none.
@@ -119,8 +123,11 @@ Hecks.bluebook "Hecks" do
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
+        # The standing seat (`orchestrator-seat`, the run `StartTheStandingSeatWhenWoken` in
+        # delegate.bluebook starts) ends each turn waiting and never finishes, so it is exempt.
         member kind: "agent-run-session", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
-               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
+               named_aggregate: "Tickets::Work", not_about: "stall-", exempt: "orchestrator-seat",
+               aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
