@@ -55,7 +55,19 @@ RSpec.describe "PostgresEra execution-plan capabilities", :io do
     include_context "with the archiving Ticket aggregate"
 
     let(:aggregate) { ticket_aggregate("PostgresEraArchiving") }
-    let(:source) { "Hecks.bluebook \"PostgresEraArchiving\" do\n  aggregate \"Ticket\" do\n  end\nend\n" }
+    let(:source) do
+      <<~BLUEBOOK
+        Hecks.bluebook "PostgresEraArchiving" do
+          aggregate "Ticket" do
+            identified_by :code
+
+            attribute :code, Code
+
+            value_object "Code", String
+          end
+        end
+      BLUEBOOK
+    end
     let(:store) do
       settings = { database: EXECUTION_PLAN_DB, domain: "PostgresEraArchiving" }
       Hecks::Ports::Persistence::AppendOnly.new(Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: settings))
