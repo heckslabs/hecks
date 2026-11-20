@@ -43,6 +43,28 @@ module Hecks
         nil
       end
 
+      # What a dark signal says of itself, for the board and the status read model. It reads only.
+      #
+      # @param path [String] the posted file
+      # @param now [Time] the time the signal is read at
+      # @return [Hash, nil] nil while the signal is current; else `dark:` true, `since:` (when it
+      #   went stale, nil when none was posted), `last_post:` (the time it was posted, nil when
+      #   never) and `said:`, "signal dark since <t>, last post <t>"
+      def dark_report(path: self.path, now: Time.now)
+        return if current(path: path, now: now)
+
+        posted = posted_at(path)
+        since = posted && (posted + stale_seconds(path))
+        { dark: true, since: since&.utc&.iso8601, last_post: posted&.utc&.iso8601, said: dark_said(since, posted) }
+      end
+
+      # @param since [Time, nil] when the signal went stale
+      # @param posted [Time, nil] when it was last posted
+      # @return [String] "signal dark since <t>, last post <t>"
+      def dark_said(since, posted)
+        "signal dark since #{since ? since.utc.iso8601 : "never posted"}, last post #{posted ? posted.utc.iso8601 : "never"}"
+      end
+
       # @param registry [Runtime::Registry, nil] whose Tickets world carries the switch
       # @param path [String] the posted file
       # @return [Hash, nil] the current signal while the switch is on; nil while it is off or dark
@@ -55,6 +77,22 @@ module Hecks
       # @return [Hash, nil] the current signal while the switch is on; nil while it is off or dark
       def at_root(root, path: self.path)
         current(path: path) if drives?(RustBuild::WorldRows.row(root, VERB))
+      end
+
+      # @param path [String] the posted file
+      # @return [Time, nil] when the file says it was posted; nil when none can be read
+      def posted_at(path)
+        Time.iso8601(JSON.parse(File.read(path), symbolize_names: true)[:posted_at].to_s)
+      rescue SystemCallError, JSON::ParserError, ArgumentError
+        nil
+      end
+
+      # @param path [String] the posted file
+      # @return [Integer] the seconds the posted file says it stays current
+      def stale_seconds(path)
+        JSON.parse(File.read(path), symbolize_names: true)[:stale_after].to_i
+      rescue SystemCallError, JSON::ParserError
+        0
       end
 
       # @param signal [Hash] a current signal
