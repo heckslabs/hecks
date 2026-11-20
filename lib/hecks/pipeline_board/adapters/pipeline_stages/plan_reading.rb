@@ -23,8 +23,9 @@ module Hecks
         #   priority, epic, yield_count, reason, budget_minutes, step), `epics` (epic, title,
         #   outcome, tier, done, dropped), `sessions` (the board's sessions), `reviews` (plan
         #   reviews, oldest first: work, verdict, findings), `fill` (the dry run: would_start,
-        #   skipped), `train` (the strip row) and `flow` (when Work items were planned, finished
-        #   and dropped; see {PlanFlow.build})
+        #   skipped), `train` (the strip row), `flow` (when Work items were planned, finished
+        #   and dropped; see {PlanFlow.build}) and `help` (the calls for help the owner is shown;
+        #   see {HelpQueue.lines})
         # @return [Hash] `strip`, `summary` (see {PlanOrder.summary}), `epics` (most urgent first,
         #   each with its `lane` and ordered `items`), `no_epic` (`count` and `items`) and `flow`
         def build(now:, **held)
@@ -56,7 +57,7 @@ module Hecks
         def strip(rows, held)
           { running: rows.select { |r| r[:session] }, next: Array(held[:fill][:would_start]),
             held: Array(held[:fill][:skipped]), landing: held[:train],
-            owner: OwnerQueue.waiting(held[:sessions]) }
+            owner: OwnerQueue.waiting(held[:sessions]), help: Array(held[:help]) }
         end
 
         def epics_of(epics, rows)

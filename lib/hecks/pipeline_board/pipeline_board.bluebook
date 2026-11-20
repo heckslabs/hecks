@@ -478,6 +478,13 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Session owner", position: 4, measure: "asked",      op: ">",      than: "0", scale: 1, state: "owner"
       member stage: "Session owner", position: 5, measure: "review",     op: ">",      than: "0", scale: 1, state: "waiting on a review verdict"
       member stage: "Session owner", position: 6, measure: "",           op: "always", than: "",  scale: 1, state: "stranded run"
+
+      # A call for help is the owner's to see at once when its help is the owner's, any other
+      # once its block has stood `help_unanswered_minutes`, never when its opening time could
+      # not be read. The owner is shown a line, never sent anything.
+      member stage: "Help owner", position: 1, measure: "owner_role", op: ">",      than: "0", scale: 1, state: "owner"
+      member stage: "Help owner", position: 2, measure: "minutes",    op: ">=",     than: "help_unanswered_minutes", scale: 1, state: "owner"
+      member stage: "Help owner", position: 3, measure: "",           op: "always", than: "",  scale: 1, state: "with a helper"
     end
 
     # A number a rule compares with. A QualityControl world's `ci_health` verb overrides the CI
@@ -503,6 +510,10 @@ Hecks.bluebook "PipelineBoard" do
       # stable lane's `alert_after` (4) on purpose, unlinked: by then a stop has outlived any CI
       # run, queue and verification (about 25 minutes) many times over, and a person's session.
       member name: "stopped_run_overdue_hours", value: 4
+      # Minutes a call for help that is not the owner's stands before the owner is shown it. Two
+      # hours is a choice, not a measurement: time for the Lead to assign a helper and for the
+      # helper to try. A shorter limit would show calls a helper may still be working on.
+      member name: "help_unanswered_minutes", value: 120
       # The bounds of the daily health line. Its day is the last `health_window_hours`. A
       # verification takes about 16 minutes when nothing hangs (the Tickets world's `spec_bounds`),
       # so one past 25 has waited on something. A session left blocked or stopped for an hour waits
