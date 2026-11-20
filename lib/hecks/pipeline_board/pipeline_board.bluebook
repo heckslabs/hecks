@@ -117,15 +117,21 @@ Hecks.bluebook "PipelineBoard" do
     # `standing too long`. `waits_on` is who a kind always waits on; where it is empty the item
     # says it itself (a blocked run's `Session owner` word) or names only its `owner_run`.
     value_object "StuckKind" do
-      attribute :kind,     String
-      attribute :group,    String
-      attribute :waits_on, String
+      attribute :kind,      String
+      attribute :group,     String
+      attribute :waits_on,  String
+      attribute :mark,      String, default: ""
+      attribute :judged_by, String, default: ""
 
-      member kind: "owner_ask",       group: "waiting on a person", waits_on: "owner"
-      member kind: "blocked_run",     group: "waiting on a person", waits_on: ""
-      member kind: "red_main",        group: "standing too long",   waits_on: ""
-      member kind: "stalled_session", group: "standing too long",   waits_on: ""
-      member kind: "train_blocked",   group: "standing too long",   waits_on: ""
+      member kind: "owner_ask",        group: "waiting on a person", waits_on: "owner", mark: "owner_ask_minutes",        judged_by: "Owner ask age"
+      member kind: "blocked_run",      group: "waiting on a person", waits_on: "",      mark: "session_bound_minutes",    judged_by: "Blocked session age"
+      member kind: "approval_awaited", group: "waiting on a person", waits_on: "owner", mark: "approval_awaited_minutes", judged_by: "Approval age"
+      member kind: "red_main",         group: "standing too long",   waits_on: "",      mark: "red_main_minutes",         judged_by: "Red main age"
+      member kind: "stalled_session",  group: "standing too long",   waits_on: "",      mark: "session_idle_seconds",     judged_by: "Session idle"
+      member kind: "train_blocked",    group: "standing too long",   waits_on: "",      mark: "train_pr_left_minutes",    judged_by: "Train PR age"
+      member kind: "stopped_run",      group: "standing too long",   waits_on: "",      mark: "stopped_run_overdue_hours", judged_by: "Stopped run age"
+      member kind: "epic_held",        group: "standing too long",   waits_on: "",      mark: "epic_hold_minutes",        judged_by: "Epic hold age"
+      member kind: "planned_idle",     group: "standing too long",   waits_on: "",      mark: "planned_idle_minutes",     judged_by: "Planned idle age"
     end
 
     # One run: its role, session and condition, the Work item it holds, the seconds since its
@@ -460,6 +466,36 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Stopped run age", position: 1, measure: "hours", op: ">",    than: "stopped_run_overdue_hours", scale: 1, state: "overdue"
       member stage: "Stopped run age", position: 2, measure: "",      op: "always", than: "", scale: 1, state: "open"
 
+      # ---- how long each kind of stuck item may stand: `age_minutes` is the minutes since it began ----
+      # A red main has stood too long once no episode has ended it within `red_main_minutes`.
+      member stage: "Red main age", position: 1, measure: "age_minutes", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Red main age", position: 2, measure: "age_minutes", op: ">",       than: "red_main_minutes", scale: 1, state: "too long"
+      member stage: "Red main age", position: 3, measure: "",            op: "always",  than: "", scale: 1, state: "in time"
+      # A train pull request left for a hand stands too long past `train_pr_left_minutes`.
+      member stage: "Train PR age", position: 1, measure: "age_minutes", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Train PR age", position: 2, measure: "age_minutes", op: ">",       than: "train_pr_left_minutes", scale: 1, state: "too long"
+      member stage: "Train PR age", position: 3, measure: "",            op: "always",  than: "", scale: 1, state: "in time"
+      # A blocked session awaiting a reply stands too long past `session_bound_minutes`.
+      member stage: "Blocked session age", position: 1, measure: "age_minutes", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Blocked session age", position: 2, measure: "age_minutes", op: ">",       than: "session_bound_minutes", scale: 1, state: "too long"
+      member stage: "Blocked session age", position: 3, measure: "",            op: "always",  than: "", scale: 1, state: "in time"
+      # A question put to the owner stands too long past `owner_ask_minutes`.
+      member stage: "Owner ask age", position: 1, measure: "age_minutes", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Owner ask age", position: 2, measure: "age_minutes", op: ">",       than: "owner_ask_minutes", scale: 1, state: "too long"
+      member stage: "Owner ask age", position: 3, measure: "",            op: "always",  than: "", scale: 1, state: "in time"
+      # An approval awaited stands too long past `approval_awaited_minutes`.
+      member stage: "Approval age", position: 1, measure: "age_minutes", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Approval age", position: 2, measure: "age_minutes", op: ">",       than: "approval_awaited_minutes", scale: 1, state: "too long"
+      member stage: "Approval age", position: 3, measure: "",            op: "always",  than: "", scale: 1, state: "in time"
+      # An epic stands too long past its hold after `epic_hold_minutes`; the hold's age is Tickets' to answer.
+      member stage: "Epic hold age", position: 1, measure: "age_minutes", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Epic hold age", position: 2, measure: "age_minutes", op: ">",       than: "epic_hold_minutes", scale: 1, state: "too long"
+      member stage: "Epic hold age", position: 3, measure: "",            op: "always",  than: "", scale: 1, state: "in time"
+      # A Work item planned but not started while places are free stands too long past `planned_idle_minutes`.
+      member stage: "Planned idle age", position: 1, measure: "age_minutes", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Planned idle age", position: 2, measure: "age_minutes", op: ">",       than: "planned_idle_minutes", scale: 1, state: "too long"
+      member stage: "Planned idle age", position: 3, measure: "",            op: "always",  than: "", scale: 1, state: "in time"
+
       member stage: "Session status", position: 1, measure: "waiting", op: ">",      than: "0", scale: 1, state: "blocked"
       member stage: "Session status", position: 1, measure: "needs",   op: ">",      than: "0", scale: 1, state: "blocked"
       member stage: "Session status", position: 2, measure: "waiting", op: ">",      than: "0", scale: 1, state: "busy"
@@ -510,6 +546,20 @@ Hecks.bluebook "PipelineBoard" do
       # stable lane's `alert_after` (4) on purpose, unlinked: by then a stop has outlived any CI
       # run, queue and verification (about 25 minutes) many times over, and a person's session.
       member name: "stopped_run_overdue_hours", value: 4
+      # Marks, in minutes, past which a stuck item has stood too long: a first choice for the owner to turn.
+      # A red main is fixed through the train (about 25 minutes, `verify_bound_minutes`): one fix attempt.
+      member name: "red_main_minutes",        value: 30
+      # Three verification cycles of 25 minutes: a pull request left that long is not on its way.
+      member name: "train_pr_left_minutes",   value: 90
+      # A question to the owner waits on a person who works in days: eight hours is one working day.
+      member name: "owner_ask_minutes",       value: 480
+      # An approval is the owner's alone and waits like a question, half a day longer.
+      member name: "approval_awaited_minutes", value: 720
+      # An epic's hold is a decision to wait, not a stall: three days before it is asked about.
+      member name: "epic_hold_minutes",       value: 4320
+      # Two missed fill rolls (`fill_stale_minutes` is 15): a planned item left alone this long
+      # while places are free was passed over, not queued.
+      member name: "planned_idle_minutes",    value: 30
       # Minutes a call for help that is not the owner's stands before the owner is shown it. Two
       # hours is a choice, not a measurement: time for the Lead to assign a helper and for the
       # helper to try. A shorter limit would show calls a helper may still be working on.
