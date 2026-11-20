@@ -1,0 +1,188 @@
+{
+  "domain": "spec/corpus/semantics/domains/echo",
+  "spec": [
+    "C10.4"
+  ],
+  "note": "One level below the reaction depth bound, a saga's compensation still runs. The Charge saga primes a fuse when it is armed, and that priming is compensable. Striking the fuse sets off four reactions, so Burnt is announced at depth four; the saga's Blow leg runs as the fifth reaction and is refused by the lifecycle, so the saga unwinds there. The compensation (Unprime) and the refused leg's Scrap are reactions at the fifth level, inside the bound, so both run: Unprimed and Scrapped are recorded and the saga ends.",
+  "steps": [
+    {
+      "verb": "Echo::Fuse.Lay",
+      "args": {
+        "name": {
+          "value": "f1"
+        }
+      }
+    },
+    {
+      "verb": "Echo::Fuse.Arm",
+      "args": {
+        "fuse": "f1"
+      }
+    },
+    {
+      "verb": "Echo::Fuse.Strike",
+      "args": {
+        "fuse": "f1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Echo::Fuse#f1": {
+        "name": {
+          "value": "f1"
+        },
+        "status": "armed"
+      }
+    },
+    "events": [
+      {
+        "name": "FuseLaid",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+          "name": {
+            "value": "f1"
+          }
+        }
+      },
+      {
+        "name": "Armed",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+          "fuse": "f1"
+        }
+      },
+      {
+        "name": "Primed",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+        }
+      },
+      {
+        "name": "Struck",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+          "fuse": "f1"
+        }
+      },
+      {
+        "name": "Sparked",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+          "fuse": "f1"
+        }
+      },
+      {
+        "name": "Hissed",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+          "fuse": "f1"
+        }
+      },
+      {
+        "name": "Glowed",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+          "fuse": "f1"
+        }
+      },
+      {
+        "name": "Burnt",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+          "fuse": "f1"
+        }
+      },
+      {
+        "name": "Unprimed",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+        }
+      },
+      {
+        "name": "Scrapped",
+        "aggregate": "Echo::Fuse",
+        "id": "f1",
+        "payload": {
+        }
+      }
+    ],
+    "sagas": [
+      {
+        "process_manager": "Charge",
+        "on": "FuseLaid",
+        "instance": "f1",
+        "born": true,
+        "state": "laid"
+      },
+      {
+        "process_manager": "Charge",
+        "on": "Armed",
+        "instance": "f1",
+        "advanced": true,
+        "from": "laid",
+        "to": "armed"
+      },
+      {
+        "process_manager": "Charge",
+        "instance": "f1",
+        "dispatch": "Fuse.Prime",
+        "delivered": true
+      },
+      {
+        "process_manager": "Charge",
+        "on": "Burnt",
+        "instance": "f1",
+        "advanced": true,
+        "from": "armed",
+        "to": "burning"
+      },
+      {
+        "process_manager": "Charge",
+        "instance": "f1",
+        "dispatch": "Fuse.Blow",
+        "delivered": false,
+        "reason": "Blow refused — status is \"armed\", and Blow moves it only from \"laid\""
+      },
+      {
+        "process_manager": "Charge",
+        "on": "refused",
+        "instance": "f1",
+        "advanced": true,
+        "from": "burning",
+        "to": "fizzled"
+      },
+      {
+        "process_manager": "Charge",
+        "instance": "f1",
+        "dispatch": "Fuse.Unprime",
+        "delivered": true,
+        "compensation": true
+      },
+      {
+        "process_manager": "Charge",
+        "on": "Scrapped",
+        "instance": "f1",
+        "ended": true
+      },
+      {
+        "process_manager": "Charge",
+        "instance": "f1",
+        "dispatch": "Fuse.Scrap",
+        "delivered": true
+      }
+    ]
+  }
+}
