@@ -1,0 +1,11 @@
+# The Docs bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
+# directory). Its pages live in Memory; no other adapter is wired.
+Hecks.hecksagon "Docs" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
