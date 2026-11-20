@@ -14,8 +14,8 @@ RSpec.describe Hecks::Adapters::Metering do
   let(:ps) do
     <<~PS
       100     1  512000  12.5 claude --agent coder
-      101   100  204800   3.0 ruby -I lib -e require 'hecks/tools/mcp'; Hecks::Tools::Mcp.call(ARGV) --
-      102   100  102400   1.5 ruby -I lib -e require 'hecks/tools/serve_query_ir_mcp'; Hecks::Tools::ServeQueryIrMcp.call(ARGV) --
+      101   100  204800   3.0 ruby -I lib -e require 'hecks/adapters/driving/mcp/stdio_entry'; Hecks::Adapters::Driving::Mcp.serve_stdio(ARGV) --
+      102   100  102400   1.5 ruby -I lib -e require 'hecks/query_ir_mcp/stdio_entry'; Hecks::QueryIrMcp.serve_stdio(ARGV) --
       103   101   10240   0.5 git status
       200     1  307200   0.5 claude
       300     1  409600   2.0 claude
@@ -98,6 +98,21 @@ RSpec.describe Hecks::Adapters::Metering do
   it "reads the machine: capacity, everything used, the sessions' draw, the load and the performance cores" do
     expect(metering.machine_facts).to include(capacity_mb: 36_864, used_mb: 20_463, drawn_mb: 1110,
                                               person_mb: 400, load: 3397, cores: 6, sessions: 3)
+  end
+
+  it "meters a coder's draw as the median of the live coders' memory" do
+    expect(metering.machine_facts).to include(coder_draw_mb: 810)
+  end
+
+  it "passes on the kernel's memory pressure level as the number it reads" do
+    machine_reads = { memsize: 1, perf_cores: 6, loadavg: "{ 1.0 }", vm_stat: "", memory_pressure_level: "1\n" }
+    gauge = Hecks::Adapters::Metering::MachineGauge.new(machine_reads)
+
+    expect(gauge.memory_pressure_level).to eq(1)
+  end
+
+  it "reads no memory pressure level as 0, unread" do
+    expect(metering.machine_facts).to include(memory_pressure_level: 0)
   end
 
   it "answers the Machine query as a JSON document" do

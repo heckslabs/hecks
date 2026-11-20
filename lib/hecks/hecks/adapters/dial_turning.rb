@@ -29,29 +29,45 @@ module Hecks
       #   for what asks the checkout's resident to retire
       # @param root [String, nil] unused
       def initialize(aggregate: nil, registry: nil, settings: {}, root: nil)
-        @rows = Turnables.of(aggregate)
+        @rows = Turnables.of(aggregate).then { |rows| rows.empty? ? Turnables.from_registry(registry) : rows }
         @registry = registry
         @directory = settings[:directory] || self.class.directory
         @retire = settings[:retire] || Driving::Resident::Paths.method(:retire)
       end
 
       # @param held [Hash] the `Dial` record: `setting` and `becomes`
-      # @return [Hash{Symbol => Hash}] `output:` what the setting is now, what it was and the file
+      # @return [Hash{Symbol => Hash}] `output:` what the setting is now, what it was and the file;
+      #   `before:` and `after:` the value it held and holds, in words
       # @raise [ConsoleCapture::Failure] naming a setting that has no row, a value that is not of
       #   its kind or is outside its bounds, or a world that declares no such setting
-      def set(**held)
-        { output: { value: turn(row_of(plain(held[:setting]).to_s), plain(held[:becomes])) } }
+      def set(**held) = turned(held[:setting], held[:becomes])
+
+      # Sets a probe's setting back to what it was before the turn the probe watched.
+      #
+      # @param held [Hash] the `Probe` record: `setting` and `before`
+      # @return [Hash{Symbol => Hash}] `output:` as {#set} answers it
+      # @raise [ConsoleCapture::Failure] as {#set} refuses
+      def restore(**held) = turned(held[:setting], held[:before]).slice(:output)
+
+      private
+
+      def turned(setting, becomes)
+        told, was, now = turn(row_of(plain(setting).to_s), plain(becomes))
+        { output: { value: told }, before: { value: was.to_s }, after: { value: now.to_s } }
       rescue ArgumentError => e
         refuse!(e.message)
       end
 
-      private
-
-      # @return [String] what the setting is now, what it was and the file it was written to
+      # @return [Array] what the setting is now, what it was and the file it was written to, then
+      #   the value it held and the value it holds
       def turn(row, to)
         verb, key = row[:setting].split(".").then { |word, name| [word, name.to_sym] }
         was = standing(row[:world], verb)
         now = was.merge(key => Turnables.value(row, to))
+        [said(row, verb, key, was, now), was[key], now[key]]
+      end
+
+      def said(row, verb, key, was, now)
         "#{told(row[:setting], now[key], was[key])}; written to #{write(row[:world], verb, now)}; #{in_force}"
       end
 

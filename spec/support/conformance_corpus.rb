@@ -1,5 +1,5 @@
 require "json"
-require "hecks/tools/seed_semantics_corpus"
+require "hecks/hecks/adapters/codebase/test_suite/semantics_seeding"
 
 # Locates the conformance corpus: language-neutral fixtures (`domain`, `steps`, frozen `expect`)
 # that every runtime is held to. Shared by spec/conformance_corpus_spec.rb (Ruby) and
@@ -9,7 +9,7 @@ module ConformanceCorpus
 
   # @return [Array<String>] absolute paths of every conformance fixture and full script
   def paths
-    Hecks::Tools::SeedSemanticsCorpus.corpus_paths(InMemoryDomain::ROOT).select(&:last).map(&:first).sort
+    Hecks::Adapters::Codebase::TestSuite::SemanticsSeeding.corpus_paths(InMemoryDomain::ROOT).select(&:last).map(&:first).sort
   end
 
   # @param path [String] a fixture path from {paths}

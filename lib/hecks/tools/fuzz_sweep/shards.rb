@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../tools"
-require_relative "../shard_planner"
+require_relative "../../ci_speed/adapters/shard_planner"
 
 module Hecks
   module Tools
@@ -45,7 +45,7 @@ module Hecks
         # @param costs [Hash{String => Float}] each domain directory's cost, perhaps lacking some
         # @return [Array<Array<String>>] the domains of each shard, each in the order `domains` has
         def partition(domains, shards, costs = {})
-          dealt = ShardPlanner.partition(domains, shards, price_table(domains, costs))
+          dealt = Hecks::Adapters::ShardPlanner.partition(domains, shards, price_table(domains, costs))
           dealt.map { |members| domains.select { |domain| members.include?(domain) } }
         end
 
@@ -124,7 +124,7 @@ module Hecks
         end
 
         # @return [Hash{String => Float}] each domain's cost, a missing one at the table's median
-        def price_table(domains, costs) = ShardPlanner.prices(domains, costs, ->(_domain) { FLAT_COST })
+        def price_table(domains, costs) = Hecks::Adapters::ShardPlanner.prices(domains, costs, ->(_domain) { FLAT_COST })
 
         # @return [Array<Float>] each domain's cost, in the order of `domains`
         def prices(domains, costs) = price_table(domains, costs).values_at(*domains)

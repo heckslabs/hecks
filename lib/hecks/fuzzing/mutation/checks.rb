@@ -1,4 +1,4 @@
-require_relative "../../tools/run"
+require_relative "../../runtime/step_run"
 require_relative "../../behaviors"
 require_relative "observation"
 require_relative "../../text"
@@ -48,13 +48,13 @@ module Hecks
         # The report `hecks run` would print for the script.
         def corpus_report(domain, corpus)
           IsolatedBoot.call(domain) do |copy|
-            Tools::Run.execute(Hecks.boot(copy, environment: nil), corpus.fetch("steps"))
+            StepRun.execute(Hecks.boot(copy, environment: nil), corpus.fetch("steps"))
           end
         end
 
         # @return [String, nil] the first expectation of the script the report does not meet
         def unmet_expectation(corpus, report)
-          unmet = Tools::RunExpectations.unmet(corpus["expectations"] || {}, report).first
+          unmet = StepRun.unmet(corpus["expectations"] || {}, report).first
           unmet && unmet.lines.first.strip
         end
 

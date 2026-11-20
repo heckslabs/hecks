@@ -28,11 +28,12 @@ module Hecks
         # @param main [String, nil] the primary checkout the fill runs from; fills `{main}`
         # @param lines [Hash] `held:` a line for each area another started work item holds,
         #   `frozen:` the areas whose shape may not move, `traps:` a line for each known trap;
-        #   each is an Array of strings and defaults to none
+        #   each is an Array of strings and defaults to none; `batch:` the section that hands a
+        #   lead its batch ({BatchBrief}), a String, none when empty
         # @return [String] the whole text
         # @raise [ArgumentError] if the text names `{main}` and no `main:` was given
         def render(key, area: [], limit: nil, main: nil, **lines)
-          parts = [first_line, lines[:rethinks].to_s, *detail_parts(area)]
+          parts = [first_line, lines[:rethinks].to_s, *detail_parts(area), lines[:batch].to_s]
           parts += SECTIONS.map { |name| plain(name) } + lists(lines)
           text = joined(parts).gsub("{work}", key).gsub("{limit}", limit&.to_s || "the world's spec_files_limit")
           fill_main(text, main)

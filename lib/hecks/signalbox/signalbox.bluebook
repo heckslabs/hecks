@@ -28,6 +28,9 @@ Hecks.bluebook "Signalbox" do
     attribute :load_tight, Percent, optional: true
     attribute :load_short, Percent, optional: true
     attribute :load_gap,   Percent, optional: true
+    # The second memory input (decided 2026-11-20): the OS's memory pressure level, 1 normal, 2 warn,
+    # 4 critical, 0 unread. The OS counts what it can compress and reclaim, which no page count says.
+    attribute :memory_pressure_level, Count, optional: true
     # The published signal's room (phase 3b): how many coders and how many gates the headroom fits,
     # as the beat reckoned them; none while the band is short.
     attribute :coders_fit, Signed, optional: true
@@ -101,6 +104,7 @@ Hecks.bluebook "Signalbox" do
       attribute :load_tight,  Percent, default: { value: 0 }, sets: true
       attribute :load_short,  Percent, default: { value: 0 }, sets: true
       attribute :load_gap,    Percent, default: { value: 0 }, sets: true
+      attribute :memory_pressure_level, Count, default: { value: 0 }, sets: true
       attribute :coders_fit,  Signed, default: { value: 0 }, sets: true
       attribute :gates_fit,   Signed, default: { value: 0 }, sets: true
       attribute :age,         Seconds
@@ -271,6 +275,8 @@ Hecks.bluebook "Signalbox" do
       # are nought and the given below is the draw fitting the headroom.
       attribute :floor,          Megabytes, default: { value: 0 }
       attribute :gap,            Megabytes, default: { value: 0 }
+      # The kernel's memory pressure level the beat read; nought when unread or not passed on.
+      attribute :memory_pressure_level, Count, default: { value: 0 }
 
       given("nothing is admitted while the owner's switch is off") { switch.value == "on" }
       given("a session is admitted only from a current view") { role.value == "repair" || age.value <= stale_after.value }
@@ -278,10 +284,11 @@ Hecks.bluebook "Signalbox" do
       given("a helper does not start a helper") { asked_by.value != "helper" }
       given("a session is not started for a purpose already met") { met.value != "yes" }
       given("a session's expected draw fits the headroom") { draw.value <= headroom.value }
-      # Hysteresis: shedding trips under the floor, so a lower-tier session is admitted only while
-      # its draw leaves the gap above it, and the next reading's noise does not shed what was admitted.
+      # Hysteresis: a lower-tier session leaves the gap above the floor, so noise does not shed it.
+      # At the OS's normal level the floor does not trip, so the gap does not bind: the draw fitting
+      # the headroom is the memory bound left, and the ramp paces it.
       given("a lower-tier session leaves the gap above the floor after its draw") do
-        tier.value == "urgent" || headroom.value - draw.value >= floor.value + gap.value
+        tier.value == "urgent" || memory_pressure_level.value == 1 || headroom.value - draw.value >= floor.value + gap.value
       end
       given("only an urgent coder is admitted while pressure is short") do
         band.value != "short" || (role.value == "coder" && tier.value == "urgent")
@@ -700,6 +707,8 @@ Hecks.bluebook "Signalbox" do
     attribute :load_tight,    Count, optional: true
     attribute :load_short,    Count, optional: true
     attribute :load_gap,      Count, optional: true
+    attribute :memory_pressure_level, Count, optional: true
+    attribute :metered_draw,  Megabytes, optional: true
     attribute :coder_draw,    Megabytes, optional: true
     attribute :gate_draw,     Megabytes, optional: true
     attribute :coders_fit,    Signed, optional: true
@@ -792,6 +801,8 @@ Hecks.bluebook "Signalbox" do
       attribute :load_tight,    Count, sets: true
       attribute :load_short,    Count, sets: true
       attribute :load_gap,      Count, sets: true
+      attribute :memory_pressure_level, Count, default: { value: 0 }, sets: true
+      attribute :metered_draw,  Megabytes, default: { value: 0 }, sets: true
       attribute :coder_draw,    Megabytes, sets: true
       attribute :gate_draw,     Megabytes, sets: true
       attribute :fill_ruling,   Word, sets: true
@@ -842,6 +853,7 @@ Hecks.bluebook "Signalbox" do
       attribute :load_tight,    Count
       attribute :load_short,    Count
       attribute :load_gap,      Count
+      attribute :memory_pressure_level, Count
       attribute :coder_draw,    Megabytes
       attribute :gate_draw,     Megabytes
       attribute :coders_fit,    Signed
@@ -954,6 +966,7 @@ Hecks.bluebook "Signalbox" do
     attribute :load,          Hundredths
     attribute :cores,         Count
     attribute :load_short,    Percent
+    attribute :memory_pressure_level, Count, optional: true
     attribute :draw,          Megabytes
     attribute :fill_ruling,   RulingKey
     attribute :fill_subject,  Word
@@ -1021,6 +1034,7 @@ Hecks.bluebook "Signalbox" do
       attribute :load,          Hundredths, sets: true
       attribute :cores,         Count, sets: true
       attribute :load_short,    Percent, sets: true
+      attribute :memory_pressure_level, Count, default: { value: 0 }, sets: true
       attribute :draw,          Megabytes, sets: true
       attribute :fill_ruling,   RulingKey, sets: true
       attribute :fill_subject,  Word, sets: true
@@ -1040,12 +1054,30 @@ Hecks.bluebook "Signalbox" do
     ask :look, with: { beat: :beat }
   end
 
-  policy "RecordTheLook" do
+  # A coder's expected draw is the median Roundhouse metered of the live coders; the world's draw
+  # stands in only while no coder is metered. Exactly one of the two records each look.
+  policy "RecordTheLookWithTheMeteredDraw" do
     on      "Beat.BeatLooked"
+    where   { metered_draw.value.positive? }
     trigger Beat::Record, with: {
       beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
       reserve: :reserve, load: :load, cores: :cores, age: :age, stale_after: :stale_after, target: :target,
       floor: :floor, gap: :gap, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
+      memory_pressure_level: :memory_pressure_level, metered_draw: :metered_draw,
+      coder_draw: :metered_draw, gate_draw: :gate_draw, fill_ruling: :fill_ruling, fill_subject: :fill_subject,
+      fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
+      shed_delegate: :shed_delegate
+    }
+  end
+
+  policy "RecordTheLookWithTheWorldsDraw" do
+    on      "Beat.BeatLooked"
+    where   { metered_draw.value.zero? }
+    trigger Beat::Record, with: {
+      beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
+      reserve: :reserve, load: :load, cores: :cores, age: :age, stale_after: :stale_after, target: :target,
+      floor: :floor, gap: :gap, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
+      memory_pressure_level: :memory_pressure_level, metered_draw: :metered_draw,
       coder_draw: :coder_draw, gate_draw: :gate_draw, fill_ruling: :fill_ruling, fill_subject: :fill_subject,
       fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
       shed_delegate: :shed_delegate
@@ -1076,8 +1108,9 @@ Hecks.bluebook "Signalbox" do
       beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
       reserve: :reserve, headroom: :headroom, load: :load, cores: :cores, age: :age,
       stale_after: :stale_after, target: :target, floor: :floor, gap: :gap, load_tight: :load_tight,
-      load_short: :load_short, load_gap: :load_gap, coder_draw: :coder_draw, gate_draw: :gate_draw,
-      coders_fit: :coders_fit, gates_fit: :gates_fit, fill_ruling: :fill_ruling, fill_subject: :fill_subject, fill_delegate: :fill_delegate, shed_ruling: :shed_ruling,
+      load_short: :load_short, load_gap: :load_gap, memory_pressure_level: :memory_pressure_level,
+      coder_draw: :coder_draw, gate_draw: :gate_draw, coders_fit: :coders_fit, gates_fit: :gates_fit,
+      fill_ruling: :fill_ruling, fill_subject: :fill_subject, fill_delegate: :fill_delegate, shed_ruling: :shed_ruling,
       shed_subject: :shed_subject, shed_delegate: :shed_delegate
     }
   end
@@ -1092,7 +1125,8 @@ Hecks.bluebook "Signalbox" do
     trigger Pressure::Read, with: {
       pressure: :beat, headroom: :headroom, target: :target, floor: :floor, gap: :gap, load: :load,
       cores: :cores, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
-      coders_fit: :coders_fit, gates_fit: :gates_fit, age: :age, stale_after: :stale_after
+      memory_pressure_level: :memory_pressure_level, coders_fit: :coders_fit, gates_fit: :gates_fit, age: :age,
+      stale_after: :stale_after
     }
   end
 
@@ -1100,35 +1134,45 @@ Hecks.bluebook "Signalbox" do
     on      "Beat.BeatPublished"
     trigger Shadow::Hear, with: {
       shadow: :beat, headroom: :headroom, floor: :floor, load: :load, cores: :cores,
-      load_short: :load_short, draw: :coder_draw, fill_ruling: :fill_ruling, fill_subject: :fill_subject,
+      load_short: :load_short, memory_pressure_level: :memory_pressure_level, draw: :coder_draw,
+      fill_ruling: :fill_ruling, fill_subject: :fill_subject,
       fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
       shed_delegate: :shed_delegate
     }
   end
 
-  # The band is the worse of the memory band and the load band (decided 2026-11-19). The load is in
-  # hundredths and its marks in percent of the performance cores, so `cores * mark` is in hundredths.
+  # The band is the worse of the memory and load bands; `cores * mark` is in hundredths. The OS's
+  # memory level 4 is short and 2 tight whatever the headroom, and 1 is never short or tight on
+  # memory; an unread level (0) leaves the headroom marks to judge, as before.
   policy "TripWhenHeadroomFallsUnderTheFloor" do
     on      "Pressure.PressureRead"
-    where   { headroom.value < floor.value || load.value > cores.value * load_short.value }
+    where   do
+      (headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4 ||
+        load.value > cores.value * load_short.value
+    end
     trigger Pressure::Trip, with: { pressure: :pressure }
   end
 
   policy "TightenWhenHeadroomFallsUnderTheTarget" do
     on      "Pressure.PressureRead"
     where   do
-      headroom.value >= floor.value && load.value <= cores.value * load_short.value &&
-        (headroom.value < target.value || load.value > cores.value * load_tight.value)
+      !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
+        load.value <= cores.value * load_short.value &&
+        ((headroom.value < target.value && memory_pressure_level.value != 1) || memory_pressure_level.value == 2 ||
+          load.value > cores.value * load_tight.value)
     end
     trigger Pressure::Tighten, with: { pressure: :pressure }
   end
 
   # Between a mark and the mark past it by the gap no policy answers, so the band holds: hysteresis.
-  # Memory and load must both be past their marks by their gaps for the band to ease.
+  # Memory and load must both be past their marks by their gaps for the band to ease; memory is past
+  # its mark while the OS reads its pressure normal.
   policy "EaseOnlyPastTheTargetByTheGap" do
     on      "Pressure.PressureRead"
     where   do
-      headroom.value >= target.value + gap.value && load.value <= cores.value * (load_tight.value - load_gap.value)
+      (memory_pressure_level.value == 1 ||
+        (memory_pressure_level.value != 2 && memory_pressure_level.value < 4 && headroom.value >= target.value + gap.value)) &&
+        load.value <= cores.value * (load_tight.value - load_gap.value)
     end
     trigger Pressure::Ease, with: { pressure: :pressure }
   end
@@ -1176,14 +1220,16 @@ Hecks.bluebook "Signalbox" do
     trigger Response::Wait, with: { response: :response, session: :session }
   end
 
-  # The shadow's rulings, the whole table: Signalbox starts a normal-tier coder whose draw fits the
-  # headroom while pressure is not short (law 4), and sheds only while it is short. Exactly one
-  # policy answers each function of a beat; a fill with nothing planned is not ruled on.
+  # The shadow's rulings: start a normal-tier coder whose draw fits while pressure is not short (law
+  # 4), shed only while it is short, memory short as the band reads it. Exactly one policy answers
+  # each function of a beat; a fill with nothing planned is not ruled on.
   policy "RuleWithDelegatesStart" do
     on      "Shadow.DelegateHeard"
     where   do
       fill_delegate.value == "start" &&
-        (draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+        (draw.value <= headroom.value &&
+          !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
+          load.value <= cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
@@ -1197,7 +1243,9 @@ Hecks.bluebook "Signalbox" do
     on      "Shadow.DelegateHeard"
     where   do
       fill_delegate.value == "start" &&
-        !(draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+        !(draw.value <= headroom.value &&
+          !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
+          load.value <= cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
@@ -1211,7 +1259,9 @@ Hecks.bluebook "Signalbox" do
     on      "Shadow.DelegateHeard"
     where   do
       fill_delegate.value == "wait" &&
-        !(draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+        !(draw.value <= headroom.value &&
+          !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
+          load.value <= cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
@@ -1225,7 +1275,9 @@ Hecks.bluebook "Signalbox" do
     on      "Shadow.DelegateHeard"
     where   do
       fill_delegate.value == "wait" &&
-        (draw.value <= headroom.value && headroom.value >= floor.value && load.value <= cores.value * load_short.value)
+        (draw.value <= headroom.value &&
+          !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
+          load.value <= cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
@@ -1239,7 +1291,8 @@ Hecks.bluebook "Signalbox" do
     on      "Shadow.DelegateHeard"
     where   do
       shed_delegate.value == "shed" &&
-        (headroom.value < floor.value || load.value > cores.value * load_short.value)
+        (((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
+          load.value > cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,
@@ -1253,7 +1306,8 @@ Hecks.bluebook "Signalbox" do
     on      "Shadow.DelegateHeard"
     where   do
       shed_delegate.value == "shed" &&
-        !(headroom.value < floor.value || load.value > cores.value * load_short.value)
+        !(((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
+          load.value > cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,
@@ -1267,7 +1321,8 @@ Hecks.bluebook "Signalbox" do
     on      "Shadow.DelegateHeard"
     where   do
       shed_delegate.value == "none" &&
-        !(headroom.value < floor.value || load.value > cores.value * load_short.value)
+        !(((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
+          load.value > cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,
@@ -1281,7 +1336,8 @@ Hecks.bluebook "Signalbox" do
     on      "Shadow.DelegateHeard"
     where   do
       shed_delegate.value == "none" &&
-        (headroom.value < floor.value || load.value > cores.value * load_short.value)
+        (((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
+          load.value > cores.value * load_short.value)
     end
     trigger Ruling::Record, with: {
       ruling: :shed_ruling, function: { value: "shed" }, subject: :shed_subject, delegate: :shed_delegate,

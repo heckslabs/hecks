@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "console_capture"
-require "hecks/tools/console"
+require_relative "terminal/console"
 
 module Hecks
   module Adapters
@@ -17,7 +17,7 @@ module Hecks
         attr_accessor :launcher
 
         # @return [#call, nil] serves MCP over stdio, given the arguments after the command;
-        #   `Hecks::Tools::Mcp.call` when nil
+        #   `Adapters::Driving::Mcp.serve_stdio` when nil
         attr_accessor :server
       end
 
@@ -38,7 +38,7 @@ module Hecks
         subject = held[:subject]
         domain  = subject.is_a?(Hash) ? subject[:value] : subject
         launcher = self.class.launcher
-        launcher ? Tools::Console.call(domain, launcher: launcher) : Tools::Console.call(domain)
+        launcher ? Console.open(domain, out: $stdout, launcher: launcher) : Console.open(domain, out: $stdout)
 
         { output: { value: "console session ended (#{domain || "pizzas"})" } }
       end
@@ -70,8 +70,8 @@ module Hecks
         if server
           server.call(argv)
         else
-          require "hecks/tools/mcp"
-          Tools::Mcp.call(argv)
+          require "hecks/adapters/driving/mcp/stdio_entry"
+          Driving::Mcp.serve_stdio(argv)
         end
       end
 

@@ -95,11 +95,11 @@ Hecks.behaviors "Tickets" do
     expect status: "batched", batch: { value: "sweep-batch-1" }
   end
 
-  test "Enlist refuses an item that is not a sweep item" do
+  test "Enlist refuses a batch it does not name" do
     tests "Enlist", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w41" }, title: { value: "Code" }
-    input  work: { value: "w41" }, batch: { value: "sweep-batch-1" }
-    expect refused: "only a sweep item joins a batch"
+    input  work: { value: "w41" }, batch: { value: "" }
+    expect refused: "a batch is named by its work item"
   end
 
   test "Return hands a batched item back to the plan" do

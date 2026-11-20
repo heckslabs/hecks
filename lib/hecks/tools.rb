@@ -38,8 +38,6 @@ module Hecks
       "reattest_era"                   => ["tools/era_reattest", "RevisionReattest"],
       "merge_tail"                     => ["tools/tail_merge", "TailMerge"],
       "backfill_era_projections"       => ["tools/era_projection_backfill", "RevisionProjectionBackfill"],
-      "compact"                        => ["tools/journal_compaction", "JournalCompaction"],
-      "heki_compact"                   => ["tools/heki_compaction", "HekiCompaction"],
       "fuzz"                           => ["tools/fuzz_sweep", "FuzzSweep"],
       "generate"                       => ["tools/sequence_script", "SequenceScript"],
       "mutate"                         => ["tools/mutation_run", "MutationRun"],

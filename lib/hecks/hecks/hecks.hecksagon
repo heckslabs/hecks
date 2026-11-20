@@ -226,6 +226,32 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The same file, written back: a probe that found its turn hurt the pipeline sets the setting to
+  # what it was before the turn.
+  Hecks::Probe.port "Turning" do
+    asks "Restore", to: Probe do
+      attribute :run, ProbeKey
+      answers "ProbeRestored"
+      refuses "ProbeRestoreRefused"
+    end
+  end
+
+  # Read-only: counts the pipeline's starts, landings, quick yields and oldest unanswered block from
+  # the event log, over the span before a turn and over the window after it.
+  Hecks::Probe.port "Measuring" do
+    asks "Measure", to: Probe do
+      attribute :run, ProbeKey
+      answers "ProbeMeasured"
+      refuses "ProbeUnmeasured"
+    end
+
+    asks "Judge", to: Probe do
+      attribute :run, ProbeKey
+      answers "ProbeRead"
+      refuses "ProbeUnread"
+    end
+  end
+
   # The webhook listener: opens 127.0.0.1 on its own port, checks each delivery's signature
   # against the secret file and records the kinds the pipeline follows. It refuses to start
   # without the secret.
@@ -1518,12 +1544,13 @@ Hecks.hecksagon "Agents" do
                                                role: "reviewer", repo: :checkout }
   end
 
-  # The reviewer's session closes with its judgment, which the adapter reads off the job; the run's key
-  # is the submitted commit, so it names the review.
+  # The reviewer's session closes with its judgment, which the adapter reads off the job, and its report
+  # is the findings (a missing_behavior names the scenario there); the run's key is the submitted commit,
+  # so it names the review.
   translates "RecordTheReviewersJudgment" do
     on AgentRun::JobRead
     where { judgment != "" && previous != state }
-    trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment }
+    trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment, findings: :findings }
   end
 
   # The architect's run closes with its verdict, or says it and goes idle; the run's key names the
