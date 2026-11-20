@@ -29,9 +29,13 @@ module MachineBeats
     ->(port, _asked) { port.to_s == "Sampling" ? sampling : CountedRolls.new(rolls) }
   end
 
-  # A rolling port whose owner's switch is on and whose fills are counted.
+  # A rolling port whose owner's switch is on and whose fills are counted. Each read keys its
+  # roll by the asking run and the reads so far, as the real port keys it by the time.
   CountedRolls = Struct.new(:rolls) do
-    def read(**) = { state: "on", standing: 0 }
+    def read(run: nil, **)
+      @reads = @reads.to_i + 1
+      { state: "on", standing: 0, roll: { value: "#{run.is_a?(Hash) ? run[:value] : run}@#{@reads}" } }
+    end
 
     def roll(**) = (rolls << 1) && { report: { value: "fill #{rolls.size}" } }
   end
