@@ -1,6 +1,7 @@
 require "fileutils"
 require "open3"
 require "tmpdir"
+require_relative "landing_claims_registry"
 
 # A throwaway repository for the landing-ahead specs: `start` cuts a branch in its own worktree
 # with one committed file, `started` says which work items are started over `lib/x`, and `land`
@@ -52,7 +53,7 @@ module LandingAheadRepository
   end
 
   def land(branch)
-    @landing ||= Hecks::Adapters::GitLanding.new
+    @landing ||= Hecks::Adapters::GitLanding.new(registry: LandingClaimsRegistry.landing_claims_registry)
     @landing.merge(checkout: repo, branch: branch).dig(:report, :value)
   end
 end

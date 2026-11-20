@@ -4,6 +4,7 @@ Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/landing/landing_ahead"
 require "tmpdir"
 require "open3"
+require_relative "support/landing_claims_registry"
 
 # A landing tidies up after itself, and lands ahead of another started work item that holds ground
 # the branch changes, naming it. Every example builds its own throwaway repository; the real
@@ -12,7 +13,7 @@ RSpec.describe Hecks::Adapters::GitLanding do
   let(:dir) { Dir.mktmpdir("hecks-landing-spec") }
   let(:repo) { File.join(dir, "main") }
   let(:tree) { File.join(dir, "tree") }
-  let(:landing) { described_class.new }
+  let(:landing) { described_class.new(registry: LandingClaimsRegistry.landing_claims_registry) }
 
   after { FileUtils.remove_entry(dir) }
 

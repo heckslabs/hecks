@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/dispatching"
+require_relative "support/landing_claims_registry"
 
 # A work item's area is the files its branch edits once it has commits, not the directory it was
 # planned with; two work items that edit one file still wait for each other.
@@ -46,7 +47,8 @@ RSpec.describe Hecks::Adapters::Dispatching::EffectiveArea do
 
   def refusal(landing, held)
     allow(Hecks::Adapters::StartedWork).to receive(:items).and_return([{ key: "held", area: held }])
-    Hecks::Adapters::GitLanding::Rivals.new(git_adapter, repo, nil).refusal(landing, "main")
+    bound = LandingClaimsRegistry.landing_claims_registry
+    Hecks::Adapters::GitLanding::Rivals.new(git_adapter, repo, bound).refusal(landing, "main")
   end
 
   def narrowed
