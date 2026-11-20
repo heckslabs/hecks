@@ -210,6 +210,37 @@ Hecks.behaviors "Tickets" do
     expect status: "open"
   end
 
+  test "Open leaves the epic's measure unread" do
+    tests "Open", on: "Epic"
+    input epic: { value: "e1" }, title: { value: "An epic" }, outcome: { value: "Something is true" }
+    expect measured: { value: "unread" }
+  end
+
+  test "Complete keeps that the measure was met" do
+    tests "Complete", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "An epic" }, outcome: { value: "Something is true" }
+    input epic: "e1", members: { value: 1 }, open_members: { value: 0 }, reading: { value: 2 },
+          at_least: { value: 2 }, at_most: { value: 9 }, evidence: { value: "read 2" }
+    expect measured: { value: "met" }, status: "complete"
+  end
+
+  test "Miss keeps that the measure was missed" do
+    tests "Miss", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "An epic" }, outcome: { value: "Something is true" }
+    input epic: "e1", reading: { value: 1 }, at_least: { value: 2 }, at_most: { value: 9 },
+          evidence: { value: "read 1" }, finding: { value: "e1-outcome-1" }
+    expect measured: { value: "missed" }, status: "open"
+  end
+
+  test "LeaveUnmeasured returns a met measure to unread" do
+    tests "LeaveUnmeasured", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "An epic" }, outcome: { value: "Something is true" }
+    setup "Tickets::Epic.Complete", epic: "e1", members: { value: 1 }, open_members: { value: 0 }, reading: { value: 2 },
+                                    at_least: { value: 2 }, at_most: { value: 9 }, evidence: { value: "read 2" }
+    input epic: "e1", evidence: { value: "no event tap is declared" }
+    expect measured: { value: "unread" }, evidence: { value: "no event tap is declared" }
+  end
+
   test "Retitle changes the title and keeps the outcome" do
     tests "Retitle", on: "Epic"
     setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
