@@ -25,6 +25,9 @@ module Hecks
       # Git's pathspecs for what a change review judges: the design files and the decision records.
       DESIGN = %w[*.bluebook *.hecksagon *.behaviors *.world docs/decisions/].freeze
 
+      # A bluebook's path: the domains of these are what a model check of the commit runs on.
+      BLUEBOOK = /\.bluebook\z/
+
       # @param git [#call, nil] stand-in: takes the argv, answers `[stdout, stderr, status]`
       # @param rows [#call, nil] stand-in: takes a value object's name, answers its rows
       def initialize(git: nil, rows: nil)
@@ -60,8 +63,23 @@ module Hecks
       # @raise [Unread] naming why git could not read the paths
       def domains(review:, checkout:, **)
         dir = plain(checkout)
-        owners = DomainOwners.new(rows: @rows.call("DomainPath"), root: dir)
-        { text: owners.answer(changes(plain(review), dir).map(&:first)) }
+        { text: owners(dir).answer(changes(plain(review), dir).map(&:first)) }
+      end
+
+      # The scope `SubmissionReview` counts its evidence against: the tier and the touched domains
+      # from the same rows as {#tier} and {#domains}, and the domains of the changed bluebooks.
+      #
+      # @param submission [Hash, String] the submitted commit
+      # @param checkout [Hash, String] the directory it was submitted from
+      # @return [Hash{Symbol => Hash}] `tier:`, and `domains:` and `bluebooks:` each between bars
+      # @raise [Unread] naming why git could not read the paths
+      def read_scope(submission:, checkout:, **)
+        commit = plain(submission)
+        dir = plain(checkout)
+        paths = changes(commit, dir).map(&:first)
+        { tier:      { value: first_line(tier(review: commit, checkout: dir)[:text]) },
+          domains:   { value: barred(owners(dir).answer(paths)) },
+          bluebooks: { value: barred(owners(dir).answer(paths.grep(BLUEBOOK))) } }
       end
 
       # @param review [Hash, String] the submitted commit
@@ -94,6 +112,14 @@ module Hecks
           status, *paths = line.chomp.split("\t")
           paths.map { |path| [path, status.to_s.start_with?("R100")] }
         end
+      end
+
+      def owners(dir) = DomainOwners.new(rows: @rows.call("DomainPath"), root: dir)
+
+      # The tier a `Tier` answer names on its first line.
+      def first_line(text)
+        line = text.each_line.first
+        line.to_s.strip
       end
 
       # Each path of git's listing between bars: `|a.bluebook|b.rb|`.

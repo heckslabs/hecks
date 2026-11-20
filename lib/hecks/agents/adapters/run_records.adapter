@@ -1,0 +1,7 @@
+# Binds the `RunRecords` port to `RunRecords`, which reads how a cited run ended from its kept record.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/run_records"
+
+Hecks.adapter "RunRecords" do
+  port "RunRecords"
+end
