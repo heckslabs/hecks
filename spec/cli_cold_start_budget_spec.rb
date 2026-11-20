@@ -43,11 +43,11 @@ RSpec.describe "warm bare hecks startup budget" do
       "#{floor.round(2)}s bundle floor; the ceiling is #{CEILING_RATIO.round(2)} times"
   end
 
-  it "answers a warm bare hecks under the ceiling" do
+  it "answers a warm bare hecks under the ceiling", :wall_clock do
     Dir.mktmpdir do |cache|
       hecks = warm_median(cache, PROGRAM)
       floor = warm_median(cache, FLOOR)
-      expect(hecks / floor).to be < CEILING_RATIO, verdict(hecks, floor)
+      expect_wall_clock(hecks / floor, under: CEILING_RATIO, stretched: false, said: verdict(hecks, floor))
     end
   end
 end

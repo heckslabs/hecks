@@ -45,12 +45,12 @@ RSpec.describe Hecks::Adapters::RecordIndex do
     expect(rows(index([skip], findings: [train]), "zsh", kind: "finding").size).to eq(1)
   end
 
-  it "answers a search of 500 items in under 50 ms once indexed", :aggregate_failures do
+  it "answers a search of 500 items in under 50 ms once indexed", :aggregate_failures, :wall_clock do
     held = index((1..500).map { |n| work("w#{n}", "item #{n} title", "detail about thing#{n}") })
     rows(held, "item")
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     expect(rows(held, "thing250")).to match([/\Awork w250: .*thing250\z/])
-    expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 0.05
+    expect_wall_clock(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started, under: 0.05)
   end
 
   it "takes up a changed record on the next query" do

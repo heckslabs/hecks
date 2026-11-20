@@ -23,7 +23,7 @@ module Hecks
         EXIT_STATUS        = 2
 
         # The tools a reader server serves — each reads a domain or the server's own
-        # audit log and writes no domain state. `validate` still boots its
+        # trace and writes no domain state. `validate` still boots its
         # domain, so it stays bound to the allowed set like every other tool.
         READER_TOOLS = %w[query events state catalog describe validate domains history follow].freeze
 

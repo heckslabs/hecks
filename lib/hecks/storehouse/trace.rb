@@ -1,10 +1,10 @@
 module Hecks
   module Storehouse
-    # The bus's own JSONL audit log: writing a line for each dispatch, query and state call, and
+    # The bus's own JSONL trace: writing a line for each dispatch, query and state call, and
     # reading it back as a tail or as the events it announced. Extended onto `Storehouse`.
-    module Audit
-      # The caller-supplied fields of an audit line, in the order the line spells them.
-      AUDIT_FIELDS = %i[verb summary source role actor_id surface].freeze
+    module Trace
+      # The caller-supplied fields of a trace line, in the order the line spells them.
+      TRACE_FIELDS = %i[verb summary source role actor_id surface].freeze
 
       # A character a log file's name may not carry.
       UNSAFE_NAME_CHARACTER = /[^A-Za-z0-9_-]/
@@ -27,7 +27,7 @@ module Hecks
         File.join(log_root, "#{domain_name.to_s.gsub(UNSAFE_NAME_CHARACTER, "_")}.jsonl")
       end
 
-      # Never fails a real call because its own audit log couldn't be written —
+      # Never fails a real call because its own trace couldn't be written —
       # a full disk silences follow, not the dispatch/query/state call itself.
       #
       # @param entry [Hash] the line's `verb:`, `summary:`, `source:`, `role:` and `actor_id:`
@@ -36,16 +36,16 @@ module Hecks
         return unless domain_name
 
         FileUtils.mkdir_p(log_root)
-        File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(audit_line(tool, outcome, entry))) }
+        File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(trace_line(tool, outcome, entry))) }
       rescue StandardError
         nil
       end
 
-      # One audit line as a hash: when, the tool, the caller's fields, the outcome's fields, then
+      # One trace line as a hash: when, the tool, the caller's fields, the outcome's fields, then
       # the call's duration and refusal kind, with absent values left out.
       # :nodoc:
-      def audit_line(tool, outcome, entry)
-        fields = AUDIT_FIELDS.to_h { |field| [field, entry[field]] }
+      def trace_line(tool, outcome, entry)
+        fields = TRACE_FIELDS.to_h { |field| [field, entry[field]] }
         { time: Time.now.utc.iso8601, tool: tool, **fields, **outcome.slice(:ok, :id, :error, :events),
           **entry.slice(:duration_ms, :refusal) }.compact
       end
@@ -66,7 +66,7 @@ module Hecks
       # :nodoc:
       def snake_case(word) = word.gsub(CAMEL_CASE_BOUNDARY, '\\1_\\2').downcase
 
-      # Tails this bus's own dispatch/query/state audit log — a pull-based
+      # Tails this bus's own dispatch/query/state trace — a pull-based
       # substitute for a push subscription, since a stdio server answers one
       # request at a time with no channel to push through.
       #
@@ -91,7 +91,7 @@ module Hecks
       end
 
       # What actually happened, with payloads, to one aggregate or record — read
-      # off this bus's own audit log (a dispatch's announced events), not a full
+      # off this bus's own trace (a dispatch's announced events), not a full
       # event-sourcing replay. aggregate: narrows the search; id: (requires
       # aggregate:) narrows further to one record.
       #
@@ -129,7 +129,7 @@ module Hecks
         entry[:events].map { |event| event.merge(time: entry[:time], verb: entry[:verb], id: entry[:id]) }
       end
 
-      # @return [Boolean] whether the audit entry is about the aggregate and record asked for
+      # @return [Boolean] whether the trace entry is about the aggregate and record asked for
       def targets?(entry, fqn, id)
         return false if fqn && !entry[:verb].to_s.start_with?("#{fqn}.")
 

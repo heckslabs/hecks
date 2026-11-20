@@ -7,7 +7,7 @@ module Hecks
       #
       # @param runtime [Runtime::Registry] the booted domain to dispatch against
       # @param command [String, Symbol] the command name, bare or qualified
-      # @param summary [String] a one-line audit summary; required
+      # @param summary [String] a one-line trace summary; required
       # @param args [Hash] the command's arguments, JSON-shaped
       # @param options [Hash] `source:` a SOURCE_TAGS tag naming the caller; `dry_run:` true to
       #   preview (a false would_succeed is no failure); `role:` the caller's bound role, nil to
@@ -18,7 +18,7 @@ module Hecks
       def dispatch(runtime:, command:, summary:, args: {}, **)
         request = Request.new(runtime: runtime, name: command, summary: summary, args: args, **)
         request.bluebook, request.name = bluebook_and_name(runtime, command)
-        audited(request, request.dry_run ? "dry_run" : "dispatch") { perform_dispatch(request) }
+        traced(request, request.dry_run ? "dry_run" : "dispatch") { perform_dispatch(request) }
       end
 
       # :nodoc:
@@ -129,13 +129,13 @@ module Hecks
         ok(summary: summary, would_succeed: false, error: e.message)
       end
 
-      # Dispatches a sequence of commands as one call, through dispatch itself: same audit log
+      # Dispatches a sequence of commands as one call, through dispatch itself: same trace
       # line per step. Runs every step even after a refusal, since a later step naming a
       # since-refused record refuses honestly on its own.
       #
       # @param runtime [Runtime::Registry] the booted domain to dispatch against
       # @param steps [Array<Hash>] each step's command/args, JSON-shaped
-      # @param summary [String] a one-line audit summary; required
+      # @param summary [String] a one-line trace summary; required
       # @param options [Hash] `source:`, a SOURCE_TAGS tag naming who is calling; `role:`, the
       #   caller's bound role, or nil to run unbound; `actor_id:`, the caller's identity, which
       #   requires role:

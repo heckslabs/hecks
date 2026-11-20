@@ -116,19 +116,19 @@ RSpec.describe Hecks::CacheDir do
       raise "subprocess failed: #{err}" unless status.success?
     end
 
-    def audit_log = File.join(scratch, "hecks", "storehouse", "Pizzas.jsonl")
+    def trace_file = File.join(scratch, "hecks", "storehouse", "Pizzas.jsonl")
 
     def gem_tmp_entries
       Dir.glob(File.join(gem_root, "tmp", "{storehouse,hecks_syntax_boot_cache}", "**", "*"))
     end
 
-    it "writes the audit log and the syntax-boot cache under the cache root, not under <gem root>/tmp", :aggregate_failures,
+    it "writes the trace and the syntax-boot cache under the cache root, not under <gem root>/tmp", :aggregate_failures,
        :process do
       before = gem_tmp_entries
 
       run_process("XDG_CACHE_HOME" => scratch, "HECKS_SYNTAX_BOOT_CACHE" => nil)
 
-      expect(JSON.parse(File.read(audit_log))).to include("tool" => "state", "ok" => true)
+      expect(JSON.parse(File.read(trace_file))).to include("tool" => "state", "ok" => true)
       expect(Dir.glob(File.join(scratch, "hecks", "hecks_syntax_boot_cache", "*.marshal"))).not_to be_empty
       expect(gem_tmp_entries).to eq(before)
     end

@@ -5,7 +5,7 @@ require_relative "support/stall_watch_looks"
 
 # A stall is an opening event of a `StallKind` row whose closing event has not come within the
 # row's minutes. A look (`StallWatch.Detect`) reads a throwaway tap and files each stall once, as a
-# `Stall` and a Tickets work item of the same key, which the dispatch fill starts after red.
+# `Stall` that wakes an orchestrator run of the same key; it plans no Tickets work item.
 RSpec.describe "StallWatch" do
   include_context "with a stall watch tap"
 
@@ -17,12 +17,12 @@ RSpec.describe "StallWatch" do
     expect(rows.first).to include(id: "look-1", waited: 30, minutes: 20, fixer: "orchestrator")
   end
 
-  it "files a stall past its minutes as one Stall and one work item of the same key", :aggregate_failures do
+  it "files a stall past its minutes as one Stall and no work item", :aggregate_failures do
     write_tap
     detect("look-1")
 
     expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-plan-review-late])
-    expect(keys("Tickets", "Work", :work)).to eq(%w[stall-plan-review-late])
+    expect(keys("Tickets", "Work", :work)).to be_empty
   end
 
   it "files a rerun train pull request that has not passed in 30 minutes, and none exhausted" do
@@ -59,7 +59,7 @@ RSpec.describe "StallWatch" do
     detect("look-1")
 
     expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-agent-run-blocked-stuck])
-    expect(keys("Tickets", "Work", :work)).to eq(%w[stall-agent-run-blocked-stuck])
+    expect(keys("Tickets", "Work", :work)).to be_empty
   end
 
   describe "a coder blocked on a [choose] question" do
@@ -87,7 +87,7 @@ RSpec.describe "StallWatch" do
       write_asked
       detect("look-1")
 
-      expect(keys("Tickets", "Work", :detail).first)
+      expect(keys("Hecks", "Stall", :detail).first)
         .to include("[choose]", "Work.rescope!", "Work.plan!", "Never ask the owner")
     end
   end
@@ -106,15 +106,15 @@ RSpec.describe "StallWatch" do
       File.write(tap, "#{JSON.generate(line(1, event, "subject", 300).merge(aggregate: aggregate))}\n")
     end
 
-    def work_detail = keys("Tickets", "Work", :detail).first
+    def stall_detail = keys("Hecks", "Stall", :detail).first
 
     %w[plan-review agent-run-start agent-run-session agent-run-unresumed agent-run-blocked].each do |kind|
-      it "gives the #{kind} work item the move of its row, once, never stopping a session", :aggregate_failures do
+      it "gives the #{kind} stall the move of its row, once, never stopping a session", :aggregate_failures do
         write_opening(kind)
         2.times { |look| detect("look-#{look}") }
 
-        expect(keys("Tickets", "Work", :work)).to eq(["stall-#{kind}-subject"])
-        expect(work_detail).to include("Move: ", "Never stop or kill a session.")
+        expect(keys("Hecks", "Stall", :stall)).to eq(["stall-#{kind}-subject"])
+        expect(stall_detail).to include("Move: ", "Never stop or kill a session.")
       end
     end
 
@@ -122,7 +122,7 @@ RSpec.describe "StallWatch" do
       write_opening("agent-run-session")
       detect("look-1")
 
-      expect(work_detail).to include("AgentRun.check!", "AgentRun.answer!", "Work.yield!")
+      expect(stall_detail).to include("AgentRun.check!", "AgentRun.answer!", "Work.yield!")
     end
   end
 

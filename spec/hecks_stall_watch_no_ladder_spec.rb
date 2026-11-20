@@ -33,7 +33,7 @@ RSpec.describe "StallWatch about stall items" do
     request("red-train-2")
     detect("look-1")
 
-    expect(keys("Tickets", "Work", :work)).to eq(%w[stall-agent-run-start-red-train-2])
+    expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-agent-run-start-red-train-2])
   end
 
   it "holds a long key to 120 characters, the same each look", :aggregate_failures do

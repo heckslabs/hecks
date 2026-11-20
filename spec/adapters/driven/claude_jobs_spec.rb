@@ -24,20 +24,20 @@ RSpec.describe Hecks::Adapters::ClaudeJobs do
     Process.clock_gettime(Process::CLOCK_MONOTONIC) - began
   end
 
-  it "answers at once when the job reads working", :aggregate_failures do
+  it "answers at once when the job reads working", :aggregate_failures, :wall_clock do
     job("working")
 
-    expect(seconds { expect(jobs(5).woken(resumed)).to eq(resumed) }).to be < 1
+    expect_wall_clock(seconds { expect(jobs(5).woken(resumed)).to eq(resumed) }, under: 1)
   end
 
-  it "answers at once when the woken session has already ended" do
+  it "answers at once when the woken session has already ended", :wall_clock do
     job("done")
 
-    expect(seconds { jobs(5).woken(resumed) }).to be < 1
+    expect_wall_clock(seconds { jobs(5).woken(resumed) }, under: 1)
   end
 
-  it "answers at once for a job that is not written yet, as a copy's is not" do
-    expect(seconds { jobs(5).woken(resumed) }).to be < 1
+  it "answers at once for a job that is not written yet, as a copy's is not", :wall_clock do
+    expect_wall_clock(seconds { jobs(5).woken(resumed) }, under: 1)
   end
 
   it "waits while the job still reads stopped, and answers once the session wrote its state", :aggregate_failures do
@@ -49,9 +49,11 @@ RSpec.describe Hecks::Adapters::ClaudeJobs do
     expect(waiting).to have_received(:sleep).once
   end
 
-  it "gives up after the patience and answers anyway" do
+  it "gives up after the patience and answers anyway", :aggregate_failures, :wall_clock do
     job("stopped")
+    waited = seconds { jobs(0.1).woken(resumed) }
 
-    expect(seconds { jobs(0.1).woken(resumed) }).to be_between(0.1, 2)
+    expect(waited).to be >= 0.1
+    expect_wall_clock(waited, under: 2)
   end
 end
