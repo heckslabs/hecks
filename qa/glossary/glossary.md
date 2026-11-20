@@ -15,9 +15,6 @@ flowchart LR
     n_daily_quota["Daily quota"]
     n_improvement["Improvement"]
     n_main_check["Main check"]
-    n_event_cursor["Event cursor"]
-    n_event_reaction["Event reaction"]
-    n_event_pump["Event pump"]
     n_maintenance["Maintenance"]
     n_release_pr["Release PR"]
     n_head["Head"]
@@ -921,177 +918,6 @@ A whole number.
 
 Always true: a count of pull requests is not negative.
 
-## Event cursor
-
-> How far one consumer has read one domain's event log, as the count of entries it has reacted to. One row per (log, consumer).
-
-**Always true**
-
-- A cursor is keyed by its log and consumer.
-- A cursor names its domain.
-- A position is not negative.
-
-### Actions
-
-#### Advance
-
-Move one consumer's cursor past the entries it has reacted to. Done by the qa engineer.
-
-Needs a position ([Cursor position](#cursor-position)).
-
-Sets the position.
-
-Records [Cursor advanced](#cursor-advanced).
-
-#### Start
-
-Open a consumer's cursor on one domain's event log, at the start of the log. Done by the qa engineer.
-
-Needs a key ([Cursor key](#cursor-key)), a log ([Cursor domain](#cursor-domain)), and a consumer ([Cursor domain](#cursor-domain)).
-
-Records [Cursor started](#cursor-started).
-
-### What it records
-
-#### Cursor advanced
-
-Recorded after [Advance](#advance).
-
-#### Cursor started
-
-Recorded after [Start](#start-1).
-
-### Lists
-
-#### All
-
-Every cursor the event pump holds, with the position each consumer has read to.
-
-All event cursors, sorted by cursor key, A to Z.
-
-### What it is made of
-
-#### Cursor domain
-
-Text that must not be blank.
-
-Always true: a cursor names its domain.
-
-#### Cursor key
-
-Text that must not be blank.
-
-Always true: a cursor is keyed by its log and consumer.
-
-#### Cursor position
-
-A whole number.
-
-Always true: a position is not negative.
-
-#### Cursor read at
-
-Text that must not be blank.
-
-## Event pump
-
-> One run of the event pump: every attached domain's policies reacting to the events past their cursors, and what each reaction answered.
-
-**Always true**
-
-- A pump run is named.
-
-### Actions
-
-#### Pump
-
-Run the event pump once: each attached domain's policies react to the events past their cursors, and every refusal is named. Done by the qa engineer.
-
-Needs a run ([Pump run](#pump-run)).
-
-Records [Pump requested](#pump-requested).
-
-### What it records
-
-#### Pump requested
-
-Recorded after [Pump](#pump). Prompts [Pump on request](#pump-on-request).
-
-### What happens on its own
-
-#### Pump on request
-
-When [Pump requested](#pump-requested) happens, Event pump::pump tools is asked to Execute.
-
-### What it is made of
-
-#### Pump run
-
-Text that must not be blank.
-
-Always true: a pump run is named.
-
-## Event reaction
-
-> A policy's reaction to one event, once its command has answered. One row per (consumer, event, policy).
-
-**Always true**
-
-- A reaction is keyed by its consumer, event and policy.
-- A reaction names its consumer.
-- A reaction names the event it answered.
-- A reaction names its policy.
-
-### Actions
-
-#### Record
-
-Record that one consumer's policy has answered one event, so the pump does not run it again. Done by the qa engineer.
-
-Needs a key ([Reaction key](#reaction-key)), a consumer ([Reaction consumer](#reaction-consumer)), an event id ([Reaction event](#reaction-event)), and a policy ([Reaction policy](#reaction-policy)).
-
-Records [Event reacted](#event-reacted).
-
-### What it records
-
-#### Event reacted
-
-Recorded after [Record](#record).
-
-### Lists
-
-#### All
-
-Every reaction the event pump has recorded, by its key.
-
-All event reactions, sorted by reaction key, A to Z.
-
-### What it is made of
-
-#### Reaction consumer
-
-Text that must not be blank.
-
-Always true: a reaction names its consumer.
-
-#### Reaction event
-
-Text that must not be blank.
-
-Always true: a reaction names the event it answered.
-
-#### Reaction key
-
-Text that must not be blank.
-
-Always true: a reaction is keyed by its consumer, event and policy.
-
-#### Reaction policy
-
-Text that must not be blank.
-
-Always true: a reaction names its policy.
-
 ## Head
 
 > One commit of a repository's main, and whether remote CI passed every job it ran for that commit.
@@ -1514,7 +1340,7 @@ Records [Main check recorded](#main-check-recorded).
 
 #### Main check recorded
 
-Recorded after [Record](#record-1).
+Recorded after [Record](#record).
 
 ### Lists
 
@@ -1580,7 +1406,7 @@ Recorded after [Request](#request-2). Prompts [Read run on request](#read-run-on
 
 #### Main run recorded
 
-Recorded after [Record](#record-2).
+Recorded after [Record](#record-1).
 
 ### What happens on its own
 
@@ -1700,7 +1526,7 @@ Recorded after [Record rehearsal verdict](#record-rehearsal-verdict).
 
 #### Run started
 
-Recorded after [Start](#start-2). Prompts [Gate on start](#gate-on-start).
+Recorded after [Start](#start-1). Prompts [Gate on start](#gate-on-start).
 
 ### What happens on its own
 
@@ -1939,7 +1765,7 @@ Recorded after [Check](#check-1). Prompts [Read push due on check](#read-push-du
 
 #### Push due recorded
 
-Recorded after [Record](#record-3).
+Recorded after [Record](#record-2).
 
 ### What happens on its own
 
@@ -3197,7 +3023,7 @@ Responsible for [Request (head)](#request) and [Request (main run)](#request-2).
 
 #### QA engineer
 
-Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Relocate](#relocate), [Open (sweep)](#open-6), [Check (sweep)](#check-3), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Name](#name), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-3), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (daily quota)](#open-1), [Take](#take), [Open (improvement)](#open-2), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), [Record (main check)](#record-1), [Start (event cursor)](#start-1), [Advance](#advance), [Record (event reaction)](#record), [Pump](#pump), [Start (maintenance)](#start-2), [Refuse gate](#refuse-gate), [Request reconcile](#request-reconcile), [Request push](#request-push), [Record rehearsal verdict](#record-rehearsal-verdict), [Mint era](#mint-era), [Refuse mint](#refuse-mint), [Start (clearance)](#start), [Check (clearance)](#check), and [Check (push nudge)](#check-1).
+Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Relocate](#relocate), [Open (sweep)](#open-6), [Check (sweep)](#check-3), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Name](#name), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-3), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (daily quota)](#open-1), [Take](#take), [Open (improvement)](#open-2), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), [Record](#record), [Start (maintenance)](#start-1), [Refuse gate](#refuse-gate), [Request reconcile](#request-reconcile), [Request push](#request-push), [Record rehearsal verdict](#record-rehearsal-verdict), [Mint era](#mint-era), [Refuse mint](#refuse-mint), [Start (clearance)](#start), [Check (clearance)](#check), and [Check (push nudge)](#check-1).
 
 #### Release owner
 
@@ -3205,7 +3031,7 @@ Responsible for [Open](#open-5), [Check](#check-2), [Approve](#approve), and [Re
 
 #### System
 
-Responsible for [Suspend](#suspend), [Filed](#filed), [Refused](#refused), [Retry](#retry), [Green](#green), [Red](#red-1), [Open](#open-4), [Update](#update), [Reopen](#reopen), [Clear](#clear), [Record (main run)](#record-2), [Consider](#consider), [Request](#request-1), [Needs approval](#needs-approval), [Finish](#finish), [Passed](#passed), [Failed](#failed), and [Record (push nudge)](#record-3).
+Responsible for [Suspend](#suspend), [Filed](#filed), [Refused](#refused), [Retry](#retry), [Green](#green), [Red](#red-1), [Open](#open-4), [Update](#update), [Reopen](#reopen), [Clear](#clear), [Record (main run)](#record-1), [Consider](#consider), [Request](#request-1), [Needs approval](#needs-approval), [Finish](#finish), [Passed](#passed), [Failed](#failed), and [Record (push nudge)](#record-2).
 
 ## Read models
 
@@ -3293,7 +3119,7 @@ When "Issue filed" arrives from outside, [Ticket](#ticket) is asked to [Filed](#
 
 #### Record the push due read
 
-When "Push due read" arrives from outside, [Push nudge](#push-nudge) is asked to [Record](#record-3).
+When "Push due read" arrives from outside, [Push nudge](#push-nudge) is asked to [Record](#record-2).
 
 #### Record the refusal
 
@@ -3301,7 +3127,7 @@ When "Issue filing refused" arrives from outside, [Ticket](#ticket) is asked to 
 
 #### Record the run read
 
-When "Main run read" arrives from outside, [Main run](#main-run) is asked to [Record](#record-2).
+When "Main run read" arrives from outside, [Main run](#main-run) is asked to [Record](#record-1).
 
 #### Record verify on fix verified
 
@@ -3325,4 +3151,4 @@ When "Image classified" arrives from outside, [Image roll](#image-roll) is asked
 
 #### Start on submission
 
-When "Work submitted" arrives from outside, [Maintenance](#maintenance) is asked to [Start](#start-2).
+When "Work submitted" arrives from outside, [Maintenance](#maintenance) is asked to [Start](#start-1).

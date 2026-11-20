@@ -109,7 +109,8 @@ module Hecks
 
       def admitting
         @admitting ||= @settings[:admitting] ||
-                       Dispatching::Admitting.new(runs: Dispatching::WorkItems.new(@registry).runs, now: Time.now)
+                       Dispatching::Admitting.new(runs: Dispatching::WorkItems.new(@registry).runs, now: Time.now,
+                                                  meter: Dispatching::Admitting.meter(@registry))
       end
 
       def started

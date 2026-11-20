@@ -4,6 +4,9 @@
 # are in quality_control.ports.hecksagon.
 Hecks.hecksagon "QualityControl" do
   attaches "Governance"
+  # The event pump's cursors, reactions and runs are EventDelivery's (ADR 0178); `PumpTools`
+  # binds its `Pumping` port to this ledger's pump.
+  attaches "EventDelivery"
   persisted_by "Memory"
 
   # The fixer's steps, which the ledger records as the bug's state. Declarative: the Fixer domain
@@ -16,6 +19,12 @@ Hecks.hecksagon "QualityControl" do
   # The coder's submitted branch, which starts the main maintenance run. Declarative: the Coder domain
   # emits it, and the StartOnSubmission policy reacts.
   subscribe "Coder.WorkSubmitted"
+end
+
+# EventDelivery bound so the ledger's standalone boot holds the pump's rows in memory.
+Hecks.hecksagon "EventDelivery" do
+  attaches "Governance"
+  persisted_by "Memory"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

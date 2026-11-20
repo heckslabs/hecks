@@ -2,7 +2,7 @@ require_relative "../../hecks"
 
 module Hecks
   module Tools
-    # The tool behind `hecks regeneration_run.project_glossary!`: boots a domain and projects one
+    # The tool behind `hecks regeneration_run.project_glossary!`: loads a domain and projects one
     # bluebook into its Ubiquitous Language glossary, `glossary.md` plus `html/index.html` rendered
     # from it, in the domain's own `glossary/` folder. With `--check` it writes nothing and names
     # each committed file that differs from the projection.
@@ -71,19 +71,24 @@ module Hecks
         Projector.write(projection(domain, declaration_name), File.join(domain, "glossary"), as: :files)
       end
 
+      # Loads the domain, wiring included, without opening a repository: a domain whose world names
+      # a live database (the QA ledger's) is described, never booted, so projecting it writes
+      # nothing there. Each policy's ask is bound to the port it names, as a boot would bind it.
+      #
       # @api private
       # @return [Hash{String => String}] each glossary file's path under `glossary/` and its text
       def projection(domain, declaration_name)
-        runtime = Hecks.boot(domain)
-        declaration = runtime.bluebook(declaration_name)
-        Projector.call(:glossary, bluebook: declaration, options: { markings: markings_for(runtime, declaration_name) })
+        registry = Hecks.describe(domain, environment: nil).registry
+        declaration = registry.bluebook(declaration_name)
+        Bluebook::AskResolution.bind_resolved(declaration)
+        Projector.call(:glossary, bluebook: declaration, options: { markings: markings_for(registry, declaration_name) })
       end
 
       # The privacy markings the deployment declared for fields of one bluebook.
       #
       # @api private
-      def markings_for(runtime, declaration_name)
-        runtime.pending_privacy_markings.select do |marking|
+      def markings_for(registry, declaration_name)
+        registry.pending_privacy_markings.select do |marking|
           marking[:domain].to_s.start_with?("#{declaration_name}::")
         end
       end

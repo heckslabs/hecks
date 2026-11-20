@@ -66,7 +66,8 @@ generated_domain_seeds: 5
 red_main_check: true
 
 # The event pump, the tick's last step: each attached domain's policies react to the events past their
-# cursors. `hecks quality_control event_pump.pump!` runs it by hand whatever this says.
+# cursors (EventDelivery's `Consumer` rows, ADR 0178). A `Pump.Run` on the ledger runs it by hand
+# whatever this says.
 event_pump: true
 
 # The push check, once per tick: a push of local main that is due beyond the QualityControl world's
