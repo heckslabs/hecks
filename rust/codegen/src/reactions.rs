@@ -341,9 +341,9 @@ fn emit_handler(exemplar: &Exemplar, handler: &Json, literal_fns: &mut Vec<Strin
     )
 }
 
-pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]) -> String {
+pub fn emit_saga_table(exemplar: &Exemplar, sagas: &[Json]) -> String {
     let mut literal_fns: Vec<String> = Vec::new();
-    let pm_exprs: Vec<String> = process_managers
+    let pm_exprs: Vec<String> = sagas
         .iter()
         .map(|pm| {
             let handlers = pm.get("handlers").map_or_default(Json::each);
@@ -351,7 +351,7 @@ pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]
             let states = pm.get("states").map_or_default(Json::each);
             let initial_state = states.first().map(Json::to_s).unwrap_or_default();
             format!(
-                "crate::kernel::ProcessManagerDef {{ name: {}, correlates_by: {}, starts_on: {}, ends_on: {}, initial_state: {}, handlers: &[{}] }}",
+                "crate::kernel::SagaDef {{ name: {}, correlates_by: {}, starts_on: {}, ends_on: {}, initial_state: {}, handlers: &[{}] }}",
                 naming::ruby_inspect_string(&pm.get("name").map(Json::to_s).unwrap_or_default()),
                 naming::ruby_inspect_string(&pm.get("correlates_by").map(Json::to_s).unwrap_or_default()),
                 naming::ruby_inspect_string(&pm.get("starts_on").map(Json::to_s).unwrap_or_default()),
@@ -367,7 +367,7 @@ pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]
         &[
             ("fn tmpl_literal_fns_placeholder() {}", literal_fns.join("\n")),
             (
-                "    crate::kernel::ProcessManagerDef { name: \"tmpl_pm_name\", correlates_by: \"tmpl_correlates_by\", starts_on: \"tmpl_starts_on\", ends_on: \"tmpl_ends_on\", initial_state: \"tmpl_initial_state\", handlers: &[] },",
+                "    crate::kernel::SagaDef { name: \"tmpl_pm_name\", correlates_by: \"tmpl_correlates_by\", starts_on: \"tmpl_starts_on\", ends_on: \"tmpl_ends_on\", initial_state: \"tmpl_initial_state\", handlers: &[] },",
                 pm_exprs.iter().map(|e| format!("    {e},")).collect::<Vec<_>>().join("\n"),
             ),
         ],

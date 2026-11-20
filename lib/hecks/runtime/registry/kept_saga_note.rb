@@ -9,7 +9,7 @@ module Hecks
         private
 
         # @param domain [String] the domain declaring the process managers
-        # @param undurable [Array<Bluebook::ProcessManager>] the process managers no store keeps
+        # @param undurable [Array<Bluebook::Saga>] the process managers no store keeps
         # @return [String] the sentence, empty when none starts on a kept aggregate
         def kept_saga_note(domain, undurable)
           starters = undurable.flat_map { |declared| starting_aggregates(domain, declared.starts_on.to_s) }

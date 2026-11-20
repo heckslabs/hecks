@@ -116,7 +116,7 @@ RSpec.describe "a process manager" do
     runtime.sagas.find { |s| s[:process_manager] == "Carry" && s[:on] == "WireAsked" && s[:advanced] }
   end
 
-  def carry_manager(runtime) = runtime.registry.bluebook("Wire").process_managers.find { |pm| pm.name == "Carry" }
+  def carry_manager(runtime) = runtime.registry.bluebook("Wire").sagas.find { |pm| pm.name == "Carry" }
 
   # A stand-in for the WireAsked handler that logs each `to_state` read in `reads` and answers
   # differently on a second read.

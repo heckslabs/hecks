@@ -61,7 +61,7 @@ pub fn sentences(declaration: &ir::Bluebook) -> Result<String, String> {
     for model in &declaration.read_models {
         out.push_str(&report::said(model)?);
     }
-    for pm in &declaration.process_managers {
+    for pm in &declaration.sagas {
         out.push_str(&process::said(pm)?);
     }
     Ok(out)

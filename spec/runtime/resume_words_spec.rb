@@ -3,7 +3,7 @@ require "spec_helper"
 RSpec.describe Hecks::Adapters::Driving::CliRunner::ResumeWords do
   def host = Object.new.extend(described_class)
 
-  let(:bluebook)  { Struct.new(:name, :process_managers).new("Hecks", [saga]) }
+  let(:bluebook)  { Struct.new(:name, :sagas).new("Hecks", [saga]) }
   let(:saga)      { Struct.new(:name, :resumes).new("GateAndBoard", ["gated=GateRun.Gate", "landing=Landing.Land"]) }
   let(:scope)     { { runtime: runtime, bluebook: bluebook, program: "hecks" } }
   let(:runtime)   { Struct.new(:saga_interpreter).new(interpreter) }

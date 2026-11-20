@@ -176,7 +176,7 @@ runtime.registry.saga_log.map { |row| row[:on] }.compact  # => ["OnboardingOpene
 Names the command that resumes each stage of a saga that faulted, one `"stage=Aggregate.Command"` entry per stage. Declaring it does nothing while the saga runs; it is read afterwards by the launcher's `resume <run>`, which re-dispatches the named command with the arguments the saga saved. A stage with no entry cannot be resumed, and the resume is refused by name.
 
 ```ruby
-filing = runtime.registry.bluebook("ProcessManagerResumes").process_managers.first
+filing = runtime.registry.bluebook("ProcessManagerResumes").sagas.first
 filing.resumes  # => ["filing=Ticket.File", "closing=Ticket.Close"]
 ```
 
@@ -208,7 +208,7 @@ match no instance ever, silently, and is refused at declaration
 instead:
 
 ```ruby skip
-Hecks.bluebook("Gone") { process_manager("Nowhere") { correlates_by :"ref.value"; starts_on "Opened"; ends_on "Closed"; transition "Opened" => "open" } }  # ~> InvalidProcessManager: Nowhere's transition {"Opened"=>"open"} names no from: — a process manager's own admission checks a saga instance's CURRENT state exactly, so a transition with no from: would match no instance ever, silently
+Hecks.bluebook("Gone") { process_manager("Nowhere") { correlates_by :"ref.value"; starts_on "Opened"; ends_on "Closed"; transition "Opened" => "open" } }  # ~> InvalidSaga: Nowhere's transition {"Opened"=>"open"} names no from: — a process manager's own admission checks a saga instance's CURRENT state exactly, so a transition with no from: would match no instance ever, silently
 ```
 
 Given a list, a leg may fire from any of several states, the same

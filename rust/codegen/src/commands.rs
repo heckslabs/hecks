@@ -1401,7 +1401,7 @@ pub fn emit_entity_command(
     domain_name: &str,
     value_objects_by_name: &HashMap<String, &Json>,
     aggregates_by_name: &HashMap<String, &Json>,
-    process_managers: &[Json],
+    sagas: &[Json],
 ) -> String {
     let parent_record = naming::rust_ident(name_of(parent_aggregate));
     let element_record = naming::rust_ident(name_of(entity));
@@ -1546,7 +1546,7 @@ pub fn emit_entity_command(
             let allowlist = crate::json_codec::command_argument_allowlist(
                 parent_aggregate,
                 command,
-                process_managers,
+                sagas,
                 &entity_identity_heads,
             );
             crate::json_codec::emit_from_json_flat(
@@ -1568,7 +1568,7 @@ pub fn emit_entity_command(
             let allowlist = crate::json_codec::command_argument_allowlist(
                 parent_aggregate,
                 command,
-                process_managers,
+                sagas,
                 &entity_identity_heads,
             );
             crate::json_codec::emit_argument_gates(
@@ -1599,7 +1599,7 @@ pub fn emit_nested_entity_command(
     domain_name: &str,
     value_objects_by_name: &HashMap<String, &Json>,
     aggregates_by_name: &HashMap<String, &Json>,
-    process_managers: &[Json],
+    sagas: &[Json],
 ) -> String {
     let parent_record = naming::rust_ident(name_of(parent_aggregate));
     let entity_record = naming::rust_ident(name_of(entity));
@@ -1768,7 +1768,7 @@ pub fn emit_nested_entity_command(
             let allowlist = crate::json_codec::command_argument_allowlist(
                 parent_aggregate,
                 command,
-                process_managers,
+                sagas,
                 &identity_heads,
             );
             crate::json_codec::emit_from_json_flat(
@@ -1802,7 +1802,7 @@ pub fn emit_nested_entity_command(
             let allowlist = crate::json_codec::command_argument_allowlist(
                 parent_aggregate,
                 command,
-                process_managers,
+                sagas,
                 &identity_heads,
             );
             crate::json_codec::emit_argument_gates(

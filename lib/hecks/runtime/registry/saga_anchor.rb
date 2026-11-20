@@ -10,7 +10,7 @@ module Hecks
       # {SagaPersistence}.
       module SagaAnchor
         # @param domain [String, Symbol] the domain declaring the process manager
-        # @param process_manager [Bluebook::ProcessManager, String] the process manager or its name
+        # @param process_manager [Bluebook::Saga, String] the process manager or its name
         # @return [Bluebook::Aggregate, nil] the starting aggregate with a bind of its own, or nil
         def saga_anchor(domain, process_manager)
           declared = declared_process_manager(domain, process_manager) or return nil
@@ -36,16 +36,16 @@ module Hecks
         # Every process manager of the domain whose store is not the domain's own, by name.
         def routed_sagas(domain)
           home = saga_persistence(domain)
-          stores = process_managers_of(domain).to_h { |declared| [declared.name, saga_persistence(domain, declared)] }
+          stores = sagas_of(domain).to_h { |declared| [declared.name, saga_persistence(domain, declared)] }
           stores.reject { |_name, store| store.equal?(home) }
         end
 
-        def process_managers_of(domain) = bluebook(domain)&.process_managers || []
+        def sagas_of(domain) = bluebook(domain)&.sagas || []
 
         def declared_process_manager(domain, process_manager)
           return process_manager if process_manager.respond_to?(:starts_on)
 
-          process_managers_of(domain).find { |declared| declared.name == process_manager.to_s }
+          sagas_of(domain).find { |declared| declared.name == process_manager.to_s }
         end
 
         # The aggregates that emit an event: the domain's own, else those of the other loaded

@@ -458,13 +458,13 @@
   "policies": [
 
   ],
-  "process_managers": [
-
-  ],
   "provides": [
 
   ],
   "read_models": [
+
+  ],
+  "sagas": [
 
   ],
   "version": null,

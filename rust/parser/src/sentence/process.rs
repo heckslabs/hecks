@@ -23,8 +23,8 @@ use crate::ir;
 
 impl Parser<'_> {
     /// Reads one `Process:` block into the process manager it describes.
-    pub(super) fn process(&mut self, header: &Matched) -> ParseResult<ir::ProcessManager> {
-        let mut pm = ir::ProcessManager {
+    pub(super) fn process(&mut self, header: &Matched) -> ParseResult<ir::Saga> {
+        let mut pm = ir::Saga {
             name: camel(&header.text_of("name")),
             ..Default::default()
         };
@@ -74,8 +74,8 @@ impl Parser<'_> {
     }
 
     /// One step: the event and states it answers, and the commands it tells aggregates to run.
-    fn handler(&mut self, header: &Matched) -> ParseResult<ir::ProcessManagerHandler> {
-        let mut handler = ir::ProcessManagerHandler {
+    fn handler(&mut self, header: &Matched) -> ParseResult<ir::SagaHandler> {
+        let mut handler = ir::SagaHandler {
             event_type: if header.id == "process_when" {
                 header.text_of("event")
             } else {
@@ -121,7 +121,7 @@ impl Parser<'_> {
 }
 
 /// A process manager as a `Process:` block, or the name of what in it the sentence form cannot say.
-pub(super) fn said(pm: &ir::ProcessManager) -> Result<String, String> {
+pub(super) fn said(pm: &ir::Saga) -> Result<String, String> {
     let refused = |what: &str| {
         format!(
             "the sentence form has no phrase for {what} in process {}",

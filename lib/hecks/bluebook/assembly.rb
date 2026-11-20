@@ -27,10 +27,10 @@ module Hecks
 
         Build.call(
           "Bluebook", @declaration,
-          aggregates:       aggregates,
-          read_models:      models,
-          policies:         reactions(aggregates),
-          process_managers: Array(@declaration[:process_managers]).map { |row| process_manager(row) }
+          aggregates:  aggregates,
+          read_models: models,
+          policies:    reactions(aggregates),
+          sagas:       Array(@declaration[:sagas]).map { |row| process_manager(row) }
         )
       end
 

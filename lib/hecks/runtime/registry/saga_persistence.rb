@@ -16,7 +16,7 @@ module Hecks
         # per store via double-checked locking; never reuse @saga_mutex, see #initialize.
         #
         # @param domain [String, Symbol] the domain whose sagas are checkpointed
-        # @param process_manager [Bluebook::ProcessManager, String, nil] one process manager,
+        # @param process_manager [Bluebook::Saga, String, nil] one process manager,
         #   whose starting aggregate may hold it; the domain's own store when nil
         # @return [#save_saga] the adapter, or the null store when nothing can checkpoint
         def saga_persistence(domain, process_manager = nil)

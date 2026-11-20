@@ -428,7 +428,7 @@ RSpec.describe "the generated diagrams" do
   # once, and a real compensating leg (the literal "refused" trigger).
   it "draws exactly one edge per real handler Settlement declares, no more and no fewer" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_bluebook)["Settlement_saga.mmd"]
-    settlement = banking_bluebook.process_managers.find { |pm| pm.hecks_name == "Settlement" }
+    settlement = banking_bluebook.sagas.find { |pm| pm.hecks_name == "Settlement" }
 
     drawn_edges = diagram.lines.map(&:strip).select { |line| line.include?("-->") && !line.start_with?("[*]") }
     expect(drawn_edges.size).to eq(settlement.handlers.size)

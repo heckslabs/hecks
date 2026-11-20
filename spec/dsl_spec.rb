@@ -1268,7 +1268,7 @@ RSpec.describe "the DSL surface" do
           ends_on   "OrderCancelled"
           instance_eval(&transition)
         end
-      end.process_managers.first
+      end.sagas.first
     end
 
     def checkout_process_manager
@@ -1280,7 +1280,7 @@ RSpec.describe "the DSL surface" do
           ends_on   "OrderCompleted"
           instance_eval(&transition)
         end
-      end.process_managers.first
+      end.sagas.first
     end
 
     it "process_manager declares a correlated conversation", :aggregate_failures do
@@ -1323,7 +1323,7 @@ RSpec.describe "the DSL surface" do
           resumes "checking=ConformanceRun.CheckShapeLedger"
           instance_eval(&transition)
         end
-      end.process_managers.first
+      end.sagas.first
     end
 
     it "process_manager carries its stage map in declaration order" do
@@ -1346,7 +1346,7 @@ RSpec.describe "the DSL surface" do
     # `correlates_by`, even though the DSL itself always refuses to mint
     # one without it; `to_h` must read back `nil`, not the ambiguous `""`.
     it "a process manager's absent correlates_by survives to_h as nil, not an empty string" do
-      expect(Hecks::Bluebook::ProcessManager.new(name: "Untethered").to_h[:correlates_by]).to be_nil
+      expect(Hecks::Bluebook::Saga.new(name: "Untethered").to_h[:correlates_by]).to be_nil
     end
 
     # Builds a process manager that has already declared its correlation and start, then runs
@@ -1390,7 +1390,7 @@ RSpec.describe "the DSL surface" do
           transition "Next" => "b", from: "a"
           transition "Next" => "c", from: "b"
         end
-      end.process_managers.first
+      end.sagas.first
     end
 
     it "process_manager accepts two transitions on one event from different states", :aggregate_failures do
@@ -1453,7 +1453,7 @@ RSpec.describe "the DSL surface" do
           starts_on "Started"
           transition("Started" => "b", from: "a") { dispatch Sighting::Raise }
         end
-      end.process_managers.first
+      end.sagas.first
     end
 
     # A bare aggregate name (`correlates_by Thing`) means that aggregate's identity.
@@ -1466,7 +1466,7 @@ RSpec.describe "the DSL surface" do
           starts_on "Started"
           transition("Started" => "b", from: "a") { dispatch Thing::Start }
         end
-      end.process_managers.first
+      end.sagas.first
     end
 
     it "process_manager expands a bare aggregate name to its identity field", :aggregate_failures do
@@ -1485,7 +1485,7 @@ RSpec.describe "the DSL surface" do
     it "process_manager refuses a bare name that names no aggregate of its bluebook" do
       expect do
         bare_key_process_manager("BareValueObject") { correlates_by ThingId }
-      end.to raise_error(Hecks::Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager,
+      end.to raise_error(Hecks::Bluebook::DSL::ProcessManagerBuilder::InvalidSaga,
                          /Keyed correlates_by ThingId, which names a whole field/)
     end
 
