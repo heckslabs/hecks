@@ -186,6 +186,28 @@ Hecks.bluebook "Agents" do
              use: "git status, log, diff or show; a planner changes nothing, and other git goes to a coder in the plan"
       member role: "planner", shape: "exe/hecks",
              use: "Work.undone, Work.show, Work.plan!, Epic.ranked or PlanReview.reviews; any other step goes into the plan for its role"
+      # Every role: a script held once because no hecks command ran since the last one (`Script`).
+      member role: "*", shape: "script",
+             use: "Try hecks first: exe/hecks --all; run it again if no command fits"
+    end
+
+    # The words that start a script, matched at the head of a Bash command: a session with a role
+    # that runs one before any hecks command since its last script is held once (`Script`).
+    value_object "Interpreter" do
+      attribute :word, String
+
+      member word: "ruby"
+      member word: "irb"
+      member word: "python"
+      member word: "python3"
+      member word: "node"
+      member word: "perl"
+      member word: "php"
+      member word: "lua"
+      member word: "bundle exec ruby"
+      member word: "sh -c"
+      member word: "bash -c"
+      member word: "zsh -c"
     end
 
     # The rule a role's agent file states, as data, so the file reads from it and the board and
@@ -404,6 +426,9 @@ Hecks.bluebook "Agents" do
     # The id of the subagent that made the call; blank when the role's own session did.
     value_object "GuardedAgent", String
 
+    # The Claude session that made the call, which `Script` keys its record by.
+    value_object "GuardedSession", String
+
     value_object "Document" do
       attribute :text, String
     end
@@ -417,6 +442,7 @@ Hecks.bluebook "Agents" do
       attribute :role,    RoleName
       attribute :command, GuardedCommand
       attribute :agent,   GuardedAgent, optional: true
+      attribute :session, GuardedSession, optional: true
       returns Document
     end
 
@@ -460,6 +486,137 @@ Hecks.bluebook "Agents" do
       end
 
       emits "CommandIssued"
+    end
+  end
+
+  # A session's scripts, held once until the session has tried hecks. A role's Bash call that starts
+  # with an `Interpreter` word is attempted here by the `Routing` port's guard; a hecks command since
+  # the last script, or the same script asked again after it was held, runs it, and anything else
+  # holds it with the `script` hint. Every script run is appended to the session's record with its
+  # role, and `Candidates` lists the ones run twice, each a command the bluebooks lack. "Ran a hecks
+  # command first" stands in for "tried the right one", and the guard sees only the head of a
+  # command (`/usr/bin/python3`, `env python` and a pipe into an interpreter pass unseen).
+  aggregate "Script" do
+    description "One session's scripts: held once until the session has tried a hecks command, then run and recorded with its session, role and command."
+
+    identified_by :session
+
+    attribute :session, SessionKey
+    attribute :role,    ScriptRole, optional: true
+    attribute :asked,   ScriptCommand, optional: true
+    attribute :tried,   TriedMark, optional: true
+    attribute :held,    ScriptCommand, optional: true
+    attribute :verdict, ScriptVerdict, optional: true
+    attribute :ran,     list_of(ScriptCommand)
+
+    # The Claude session whose Bash calls these are.
+    value_object "SessionKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The role the session holds, as the guard was told it.
+    value_object "ScriptRole", String
+
+    # One Bash command as the session typed it.
+    value_object "ScriptCommand", String
+
+    # `yes` while a hecks command has run since the session's last script, empty otherwise.
+    value_object "TriedMark", String
+
+    # How the last attempt ended: empty while it is judged, then `ran` or `held`.
+    value_object "ScriptVerdict", String
+
+    # The `Candidates` answer: one line per script run twice or more, the count then the command.
+    value_object "CandidateList" do
+      attribute :text, String
+    end
+
+    # A role's session asks to run a script; `RunTheScript` or `HoldTheScript` judges it.
+    command "Attempt" do
+      role "System"
+      goal "Ask to run one script in a role's session"
+      creates_or_acts
+
+      attribute :session, SessionKey, sets: true
+      attribute :role,    ScriptRole, sets: true
+      attribute :asked,   ScriptCommand, sets: true
+
+      sets :verdict, to: { value: "" }
+
+      emits "ScriptAttempted"
+    end
+
+    # The session ran a hecks command, so its next script runs without being held.
+    command "NoteHecks" do
+      role "System"
+      goal "Record that a session ran a hecks command since its last script"
+      creates_or_acts
+
+      attribute :session, SessionKey, sets: true
+
+      sets :tried, to: { value: "yes" }
+
+      emits "HecksNoted"
+    end
+
+    # Exactly one of `Run` and `Hold` holds for an attempt, in either order: each needs the attempt
+    # unjudged, and their other givens are each other's negation.
+    command "Run" do
+      role "System"
+      goal "Run a script the session tried hecks before, or asked for again after it was held"
+
+      reference_to Script
+      attribute :command, ScriptCommand
+
+      given("the attempt is not judged yet") { verdict == nil || verdict.value == "" }
+      given("a hecks command ran since the last script, or the script was held once") do
+        (tried != nil && tried.value == "yes") || (held != nil && held.value == asked.value)
+      end
+
+      sets :verdict, to: { value: "ran" }
+      sets :tried,   to: { value: "" }
+      sets :ran,     append: { value: :command }
+
+      emits "ScriptRun"
+    end
+
+    command "Hold" do
+      role "System"
+      goal "Hold a script once: no hecks command ran since the session's last script"
+
+      reference_to Script
+      attribute :command, ScriptCommand
+
+      given("the attempt is not judged yet") { verdict == nil || verdict.value == "" }
+      given("no hecks command ran since the last script, and the script was not held once") do
+        (tried == nil || tried.value != "yes") && (held == nil || held.value != asked.value)
+      end
+
+      sets :verdict, to: { value: "held" }
+      sets :held,    to: :command
+
+      emits "ScriptHeld"
+    end
+
+    # Each session's record: its role and every script it ran.
+    query "Runs" do
+      description "Every session that ran a script, with its role and each script it ran."
+    end
+
+    # A script run twice, in one session or across several, is a command the bluebooks lack.
+    query "Candidates" do
+      description "The scripts run twice or more, one line each: the count, then the command."
+      returns CandidateList
+    end
+
+    policy "RunTheScript" do
+      on      "Script.ScriptAttempted"
+      trigger Script::Run, with: { script: :session, command: :asked }
+    end
+
+    policy "HoldTheScript" do
+      on      "Script.ScriptAttempted"
+      trigger Script::Hold, with: { script: :session, command: :asked }
     end
   end
 

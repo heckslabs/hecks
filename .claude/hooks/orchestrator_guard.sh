@@ -5,6 +5,10 @@
 # 2, which hands the reason (the verb or role to use instead) back to the agent. A session with no
 # role (the owner's) is never blocked.
 #
+# It forwards the session too, for the bluebook's `Script` rule: a role's session that runs a script
+# before any hecks command since its last one is refused once with the `script` hint, and every
+# script it runs is recorded. The rule is the Agents bluebook's; this hook names no interpreter.
+#
 # When Hecks cannot answer (the launcher fails, gives no verdict, or takes longer than the limit), a
 # role listed in .claude/hooks/guarded_roles (projected from the RoutingRule rows) is refused with the
 # reason, except for exactly `exe/hecks agents Role.guard` and `git status`, so a session can always
@@ -18,6 +22,7 @@ input="$(cat)"
 role="$(printf '%s' "$input" | jq -r '.agent_type // empty')"
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
 agent="$(printf '%s' "$input" | jq -r '.agent_id // empty')"
+session="$(printf '%s' "$input" | jq -r '.session_id // empty')"
 [ -n "$role" ] && [ -n "$command" ] || exit 0
 
 dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
@@ -38,7 +43,8 @@ unanswered() {
 
 cd "$dir" 2>/dev/null || unanswered "cannot enter $dir"
 out="$(HECKS_CALLER=hook:orchestrator_guard perl -e 'alarm shift; exec @ARGV or exit 127' "$limit" \
-  exe/hecks agents Role.guard "role.value=$role" "command.value=$command" "agent.value=$agent" 2>&1)"
+  exe/hecks agents Role.guard "role.value=$role" "command.value=$command" "agent.value=$agent" \
+  "session.value=$session" 2>&1)"
 status=$?
 [ "$status" -eq 0 ] && exit 0
 
