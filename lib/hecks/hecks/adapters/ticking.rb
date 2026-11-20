@@ -5,6 +5,7 @@ require "fileutils"
 require_relative "console_capture"
 require_relative "ticker_persistence"
 require_relative "git_train"
+require_relative "main_launcher"
 require_relative "ticking/chain"
 
 module Hecks
@@ -70,15 +71,26 @@ module Hecks
 
       private
 
-      # The checkout's launcher, once a chain can run: its ticks need the launcher and a Ticker
-      # record that outlives this process.
+      # The launcher a chain dispatches through, once a chain can run: its ticks need the launcher
+      # and a Ticker record that outlives this process.
       def launcher!
-        launcher = File.join(@root, "exe", "hecks")
-        raise ConsoleCapture::Failure, "no launcher at #{launcher}" unless File.executable?(launcher)
+        launcher = own_launcher || fallback_launcher
+        raise ConsoleCapture::Failure, "no launcher at #{File.join(@root, "exe", "hecks")}" unless launcher
         raise ConsoleCapture::Failure, persistence.refusal unless persisted?
 
         launcher
       end
+
+      # The root checkout's own `exe/hecks`, when it is executable.
+      def own_launcher
+        launcher = File.join(@root, "exe", "hecks")
+        launcher if File.executable?(launcher)
+      end
+
+      # The launcher of the Hecks checkout this adapter ships in, for a project that boards through
+      # it without one of its own. Only the launcher's path changes: the chain keeps the root's
+      # working directory, so its ticks resolve the same store the boarding wrote to.
+      def fallback_launcher = @standins.fetch(:fallback) { MainLauncher.path }
 
       def child(run, launcher, log)
         [RbConfig.ruby, "-e", CHAIN, run, backoff.quick.to_s, launcher, minutes.to_s, log]
