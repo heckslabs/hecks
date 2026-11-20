@@ -1,6 +1,6 @@
 Hecks.bluebook "Hecks" do
   domain_module "StallWatch" do
-    vision "A stall is noticed by data, not by a person watching: each kind is a row, and a stall for the orchestrator wakes one run of it, keyed by the stall, that settles it in place and is never a Work item."
+    vision "A stall is noticed by data, not by a person watching: each kind is a row, and every stall wakes one run of the orchestrator, keyed by the stall, that settles it in place and is never a Work item."
 
     # One look at the event tap for stalls. The clock's beat asks it (`DetectOnHeartbeat`), and so may
     # anyone (`StallWatch.detect!`). The `Watching` port reads the tap and answers the opening lines
@@ -214,10 +214,11 @@ Hecks.bluebook "Hecks" do
                closes: "MainPushed,MainPushRefused,IntegrationSuperseded", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Read the boarding (exe/hecks send_train.status, Integration.advance! confirm=true) and the train's " \
                      "log; a held lock or a dead push is reported as the cause, and the boarding is boarded again once."
-        # A volume at high past half an hour is a stall for the pruner, once per volume, ever: the
-        # DiskSpace `Volume` it opens on rises once.
+        # A volume at high past half an hour is a stall, once per volume, ever: the DiskSpace
+        # `Volume` it opens on rises once. The orchestrator it wakes runs the relief or hands it
+        # to a pruner run.
         member kind: "disk", aggregate: "Hecks::Volume", state: "high", opens: "VolumeRose", closes: "VolumeEased",
-               minutes: 30, forgets: 10080, fixer: "pruner",
+               minutes: 30, forgets: 10080, fixer: "orchestrator",
                move: "Relief.plan! run.value=<stall> to see what frees space, then Relief.relieve! " \
                      "run.value=<stall>-relief state.value=high --confirm, which retires merged worktrees and " \
                      "tidies done runs only; report unpushed, dirty and pinned subjects by path, never remove them."
@@ -266,7 +267,7 @@ Hecks.bluebook "Hecks" do
                      "refusal names and board again (SendTrain.board! --confirm); never use --no-verify or HECKS_OWNER_PUSH."
         # A queued boarding whose pull request has not merged in 45 minutes: its checks are slow or stuck.
         # Failed checks close it (`train-checks-failed` takes over); a merge, a close unmerged or its
-        # boarded commit on origin/main settles it, so a filed stall is abandoned and its Work item dropped.
+        # boarded commit on origin/main settles it, so a filed stall is abandoned and its session told to stop.
         member kind: "train-unmerged", aggregate: "Hecks::SendTrain", state: "queued", opens: "BoardingQueued",
                closes: "BranchPushed,TrainChecksFailed,PushFaulted,BoardingClosed", minutes: 45, forgets: 1440, fixer: "orchestrator",
                settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed,BoardingClosed",
@@ -275,7 +276,7 @@ Hecks.bluebook "Hecks" do
                      "BLOCKED on pending checks is only slow, so leave it; CLEAN without a merge means auto-merge " \
                      "is off: turning it on merges main, so Work.plan! one work item for a coder naming the pull request. The launchd beat records a merge GitHub made: start none, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log."
         # A queued boarding's required checks ended red; its pull request stays open and a merge closes it.
-        # A merge or a close settles the boarding, so a filed stall is abandoned and its Work item dropped.
+        # A merge or a close settles the boarding, so a filed stall is abandoned and its session told to stop.
         member kind: "train-checks-failed", aggregate: "Hecks::SendTrain", state: "red", opens: "TrainChecksFailed",
                closes: "BranchPushed,BoardingClosed", minutes: 0, forgets: 1440, fixer: "orchestrator",
                settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed,BoardingClosed",
@@ -383,8 +384,9 @@ Hecks.bluebook "Hecks" do
         invariant("minutes are not negative") { !value.negative? }
       end
 
-      # The role that settles a stall: one of the pipeline's agent roles. An orchestrator stall wakes a
-      # run of it; a stall for another role (the pruner's disk) is still a Work item for that role.
+      # The role that settles a stall: one of the pipeline's agent roles. Every row names the
+      # orchestrator, whose run a filed stall wakes; no stall is ever a Work item, and no row now
+      # names another role (`pruner` is unused).
       value_object "Fixer" do
         attribute :value, String, one_of: %w[orchestrator coder architect planner reviewer pruner]
       end
