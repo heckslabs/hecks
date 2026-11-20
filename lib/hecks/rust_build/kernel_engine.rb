@@ -33,8 +33,37 @@ module Hecks
       def boot(path, binary: nil)
         described = Hecks.describe(path)
         require_memory!(described.registry)
-        binary ||= binary_for(feature_of(described.directory))
-        Runtime::KernelDispatcher.new(KernelClient.open(binary))
+        connect(described.registry, feature_of(described.directory), binary: binary)
+      end
+
+      # Reads exactly the named files' declarations, as `Hecks.boot_files` loads them, and binds no
+      # adapter. The caller checks the declarations before {connect} builds a kernel for them; this
+      # makes no Memory check of its own, so a behaviors suite keeps its own refusal.
+      #
+      # @param files [Array<String>] the bluebook, hecksagon and world files, absolute, in order
+      # @param adapters [Array<String>, nil] exactly the `.adapter` files to load; nil leaves the
+      #   loader's own choice
+      # @return [Runtime::Registry] the declarations
+      def describe_files(files, adapters: nil)
+        Runtime::Loader.load_files(Ports::Loading.bootstrap, files + Array(adapters), nil,
+                                   Assembly.selected_environment(Assembly::FROM_ENV), chosen: !adapters.nil?)
+      end
+
+      # Connects a kernel dispatcher for already-read declarations; it checks no persistence.
+      #
+      # @param registry [Runtime::Registry] the declarations the kernel runs
+      # @param feature [String] the Cargo feature the kernel is built with
+      # @param binary [String, nil] a kernel binary to use instead of building the feature
+      # @return [Runtime::KernelDispatcher] connected, answering `registry` from the declarations
+      # @raise [BinaryUnavailable] when the feature is not declared or its build fails
+      def connect(registry, feature, binary: nil)
+        Runtime::KernelDispatcher.new(KernelClient.open(binary || binary_for(feature)), registry: registry)
+      end
+
+      # @param feature [String] a Cargo feature name
+      # @return [Boolean] whether `rust/Cargo.toml` declares it, so a kernel can be built for it
+      def feature?(feature)
+        File.read(File.join(RustBuild.rust_dir, "Cargo.toml")).match?(/^#{Regexp.escape(feature)}\s*=\s*\[\]/)
       end
 
       # @param directory [String] the described bluebook directory

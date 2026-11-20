@@ -67,6 +67,44 @@ RSpec.describe Hecks::Runtime::KernelDispatcher do
     end
   end
 
+  describe "what a dispatch settled on" do
+    let(:announced) { { "ok" => true, "events" => [{ "name" => "Created", "aggregate" => "Pizzas::Order", "id" => "p-1" }] } }
+
+    it "names the identity its first event names" do
+      allow(client).to receive(:dispatch).and_return(announced)
+      expect(dispatcher.dispatch_flat("Pizzas::Order.CreatePizza").id).to eq("p-1")
+    end
+
+    it "reads a record back from the kernel's instances, keyed by symbol" do
+      allow(client).to receive(:call).and_return("ok" => true, "instances" => { "Pizzas::Order#p-1" => { "name" => "a" } })
+      record = dispatcher.repository("Pizzas", instance_double(Hecks::Bluebook::Aggregate, name: "Order")).find("p-1")
+      expect(record.state).to eq(name: "a")
+    end
+
+    it "finds nothing the kernel does not hold" do
+      allow(client).to receive(:call).and_return("ok" => true, "instances" => {})
+      expect(dispatcher.repository("Pizzas", instance_double(Hecks::Bluebook::Aggregate, name: "Order")).find("x")).to be_nil
+    end
+  end
+
+  describe "reset!" do
+    before { allow(client).to receive(:call).and_return("ok" => true) }
+
+    it "keeps a snapshot the first time and restores it after", :aggregate_failures do
+      2.times { dispatcher.reset! }
+      expect(client).to have_received(:call).with("snapshot" => true).ordered
+      expect(client).to have_received(:call).with("restore" => true).ordered
+    end
+  end
+
+  describe "the bound caller" do
+    it "rides on a dispatch as its role" do
+      allow(client).to receive(:dispatch).and_return("ok" => true, "events" => [])
+      Hecks::Runtime::Caller.as(role: "Chef") { dispatcher.dispatch_flat("Pizzas::Order.CreatePizza") }
+      expect(client).to have_received(:dispatch).with("Pizzas::Order.CreatePizza", {}, caller: { "role" => "Chef" })
+    end
+  end
+
   describe "redrive_sagas!" do
     it "has nothing to finish" do
       expect(dispatcher.redrive_sagas!).to be_nil
