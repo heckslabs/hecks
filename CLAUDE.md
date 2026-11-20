@@ -147,7 +147,10 @@ current list of what this repo can do.
   over a group of commands is the aggregate, so each line under it completes the call.
 - Before writing a script, look for the command that already does it
   (projections, regeneration, style checks, model_check, smoke tests).
-  If none exists, add the command to the bluebook rather than a script.
+  If none exists, a script is fine as a follow-up: a role's session is refused its first script
+  until it has run a hecks command (run the script again if none fits), and every script is
+  recorded. A script needed twice becomes a command in the bluebook
+  (`exe/hecks agents Script.candidates` lists them).
 - Add `--wait` when you need the result before the next step.
 
 ## Releases are the owner's
