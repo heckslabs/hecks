@@ -1603,9 +1603,8 @@ Hecks.bluebook "Hecks" do
     end
 
     # A search that ran and found no merge, while the failing specs are green at the base, is not an
-    # acquittal: main is red and nobody knows why. The episode is unfound, the flag is raised and the
-    # owner is told. A train's search (its answer names `examples`, empty otherwise) is not this rule's: `origin/main` may be
-    # green, so no flag is raised for it and the rule below takes it.
+    # acquittal: main is red and nobody knows why, so the flag is raised and the owner is told. A
+    # train's search (its answer names `examples`) is the next rule's: `origin/main` may be green.
     policy "UnfoundWhenNoMergeIsFound" do
       on      "Integration.BisectAnswered"
       root
@@ -2107,11 +2106,9 @@ Hecks.bluebook "Hecks" do
                                     title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
-    # Every spec failure the rerun policy does not take, and that names a failing example, is
-    # searched: a related one, one of unknown relation, one of two or more jobs, and the rerun's own
-    # failure. No coder is started; the search's answer reverts the landing or says why not. The two
-    # policies share one `where`: the first ends the attempt's record, the second asks the search, in
-    # that order, so a search that finds no landing can still give the attempt to a coder.
+    # Every other spec failure that names a failing example is searched, and no coder is started. The
+    # two policies share one `where`: the first ends the attempt's record, the second asks the search,
+    # in that order, so a search that finds no landing can still give the attempt to a coder.
     policy "RecordTheTrainPrSearched" do
       on      "TrainPr.TrainPrFailed"
       where   { cause.value == "spec" && !examples.nil? && !examples.value.to_s.empty? && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no") }
