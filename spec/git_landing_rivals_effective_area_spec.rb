@@ -4,6 +4,7 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require "hecks/hecks/adapters/dispatching/held_ground"
+require_relative "support/landing_claims_registry"
 
 # A landing reads each rival's effective area at that moment: the files its committed branch
 # changes, not the directory it was planned with and not yet narrowed by a fill.
@@ -38,7 +39,7 @@ RSpec.describe Hecks::Adapters::GitLanding::Rivals do
 
   def refusal(landing, area)
     allow(Hecks::Adapters::StartedWork).to receive(:items).and_return([{ key: "held", area: area }])
-    described_class.new(adapter, repo, nil).refusal(landing, "main")
+    described_class.new(adapter, repo, LandingClaimsRegistry.landing_claims_registry).refusal(landing, "main")
   end
 
   def start_repo(*held_files)

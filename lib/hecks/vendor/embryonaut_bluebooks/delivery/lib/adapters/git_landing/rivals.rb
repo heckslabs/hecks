@@ -1,35 +1,32 @@
 # frozen_string_literal: true
 
 require "hecks/hecks/adapters/git_worktrees"
-require "hecks/hecks/adapters/area_overlap"
-require "hecks/hecks/adapters/started_work"
+require_relative "bound_claims"
 
 module Hecks
   module Adapters
     class GitLanding
-      # The started Work items that hold ground a branch changes. A branch is landed for its own
-      # Work
-      # work item, the one keyed by the branch name, so that work item is never a rival; a landing
-      # with no work item
-      # has none to clash with.
+      # The claims that hold ground a branch changes, asked of the `Claims` port ({BoundClaims}). A
+      # branch is landed for its own claim, the one keyed by the branch name, so that claim is never
+      # a rival; a project that binds nothing to the port has none to clash with.
       class Rivals
         include GitWorktrees
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
-        # @param registry [Runtime::Registry, nil] where the Work items are read from
+        # @param registry [Runtime::Registry, nil] where the adapter bound to `Claims` is found
         def initialize(git, checkout, registry)
           @git = git
           @checkout = checkout
-          @registry = registry
+          @claims = BoundClaims.new(registry)
         end
 
         # @param branch [String] the branch to land
         # @param onto [String] the branch it lands on
-        # @return [String, nil] the refusal naming the work item and the files, nil when none clash
+        # @return [String, nil] the refusal naming the claim and the files, nil when none clash
         def refusal(branch, onto)
           files = changed(branch, onto)
-          StartedWork.items(@registry).each do |item|
+          @claims.items.each do |item|
             next if item[:key] == branch
 
             clash = files.select { |file| claims?(item, file) }
@@ -41,7 +38,7 @@ module Hecks
         private
 
         def claims?(item, file)
-          item[:area].any? { |area| AreaOverlap.overlap?(area, file, root: @checkout, file: true) }
+          item[:area].any? { |area| @claims.overlap?(area, file, @checkout) }
         end
 
         def wording(branch, item, clash)
