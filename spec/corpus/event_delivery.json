@@ -1,0 +1,52 @@
+{
+  "name": "event-delivery-parity",
+  "note": "A delivery is enqueued, claimed, fails and is redriven, then claimed again and delivered; a consumer starts and advances, then is refused moving back; a reaction is recorded. Proves the Delivery lifecycle's five states, Redrive taking failed back to pending, and Advance's guard that a cursor never moves back.",
+  "expectations": {
+    "events": 9
+  },
+  "steps": [
+    {
+      "verb": "EventDelivery::Delivery.Enqueue",
+      "args": {
+        "delivery_id": { "value": "e1/policy:Pizzas::Bake" },
+        "event_id": { "value": "e1" },
+        "domain": { "value": "Pizzas" },
+        "consumer": { "value": "policy:Pizzas::Bake" },
+        "kind": { "value": "reaction" }
+      }
+    },
+    { "verb": "EventDelivery::Delivery.Claim", "args": { "delivery_id": { "value": "e1/policy:Pizzas::Bake" } } },
+    {
+      "verb": "EventDelivery::Delivery.Fail",
+      "args": { "delivery_id": { "value": "e1/policy:Pizzas::Bake" }, "error": { "value": "boom" } }
+    },
+    { "verb": "EventDelivery::Delivery.Redrive", "args": { "delivery_id": { "value": "e1/policy:Pizzas::Bake" } } },
+    { "verb": "EventDelivery::Delivery.Claim", "args": { "delivery_id": { "value": "e1/policy:Pizzas::Bake" } } },
+    { "verb": "EventDelivery::Delivery.Deliver", "args": { "delivery_id": { "value": "e1/policy:Pizzas::Bake" } } },
+    {
+      "verb": "EventDelivery::Consumer.Start",
+      "args": {
+        "key": { "value": "Pizzas/Bake" },
+        "log": { "value": "Pizzas" },
+        "consumer": { "value": "policy:Pizzas::Bake" }
+      }
+    },
+    {
+      "verb": "EventDelivery::Consumer.Advance",
+      "args": { "key": { "value": "Pizzas/Bake" }, "to": { "value": 5 } }
+    },
+    {
+      "verb": "EventDelivery::Consumer.Advance",
+      "args": { "key": { "value": "Pizzas/Bake" }, "to": { "value": 3 } }
+    },
+    {
+      "verb": "EventDelivery::Reaction.Record",
+      "args": {
+        "key": { "value": "Pizzas/e1/Bake" },
+        "consumer": { "value": "Pizzas" },
+        "event_id": { "value": "e1" },
+        "policy": { "value": "Bake" }
+      }
+    }
+  ]
+}
