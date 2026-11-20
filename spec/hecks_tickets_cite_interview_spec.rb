@@ -19,7 +19,7 @@ RSpec.describe "a Tickets work item and decision citing an interview" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  let(:citation) { { interview: { value: "2026-11-07-tools" }, point: { value: "p3" } } }
+  let(:citation) { { interview: { value: "2026-11-07-tools" }, point: { value: 3 } } }
 
   def plan(key, **extra)
     runtime
@@ -36,7 +36,7 @@ RSpec.describe "a Tickets work item and decision citing an interview" do
   it "shows the interview and Point a planned work item cites" do
     plan("cite/a", **citation)
 
-    expect(shown("cite/a").values_at("interview", "point")).to eq(%w[2026-11-07-tools p3])
+    expect(shown("cite/a").values_at("interview", "point")).to eq(%w[2026-11-07-tools 3])
   end
 
   it "shows an empty citation for a work item planned from no interview" do
@@ -49,7 +49,7 @@ RSpec.describe "a Tickets work item and decision citing an interview" do
     draft("9194", **citation)
     record = Tickets::Adr.find("9194")
 
-    expect([record.interview.value, record.point.value]).to eq(%w[2026-11-07-tools p3])
+    expect([record.interview.value, record.point.value]).to eq(["2026-11-07-tools", 3])
   end
 
   it "refuses planning a work key that exists, by name" do
