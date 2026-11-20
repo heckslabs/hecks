@@ -65,6 +65,15 @@ RSpec.describe "Postgres atomic_put persistence", :io do
 
   it_behaves_like "an atomic_put adapter"
 
+  # Runs where Postgres is reachable; the io job in CI covers it.
+  describe "archiving an ended occupant" do
+    include_context "with the archiving Ticket aggregate"
+
+    let(:aggregate) { ticket_aggregate("PostgresArchiving") }
+
+    it_behaves_like "an archiving atomic_put adapter"
+  end
+
   # One writer that waits for `start` before it puts, so both writers put at the same moment.
   def racing_writer(stored, label, ready, start)
     Thread.new do
