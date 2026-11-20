@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "hecks/hecks/adapters/git_main_pull/boarding"
+require_relative "boarding"
 
 module Hecks
   module Adapters
