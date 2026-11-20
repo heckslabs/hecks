@@ -37,7 +37,7 @@ Hecks.hecksagon "Agents" do
 
   # Which paths a submitted branch changed against main, read in its checkout. Bound by
   # adapters/submitted_paths, which only reads git; the bluebook decides what the paths ask for.
-  # The same read answers `Tier` and `Domains`, matched against the aggregate's rows.
+  # The same read answers `Tier`, `Domains` and the architect's `Diff`.
   Agents::ChangeReview.port "SubmittedPaths" do
     asks "SubmittedPaths", to: ChangeReview do
       attribute :review,   ReviewKey
@@ -48,6 +48,7 @@ Hecks.hecksagon "Agents" do
 
     answers_query "Tier"
     answers_query "Domains"
+    answers_query "Diff"
   end
 
   # The sessions claude lists, joined to the AgentRun ledger (adapters/fleet_control). The examines
