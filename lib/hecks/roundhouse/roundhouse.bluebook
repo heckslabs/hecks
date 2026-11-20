@@ -219,6 +219,13 @@ Hecks.bluebook "Roundhouse" do
       returns Document
     end
 
+    # What a reap is ruled on (ADR 0222, phase 3, reaping): Signalbox's `Reaping.Rule` judges each
+    # row before Delegate's reap removes anything, once the Tickets world's `reaping.signalbox` is on.
+    query "Ended" do
+      description "The ended part of the meter: each session listed done or stopped, or whose process is gone, with its role, run, idle minutes and directory; and each copy of the checkout, with its branch, whether main holds it, its unsaved files and whether a live session works in it."
+      returns Document
+    end
+
     query "Latest" do
       description "The readings taken, the newest last, which the board and the pressure beat read."
       order_by :reading

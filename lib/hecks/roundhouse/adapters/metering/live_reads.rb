@@ -81,7 +81,8 @@ module Hecks
         end
 
         def ran(run)
-          { run: value(run, :run), agent: value(run, :agent), works_as: value(run, :works_as), work: value(run, :work) }
+          { run: value(run, :run), agent: value(run, :agent), works_as: value(run, :works_as), work: value(run, :work),
+            status: value(run, :status) }
         end
 
         def value(record, name) = StartedWork.value(record, name).to_s

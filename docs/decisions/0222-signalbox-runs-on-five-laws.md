@@ -158,6 +158,15 @@ whole-machine fuse, and trips last. `dispatch_roll_forward` stays as the owner's
    Order rows declare, and only a tripped breaker whose row `holds` new starts stops coders. The
    shadow's fill ruling does not yet read the breakers, so while the machine fuse holds it records
    "start" against Delegate's "wait"; that disagreement is the shadow's, not Delegate's.
+   Reaping moves behind the Tickets world's `reaping.signalbox`: a reap's plain sweep asks
+   `Clearance.Grant` from one pressure beat first, so a copy behind main or lacking the main
+   checkout's local files reaps nothing, then puts each row of Roundhouse's `Ended` meter to
+   `Reaping.Rule`. A finished session (listed done or stopped) goes after a 5-minute window, an
+   owner's own after a day; a stale one (its process gone while listed otherwise) after its role's
+   fuse time rating; a copy (a worktree) once its branch is on main and no started run or live
+   session holds it. Nothing with unsaved work, no pin, no standing seat and no person's session is
+   reaped. It replaces the watch's `prune_sessions.sh` and its merged-worktree prune. The shadow
+   held no reap rulings to read beforehand: its beat rules only fills and sheds.
 4. **Delete.** Once every function has moved and held for a measured day, Delegate's machinery and the
    settings it alone read are deleted.
 

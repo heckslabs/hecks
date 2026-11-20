@@ -58,6 +58,8 @@ Hecks.bluebook "Hecks" do
                context: "Hecks / Delegate", says: "Whether Signalbox admits each coder by headroom in place of the work cap and the red reserve"
         member world: "Tickets", setting: "protection.signalbox", kind: "switch", least: "", most: "",
                context: "Hecks / Delegate", says: "Whether the boot fuse waits while a smaller Signalbox breaker, the helper share, can still act"
+        member world: "Tickets", setting: "reaping.signalbox", kind: "switch", least: "", most: "",
+               context: "Hecks / Delegate", says: "Whether Signalbox rules each reap of finished, stale and copy sessions from Roundhouse's meter"
         member world: "Tickets", setting: "signalbox_response.drives", kind: "switch", least: "", most: "",
                context: "Hecks / Delegate", says: "Whether a heavy job answers the pressure band by its own session kind (Signalbox's Response)"
         member world: "Tickets", setting: "dispatch_max_load.limit", kind: "number", least: "2", most: "40",
