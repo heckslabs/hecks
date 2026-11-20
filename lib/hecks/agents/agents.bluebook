@@ -489,15 +489,10 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # A session's scripts, held once until the session has tried hecks. A role's Bash call that starts
-  # with an `Interpreter` word is attempted here by the `Routing` port's guard; a hecks command since
-  # the last script, or the same script asked again after it was held, runs it, and anything else
-  # holds it with the `script` hint. Every script run is appended to the session's record with its
-  # role, and `Candidates` lists the ones run twice, each a command the bluebooks lack. "Ran a hecks
-  # command first" stands in for "tried the right one", and the guard sees only the head of a
-  # command (`/usr/bin/python3`, `env python` and a pipe into an interpreter pass unseen).
+  # "Ran a hecks command first" stands in for "tried the right one"; the guard sees only a call's
+  # head, so `/usr/bin/python3`, `env python` and a pipe into an interpreter pass unseen.
   aggregate "Script" do
-    description "One session's scripts: held once until the session has tried a hecks command, then run and recorded with its session, role and command."
+    description "One session's scripts. A role's Bash call that starts with an Interpreter word is attempted by the Routing guard: a hecks command since the last script, or the same script asked again after it was held, runs it and appends it to the session's record; anything else is held with the script hint. Candidates lists the scripts run twice, each a command the bluebooks lack."
 
     identified_by :session
 
