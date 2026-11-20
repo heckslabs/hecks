@@ -5,6 +5,7 @@ require "hecks/hecks/adapters/boarding_holding"
 require "hecks/hecks/adapters/boarding_releasing"
 require "tmpdir"
 require "open3"
+require_relative "support/landing_holds_registry"
 
 # A hold on local main for a boarding: the adapter writes, reads and lifts the marker, and a landing
 # onto main is refused by name while it stands, except a red Work item's fix. Every example builds
@@ -44,7 +45,9 @@ RSpec.describe Hecks::Adapters::BoardingHolding, "#mark" do
 
   def hold(owner: "rehearser") = holding.mark(checkout: repo, owner: { value: owner })
 
-  def land(branch, **tune) = Hecks::Adapters::GitLanding.new(**tune).merge(checkout: repo, branch: branch)
+  def landing(**tune) = Hecks::Adapters::GitLanding.new(registry: LandingHoldsRegistry.landing_holds_registry, **tune)
+
+  def land(branch, **tune) = landing(**tune).merge(checkout: repo, branch: branch)
 
   def landed? = git("branch", "--merged", "main")
 
@@ -78,7 +81,7 @@ RSpec.describe Hecks::Adapters::BoardingHolding, "#mark" do
     build_repo("feature-x")
     hold
 
-    expect { Hecks::Adapters::GitLanding.new.finish_branch(checkout: repo, branch: "feature-x") }
+    expect { landing.finish_branch(checkout: repo, branch: "feature-x") }
       .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /main is frozen for boarding/)
   end
 
