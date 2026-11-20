@@ -98,6 +98,20 @@ module BoxStateStandIn
     end
   end
 
+  # A registry in which a console domain attaches Deploy and declares no sibling hecksagon for it,
+  # so nothing binds Deploy's ports.
+  #
+  # @return [Hecks::Runtime::Registry]
+  def self.deploy_attached_without_sibling
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      MemoryPorts.load!
+      Hecks.bluebook("Console") { aggregate("Session") { identified_by :id } }
+      Hecks.hecksagon("Console") { attaches "Deploy" }
+    end
+    registry
+  end
+
   # Runs the block with a scratch box whose stand-in `aws` is first on `PATH`.
   #
   # @yieldparam box [Box]

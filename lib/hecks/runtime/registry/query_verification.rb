@@ -12,7 +12,8 @@ module Hecks
         # `returns` a value object and the hecksagon names the port whose adapter answers it. None
         # of the two is "no answer path"; both is "two answer paths". A bound query also needs an
         # adapter behind its port that implements it, found here so it fails at boot rather than
-        # on the first ask.
+        # on the first ask. An unbound query of a bounded context still waiting for its sibling
+        # hecksagon is left to that refusal, which names the cause: it has nowhere to be bound yet.
         def refuse_unanswerable_queries!
           @declared.bluebooks.each_value do |declaration|
             declaration.aggregates.each do |aggregate|
@@ -35,7 +36,7 @@ module Hecks
 
           refuse_two_answer_paths!(where, query, ports) if paths > 1
           return check_bound_query!(declaration, aggregate, query, ports.first) if ports.any?
-          return if paths == 1
+          return if paths == 1 || awaiting_sibling?(declaration)
 
           check_unbound_query!(declaration, aggregate, query, where)
         end
