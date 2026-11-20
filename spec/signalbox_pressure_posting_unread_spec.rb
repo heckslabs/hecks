@@ -10,21 +10,16 @@ RSpec.describe Hecks::Adapters::PressurePosting, "#post" do
   let(:path) { File.join(dir, "pressure.json") }
   let(:broken) { Struct.new(:found) { def for_verb(_name) = raise("unreadable") }.new }
   let(:registry) { Struct.new(:found) { def world(_name) = found }.new(broken) }
+  let(:posting) { described_class.new(registry: registry, settings: { path: path }) }
 
   after { FileUtils.remove_entry(dir) }
 
-  let(:posting) { described_class.new(registry: registry, settings: { path: path }) }
-
   it "raises Unread" do
-    expect { posting.post(pressure: "p", band: "normal") }.to raise_error(Hecks::Adapters::Looking::Marks::Unread)
+    expect { posting.post(pressure: "p") }.to raise_error(Hecks::Adapters::Looking::Marks::Unread)
   end
 
-  it "posts nothing" do
-    begin
-      posting.post(pressure: "p")
-    rescue Hecks::Adapters::Looking::Marks::Unread
-      nil
-    end
+  it "posts nothing", :aggregate_failures do
+    expect { posting.post(pressure: "p") }.to raise_error(StandardError)
     expect(File.exist?(path)).to be(false)
   end
 end

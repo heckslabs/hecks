@@ -3,7 +3,7 @@
 require "spec_helper"
 require "hecks/signalbox/adapters/looking"
 
-# A world that declares a line the beat cannot read is reported, not replaced by the starting values.
+# A world that declares a line the beat cannot read is reported, not replaced by starting values.
 RSpec.describe Hecks::Adapters::Looking::Marks, "#initialize" do
   let(:broken) { Struct.new(:found) { def for_verb(_name) = raise("unreadable") }.new }
   let(:registry) { Struct.new(:found) { def world(_name) = found }.new(broken) }
