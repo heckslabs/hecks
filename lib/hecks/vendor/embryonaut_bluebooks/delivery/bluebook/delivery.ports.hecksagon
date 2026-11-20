@@ -135,4 +135,22 @@ Hecks.hecksagon "Delivery" do
       refuses "LandingRecordRefused"
     end
   end
+
+  # The ground other work holds, asked of whatever stands above delivery: the claims that stand,
+  # each with the areas it holds, and whether one area holds one file a landing changes. A landing
+  # that changes a file another claim holds is refused. A project that binds no adapter has no
+  # claims, and nothing overlaps.
+  Delivery::Landing.port "Claims" do
+    asks "ReadClaims", to: Landing do
+      attribute :run, RunKey
+      answers "ClaimsAnswered"
+      refuses "ClaimsRefused"
+    end
+
+    asks "Overlap", to: Landing do
+      attribute :run, RunKey
+      answers "OverlapAnswered"
+      refuses "OverlapRefused"
+    end
+  end
 end
