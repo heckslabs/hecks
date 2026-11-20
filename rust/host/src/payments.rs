@@ -16,10 +16,12 @@ use std::sync::Arc;
 mod keystore;
 /// Which member roles may manage payments (`HECKS_PAYMENTS_MANAGER_ROLES`).
 pub mod roles;
+/// The Stripe calls themselves, made natively or by the Stripe Wasm component.
+pub mod stripe;
 use keystore::{KeyStore, StoredDocument, StoredKeys};
+use stripe::{AccountRefusal, Stripe, WebhookRefusal, WebhookRequest};
 
 const CONNECTION_SLUG: &str = "payments";
-const STRIPE_API_BASE: &str = "https://api.stripe.com";
 /// ADAPTER FACT (ADR 0099): the two environments a Stripe account has, named by the key prefix
 /// (`sk_test_`, `sk_live_`) and the env vars read here. The domain's `ConnectionMode` enumerates
 /// the same words; `the_adapter_words_are_ones_the_connection_domain_admits` holds the two
@@ -33,7 +35,6 @@ const PROCESSOR: &str = "stripe";
 /// Stripe account directly. It is the only kind of connection this host charges.
 pub const SELF_ACCOUNT: &str = "self";
 const DIRECT_DISPLAY_FALLBACK: &str = "Your Stripe account";
-const STRIPE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// This deploy's payment settings, read once per request as a plain value (so a
 /// test can build one directly). Deliberately not `Debug`: it holds secret keys.
@@ -49,7 +50,12 @@ pub struct PlatformConfig {
     /// A snapshot of what the store held when `apply_store` last ran. Empty
     /// until then.
     pub stored: Arc<StoredDocument>,
+    /// Where Stripe is reached: `stripe::API_BASE`, or a stand-in in tests. Every key is sent
+    /// here, so it is this host's own setting and never a tenant's input.
     pub api_base: String,
+    /// What makes the Stripe calls: the host itself, or the component the IR wires to the
+    /// `payments` port.
+    pub stripe: Stripe,
     /// The description Stripe shows beside the webhook endpoint this site
     /// creates: `PAYMENTS_WEBHOOK_DESCRIPTION`, else "<HECKS_DOMAIN> website".
     pub webhook_description: String,
@@ -71,9 +77,11 @@ pub struct PlatformConfig {
 
 /// Refuses the boot when `HECKS_PAYMENTS_MANAGER_ROLES` is invalid, and on AWS when
 /// checkout is enabled but `PAYMENTS_ACCOUNT_SECRET_ID` names no secret; off AWS, or with
-/// checkout off, the host boots as usual.
+/// checkout off, the host boots as usual. Refuses too when the IR wires a Stripe component the
+/// host cannot load or whose grant does not reach Stripe.
 pub fn check_boot(checkout_enabled: bool) -> Result<(), String> {
     roles::check_boot()?;
+    Stripe::configured()?;
     keystore::check_boot(checkout_enabled)
 }
 
@@ -84,6 +92,15 @@ fn webhook_description(configured: Option<&str>, domain: &str) -> String {
         .map(str::trim)
         .filter(|text| !text.is_empty())
         .map_or_else(|| format!("{domain} website"), ToString::to_string)
+}
+
+// The adapter the IR wires. A wiring the host cannot use refuses the boot (`check_boot`), so the
+// native fallback here is only ever reached by a process that never ran that check.
+fn configured_stripe() -> Stripe {
+    Stripe::configured().unwrap_or_else(|refusal| {
+        eprintln!("the Stripe component cannot be used, so Stripe is called natively: {refusal}");
+        Stripe::Native
+    })
 }
 
 impl PlatformConfig {
@@ -100,7 +117,8 @@ impl PlatformConfig {
             webhook_base_url,
             store: keystore::default_store(),
             stored: Arc::new(StoredDocument::default()),
-            api_base: STRIPE_API_BASE.to_string(),
+            api_base: stripe::API_BASE.to_string(),
+            stripe: configured_stripe(),
             webhook_description: webhook_description(
                 std::env::var("PAYMENTS_WEBHOOK_DESCRIPTION")
                     .ok()
@@ -207,6 +225,15 @@ impl PlatformConfig {
                 !self.direct_key(mode).is_empty() && !self.direct_publishable_key(mode).is_empty()
             })
             .collect()
+    }
+
+    /// The account a Stripe call is made as with `key`, pinning this host's API version.
+    pub fn account<'a>(&'a self, key: &'a str) -> stripe::Account<'a> {
+        stripe::Account {
+            base_url: &self.api_base,
+            api_key: key,
+            api_version: Some(STRIPE_API_VERSION),
+        }
     }
 
     fn is_operator(&self, email: &str) -> bool {
@@ -694,47 +721,17 @@ async fn switch_route(
     }
 }
 
-fn stripe_http() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(STRIPE_TIMEOUT)
-        .build()
-        .map_err(|e| e.to_string())
-}
-
-// The name of the business's own account, read with that account's own key
-// (`GET /v1/account`). Falls back to a generic label when Stripe cannot be
-// asked or has nothing better; the key is only ever sent as the bearer.
+// The name of the business's own account, read with that account's own key and no pinned API
+// version. Falls back to a generic label when Stripe cannot be asked or has nothing better.
 async fn own_account_display_name(platform: &PlatformConfig, key: &str) -> String {
-    let fetch = async {
-        let response = stripe_http()?
-            .get(format!("{}/v1/account", platform.api_base))
-            .bearer_auth(key)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-        if !response.status().is_success() {
-            return Err("account lookup refused".to_string());
-        }
-        response.json::<Value>().await.map_err(|e| e.to_string())
+    let account = stripe::Account {
+        api_version: None,
+        ..platform.account(key)
     };
-    let Ok(account) = fetch.await else {
-        return DIRECT_DISPLAY_FALLBACK.to_string();
-    };
-    let candidates = [
-        account.get("business_profile").and_then(|p| p.get("name")),
-        account
-            .get("settings")
-            .and_then(|s| s.get("dashboard"))
-            .and_then(|d| d.get("display_name")),
-        account.get("email"),
-    ];
-    let name = candidates
-        .into_iter()
-        .flatten()
-        .find_map(|v| v.as_str().filter(|s| !s.is_empty()))
-        .unwrap_or(DIRECT_DISPLAY_FALLBACK)
-        .to_string();
-    name
+    match platform.stripe.read_account(&account).await {
+        Ok(Some(name)) => name,
+        _ => DIRECT_DISPLAY_FALLBACK.to_string(),
+    }
 }
 
 const KEYS_NOT_ENABLED: &str = "saving keys is not set up on this site";
@@ -784,117 +781,44 @@ fn keys_mode(secret_key: &str, publishable_key: &str) -> Result<&'static str, &'
     }
 }
 
-// The business name Stripe has for an account, when it has one.
-fn business_name(account: &Value) -> Option<String> {
-    let candidates = [
-        account.get("business_profile").and_then(|p| p.get("name")),
-        account
-            .get("settings")
-            .and_then(|s| s.get("dashboard"))
-            .and_then(|d| d.get("display_name")),
-        account.get("email"),
-    ];
-    candidates
-        .into_iter()
-        .flatten()
-        .find_map(|v| v.as_str().filter(|s| !s.is_empty()))
-        .map(String::from)
-}
-
 // Asks Stripe whether the key works and what the business is called. A restricted
 // key that cannot read the account gets the generic name, not a refusal here:
 // creating the webhook is the real test of its permissions.
 async fn verify_key(platform: &PlatformConfig, key: &str) -> Result<String, &'static str> {
-    let response = stripe_http()
-        .map_err(|_| STRIPE_UNREACHABLE)?
-        .get(format!("{}/v1/account", platform.api_base))
-        .bearer_auth(key)
-        .header("Stripe-Version", STRIPE_API_VERSION)
-        .send()
-        .await
-        .map_err(|_| STRIPE_UNREACHABLE)?;
-    let status = response.status();
-    if status.as_u16() == 401 {
-        return Err(KEY_REFUSED);
+    match platform.stripe.read_account(&platform.account(key)).await {
+        Ok(name) => Ok(name.unwrap_or_else(|| DIRECT_DISPLAY_FALLBACK.to_string())),
+        Err(AccountRefusal::KeyRefused) => Err(KEY_REFUSED),
+        Err(AccountRefusal::Unreachable) => Err(STRIPE_UNREACHABLE),
+        Err(AccountRefusal::Declined) => Ok(DIRECT_DISPLAY_FALLBACK.to_string()),
     }
-    if !status.is_success() {
-        return Ok(DIRECT_DISPLAY_FALLBACK.to_string());
-    }
-    let account = response.json::<Value>().await.unwrap_or(Value::Null);
-    Ok(business_name(&account).unwrap_or_else(|| DIRECT_DISPLAY_FALLBACK.to_string()))
-}
-
-enum WebhookError {
-    /// The key is not allowed to create webhook endpoints.
-    Permission,
-    /// Anything else: Stripe down, refusing the request, or answering oddly.
-    Other,
 }
 
 // Creates the webhook endpoint in the business's own Stripe account and returns
 // its id and signing secret. Stripe shows the signing secret only in this
-// answer, so it is captured here and nowhere else. Only the status is logged.
+// answer, so it is captured here and nowhere else.
 async fn create_webhook(
     platform: &PlatformConfig,
     key: &str,
-) -> Result<(String, String), WebhookError> {
-    let url = format!("{}/webhooks/stripe", platform.webhook_base_url);
-    let mut params: Vec<(String, String)> = vec![
-        ("url".into(), url),
-        ("description".into(), platform.webhook_description.clone()),
-    ];
-    params.extend(
-        WEBHOOK_EVENTS
-            .iter()
-            .enumerate()
-            .map(|(index, event)| (format!("enabled_events[{index}]"), event.to_string())),
-    );
-    let response = stripe_http()
-        .map_err(|_| WebhookError::Other)?
-        .post(format!("{}/v1/webhook_endpoints", platform.api_base))
-        .bearer_auth(key)
-        .header("Stripe-Version", STRIPE_API_VERSION)
-        .form(&params)
-        .send()
-        .await
-        .map_err(|_| WebhookError::Other)?;
-    let status = response.status();
-    if matches!(status.as_u16(), 401 | 403) {
-        return Err(WebhookError::Permission);
-    }
-    if !status.is_success() {
-        eprintln!("Stripe refused to create the payment webhook ({status})");
-        return Err(WebhookError::Other);
-    }
-    let body: Value = response.json().await.map_err(|_| WebhookError::Other)?;
-    let text = |field: &str| {
-        body.get(field)
-            .and_then(|v| v.as_str())
-            .filter(|s| !s.is_empty())
-            .map(String::from)
+) -> Result<(String, String), WebhookRefusal> {
+    let wanted = WebhookRequest {
+        url: format!("{}/webhooks/stripe", platform.webhook_base_url),
+        description: platform.webhook_description.clone(),
+        events: WEBHOOK_EVENTS.iter().map(ToString::to_string).collect(),
     };
-    match (text("id"), text("secret")) {
-        (Some(id), Some(secret)) => Ok((id, secret)),
-        _ => Err(WebhookError::Other),
-    }
+    let endpoint = platform
+        .stripe
+        .create_webhook(&platform.account(key), wanted)
+        .await?;
+    Ok((endpoint.id, endpoint.secret))
 }
 
 // Removes a webhook endpoint from the business's Stripe account, best effort:
 // the answer says whether Stripe confirmed it, and nothing else is reported.
 async fn delete_webhook(platform: &PlatformConfig, key: &str, endpoint_id: &str) -> bool {
-    let Ok(http) = stripe_http() else {
-        return false;
-    };
-    let sent = http
-        .delete(format!(
-            "{}/v1/webhook_endpoints/{endpoint_id}",
-            platform.api_base
-        ))
-        .bearer_auth(key)
-        .header("Stripe-Version", STRIPE_API_VERSION)
-        .send()
-        .await;
-    matches!(sent, Ok(response) if response.status().is_success())
+    platform
+        .stripe
+        .delete_webhook(&platform.account(key), endpoint_id)
+        .await
 }
 
 // Checks the keys, has Stripe deliver events here, and stores the keys and webhook
@@ -957,8 +881,8 @@ async fn save_keys_route(
         .filter(|old| !old.webhook_endpoint_id.is_empty());
     let (endpoint_id, webhook_secret) = match create_webhook(platform, &secret_key).await {
         Ok(created) => created,
-        Err(WebhookError::Permission) => return json_error(422, WEBHOOK_PERMISSION),
-        Err(WebhookError::Other) => return json_error(422, WEBHOOK_FAILED),
+        Err(WebhookRefusal::Permission) => return json_error(422, WEBHOOK_PERMISSION),
+        Err(WebhookRefusal::Other) => return json_error(422, WEBHOOK_FAILED),
     };
     let saved = StoredKeys {
         secret_key: secret_key.clone(),
@@ -1043,6 +967,7 @@ pub(crate) fn test_platform() -> PlatformConfig {
         store: None,
         stored: Arc::new(StoredDocument::default()),
         api_base: "http://127.0.0.1:9".to_string(),
+        stripe: Stripe::Native,
         webhook_description: "Test Domain website".to_string(),
         direct_test_key: String::new(),
         direct_live_key: String::new(),

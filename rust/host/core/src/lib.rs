@@ -9,6 +9,7 @@ pub mod arg_limits;
 pub mod clock;
 pub mod component_email;
 pub mod component_imports;
+pub mod component_payments;
 pub mod component_runner;
 pub mod components;
 pub mod dispatch;
