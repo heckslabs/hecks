@@ -2,10 +2,12 @@ require_relative "../../bluebook/expression/resolver"
 require_relative "../invalid_value_generator"
 require_relative "../value_generator"
 require_relative "../../runtime/errors"
+require_relative "../../runtime/kernel_dispatcher"
 require_relative "../../runtime/value"
 require_relative "../../naming"
 require_relative "argument_drawing"
 require_relative "identity_shaping"
+require_relative "needs_answering"
 
 module Hecks
   module Fuzzing
@@ -16,13 +18,19 @@ module Hecks
       module StepBuilder
         include ArgumentDrawing
         include IdentityShaping
+        include NeedsAnswering
+
+        # What the kernel engine raises for a step it declines: a refusal the kernel names, whose
+        # class `Runtime::DOMAIN_REFUSALS` leaves to the in-process engine.
+        KERNEL_REFUSALS = [Runtime::KernelDispatcher::Refused].freeze
 
         private
 
         def build_query_step(runtime, entry)
           args = args_for(entry[:query].attributes, entry[:aggregate])
           bind_to_written_row!(args, entry)
-          safe_call { runtime.query(entry[:verb], **symbolize(args)) }
+          answer_needs!(args, entry[:query])
+          safe_query { runtime.query(entry[:verb], **symbolize(args)) }
           { "query" => entry[:verb], "args" => args }
         end
 
@@ -33,7 +41,7 @@ module Hecks
           model = entry[:model]
           args  = model.reference_target.nil? ? {} : { model.reference_name.to_s => pick_known(model.reference_target) }
 
-          safe_call { runtime.query(entry[:verb], **symbolize(args)) }
+          safe_query { runtime.query(entry[:verb], **symbolize(args)) }
           { "query" => entry[:verb], "args" => args }
         end
 
@@ -62,7 +70,7 @@ module Hecks
           args = args_for(entry[:command].attributes, entry[:aggregate], needed: entry[:command].needs.map(&:to_s))
           add_identity!(args, entry)
           steer_grant!(args, entry, catalog)
-          args
+          answer_needs!(args, entry[:command])
         end
 
         # Dispatches the step for real, or as a dry run when the coin says so.
@@ -105,7 +113,17 @@ module Hecks
           result = yield
           @last_outcome = "ok"
           result
-        rescue *Hecks::Runtime::DOMAIN_REFUSALS, Hecks::Bluebook::Expression::EvaluationError => e
+        rescue *Hecks::Runtime::DOMAIN_REFUSALS, *KERNEL_REFUSALS, Hecks::Bluebook::Expression::EvaluationError => e
+          @last_outcome = Naming.demodulise(e.class)
+          nil
+        end
+
+        # A query step: `safe_call`, and on the kernel engine, whose `--serve` takes no query step
+        # yet, an unanswered query is recorded as the outcome `NotAnswered`. A query changes no
+        # stored state, so the steps that follow are the same on either engine.
+        def safe_query(&)
+          safe_call(&)
+        rescue Runtime::KernelDispatcher::NotAnswered => e
           @last_outcome = Naming.demodulise(e.class)
           nil
         end
