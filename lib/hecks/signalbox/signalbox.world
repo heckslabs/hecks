@@ -1,12 +1,9 @@
 # The settings the five laws need (ADR 0222), started from the 2026-11-18/19 readings of the
 # owner's M3 Pro (36 GB, 12 cores, 6 of them performance cores, which the load is read against).
 Hecks.world "Signalbox" do
-  # Law 2. `capacity_mb` is the machine; `reserve_mb` is kept for the system and the person using
-  # it, so the pipeline's supply is 28 GB (memory reached 33 of 36 GB used on 2026-11-13).
-  # `target_mb` and `floor_mb` are the old free-memory marks (6 GB recovered, 3 GB low).
-  # The load marks are in percent of the performance cores: tight over 150 (a load of 9.00 on 6),
-  # short over 300 (18.00), and eased only once the load is `load_gap_percent` under tight. At the
-  # OS's normal memory level the load alone can put the band short and hold admission.
+  # Law 2. Supply is capacity less the person's reserve (28 GB; 33 of 36 GB were used on 11-13);
+  # target and floor are the old free-memory marks. Load marks are percent of the 6 performance
+  # cores: tight past 150 (a load of 9.00), short past 300 (18.00), which holds admission alone.
   pressure "Pressure", capacity_mb: 36_864, reserve_mb: 8_192, target_mb: 6_144, floor_mb: 3_072,
                        gap_mb: 2_048, interval_seconds: 60, stale_after_seconds: 120,
                        load_tight_percent: 150, load_short_percent: 300, load_gap_percent: 25
