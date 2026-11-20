@@ -87,6 +87,7 @@ commands:
     tidy!
     release!
     answer!
+    rebind!
     retire!
   SessionSweep:
     …
