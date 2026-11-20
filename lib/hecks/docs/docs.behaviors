@@ -67,4 +67,85 @@ Hecks.behaviors "Docs" do
     input page: "docs/query-dsl.md", anchor: { value: "Why queries" }
     expect emits: ["ProseRegionAdded"]
   end
+
+  test "Write writes down what a prose region is for" do
+    tests "Write", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+          anchor: { value: "Why queries" }, purpose: { value: "why" }
+    expect emits: ["ProseWritten"]
+  end
+
+  test "Write refuses a purpose outside concept, why, tutorial and warning" do
+    tests "Write", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+          anchor: { value: "Why queries" }, purpose: { value: "rant" }
+    expect refused: "Purpose"
+  end
+
+  test "Mention declares a typed model term the prose mentions" do
+    tests "Mention", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    setup "Docs::Prose.Write", prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+                               anchor: { value: "Why queries" }, purpose: { value: "why" }
+    input prose: "docs/query-dsl.md#Why queries", kind: { value: "aggregate" }, term: { value: "Page" }
+    expect emits: ["ProseMentioned"]
+  end
+
+  test "AddSupport names what the prose rests on" do
+    tests "AddSupport", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    setup "Docs::Prose.Write", prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+                               anchor: { value: "Why queries" }, purpose: { value: "why" }
+    input prose: "docs/query-dsl.md#Why queries", kind: { value: "bluebook_node" }, target: { value: "Docs::Page" }
+    expect emits: ["SupportAdded"]
+  end
+
+  test "FlagForReview puts confirmed prose up for review" do
+    tests "FlagForReview", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    setup "Docs::Prose.Write", prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+                               anchor: { value: "Why queries" }, purpose: { value: "why" }
+    setup "Docs::Prose.Confirm", prose: "docs/query-dsl.md#Why queries", confirmed_against: { value: "ir-1" }
+    input prose: "docs/query-dsl.md#Why queries"
+    expect emits: ["ProseFlaggedForReview"], status: "needs_review"
+  end
+
+  test "Confirm records that prose up for review still holds" do
+    tests "Confirm", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    setup "Docs::Prose.Write", prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+                               anchor: { value: "Why queries" }, purpose: { value: "why" }
+    setup "Docs::Prose.FlagForReview", prose: "docs/query-dsl.md#Why queries"
+    input prose: "docs/query-dsl.md#Why queries", confirmed_against: { value: "ir-2" }
+    expect emits: ["ProseConfirmed"], status: "confirmed"
+  end
+
+  test "Revise records that prose up for review was rewritten" do
+    tests "Revise", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    setup "Docs::Prose.Write", prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+                               anchor: { value: "Why queries" }, purpose: { value: "why" }
+    setup "Docs::Prose.FlagForReview", prose: "docs/query-dsl.md#Why queries"
+    input prose: "docs/query-dsl.md#Why queries"
+    expect emits: ["ProseRevised"], status: "revised"
+  end
+
+  test "Revise refuses prose nobody put up for review" do
+    tests "Revise", on: "Prose"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    setup "Docs::Prose.Write", prose: { value: "docs/query-dsl.md#Why queries" }, page: "docs/query-dsl.md",
+                               anchor: { value: "Why queries" }, purpose: { value: "why" }
+    input prose: "docs/query-dsl.md#Why queries"
+    expect refused: "Revise"
+  end
 end
