@@ -71,20 +71,25 @@ RSpec.describe Hecks::Adapters::Codebase::SpecFiles do
     expect(run_files("tagged_spec.rb")).to include("tagged_spec.rb: 1 example, 0 failures")
   end
 
-  # A spec file whose one example sleeps past a two-second bound, writing where it is as every
+  # The bound the hanging file runs past: two seconds, stretched on a slow CI runner, which can
+  # take longer than two seconds to boot the file at all.
+  def hang_bound = (2 * WallClock.multiplier).ceil
+
+  # A spec file whose one example sleeps past that bound, writing where it is as every
   # example of the suite does (spec/support/spec_progress.rb).
   def hanging_refusal
     progress = File.join(LiveServices::ROOT, "spec/support/spec_progress")
     prelude = "require #{progress.inspect}\nSpecProgress.install(RSpec.configuration)"
     spec_file("hang_spec.rb", { "waits" => "sleep(30)" }, prelude: prelude)
-    described_class.new(tree, runner: Hecks::Adapters::Codebase::TestRunner.new(tree, bound: 2)).run(files: "hang_spec.rb")
+    runner = Hecks::Adapters::Codebase::TestRunner.new(tree, bound: hang_bound)
+    described_class.new(tree, runner: runner).run(files: "hang_spec.rb")
   rescue failure => e
     e.message
   end
 
   it "ends a file that runs past its bound and names the file and example", :aggregate_failures do
     message = hanging_refusal
-    expect(message).to include("failed: hang_spec.rb", "ran past the 2-second bound (spec_bounds file_seconds)")
+    expect(message).to include("failed: hang_spec.rb", "ran past the #{hang_bound}-second bound (spec_bounds file_seconds)")
     expect(message).to include("in ./hang_spec.rb, example \"hang_spec.rb waits\"")
   end
 

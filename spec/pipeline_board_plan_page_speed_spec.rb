@@ -35,7 +35,7 @@ RSpec.describe "the planning page's speed" do
     expect { 5.times { web.plan_page } }.not_to raise_error
   end
 
-  it "draws 300 Work items in under one second" do
-    expect(Benchmark.realtime { Hecks::Adapters::PipelineBoard::PlanHtml.draw(reading(300)) }).to be < 1
+  it "draws 300 Work items in under one second", :wall_clock do
+    expect_wall_clock(Benchmark.realtime { Hecks::Adapters::PipelineBoard::PlanHtml.draw(reading(300)) }, under: 1)
   end
 end

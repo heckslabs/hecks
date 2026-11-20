@@ -138,10 +138,10 @@ RSpec.describe "Memory with a growing list" do
       expect(late).to be < early * 2
     end
 
-    it "takes about the same time per step at 200 recorded snapshots as at 20" do
+    it "takes about the same time per step at 200 recorded snapshots as at 20", :wall_clock do
       ratios = Array.new(2) { |attempt| late_to_early_ratio("t#{attempt}") }
 
-      expect(ratios.min).to be < 3
+      expect_wall_clock(ratios.min, under: 3, stretched: false)
     end
   end
 

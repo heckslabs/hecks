@@ -61,6 +61,8 @@ require_relative "support/ambient_registry_guard"
 require_relative "support/child_process_guard"
 require_relative "support/live_services"
 require_relative "support/spec_progress"
+require_relative "support/wall_clock"
+require_relative "support/wall_clock_examples"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and
