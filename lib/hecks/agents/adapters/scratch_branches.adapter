@@ -1,0 +1,7 @@
+# Binds the `ScratchBranches` port to `ScratchBranches`, which cuts a canary's scratch branch and commits its patch.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/scratch_branches"
+
+Hecks.adapter "ScratchBranches" do
+  port "ScratchBranches"
+end
