@@ -11,11 +11,14 @@ RSpec.describe "RollWhenWorkIsPlanned" do
 
   before do
     Hecks::Adapters::Dispatching::LastRoll.reset!
-    Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { rolling({}) }) do
+    Hecks::Runtime::AdapterLookup.standing_in(->(port, _asked) { port == "WorkAreas" ? areas : rolling({}) }) do
       hecks.dispatch_flat("Tickets::Work.Plan", work: { value: "probe-item" }, title: { value: "Probe" },
                                                 detail: { value: "d" }, area: [])
     end
   end
+
+  # The plan's own area check is answered by its adapter; every other port by the roll.
+  def areas = Hecks::Adapters::WorkAreas.new(registry: hecks.registry)
 
   def reaction(policy) = hecks.reactions.find { |row| row[:policy] == policy }
 
