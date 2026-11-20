@@ -561,11 +561,13 @@ Hecks.bluebook "Hecks" do
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
       # A revert: the landing's merge commit, the commit that undid it, whether the landing never
-      # left local main, and why it is undone.
+      # left local main, why it is undone, and the spec and example it turned red.
       attribute :culprit,  Word,   optional: true
       attribute :reverted, Word,   optional: true
       attribute :local,    Switch, optional: true
       attribute :reason,   Report, optional: true
+      attribute :spec,     Note,   optional: true
+      attribute :example,  Note,   optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -582,6 +584,9 @@ Hecks.bluebook "Hecks" do
       end
 
       value_object "Switch", Boolean
+
+      # Free text that may be empty: the spec and example a revert's commit message records.
+      value_object "Note", String
 
       # How many commits the branch held that the remote did not, as the boarding began.
       value_object "Count" do
@@ -755,6 +760,10 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, Word, optional: true, sets: true
         attribute :local,    Switch, optional: true, sets: true
         attribute :reason,   Report, optional: true, sets: true
+        # The spec file and example the merge turned red: the revert commit's message records them
+        # (`Hecks-Reverted-Spec`, `Hecks-Reverted-Example`), so a later search reads them from git.
+        attribute :spec,     Note, optional: true, sets: true
+        attribute :example,  Note, optional: true, sets: true
 
         emits RevertRequested
       end
@@ -1153,6 +1162,9 @@ Hecks.bluebook "Hecks" do
       # whatever it found.
       attribute :searched,         Switch, optional: true
       attribute :already_reverted, Switch, optional: true
+      # How many reverts stand in the range, read from git: a range holds at most three, so a
+      # run of second culprits ends with the owner.
+      attribute :revert_count,     Count, optional: true
       attribute :local,            Switch, optional: true
       attribute :reason,           Report, optional: true
       # What a read of an open train pull request reports about its CI having started: how many
@@ -1575,16 +1587,24 @@ Hecks.bluebook "Hecks" do
                                title: :title, cause: :cause }
     end
 
-    # A merge whose specs fail, pass at the last verified commit, and whose range holds no revert
-    # yet is the one change to revert. A range with a revert is parked; a spec red at the base too
-    # reverts nothing.
+    # A red merge no revert undid is reverted while the range holds under three reverts; a second
+    # culprit opens its own episode. A merge already undone, or a range at its cap, is parked; a
+    # spec red at the base too reverts nothing.
     policy "RevertWhenAMergeIsRed" do
       on      "Integration.BisectAnswered"
       root
-      where   { culprit.value != "" && base_red.value == false && already_reverted.value == false }
+      where   { culprit.value != "" && base_red.value == false && already_reverted.value == false && revert_count.value < 3 }
       trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
                                           spec: :spec, example: :example, local: :local, checkout: :checkout,
                                           work: :work, finding: :finding }
+    end
+
+    policy "ParkWhenTheRangeHoldsTheMostReverts" do
+      on      "Integration.BisectAnswered"
+      root
+      where   { culprit.value != "" && base_red.value == false && already_reverted.value == false && revert_count.value >= 3 }
+      trigger RedEpisode::Park, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
+                                        spec: :spec, example: :example, checkout: :checkout }
     end
 
     policy "ParkWhenTheEpisodeAlreadyReverted" do
@@ -1935,7 +1955,7 @@ Hecks.bluebook "Hecks" do
       on      "RedEpisode.EpisodeReverting"
       root
       trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local,
-                                         reason: :finding }
+                                         reason: :finding, spec: :spec, example: :example }
     end
 
     # Declared before the policies that verify or admit the revert, so the episode holds its revert

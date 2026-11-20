@@ -88,12 +88,25 @@ module Hecks
           end
         end
 
-        # @return [Array<String>] the first-parent commits in the range that revert a landing
+        # The git log format of `reverts`: the commit, its subject and the two trailers.
+        REVERT_FORMAT = "%H%x09%s%x09%(trailers:key=Hecks-Reverted-Spec,valueonly,unfold)" \
+                        "%x09%(trailers:key=Hecks-Reverted-Example,valueonly,unfold)%x1e"
+
+        # @return [Array<Hash{Symbol => String}>] the first-parent commits in the range that
+        #   revert a landing: `sha:`, and the `spec:` and `example:` the commit's trailers
+        #   record, "" for a revert made by hand
         def reverts(base, tip)
-          read("log", "--first-parent", "--format=%H%x09%s", "#{base}..#{tip}").lines.filter_map do |line|
-            sha, subject = line.chomp.split("\t", 2)
-            sha if subject.to_s.start_with?("Revert \"Merge")
-          end
+          log = read("log", "--first-parent", "--format=#{REVERT_FORMAT}", "#{base}..#{tip}")
+          log.split("\x1e").filter_map { |line| revert_of(line) }
+        end
+
+        # @param line [String] one `reverts` log line
+        # @return [Hash{Symbol => String}, nil] the revert it holds, nil for any other commit
+        def revert_of(line)
+          sha, subject, spec, example = line.strip.split("\t", 4)
+          return unless subject.to_s.start_with?("Revert \"Merge")
+
+          { sha: sha, spec: spec.to_s.strip, example: example.to_s.strip }
         end
 
         # @return [Array<String>] the commits the range's first-parent reverts say they undid
