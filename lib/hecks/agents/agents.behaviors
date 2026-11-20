@@ -130,4 +130,95 @@ Hecks.behaviors "Agents" do
            brief: { value: "edit only the stale spec" }
     expect emits: ["FindingRouted"]
   end
+
+  test "Judge refuses a clean verdict on a story work item while a reference is not yet attested" do
+    tests "Judge", on: "SubmissionReview"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "acc1" }, hops: { value: 1 },
+           work: { value: "w-acc1" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-acc1" }, acceptance: { value: "|lib/hecks/agents/agents.behaviors#Judge refuses|" }
+    setup  "Agents::SubmissionReview.Scope", submission: { value: "acc1" }, tier: { value: "full" },
+           domains: { value: "|lib/hecks/agents|" }, bluebooks: { value: "||" }
+    setup  "Agents::SubmissionReview.Count", submission: { value: "acc1" }, kind: { value: "behaviors" },
+           run: { value: "acc1-behaviors" }, subject: { value: "lib/hecks/agents" }, status: { value: "succeeded" },
+           scenarios: { value: 6 }
+    input  submission: { value: "acc1" }, judgment: { value: "clean" }
+    expect refused: "a clean verdict on a story work item has a passing run of every acceptance reference"
+  end
+
+  test "Judge refuses a clean verdict on a story work item whose reference failed" do
+    tests "Judge", on: "SubmissionReview"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "acc2" }, hops: { value: 1 },
+           work: { value: "w-acc2" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-acc2" }, acceptance: { value: "|lib/hecks/agents/agents.behaviors#Judge refuses|" }
+    setup  "Agents::SubmissionReview.Scope", submission: { value: "acc2" }, tier: { value: "full" },
+           domains: { value: "|lib/hecks/agents|" }, bluebooks: { value: "||" }
+    setup  "Agents::SubmissionReview.Count", submission: { value: "acc2" }, kind: { value: "behaviors" },
+           run: { value: "acc2-behaviors" }, subject: { value: "lib/hecks/agents" }, status: { value: "succeeded" },
+           scenarios: { value: 6 }
+    setup  "Agents::SubmissionReview.Attest", submission: { value: "acc2" }, ref: { value: "lib/hecks/agents/agents.behaviors#Judge refuses" },
+           run: { value: "acc2-acceptance-1" }, result: { value: "failed" }
+    input  submission: { value: "acc2" }, judgment: { value: "clean" }
+    expect refused: "a clean verdict on a story work item has a passing run of every acceptance reference"
+  end
+
+  test "Judge refuses a clean verdict on a story work item whose reference resolves to no scenario" do
+    tests "Judge", on: "SubmissionReview"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "acc3" }, hops: { value: 1 },
+           work: { value: "w-acc3" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-acc3" }, acceptance: { value: "|lib/hecks/agents/agents.behaviors#Judge refuses|" }
+    setup  "Agents::SubmissionReview.Scope", submission: { value: "acc3" }, tier: { value: "full" },
+           domains: { value: "|lib/hecks/agents|" }, bluebooks: { value: "||" }
+    setup  "Agents::SubmissionReview.Count", submission: { value: "acc3" }, kind: { value: "behaviors" },
+           run: { value: "acc3-behaviors" }, subject: { value: "lib/hecks/agents" }, status: { value: "succeeded" },
+           scenarios: { value: 6 }
+    setup  "Agents::SubmissionReview.Attest", submission: { value: "acc3" }, ref: { value: "lib/hecks/agents/agents.behaviors#Judge refuses" },
+           run: { value: "acc3-acceptance-1" }, result: { value: "unresolved" }
+    input  submission: { value: "acc3" }, judgment: { value: "clean" }
+    expect refused: "a clean verdict on a story work item has a passing run of every acceptance reference"
+  end
+
+  test "Judge records a clean verdict when every acceptance reference passed beside the regression" do
+    tests "Judge", on: "SubmissionReview"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "acc4" }, hops: { value: 1 },
+           work: { value: "w-acc4" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-acc4" }, acceptance: { value: "|lib/hecks/agents/agents.behaviors#Judge refuses|" }
+    setup  "Agents::SubmissionReview.Scope", submission: { value: "acc4" }, tier: { value: "full" },
+           domains: { value: "|lib/hecks/agents|" }, bluebooks: { value: "||" }
+    setup  "Agents::SubmissionReview.Count", submission: { value: "acc4" }, kind: { value: "behaviors" },
+           run: { value: "acc4-behaviors" }, subject: { value: "lib/hecks/agents" }, status: { value: "succeeded" },
+           scenarios: { value: 6 }
+    setup  "Agents::SubmissionReview.Attest", submission: { value: "acc4" }, ref: { value: "lib/hecks/agents/agents.behaviors#Judge refuses" },
+           run: { value: "acc4-acceptance-1" }, result: { value: "passed" }
+    input  submission: { value: "acc4" }, judgment: { value: "clean" }
+    expect judgment: { value: "clean" }
+  end
+
+  test "CiteAcceptance refuses a reference that is not one of the work item's" do
+    tests "CiteAcceptance", on: "SubmissionReview"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "acc5" }, hops: { value: 1 },
+           work: { value: "w-acc5" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-acc5" }, acceptance: { value: "|lib/hecks/agents/agents.behaviors#Judge refuses|" }
+    input  submission: { value: "acc5" }, ref: { value: "lib/hecks/agents/agents.behaviors#Some other scenario" },
+           run: { value: "acc5-acceptance-1" }
+    expect refused: "an acceptance citation names one of the work item's references"
+  end
+
+  test "CiteAcceptance takes a run keyed by the commit and reads its kept record, declining one no store keeps" do
+    tests "CiteAcceptance", on: "SubmissionReview"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "acc6" }, hops: { value: 1 },
+           work: { value: "w-acc6" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-acc6" }, acceptance: { value: "|lib/hecks/agents/agents.behaviors#Judge refuses|" }
+    input  submission: { value: "acc6" }, ref: { value: "lib/hecks/agents/agents.behaviors#Judge refuses" }, run: { value: "acc6-acceptance-1" }
+    expect emits: ["AcceptanceCited", "RunUnkept", "EvidenceDeclined"]
+  end
+
+  test "Attest refuses a reference that is not one of the work item's" do
+    tests "Attest", on: "SubmissionReview"
+    setup  "Agents::SubmissionReview.Request", submission: { value: "acc7" }, hops: { value: 1 },
+           work: { value: "w-acc7" }, role: { value: "reviewer" }, repo: { value: "/nonexistent" },
+           brief: { value: "w-acc7" }, acceptance: { value: "|lib/hecks/agents/agents.behaviors#Judge refuses|" }
+    input  submission: { value: "acc7" }, ref: { value: "lib/hecks/agents/agents.behaviors#Some other scenario" },
+           run: { value: "acc7-acceptance-1" }, result: { value: "passed" }
+    expect refused: "the attested reference is one of the work item's references"
+  end
 end
