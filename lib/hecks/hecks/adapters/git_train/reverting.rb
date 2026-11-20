@@ -32,19 +32,32 @@ module Hecks
 
         # @param merge [String] the landing's merge commit, which the branch must hold
         # @param reason [String] why the landing is reverted; the report opens with it
+        # @param spec [String] the spec file the landing turned red, recorded in the commit message
+        # @param example [String] the example it turned red, recorded the same way
         # @return [Hash{Symbol => String}] `reverted:` the new commit and `report:`
         # @raise [ConsoleCapture::Failure] when the checkout is not on the branch or not clean, the
         #   commit is not a merge the branch holds, or the revert conflicts (it is aborted)
-        def revert(merge, reason: "")
+        def revert(merge, reason: "", spec: "", example: "")
           @guard.clean!
           merge = read("rev-parse", "--verify", "#{merge}^{commit}")
           held!(merge)
           result = @git.capture("revert", "-m", "1", "--no-edit", merge, chdir: @checkout)
           refuse!(merge, result) unless result.ok?
+          record!(spec, example)
           { reverted: @guard.head, report: report(merge, reason.to_s.strip) }
         end
 
         private
+
+        # Adds the spec and example to the revert commit's message as trailers, so a search of the
+        # range reads them from git. The commit is this process's own and not yet pushed.
+        def record!(spec, example)
+          held = { "Hecks-Reverted-Spec" => spec, "Hecks-Reverted-Example" => example }.reject { |_, v| v.to_s.strip.empty? }
+          return if held.empty?
+
+          args = held.flat_map { |key, value| ["--trailer", "#{key}: #{value.to_s.strip.tr("\n", " ")}"] }
+          @git.capture("commit", "--amend", "--no-edit", *args, chdir: @checkout)
+        end
 
         def held!(merge)
           parents = read("rev-list", "--parents", "-n", "1", merge).split.size - 1

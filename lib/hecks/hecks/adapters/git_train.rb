@@ -118,15 +118,19 @@ module Hecks
       # Reverts one named landing on local main, holding the line so no boarding overlaps it.
       #
       # @param held [Hash] the `SendTrain` record: `culprit` (a landing's merge commit), `checkout`
-      #   and `reason` (why it is reverted, which the report opens with)
+      #   `reason` (why it is reverted, which the report opens with), and the `spec` and `example`
+      #   the revert commit's message records
       # @return [Hash{Symbol => Hash}] `reverted:` the revert commit and `report:`
       # @raise [ConsoleCapture::Failure] when no landing is named or the revert is refused
       def revert(**held)
         culprit = plain(held[:culprit]) or raise ConsoleCapture::Failure, "no landing named to revert"
         @checkout = standing(held)
-        answer = in_turn { Reverting.new(@git, @checkout).revert(culprit, reason: plain(held[:reason]).to_s) }
+        answer = in_turn { Reverting.new(@git, @checkout).revert(culprit, **reasons(held)) }
         { reverted: { value: answer[:reverted] }, report: { value: answer[:report] } }
       end
+
+      # @return [Hash{Symbol => String}] the `reason`, `spec` and `example` of a revert's record
+      def reasons(held) = %i[reason spec example].to_h { |key| [key, plain(held[key]).to_s] }
 
       # Lists every checkout under a directory whose default branch has commits its remote does
       # not, fetching each first.

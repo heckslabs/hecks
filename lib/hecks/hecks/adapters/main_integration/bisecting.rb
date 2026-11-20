@@ -18,7 +18,7 @@ module Hecks
         # What the merge's keys hold when no merge failed. `searched` is false until a search ran,
         # and `examples` is empty unless the search is a red train's.
         NONE = { culprit: "", subject: "", branch: "", work: "", finding: "", spec: "", example: "", base_red: false,
-                 local: false, searched: false, examples: "" }.freeze
+                 local: false, revert_count: 0, searched: false, examples: "" }.freeze
 
         class << self
           # @return [Hash{String => Hash}] the facts of each search, by commit, so a refusal and the
@@ -115,9 +115,12 @@ module Hecks
         # @param landed [String] the commit that failed verification
         # @param since [String] the last verified commit, or `origin/main`, the range starts after
         # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `work`,
-        #   `finding`, `spec`, `example`, `base_red`, `already_reverted`, `local`, `searched` and
-        #   `reason`; the merge's keys are "" when none failed
-        def facts(landed, since) = self.class.in_a_place(@repository, @runner) { @search.call(landed, since) }
+        #   `finding`, `spec`, `example`, `base_red`, `already_reverted`, `revert_count`, `local`,
+        #   `searched` and `reason`; the merge's keys are "" when none failed
+        def facts(landed, since)
+          found = self.class.in_a_place(@repository, @runner) { @search.call(landed, since) }
+          found.merge(revert_count: @repository.reverts(since, landed).size)
+        end
       end
     end
   end
