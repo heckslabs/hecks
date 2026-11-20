@@ -6,8 +6,8 @@ require "hecks/hecks/adapters/dispatching"
 # who waits, and the fill only assembles the facts each admission is asked with.
 RSpec.describe "admission by headroom" do
   describe Hecks::Adapters::Dispatching::Admitting do
-    # A door whose beat reads as the machine stood on 2026-11-19: tight, 7000 MB of headroom.
-    def door(band: "tight", headroom: 7000)
+    # A door whose beat reads 7000 MB of headroom, as on 2026-11-19, in the normal band.
+    def door(band: "normal", headroom: 7000)
       beat = { band: band, headroom: headroom, floor: 3072, gap: 2048, age: 0, stale_after: 120, draw: 1536 }
       Hecks::Adapters::Dispatching::SignalboxDoor.new.tap { |held| allow(held).to receive(:look).and_return(beat) }
     end
@@ -35,6 +35,14 @@ RSpec.describe "admission by headroom" do
 
     it "admits a priority-now coder while pressure is short, its draw fitting the headroom" do
       expect(admitting(band: "short", headroom: 2000).reason(item("fix", priority: "now"))).to be_nil
+    end
+
+    it "holds a lower-tier coder while pressure is tight: starts wait before work in flight does" do
+      expect(admitting(band: "tight").reason(item("tiles"))).to include("starts while pressure is tight")
+    end
+
+    it "admits a priority-now coder while pressure is tight" do
+      expect(admitting(band: "tight").reason(item("fix", priority: "now"))).to be_nil
     end
 
     it "holds a lower-tier coder while pressure is short" do
