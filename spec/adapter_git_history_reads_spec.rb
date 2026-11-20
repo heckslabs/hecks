@@ -35,6 +35,7 @@ module GitHistoryReads
     "github_branch_ci/baseline.rb"            => "merge-base finds the commit a coder's branch was cut from: ancestry",
     "github_pull_requests/train_sweep.rb"     => "whether a commit is in main: the squash lands after the push",
     "landing/conflict_settling.rb"            => "the base, ours and theirs of a path in conflict: index stages are git",
+    "main_integration/beat_schedule.rb"       => "the beat job moves the train copy forward only: ancestry of its head",
     "main_integration/boarded_check.rb"       => "whether a train commit is in the remote main: remote carriage",
     "main_integration/carried_check.rb"       => "whether origin/main carries a landed commit, squash too: remote",
     "main_integration/newest_first.rb"        => "unpushed commits of main in topological order: ancestry",

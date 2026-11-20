@@ -2593,6 +2593,102 @@ Hecks.bluebook "Hecks" do
       ask     :merge, with: { run: :run }
     end
 
+    # Where one pull request stands in GitHub's merge queue, from the facts one read of GitHub gives
+    # and the one fact the ledger holds: that `PullRequestQueued` was recorded for it. The port
+    # answers `ReviewRequest.Status` with the raw facts; the rule that turns them into a place is
+    # here and nowhere else.
+    aggregate "QueueStanding" do
+      description "The place of one pull request in the merge queue: queued, merging, merged or dropped."
+
+      attribute :run,           Key
+      attribute :entry,         Fact, optional: true
+      attribute :position,      Fact, optional: true
+      attribute :merged_at,     Fact, optional: true
+      attribute :pr_state,      Fact, optional: true
+      attribute :queued_before, Fact, optional: true
+      identified_by :run
+
+      value_object "Key" do
+        attribute :value, String, matches: :present
+      end
+
+      # One fact of a read: GitHub's text for it, as it stands.
+      value_object "Fact" do
+        attribute :value, String, matches: :present
+      end
+
+      lifecycle :place, default: "unseen" do
+        transition "Queued"  => "queued",  from: %w[unseen queued merging]
+        transition "Merging" => "merging", from: %w[unseen queued merging]
+        transition "Merged"  => "merged",  from: %w[unseen queued merging dropped]
+        transition "Dropped" => "dropped", from: %w[unseen queued merging]
+        mark :terminal, "merged"
+        mark :rests, "unseen", "queued", "merging", "dropped"
+      end
+
+      # Waiting its turn: GitHub holds an entry for it that is queued or still awaiting its checks.
+      command "Queued" do
+        role "System"
+        goal "Record that the pull request waits in the merge queue, with the position GitHub gives it"
+
+        attribute :run,       Key, sets: true
+        attribute :entry,     Fact, sets: true
+        attribute :position,  Fact, optional: true, sets: true
+        attribute :merged_at, Fact, optional: true, sets: true
+
+        given("a queue entry that is queued or awaiting checks, and no merge yet") do
+          (merged_at.nil? || merged_at.value.to_s.empty?) && (entry.value == "QUEUED" || entry.value == "AWAITING_CHECKS")
+        end
+
+        emits "PullRequestStoodQueued"
+      end
+
+      # Its group is being built or merged: the entry is mergeable or locked.
+      command "Merging" do
+        role "System"
+        goal "Record that GitHub is merging the pull request now"
+
+        attribute :run,       Key, sets: true
+        attribute :entry,     Fact, sets: true
+        attribute :merged_at, Fact, optional: true, sets: true
+
+        given("a queue entry that is mergeable or locked, and no merge yet") do
+          (merged_at.nil? || merged_at.value.to_s.empty?) && (entry.value == "MERGEABLE" || entry.value == "LOCKED")
+        end
+
+        emits "PullRequestStoodMerging"
+      end
+
+      command "Merged" do
+        role "System"
+        goal "Record that the pull request merged: GitHub gives it a merge time"
+
+        attribute :run,       Key, sets: true
+        attribute :merged_at, Fact, sets: true
+
+        emits "PullRequestStoodMerged"
+      end
+
+      # One read cannot tell a dropped pull request from one never queued: an open pull request
+      # with no entry looks the same. The ledger tells them apart, by `queued_before`.
+      command "Dropped" do
+        role "System"
+        goal "Record that the pull request left the merge queue unmerged, after it was recorded queued"
+
+        attribute :run,           Key, sets: true
+        attribute :entry,         Fact, optional: true, sets: true
+        attribute :merged_at,     Fact, optional: true, sets: true
+        attribute :pr_state,      Fact, sets: true
+        attribute :queued_before, Fact, sets: true
+
+        given("recorded queued before, now open, with no entry and no merge") do
+          (entry.nil? || entry.value.to_s.empty?) && (merged_at.nil? || merged_at.value.to_s.empty?) && pr_state.value == "OPEN" && queued_before.value == "true"
+        end
+
+        emits "PullRequestStoodDropped"
+      end
+    end
+
     policy "RecordTheMergedPullRequest" do
       on      "ReviewRequest.MergeAnswered"
       where   { outcome.value == "merged" }
