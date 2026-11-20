@@ -45,7 +45,7 @@
 # **test_scope** `suite_runs_in` names where the full suite runs ("ci": a local run of it is refused by name).
 # A local `run_spec_files!` or `run_impacted_specs!` call runs as many spec files as it is given.
 #
-# **event_log** `path` is the append-only file the runtime writes events and policy deliveries to (one JSON line each,
+# **event_tap** `path` is the append-only file the runtime writes events and policy deliveries to (one JSON line each,
 # names and outcomes, never payloads) and `max_bytes` the size at which it moves to `<path>.1`; absent, nothing is written.
 #
 # **landing** sets the line `landing.train!` holds: `stale_minutes` is how long a ticket may go without a heartbeat
@@ -97,8 +97,8 @@ Hecks.world "Hecks" do
   agent_roles "PipelineBoard", roles: "orchestrator,orchestrator-owner,planner,architect,coder,reviewer,pruner"
   # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
   # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
-  # world declares no `event_log`, so a client writes no file. The file rotates at `max_bytes`.
-  event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
+  # world declares no `event_tap`, so a client writes no file. The file rotates at `max_bytes`.
+  event_tap "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin operation.abandon_outbox_row

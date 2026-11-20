@@ -105,9 +105,9 @@ RSpec.describe Hecks::Runtime::EventTap::Archive do
     expect { 40.times { |n| writer.event(event("run-#{n}")) } }.not_to raise_error
   end
 
-  it "reads keep_hours and archive_max_bytes from the world's event_log", :aggregate_failures do
-    declared = Hecks::Bluebook::DSL::WorldBuilder.build("Hecks") { event_log "EventTap", path: "x", keep_hours: 72 }
-    limits = Hecks::Runtime::EventTap::LIMITS.merge(declared.for_verb("event_log").to_h.slice(:keep_hours))
+  it "reads keep_hours and archive_max_bytes from the world's event_tap", :aggregate_failures do
+    declared = Hecks::Bluebook::DSL::WorldBuilder.build("Hecks") { event_tap "EventTap", path: "x", keep_hours: 72 }
+    limits = Hecks::Runtime::EventTap::LIMITS.merge(declared.for_verb("event_tap").to_h.slice(:keep_hours))
     expect(limits).to include(keep_hours: 72, archive_max_bytes: 200_000_000)
   end
 end
