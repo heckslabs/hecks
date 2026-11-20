@@ -154,7 +154,7 @@ module Hecks
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
                          detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
                          priority: field(record, :priority).to_s, epic: field(record, :epic).to_s,
-                         **yielded(record))
+                         batch: field(record, :batch).to_s, **yielded(record))
         end
 
         def yielded(record)
