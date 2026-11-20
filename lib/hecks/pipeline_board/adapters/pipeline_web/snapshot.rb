@@ -144,7 +144,7 @@ module Hecks
 
         def read_once
           held = StandingSince.over(@source.call)
-          digest = Digest::SHA1.hexdigest(JSON.generate(held.except(:generated_at)))
+          digest = Digest::SHA1.hexdigest(JSON.generate(held.except(:generated_at, :board)))
           @lock.synchronize { record(held, digest) }
         rescue StandardError => e
           @lock.synchronize { @error = "#{e.class}: #{e.message.to_s.slice(0, 100)}" }
@@ -160,7 +160,8 @@ module Hecks
 
         def with_age(state)
           age = (@now.call - (@read_at || @started_at)).round
-          state.merge(stale_seconds: age, stale: age > period * STALE_AFTER, refresh_error: @error, version: @version)
+          aged = state.merge(stale_seconds: age, stale: age > period * STALE_AFTER, refresh_error: @error, version: @version)
+          aged[:board] ? aged.merge(board: aged[:board].merge(stale_seconds: age)) : aged
         end
 
         # The seconds between reads now: the loaded period while the guard says so.

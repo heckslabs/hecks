@@ -30,6 +30,16 @@ module Hecks
         end
 
         # When each recorded train run was pushed.
+        # The document as `Flake` rows: each flake with its branches named, and on each row how
+        # far back the runs read reach and how many could not be read.
+        def flake_rows(document)
+          seen = { reaches_back: document[:reaches_back].to_s, unreadable: document[:unreadable].to_i }
+          document[:flakes].map do |flake|
+            branches = flake[:prs].map { |pull| pull[:branch] }.join(", ")
+            flake.slice(:item, :kind, :count).merge(branches: branches, **seen)
+          end
+        end
+
         def pushes(groups) = groups.flatten.map { |row| row[:pushed] }.reject(&:empty?)
 
         # The records of each train run, every attempt together.

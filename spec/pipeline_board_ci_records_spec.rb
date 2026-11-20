@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::CiRecords do
     Hecks::Adapters::PipelineGitHub.new(settings: { gh: ->(*args) { (asked << args) && [] }, seats: -> { seats }, ttl: 0 })
   end
 
-  def runs(reader = :ci_runs) = JSON.parse(github.public_send(reader)[:text], symbolize_names: true)
+  def runs(reader = :ci_runs) = github.public_send(reader)
 
   it "says no run is recorded, and does not ask gh, when none is held", :aggregate_failures do
     expect { runs }.to raise_error(unavailable, /no main CI run is recorded yet/)
@@ -67,6 +67,6 @@ RSpec.describe Hecks::Adapters::PipelineBoard::CiRecords do
   it "reads the status word of a runtime record whose state is a value object", :aggregate_failures do
     held.push(runtime_record("1-1-done", conclusion: "success"))
     expect(runs.map { |row| row[:status] }).to eq(["completed"])
-    expect(github.ci_runs[:text]).not_to include("#<", ":sighting=>")
+    expect(JSON.generate(github.ci_runs)).not_to include("#<", ":sighting=>")
   end
 end

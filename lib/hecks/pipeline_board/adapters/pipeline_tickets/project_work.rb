@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "json"
 require_relative "../rules"
+require_relative "../rows"
 require_relative "project_store"
 require_relative "undone_rule"
 
@@ -15,13 +15,21 @@ module Hecks
       # ({UndoneRule}). Mixed into {PipelineTickets}.
       module ProjectWork
         # @param project [Hash, String] a `ProjectBoard` name, or its value object
-        # @return [Hash{Symbol => String}] `text:` the JSON of `project`, `items` and `epics`, or of
-        #   `unknown: <reason>`
+        # @return [Array<Hash>] the project's undone Work items as `WorkLine` rows
+        # @raise [PipelineBoard::Unavailable] when no row names the project or its store cannot be
+        #   read
         def project_work(project:)
           name = project.is_a?(Hash) ? project[:value].to_s : project.to_s
-          { text: JSON.generate(project_reading(name)) }
+          Rows.of("WorkLine", project_reading(name)[:items])
+        end
+
+        # @param name [String] a `ProjectBoard` name
+        # @return [Hash] `project`, `items` and `epics` as the planning page reads them, or
+        #   `unknown: <reason>`
+        def project_plan(name)
+          project_reading(name)
         rescue PipelineBoard::Unavailable => e
-          { text: JSON.generate(unknown: e.message) }
+          { unknown: e.message }
         end
 
         # @param name [String]

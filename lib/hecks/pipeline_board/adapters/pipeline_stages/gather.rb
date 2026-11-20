@@ -29,17 +29,18 @@ module Hecks
         # A section whose reader from an earlier refresh has not finished.
         STILL_RUNNING = { unknown: "the last read is still running" }.freeze
 
-        # Each section: the reader, its method, whether it answers a query document, and arguments.
+        # Each section: the reader, its method, whether it answers rows of its own (`rows`, taken
+        # as plain data) or an answer kept as it is (`plain`), and arguments.
         READS = {
-          ci_runs: [:github, :ci_runs, :query], slowest_jobs: [:github, :slowest_jobs, :query],
-          train_ci_runs: [:github, :train_ci_runs, :query], train_slowest_jobs: [:github, :train_slowest_jobs, :query],
-          train_flakes: [:github, :train_flakes, :query],
+          ci_runs: %i[github ci_runs plain], slowest_jobs: [:github, :slowest, :plain, "main"],
+          train_ci_runs: %i[github train_ci_runs plain], train_slowest_jobs: [:github, :slowest, :plain, "train"],
+          train_flakes: %i[github flakes plain],
           release: %i[github latest_release plain], local: %i[git local_main plain],
           train: %i[git train plain], stable: %i[git stable plain],
-          open_work: [:tickets, :open_work, :query], counts: %i[tickets counts plain],
+          open_work: %i[tickets undone_work rows], counts: %i[tickets counts plain],
           landed: %i[tickets landed_branches plain], stopped_runs: %i[tickets stopped_runs plain],
           stopped_times: %i[journal stopped_times plain],
-          sessions: [:jobs, :sessions, :query],
+          sessions: %i[jobs rows rows],
           red_flag: %i[git red_flag plain], fill: %i[fill preview plain], events: [:journal, :recent, :plain, 40],
           finished: [:journal, :named, :plain, "WorkFinished", 200], finished_times: %i[tickets finished_times plain],
           landed_times: %i[journal landed_times plain], disk: %i[disk free plain],
@@ -47,7 +48,8 @@ module Hecks
           cycle_events: %i[journal cycle_events plain], health_events: %i[journal health_events plain],
           open_findings: %i[tickets open_findings plain], integration: %i[integration reading plain],
           window_opened: [:journal, :named, :plain, "WindowOpened", 3],
-          window_closed: [:journal, :named, :plain, "WindowClosed", 3]
+          window_closed: [:journal, :named, :plain, "WindowClosed", 3],
+          train_prs: %i[github train_prs plain], turns: %i[journal turns plain]
         }.freeze
 
         private
@@ -60,14 +62,15 @@ module Hecks
           { unknown: "#{e.class}: #{e.message.to_s.slice(0, 100)}" }
         end
 
-        def queried
-          guard { JSON.parse(yield[:text], symbolize_names: true) }
+        # A reader's own rows as plain data: symbols and times as the words the page reads.
+        def plain_rows
+          guard { plain(yield) }
         end
 
         def read(spec)
           reader, method, kind, *args = spec
           ask = -> { LedgerGate.through(reader) { instance_variable_get("@#{reader}").public_send(method, *args) } }
-          kind == :query ? queried(&ask) : guard(&ask)
+          kind == :rows ? plain_rows(&ask) : guard(&ask)
         end
 
         def gathered

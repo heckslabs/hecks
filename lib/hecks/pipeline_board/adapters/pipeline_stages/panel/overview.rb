@@ -84,7 +84,7 @@ module Hecks
 
           def outcome(run)
             return "~" unless run[:status] == "completed"
-            return "+" if run[:conclusion] == "success"
+            return "+" if Hecks::CheckConclusion.evidence?(run[:conclusion])
 
             Hecks::CheckConclusion.clean?(run[:conclusion]) ? "-" : "x"
           end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "tile_kit"
+require_relative "../rules"
 
 module Hecks
   module Adapters
@@ -12,9 +13,6 @@ module Hecks
         include TileKit
 
         extend BootTiles
-
-        # The share of the budget at which the tile asks for attention.
-        ATTENTION_SHARE = 0.8
 
         # How many callers the detail line names.
         CALLERS_SHOWN = 3
@@ -30,11 +28,11 @@ module Hecks
 
         private
 
+        # The state the `Boot hours` rows give the hours as a percent of the budget; with no
+        # budget set there is no percent to read.
         def boot_state(hours, budget)
-          return "ok" if budget.nil?
-          return "failed" if hours >= budget
-
-          hours >= budget * ATTENTION_SHARE ? "attention" : "ok"
+          share = budget.to_f.positive? ? (100.0 * hours / budget) : nil
+          Rules.verdict("Boot hours", { share: share })
         end
 
         def detail(reading)
