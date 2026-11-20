@@ -263,9 +263,9 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # The push, the draft and the CI read are the port's (never main, never forced, never --no-verify);
-    # the verdict is the bluebook's, passed when no job of the branch's own failed (a job that failed on
-    # the run of the branch's base too is inherited, reported apart), for the record's own head only.
+    # The push (never main, never --no-verify; only its own stale ci/<branch> replaced, leased), the
+    # draft and the CI read are the port's; the verdict is the bluebook's, passed when no job of the
+    # branch's own failed (one failed on its base too is inherited), for the record's own head only.
     aggregate "EarlyCi" do
       description "One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head."
 

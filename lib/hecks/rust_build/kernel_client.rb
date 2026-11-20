@@ -56,9 +56,10 @@ module Hecks
       # @param verb [String] a qualified command, such as `Pizzas::Order.CreatePizza`
       # @param args [Hash] its arguments
       # @param session [String, nil] a session opened with {#open_session}; the default when nil
+      # @param caller [Hash{String => String}] who dispatches, as `"role"` and `"actor_id"`
       # @return [Hash] `{"ok" => true, "events" => [...]}` or `{"ok" => false, "error" => ...}`
-      def dispatch(verb, args = {}, session: nil)
-        message = { "verb" => verb, "args" => args }
+      def dispatch(verb, args = {}, session: nil, caller: {})
+        message = { "verb" => verb, "args" => args }.merge(caller)
         message["session"] = session if session
         call(message)
       end

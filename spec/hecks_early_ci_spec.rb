@@ -98,6 +98,21 @@ RSpec.describe "early CI" do
       expect(fake.calls).to include(["git", "push", "origin", "abcdef1234:refs/heads/ci/coder-green"])
     end
 
+    # Each coder call is its own process, so the record is new while ci/<branch> on the remote is
+    # still the pre-rebase tip an earlier request pushed.
+    it "replaces ci/<branch> after a rebase: the second request is accepted and observed", :aggregate_failures do
+      fake.remote_ci["refs/heads/ci/coder-rebased"] = "aaaaaaa111"
+      expect(request("coder-rebased", "bbbbbbb222")).to include("EarlyCiRequested", "EarlyCiObserved", "passed")
+      expect(fake.calls).to include(["git", "push", "--force-with-lease=refs/heads/ci/coder-rebased:aaaaaaa111",
+                                     "origin", "bbbbbbb222:refs/heads/ci/coder-rebased"])
+    end
+
+    it "pushes plainly when no ci/<branch> exists" do
+      request("coder-first")
+      expect(fake.calls.select { |argv| argv[0, 2] == %w[git push] })
+        .to eq([["git", "push", "origin", "abcdef1234:refs/heads/ci/coder-first"]])
+    end
+
     it "records a run with a failed job as failed, naming the job" do
       fake.jobs = red("rspec_io")
       expect(request("coder-red")).to include("failed", "rspec_io")
