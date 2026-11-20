@@ -7,6 +7,7 @@ require_relative "reap_door"
 require_relative "own_cascade"
 require_relative "posted_beat"
 require "hecks/signalbox/adapters/pressure_signal"
+require "hecks/signalbox/adapters/looking/meter"
 
 module Hecks
   module Adapters
@@ -33,6 +34,11 @@ module Hecks
         # The head of a refused admission's message, before the given that refused it.
         REFUSED = /\AAdmit refused — /
 
+        # Each fact a look answers, by the `Beat` field it is read from.
+        BEAT_FIELDS = { headroom: :headroom, floor: :floor, gap: :gap, age: :age, stale_after: :stale_after,
+                        draw: :coder_draw, memory_pressure_level: :memory_pressure_level,
+                        metered_draw: :metered_draw }.freeze
+
         # @return [SignalboxDoor] the process's one door, booted on first use
         def self.shared = @shared ||= new
 
@@ -46,12 +52,15 @@ module Hecks
           @signal = signal
         end
 
-        # @return [Hash] the beat's `headroom`, the world's marks and draws, and the `band` its
-        #   Pressure stands in; the posted signal's band, headroom and age when the beat was not
-        #   cleared; the dark band when neither holds a current reading
-        def look
+        # @param meter [#call, nil] answers the machine facts the beat looks at; nil leaves the
+        #   Signalbox's own meter in charge, which meters no coder's draw
+        # @return [Hash] the beat's `headroom`, the world's marks and draws, the kernel's
+        #   `memory_pressure_level`, the `metered_draw` and the `band` its Pressure stands in; the
+        #   posted signal's band, headroom and age when the beat was not cleared; the dark band when
+        #   neither holds a current reading
+        def look(meter: nil)
           key = "admission-#{SecureRandom.hex(6)}"
-          runtime.dispatch("Signalbox::Beat.Begin", with: { beat: { value: key } })
+          Looking::Meter.handing(meter) { runtime.dispatch("Signalbox::Beat.Begin", with: { beat: { value: key } }) }
           beat = record("Beat", key)
           pressure = record("Pressure", key)
           pressure ? { band: value(pressure, :band), **beat_facts(beat) } : posted(beat)
@@ -79,11 +88,12 @@ module Hecks
 
         def runtime = @runtime ||= OwnCascade::Runtime.new(Hecks.boot(HOME, install_driving: false))
 
+        # The beat's own record: its headroom, marks and draw, the level the OS read and the draw
+        # Roundhouse metered; nought for each while the beat recorded nothing.
         def beat_facts(beat)
-          return { headroom: 0, floor: 0, gap: 0, age: 0, stale_after: 0, draw: 0 } unless beat
+          return BEAT_FIELDS.keys.to_h { |fact| [fact, 0] } unless beat
 
-          { headroom: value(beat, :headroom), floor: value(beat, :floor), gap: value(beat, :gap),
-            age: value(beat, :age), stale_after: value(beat, :stale_after), draw: value(beat, :coder_draw) }
+          BEAT_FIELDS.to_h { |fact, field| [fact, value(beat, field)] }
         end
 
         def record(name, key)
