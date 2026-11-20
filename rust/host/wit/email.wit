@@ -1,0 +1,36 @@
+package hecks:adapters@0.1.0;
+
+/// The shapes an email adapter takes and answers.
+interface mail {
+  /// Who the mail is from, where replies go, and the provider base URL to post to.
+  record sender {
+    %from: string,
+    reply-to: option<string>,
+    base-url: string,
+  }
+
+  /// One email to one recipient. The body is HTML when it opens with a tag, plain text otherwise.
+  record message {
+    to: string,
+    subject: string,
+    body: string,
+    unsubscribe-url: option<string>,
+  }
+
+  /// What handing the email to the provider came to: sent with its id, or failed with a reason.
+  record delivery {
+    ok: bool,
+    message-id: option<string>,
+    reason: option<string>,
+  }
+}
+
+/// An email adapter: reads its key through `secrets`, posts through `http-out`, waits between
+/// retries through `clock`, and answers one delivery per message.
+world email-adapter {
+  import clock;
+  import secrets;
+  import http-out;
+  use mail.{sender, message, delivery};
+  export deliver: func(sender: sender, message: message) -> delivery;
+}

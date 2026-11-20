@@ -224,6 +224,14 @@ RSpec.describe Hecks::Adapters::RustToolchain do
       expect(arguments_of(runner.calls[1])).to eq(%w[d/pizzas native 3 7])
     end
 
+    it "builds an adapter component, and only checks it when the record says so", :aggregate_failures do
+      toolchain.component(component: { value: "resend" })
+      toolchain.component(component: { value: "resend" }, check: { value: true })
+
+      expect(script_of(runner.calls[0])).to eq("build_component")
+      expect(runner.calls.map { |call| arguments_of(call) }).to eq([%w[resend], %w[resend --check]])
+    end
+
     it "checks the coverage allowlist through rust_coverage" do
       toolchain.audit
 
