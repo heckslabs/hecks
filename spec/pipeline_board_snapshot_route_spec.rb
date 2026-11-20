@@ -8,7 +8,7 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 # `GET /api/snapshot` over a real socket: the running board draws the text panel from the state it
 # already holds, as `PipelineBoard.snapshot` would, and answers 503 until it holds one.
 RSpec.describe Hecks::Adapters::PipelineBoard::SnapshotRoute do
-  let(:held) { { stages: [{ name: "CI", state: "ok", count: "0", detail: "green" }] } }
+  let(:held) { { generated_at: "2026-11-19 09:00:00", stages: [{ name: "CI", state: "ok", count: "0", detail: "green" }] } }
   let(:stages) do
     instance_double(Hecks::Adapters::PipelineStages, state: held, train_prs: [], **FakeJournal::TILES)
   end
@@ -28,6 +28,10 @@ RSpec.describe Hecks::Adapters::PipelineBoard::SnapshotRoute do
     stages_query = Hecks::Adapters::PipelineStages.allocate
     allow(stages_query).to receive_messages(state: held, train_prs: [])
     expect(get("/api/snapshot?width=90").body).to eq(stages_query.snapshot(width: 90)[:text])
+  end
+
+  it "names when the held state was read, so an old panel tells itself from a new one" do
+    expect(get("/api/snapshot?width=100").body).to include("Pipeline board 2026-11-19 09:00:00")
   end
 
   it "refuses a width that is not a whole number" do
