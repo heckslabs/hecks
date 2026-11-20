@@ -1,15 +1,17 @@
 require_relative "../../runtime/errors"
 require_relative "../../storehouse/confinement"
 require_relative "mcp_scope/closed_role"
+require_relative "mcp_scope/launcher_door"
 
 module Hecks
   module Adapters
     module Driving
-      # What a spawned hecks mcp may do: every tool by default; only reader tools against named
-      # domains in reader mode; and in commands mode those plus `dispatch` of a closed list of
-      # commands — reach, not identity (ADR 0072, ADR 0089).
+      # What a spawned hecks mcp may do: every tool but `run` by default; only reader tools against
+      # named domains in reader mode; and in commands mode those plus `dispatch` and `run` of a
+      # closed list of commands — reach, not identity (ADR 0072, ADR 0089).
       class McpScope
         include ClosedRole
+        include LauncherDoor
 
         ENV_PREFIX         = "HECKS_SERVER_".freeze
         TOOLS_VARIABLE     = "HECKS_SERVER_TOOLS".freeze
@@ -25,9 +27,9 @@ module Hecks
         # domain, so it stays bound to the allowed set like every other tool.
         READER_TOOLS = %w[query events state catalog describe validate domains history follow].freeze
 
-        # The tools a commands server serves: the reader tools, and `dispatch` for the allowed
-        # commands.
-        COMMAND_TOOLS = (READER_TOOLS + %w[dispatch]).freeze
+        # The tools a commands server serves: the reader tools, and `dispatch` and `run` for the
+        # allowed commands.
+        COMMAND_TOOLS = (READER_TOOLS + %w[dispatch run]).freeze
 
         # Argument names a restricted server never passes on, whatever command carries them: each
         # one
@@ -98,10 +100,9 @@ module Hecks
           commands_mode? ? COMMAND_TOOLS : READER_TOOLS
         end
 
-        def permits_tool?(name) = !restricted? || served_tools.include?(name)
-
         def refusal(name)
           return closed_refusal(name) if closed?
+          return commands_only_refusal(name) unless restricted?
 
           { ok:    false,
             error: "#{name.inspect} is refused: this server runs in #{mode_label}, " \
