@@ -7,8 +7,9 @@ module Hecks
       # kind and never by reading a line's text.
       class FillReport
         # One chosen work item's result.
-        # kind is `:started`, `:yielded` (back to the plan, with the reason on the line) or `:stuck`
-        # (neither started nor yielded).
+        # kind is `:started`, `:yielded` (back to the plan, with the reason on the line), `:held`
+        # (another fill already started it, so this one left it) or `:stuck` (neither started nor
+        # yielded).
         Outcome = Struct.new(:kind, :line)
 
         # @param outcomes [Array<Outcome>] one for each chosen work item, in plan order
@@ -22,12 +23,14 @@ module Hecks
         # @param chosen [Integer] how many work items the plan chose
         # @return [String] the header's clause, such as `this fill: 4 started, 4 yielded of 8`
         def tally(chosen)
-          "this fill: #{count(:started)} started, #{count(:yielded)} yielded#{stuck_clause} of #{chosen}"
+          "this fill: #{count(:started)} started, #{count(:yielded)} yielded#{held_clause}#{stuck_clause} of #{chosen}"
         end
 
         private
 
         def count(kind) = @outcomes.count { |outcome| outcome.kind == kind }
+
+        def held_clause = count(:held).zero? ? "" : ", #{count(:held)} already started"
 
         def stuck_clause = count(:stuck).zero? ? "" : ", #{count(:stuck)} stuck"
       end
