@@ -15,7 +15,7 @@ module GateFaultTreeHelpers
   end
 
   # The facts the examine answers, as the stubbed git would report a coder's worktree.
-  def coder_tree = { linked: { value: true }, branch: { value: "coder-work" } }
+  def coder_tree = { linked: { value: true }, on_branch: { value: "coder-work" } }
 end
 
 # A faulted gate run says where it ran, so Tickets can tell a coder's red from main's: the fault

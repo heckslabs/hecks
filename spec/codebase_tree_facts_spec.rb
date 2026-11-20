@@ -41,19 +41,19 @@ RSpec.describe Hecks::Adapters::Codebase::TreeFacts do
   around { |example| Dir.mktmpdir("tree-facts") { |dir| (@dir = dir) && example.run } }
 
   it "reports the primary checkout on main as not linked" do
-    expect(described_class.of(primary)).to eq(linked: { value: false }, branch: { value: "main" })
+    expect(described_class.of(primary)).to eq(linked: { value: false }, on_branch: { value: "main" })
   end
 
   it "reports a coder's worktree as linked, on its branch" do
-    expect(described_class.of(linked_worktree("coder-work"))).to eq(linked: { value: true }, branch: { value: "coder-work" })
+    expect(described_class.of(linked_worktree("coder-work"))).to eq(linked: { value: true }, on_branch: { value: "coder-work" })
   end
 
   it "reports a detached linked tree on HEAD" do
-    expect(described_class.of(linked_worktree)).to eq(linked: { value: true }, branch: { value: "HEAD" })
+    expect(described_class.of(linked_worktree)).to eq(linked: { value: true }, on_branch: { value: "HEAD" })
   end
 
   it "reports a tree outside git as not linked, on HEAD" do
-    expect(described_class.of(@dir)).to eq(linked: { value: false }, branch: { value: "HEAD" })
+    expect(described_class.of(@dir)).to eq(linked: { value: false }, on_branch: { value: "HEAD" })
   end
 
   it "answers the check's name with every fact present" do

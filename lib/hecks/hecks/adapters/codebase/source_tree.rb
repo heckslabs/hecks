@@ -133,7 +133,7 @@ module Hecks
       #   a release the facts to judge
       def examine(**held)
         operation = plain(held[:operation])
-        checkout_answer(operation, held).merge(run_facts(operation, held))
+        run_facts(operation, held).merge(checkout_answer(operation, held))
       end
 
       # @return [Hash{Symbol => Hash}] `checkout:`, and for a release the facts to judge
