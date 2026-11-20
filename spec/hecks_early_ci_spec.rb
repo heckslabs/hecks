@@ -67,8 +67,8 @@ RSpec.describe "early CI" do
       Thread.current[:hecks_reaction_depth] = outer
     end
 
-    def request(branch, sha = "abcdef1234", clean: true)
-      launch("EarlyCi.request!", "run.value=#{branch}", "branch.value=#{branch}", "sha.value=#{sha}",
+    def request(branch, sha = "abcdef1234", clean: true, run: branch)
+      launch("EarlyCi.request!", "run.value=#{run}", "branch.value=#{branch}", "sha.value=#{sha}",
              "checkout.value=/tmp", "clean.value=#{clean}", "--wait")
     end
 
@@ -96,6 +96,20 @@ RSpec.describe "early CI" do
       out = request("coder-green")
       expect(out).to include("EarlyCiObserved", "passed")
       expect(fake.calls).to include(["git", "push", "origin", "abcdef1234:refs/heads/ci/coder-green"])
+    end
+
+    it "replaces ci/<branch> after a rebase: the second request is accepted and observed", :aggregate_failures do
+      request("coder-rebased", "aaaaaaa111")
+      expect(request("coder-rebased", "bbbbbbb222", run: "coder-rebased-2"))
+        .to include("EarlyCiRequested", "EarlyCiObserved", "passed")
+      expect(fake.calls).to include(["git", "push", "--force-with-lease=refs/heads/ci/coder-rebased:aaaaaaa111",
+                                     "origin", "bbbbbbb222:refs/heads/ci/coder-rebased"])
+    end
+
+    it "pushes plainly when no ci/<branch> exists" do
+      request("coder-first")
+      expect(fake.calls.select { |argv| argv[0, 2] == %w[git push] })
+        .to eq([["git", "push", "origin", "abcdef1234:refs/heads/ci/coder-first"]])
     end
 
     it "records a run with a failed job as failed, naming the job" do
