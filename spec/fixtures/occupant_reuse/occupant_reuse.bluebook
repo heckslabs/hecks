@@ -33,6 +33,19 @@ Hecks.bluebook "OccupantReuse" do
       emits "TicketOpened"
     end
 
+    # Sets every field it carries, so it saves through the adapter's atomic put.
+    command "Issue" do
+      goal "Bring one into being in one atomic write"
+
+      attribute :code, Code
+      attribute :title, Title
+
+      sets :code
+      sets :title
+
+      emits "TicketIssued"
+    end
+
     command "Close" do
       goal "End the ticket"
 
