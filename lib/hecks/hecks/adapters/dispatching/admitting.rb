@@ -50,14 +50,25 @@ module Hecks
           "skipped: signalbox: #{refused}" if refused
         end
 
+        # The band is the worse of the memory band and the load band, so the clause sets the load
+        # and its marks beside the memory facts: either can be what put the band where it stands.
+        #
         # @return [String] the clause a fill's header says in place of the cap
         def clause
           "admission by headroom #{@beat[:headroom]} MB (#{@beat[:band]}; memory pressure level " \
-            "#{@beat[:memory_pressure_level].to_i}; #{draw_words}, floor #{@beat[:floor]}, gap #{@beat[:gap]}, " \
-            "ramp #{@ramp[:step]} per #{@ramp[:window_seconds]}s)"
+            "#{@beat[:memory_pressure_level].to_i}; #{draw_words}, floor #{@beat[:floor]}, gap #{@beat[:gap]}; " \
+            "#{load_words}; ramp #{@ramp[:step]} per #{@ramp[:window_seconds]}s)"
         end
 
         private
+
+        # The 1-minute load, held in hundredths, on the cores it is read against, and the marks the
+        # bluebook judges it by, as the world declares them in percent of those cores.
+        def load_words
+          format("load %<load>.2f on %<cores>d cores, tight %<tight>d%%, short %<short>d%% of cores",
+                 load: @beat[:load].to_i / 100.0, cores: @beat[:cores].to_i,
+                 tight: @beat[:load_tight].to_i, short: @beat[:load_short].to_i)
+        end
 
         def facts(item, chosen, outranked)
           wrap(**labels(item), **machine(chosen), **counts(item, chosen, outranked))
