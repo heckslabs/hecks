@@ -12,22 +12,21 @@ module Hecks
       # even once the lead's branch has commits. A work item that leads no batch holds its
       # {EffectiveArea} unchanged.
       #
-      # It reads facts only: the planned work items, each member's `batch` and `batch_commit`, and
-      # the ground the wrapped reader says the lead's branch holds.
+      # It reads facts only: the members a started lead carries as `batched`, each one's
+      # `batch_commit`, and the ground the wrapped reader says the lead's branch holds.
       class BatchGround
         # @param effective [#call] the ground of a work item by its branch ({EffectiveArea})
-        # @param planned [Array<Plan::Item>] the planned work items, the members of every batch
         # @param root [String, nil] the repository's top level, a relative area's base
-        def initialize(effective, planned, root: nil)
+        def initialize(effective, root: nil)
           @effective = effective
-          @members = planned.reject { |item| item.batch.to_s.empty? }.group_by(&:batch)
           @root = root
         end
 
-        # @param item [Plan::Item] a started work item
+        # @param item [Plan::Item] a started work item, carrying the members of its batch as
+        #   `batched`
         # @return [Array<String>] the area it holds now
         def call(item)
-          members = @members.fetch(item.key, [])
+          members = Array(item.batched)
           return @effective.call(item) if members.empty?
 
           own = item.area - members.flat_map(&:area)

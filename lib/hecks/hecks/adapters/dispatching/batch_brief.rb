@@ -16,7 +16,7 @@ module Hecks
           own commit, then record it: exe/hecks tickets Work.commit! to=<key>
           batch_commit.value=<sha> --wait (the lead's own commit needs no record). A work item the
           batch cannot do (the review says rethink for it, a spec cannot be made green) leaves on
-          its own: exe/hecks tickets Work.leave! to=<key> "reason.value=<why>" --wait; go on to the
+          its own: exe/hecks tickets Work.return! to=<key> "reason.value=<why>" --wait; go on to the
           next. Asked to yield for load, finish and commit the work item you are on, record it, then
           yield the lead; never stop in the middle of one. Each heavy job (a gate run, a spec batch,
           a rust build) takes its slot from the shared heavy-job cap. Report per work item.

@@ -39,17 +39,20 @@ module Hecks
         # @param cap [Integer] the most work items one batch holds, its lead included
         # @param root [String] the repository's top level, which a relative area is read against
         # @param waits [#call, nil] the unlanded work item an item waits on, nil when none
-        def initialize(only, cap:, root:, waits: nil)
+        # @param leads [Array<String>] the batch each batched work item waits in, so a planned work
+        #   item that still leads committed members is known
+        def initialize(only, cap:, root:, waits: nil, leads: [])
           @path = only.to_s.delete_prefix(PREFIX)
           @cap = cap
           @root = root
           @waits = waits
+          @leads = leads
         end
 
         # @param planned [Array<Plan::Item>] the planned work items, in plan order
         # @return [Array<Plan::Item>] the lead with its members, or none when nothing overlaps
         def call(planned)
-          batch = resumed_first(planned.select { |item| member?(item) }, planned).first(@cap)
+          batch = resumed_first(planned.select { |item| member?(item) }).first(@cap)
           return [] if batch.empty?
 
           lead, *members = batch
@@ -59,9 +62,8 @@ module Hecks
         private
 
         # The group with a work item that leads committed members moved to the front.
-        def resumed_first(group, planned)
-          leads = planned.map { |item| item.batch.to_s }.reject(&:empty?)
-          resuming = group.find { |item| leads.include?(item.key) }
+        def resumed_first(group)
+          resuming = group.find { |item| @leads.include?(item.key) }
           resuming ? [resuming, *(group - [resuming])] : group
         end
 

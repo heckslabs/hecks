@@ -22,7 +22,8 @@ module Hecks
 
         # The group an `only=group:<path>` asks for, as one lead carrying its batch.
         def batching(only)
-          Batching.new(only, cap: machine.batch_cap, root: Plan::REPOSITORY, waits: Dependencies.new(work_items).method(:reason))
+          Batching.new(only, cap: machine.batch_cap, root: Plan::REPOSITORY, waits: Dependencies.new(work_items).method(:reason),
+                             leads: work_items.batched.map(&:batch))
         end
 
         def skipped_line(skip)
