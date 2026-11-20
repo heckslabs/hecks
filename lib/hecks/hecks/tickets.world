@@ -61,6 +61,10 @@ Hecks.world "Tickets" do
   # cap and the heavy-jobs gate read Signalbox's posted pressure signal instead of their own
   # readings, each keeping its own while the signal is dark. Off until the owner turns it.
   signalbox_pressure "Signalbox", drives: false
+  # `signalbox_response` is the switch on local response (ADR 0222 law 3): while `drives`, a heavy
+  # job answers the posted band by its session kind through Signalbox's Response table, and waits
+  # on memory as before while the signal is dark. Off until the owner turns it.
+  signalbox_response "Signalbox", drives: false
   dispatch_max_load "Dispatch", limit: 10.0
   # `roundhouse: true` moves every Delegate reader of load from `uptime` to Roundhouse's `Load`
   # query (ADR 0222, metering); off, each Machine reading keeps it beside as `metered_load`.
