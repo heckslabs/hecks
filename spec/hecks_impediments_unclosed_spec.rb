@@ -4,7 +4,7 @@ require "hecks/hecks/adapters/dispatching"
 require_relative "support/impediment_looks"
 
 # What the impediment view keeps that a look's Unclosed does not: a filed stall, and the
-# view-only rows, which no look files.
+# rows a call for help clears, which no look files.
 RSpec.describe "StallWatch impediments beside Unclosed" do
   include_context "with a stall watch tap"
   include ImpedimentLooks
@@ -26,12 +26,12 @@ RSpec.describe "StallWatch impediments beside Unclosed" do
     expect(unclosed_kinds).not_to include("agent-run-blocked")
   end
 
-  it "offers Unclosed only the rows that file, so a view-only source files no stall" do
+  it "offers Unclosed only the rows their stall item clears, so a source a call clears files no stall" do
     write_sources(ImpedimentLooks::STANDING)
     expect(unclosed_kinds).to eq(%w[agent-run-blocked])
   end
 
-  it "files nothing for a view-only source when the watch looks" do
+  it "files nothing for a source a call for help clears when the watch looks" do
     write_sources(ImpedimentLooks::STANDING.first(4))
     detect("look-1")
     expect(keys("Hecks", "Stall", :stall)).to be_empty

@@ -21,7 +21,8 @@ module HelpWantedLooks
   def call_for(impediment, role)
     { help: { value: "help-#{impediment}" }, opened_at: { value: "2026-11-20T10:00:00Z" }, waited: { value: 15 },
       holds_up: { value: "the push train" }, kind: { value: "release-dead-holder" },
-      needs: { value: "Release the hold once its holder is confirmed dead." }, role: { value: role } }
+      needs: { value: "Release the hold once its holder is confirmed dead." }, role: { value: role },
+      cleared_by: { value: "help" } }
   end
 
   def assign(how, helper = "helper-1", impediment = HOLD)
