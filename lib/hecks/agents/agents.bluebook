@@ -2187,10 +2187,8 @@ Hecks.bluebook "Agents" do
 
   end
 
-  # A clean verdict is a claim that the change is safe to land. A red main whose search reverts the
-  # landing of the same work item (Deliver's `RedEpisode`, keyed by the branch less its step) shows
-  # the claim was wrong: the review missed what CI caught. The miss is kept per verdict, so a tier
-  # whose misses are high is visible; the reopened work item (Tickets) carries the finding.
+  # A red main whose search reverts a work item's landing (Deliver's `RedEpisode`) contradicts its
+  # clean verdicts. The reopened work item (Tickets) carries the finding; this keeps the miss per tier.
   aggregate "ReviewMiss" do
     description "One clean verdict a red main later contradicted: the verdict's commit, tier, hops and evidence, beside the reverted landing, its spec and the episode that found it."
 
