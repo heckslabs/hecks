@@ -46,6 +46,9 @@ Hecks.world "Tickets" do
                            free_gb_low: 3.0, free_gb_recovered: 6.0, lane_busy: 4.0, lane_idle: 1.0,
                            interval: 60.0
   github_issues "GitHubIssues", enabled: false
+  # `area_names` reads each word of a planned or rescoped work item's area against the checkout
+  # (`Hecks::Adapters::AreaNames`); a planned item whose area names nothing is dropped by name.
+  area_names "WorkAreas", checked: true
   # `urgent_reserve`: red-* items that may start past a full cap (1 when absent); one expedited item
   # takes its own place outside the cap and the reserve (ADR 0224). The cap 7 and epic limit 4 are
   # not yet measured: docs/findings/dispatch-limits-2026-11.md.

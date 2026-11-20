@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "area_overlap"
+require_relative "area_names"
 require_relative "started_work"
 require_relative "console_capture"
 require_relative "dispatching/shared_sections"
@@ -37,6 +38,22 @@ module Hecks
         raise ConsoleCapture::Failure, "#{key} cannot claim #{pair[0]}: #{other} holds #{pair[1]}" if other
 
         { output: { value: "#{key} holds #{mine.empty? ? "no area" : mine.join(", ")}#{sharers(key, mine)}" } }
+      end
+
+      # Clears a planned or rescoped work item's area against the checkout, while the Tickets
+      # world's `area_names` switch is on.
+      #
+      # @param held [Hash] the Work item: `work` and `area`
+      # @return [Hash{Symbol => Hash}] `output:` the line that says the area names the checkout
+      # @raise [ConsoleCapture::Failure] naming the work item and every word that names nothing
+      def check_names(**held)
+        key = plain(held[:work])
+        return { output: { value: "#{key}: area names are not checked" } } unless AreaNames.checked?(@registry)
+
+        unnamed = AreaNames.unnamed(areas(held[:area]), root: AreaNames.root)
+        raise ConsoleCapture::Failure, "#{key} area names nothing in the checkout: #{unnamed.join(", ")}" if unnamed.any?
+
+        { output: { value: "#{key} area names the checkout" } }
       end
 
       private
