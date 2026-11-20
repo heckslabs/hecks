@@ -6,10 +6,10 @@ require "hecks/ports/persistence/plugins/era"
 # composition, not verb resolution or JSON materialization from scratch.
 # `hecks mcp` is one server onto this bus, not the bus itself.
 RSpec.describe Hecks::Storehouse do
-  # The audit log is real disk state keyed only by domain name, so a fresh
+  # The trace is real disk state keyed only by domain name, so a fresh
   # in-memory `runtime` per example is not a fresh log. Each example gets
   # its own empty cache root, so `.follow` never depends on run order or
-  # touches the developer's real audit log.
+  # touches the developer's real trace.
   let(:cache_root) { Dir.mktmpdir("hecks-storehouse-spec") }
   let(:runtime) { boot_in_memory }
   let(:pizza_args) do
@@ -127,7 +127,7 @@ RSpec.describe Hecks::Storehouse do
       expect(refused).to include(refusal: "not_found", duration_ms: be_a(Integer))
     end
 
-    # The audit entries of one successful create and one refused unknown command, in that order.
+    # The trace entries of one successful create and one refused unknown command, in that order.
     def logged_create_and_refusal
       create_pizza
       described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
@@ -316,7 +316,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".dispatch with surface:" do
-    it "records the surface a call came through on its audit line" do
+    it "records the surface a call came through on its trace line" do
       described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
                                role: "Chef", surface: "mcp")
 
@@ -459,7 +459,7 @@ RSpec.describe Hecks::Storehouse do
       expect(runtime.events).to be_empty
     end
 
-    it "records role/actor_id on the audit log line, win or refuse" do
+    it "records role/actor_id on the trace line, win or refuse" do
       described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                args: pizza_args, role: "Chef")
 
@@ -512,7 +512,7 @@ RSpec.describe Hecks::Storehouse do
       expect(runtime.events).to be_empty
     end
 
-    it "logs a refused unbound dispatch with no role, so the audit trail shows who did not identify", :aggregate_failures do
+    it "logs a refused unbound dispatch with no role, so the trace shows who did not identify", :aggregate_failures do
       described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "no caller", args: pizza_args)
 
       entry = described_class.follow(runtime: runtime)[:entries].first
@@ -576,7 +576,7 @@ RSpec.describe Hecks::Storehouse do
       expect(result).to eq(ok: true, domain: "Pizzas", events: [])
     end
 
-    it "answers the events a real dispatch announced, sourced from this server's own audit log", :aggregate_failures do
+    it "answers the events a real dispatch announced, sourced from this server's own trace", :aggregate_failures do
       create_pizza
 
       result = described_class.events(runtime: runtime, aggregate: "Order", id: "Margherita")
@@ -619,7 +619,7 @@ RSpec.describe Hecks::Storehouse do
     end
   end
 
-  describe "the audit log's location" do
+  describe "the trace's location" do
     it "appends JSONL under the cache root, not the gem's own directory", :aggregate_failures do
       described_class.record!("Pizzas", tool: "state", summary: "spec", source: nil, outcome: { ok: true })
 
