@@ -20,7 +20,8 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose narrowing a batch lead" do
   def members = [item("b", %w[lib/x/b], batch: "a", commit: "abc123"), item("c", %w[lib/x/c], batch: "a")]
 
   def adapter
-    items = instance_double(described_class::WorkItems, planned: members, started: [item("a", %w[lib/x/a.rb lib/x/b lib/x/c])],
+    lead = described_class::Plan::Item.new(key: "a", title: "a", area: %w[lib/x/a.rb lib/x/b lib/x/c], batched: members)
+    items = instance_double(described_class::WorkItems, planned: [], started: [lead],
                                                         runs: {}, lessons: [], claimant: "owner")
     described_class.new(settings: { load: -> { 1.0 }, cpus: 10, cap: 6, work_items: items, runner: runner,
                                     effective: lambda(&:area), sessions: [] })
