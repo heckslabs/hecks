@@ -32,4 +32,9 @@ RSpec.describe "HelpWanted lines where the board draws them" do
   it "draws the lines in the main page's waiting-on-you group" do
     expect(page).to include("waiting_on_you.help")
   end
+
+  it "sums the sessions and the lines once for the page's summary and leaves the sessions' count alone" do
+    summed = '(sized["Sessions waiting on you"] || 0) + (sized["Help waiting on you"] || 0)'
+    expect(page).to include(summed, "lastState.waiting_on_you.count")
+  end
 end
