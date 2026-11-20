@@ -10,6 +10,7 @@ pub mod clock;
 pub mod component_email;
 pub mod component_imports;
 pub mod component_runner;
+pub mod components;
 pub mod dispatch;
 pub mod expr_json;
 // Generated: its static regexes are literals that compile, and the generator always emits
@@ -27,6 +28,7 @@ pub mod ir;
 pub mod journal;
 pub mod lambda_client;
 pub mod log;
+pub mod module_cache;
 pub mod needs;
 pub mod plugins;
 pub mod presentation;

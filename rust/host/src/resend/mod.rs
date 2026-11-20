@@ -69,23 +69,29 @@ pub enum Mailer {
         http: reqwest::Client,
         account: Account,
     },
-    /// The same delivery run by `rust/adapters/resend` as a component. Chosen by the interim
-    /// `RESEND_COMPONENT=1` switch, which the hecksagon wiring of wasm-adapters slice 4 replaces
-    /// and slice 5 deletes with `Live` (docs/plans/wasm-adapters.md).
-    Component(Account),
+    /// The same delivery run by `rust/adapters/resend` as a component, for a deploy whose
+    /// hecksagon wires it to the `email` port: the IR's `components` names its module and grant.
+    /// Slice 5 of docs/plans/wasm-adapters.md deletes `Live` once this is the default.
+    Component {
+        account: Account,
+        wiring: component::Wiring,
+    },
     Mock,
 }
 
 impl Mailer {
     /// `Ok(None)` when nothing is configured; `Err` when a key is set without `RESEND_FROM` —
-    /// marking an issue sent is irreversible, so a missing key must refuse before that happens.
+    /// marking an issue sent is irreversible, so a missing key must refuse before that happens —
+    /// and when the IR wires a component the host cannot load. The IR's wiring picks the
+    /// component; without it mail goes out natively.
     pub fn from_env() -> Result<Option<Self>, String> {
         let var = |name: &str| crate::secrets::var(name).unwrap_or_default();
+        let wiring = component::wired(crate::ir::ir())?;
         let mailer = Self::configured(
             &var("RESEND_API_KEY"),
             &var("RESEND_FROM"),
             &var("RESEND_MOCK"),
-            &var("RESEND_COMPONENT"),
+            wiring,
         )?;
         Ok(mailer.map(|mailer| mailer.replying_to(&var("RESEND_REPLY_TO"))))
     }
@@ -94,14 +100,15 @@ impl Mailer {
         api_key: &str,
         from: &str,
         mock: &str,
-        component: &str,
+        wiring: Option<component::Wiring>,
     ) -> Result<Option<Self>, String> {
         if !api_key.is_empty() {
             if from.is_empty() {
                 return Err("RESEND_API_KEY is set but RESEND_FROM is not — Resend needs a from address on a verified domain".to_string());
             }
-            if component == "1" {
-                return Ok(Some(Self::component(api_key, from, API_BASE)));
+            if let Some(wiring) = wiring {
+                let account = Account::new(api_key, from, API_BASE);
+                return Ok(Some(Self::Component { account, wiring }));
             }
             return Ok(Some(Self::live(api_key, from, API_BASE)));
         }
@@ -122,9 +129,13 @@ impl Mailer {
         }
     }
 
-    /// A mailer that hands each email to the Resend component, posting to `base_url`.
+    /// A mailer that hands each email to the committed Resend component, posting to `base_url`,
+    /// granted the account's key and the base URL's host.
+    #[cfg(test)]
     pub fn component(api_key: &str, from: &str, base_url: &str) -> Self {
-        Self::Component(Account::new(api_key, from, base_url))
+        let account = Account::new(api_key, from, base_url);
+        let wiring = component::committed::wiring(&account);
+        Self::Component { account, wiring }
     }
 
     /// Sets where replies go (`Reply-To`), when the address people reply to is not the one the mail
@@ -139,10 +150,13 @@ impl Mailer {
                     ..account
                 },
             },
-            Self::Component(account) => Self::Component(Account {
-                reply_to,
-                ..account
-            }),
+            Self::Component { account, wiring } => Self::Component {
+                account: Account {
+                    reply_to,
+                    ..account
+                },
+                wiring,
+            },
             mock @ Self::Mock => mock,
         }
     }
@@ -156,7 +170,7 @@ impl Mailer {
         match self {
             Self::Mock => mock_deliver(email),
             Self::Live { http, account } => live::deliver(http, account, email).await,
-            Self::Component(account) => component::deliver(account, email).await,
+            Self::Component { account, wiring } => component::deliver(account, wiring, email).await,
         }
     }
 }

@@ -34,6 +34,14 @@ Hecks.adapter("reference_counter") do
   port "reference_identity"
   stays_inside
 end
+
+Hecks.adapter("reference_mailer") do
+  port    "reference_email"
+  runs    "mailer.wasm"
+  secret  :MAILER_API_KEY
+  imports :clock
+  imports :http_out, hosts: ["api.mailer.example"]
+end
 ```
 
 ## port
@@ -184,5 +192,31 @@ adapter that says nothing is treated as reaching outside (ADR 0171).
 ```ruby
 runtime.registry.adapters["reference_counter"].stays_inside?  # => true
 runtime.registry.adapters["reference_memory"].stays_inside?   # => false
+```
+
+## imports
+
+<!-- generated:begin word=imports -->
+`imports imports, hosts:` — fills `imports`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | imports |
+| `hosts:` | list | false | hosts |
+<!-- generated:end -->
+
+Grants a component adapter one or more of the host's capabilities. A component is an adapter that
+`runs` a wasm component for its `port` (rather than answering queries, as a plugin does): the Rust
+host loads it and answers its imports, and only the ones it names. `:clock` lets it read the time
+and wait between retries; `:http_out` lets it make outbound requests, to the hosts named in
+`hosts:` and no other. The secrets it may read are the ones it declares with `secret`, so there is
+no `:secrets` import. A hecksagon wires the component to its port with the port's verb
+(`mailed_by "Resend"`), and the IR's `components` entry then carries the module, its SHA-256 and
+this grant to the host; a port nothing wires is answered natively. Only a component may import or
+name a host: an adapter without `runs` and a `port` is refused.
+
+```ruby
+runtime.registry.adapters["reference_mailer"].granted_imports  # => ["clock", "http_out"]
+runtime.registry.adapters["reference_mailer"].granted_hosts    # => ["api.mailer.example"]
 ```
 

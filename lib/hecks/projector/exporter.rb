@@ -2,6 +2,7 @@ require "json"
 require_relative "../ports/persistence"
 require_relative "exporter/adapters"
 require_relative "exporter/bindings"
+require_relative "exporter/components"
 require_relative "exporter/plugins"
 require_relative "exporter/translations"
 require_relative "exporter/worlds"
@@ -77,6 +78,7 @@ module Hecks
 
       extend Adapters
       extend Bindings
+      extend Components
       extend Plugins
       extend Translations
       extend Worlds
