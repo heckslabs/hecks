@@ -1,17 +1,18 @@
 require "open3"
 require "rbconfig"
-require "hecks/tools/console"
+require "hecks/hecks/adapters/terminal/console"
 
-# `Hecks::Tools::Console` (Operation.OpenConsole) runs as a real subprocess with its
+# `Hecks::Adapters::Terminal::Console` (Operation.OpenConsole) runs as a real subprocess with its
 # IRB session fed on stdin. Postgres is pointed at a port nothing listens
 # on, for the child process only: the bare console must dispatch a pizza
 # with no database server reachable (ADR 0073), while an explicit
 # `examples/directory` still boots that directory's own `PostgresEra` wiring.
-RSpec.describe "Hecks::Tools::Console" do
+RSpec.describe "Hecks::Adapters::Terminal::Console" do
   # The child's whole program: the library entry point, with the domain argument passed through.
   # A prefixed constant name: top-level spec constants share one namespace, and
   # load_hygiene_spec.rb refuses a collision.
-  CONSOLE_CHILD = '$LOAD_PATH.unshift("lib"); require "hecks/tools/console"; Hecks::Tools::Console.call(ARGV.first)'.freeze
+  CONSOLE_CHILD = '$LOAD_PATH.unshift("lib"); require "hecks/hecks/adapters/terminal/console"; ' \
+                  "Hecks::Adapters::Terminal::Console.open(ARGV.first, out: $stdout)".freeze
 
   # `IRBRC` pins an empty rc file so the reader's own `~/.irbrc` cannot
   # change what the session prints.
@@ -24,9 +25,10 @@ RSpec.describe "Hecks::Tools::Console" do
   describe ".irb_session" do
     it "shows the missing library, and leaves ARGV as it was", :aggregate_failures do
       saved = ARGV.dup
-      allow(Hecks::Tools::Console).to receive(:require).with("irb").and_raise(LoadError, "cannot load such file -- irb")
+      allow(Hecks::Adapters::Terminal::Console).to receive(:require).with("irb").and_raise(LoadError,
+                                                                                           "cannot load such file -- irb")
 
-      expect { Hecks::Tools::Console.irb_session }.to raise_error(LoadError, /irb/)
+      expect { Hecks::Adapters::Terminal::Console.irb_session }.to raise_error(LoadError, /irb/)
       expect(ARGV).to eq(saved)
     end
   end
@@ -69,14 +71,14 @@ RSpec.describe "Hecks::Tools::Console" do
 
   describe ".banner" do
     it "offers the pizzas session, in the bare form the README uses, only for the pizzas domain", :aggregate_failures do
-      shown = Hecks::Tools::Console.banner
+      shown = Hecks::Adapters::Terminal::Console.banner
 
       expect(shown).to include('Order.create_pizza!(name: "Margherita"')
       expect(shown).not_to include("{ value:")
     end
 
     it "names no pizzas for any other domain" do
-      expect(Hecks::Tools::Console.banner("examples/banking")).not_to include("pizza")
+      expect(Hecks::Adapters::Terminal::Console.banner("examples/banking")).not_to include("pizza")
     end
   end
 end
