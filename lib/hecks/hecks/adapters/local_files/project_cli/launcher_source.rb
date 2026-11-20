@@ -70,8 +70,7 @@ module Hecks
           # @param path [String] the domain's directory under the root
           # @param name [String] the bluebook's name
           # @param program [String] the generator's invocation, named in the header
-          # @param executable [String, nil] the file's path under the root when not beside the
-          #   domain
+          # @param executable [String, nil] the file's path under the root, unless beside the domain
           # @param memory_commands [Array<String>, nil] commands that default to Memory
           # @param opted [Boolean] whether the bluebook's world declares a `launcher` setting
           # @param ledgers [Hash{String => String}] command word => ledger directory, under the root
