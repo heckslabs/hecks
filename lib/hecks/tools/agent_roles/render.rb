@@ -9,8 +9,8 @@ module Hecks
         # the frontmatter stays the first block of the file.
         BANNER = "# Generated from agents.bluebook, do not edit"
 
-        # The frontmatter keys a row can say.
-        KEYS = %w[name description tools model].freeze
+        # The frontmatter keys a row can say; `mcpServers` comes from the role's `RoleServer` rows.
+        KEYS = %w[name description tools model mcpServers].freeze
 
         # The rules section that closes a file, after the handback; the other rules open it.
         CLOSING = "## Handoffs"
@@ -20,7 +20,7 @@ module Hecks
 
         module_function
 
-        # @param row [Hash] a `RoleFile` row
+        # @param row [Hash] a `RoleFile` row, with its `servers`
         # @return [String] the role file
         def text(row)
           closing, opening = sections(row[:rules]).partition { |section| section.start_with?(CLOSING) }
@@ -35,7 +35,22 @@ module Hecks
         # @return [String] the frontmatter, closed by a blank line
         def front(row)
           ["---", "name: #{row[:role]}", "description: #{row[:description]}", "tools: #{row[:tools]}",
-           "model: #{row[:model]}", BANNER, "---"].join("\n")
+           "model: #{row[:model]}", *servers(row[:servers].to_a), BANNER, "---"].join("\n")
+        end
+
+        # @param rows [Array<Hash>] the `RoleServer` rows of a role
+        # @return [Array<String>] the `mcpServers` lines, none when the role starts no server
+        def servers(rows)
+          return [] if rows.empty?
+
+          ["mcpServers:", *rows.flat_map { |server| server_lines(server) }]
+        end
+
+        # @param server [Hash] one `RoleServer` row
+        # @return [Array<String>] its `mcpServers` entry: a stdio command and its domains
+        def server_lines(server)
+          ["  - #{server[:server]}:", "      type: stdio", "      command: #{server[:command]}",
+           "      env:", "        HECKS_SERVER_DOMAINS: #{server[:domains]}"]
         end
       end
     end

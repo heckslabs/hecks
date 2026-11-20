@@ -3,8 +3,7 @@ require "spec_helper"
 # Every role that does pipeline work says, as data, that it fans out where the work is independent:
 # a `fan-out-where-independent` StandingRule row, and a `## Fan-out` section in its RoleFile row.
 # The roles that read or build carry a typed subagent tool; the orchestrator fans out as runs and
-# carries none. The architect is left out: its file holds frontmatter (`mcpServers`) a row cannot
-# say, so the projection does not write it.
+# carries none.
 RSpec.describe "the Role aggregate's fan-out rows" do
   subject(:role) do
     bluebook = Hecks.describe(File.join(InMemoryDomain::ROOT, "lib/hecks/agents")).registry.bluebooks.fetch("Agents")
@@ -14,12 +13,13 @@ RSpec.describe "the Role aggregate's fan-out rows" do
   let(:members) { ->(name) { role.value_objects.find { |object| object.hecks_name == name }.members } }
   let(:files) { members.call("RoleFile").to_h { |row| [row[:role], row] } }
   let(:subagents) do
-    { "planner" => "Agent(planner)", "reviewer" => "Agent(reviewer)", "coder" => "Agent(Explore)" }
+    { "planner" => "Agent(planner)", "reviewer" => "Agent(reviewer)",
+      "architect" => "Agent(architect)", "coder" => "Agent(Explore)" }
   end
 
   it "holds a fan-out-where-independent rule for each working role" do
     ruled = members.call("StandingRule").select { |row| row[:rule] == "fan-out-where-independent" }.map { |row| row[:role] }
-    expect(ruled).to match_array(%w[planner orchestrator coder reviewer])
+    expect(ruled).to match_array(%w[planner orchestrator architect coder reviewer])
   end
 
   it "gives each reading or building role a subagent tool of a type that keeps its write limits" do
