@@ -595,11 +595,9 @@ Hecks.bluebook "Signalbox" do
     end
   end
 
-  # Reaping (ADR 0222, phase 3, reaping): Signalbox rules on each subject of Roundhouse's `Ended`
-  # meter, an ended session or a copy of the checkout, before anything is removed. It decides;
-  # `Ruling` only records a decision beside Delegate's. A reap pass is cleared first (`Clearance`),
-  # so a stale copy reaps nothing. `keep` is the subject's own window: the ended window for a
-  # finished session, its fuse's time rating for a stale one, none for a copy.
+  # Reaping (ADR 0222, phase 3): it decides, where `Ruling` only records beside Delegate. A pass is
+  # cleared first, so a stale copy reaps nothing. `keep` is the subject's own window: the ended
+  # window, or a stale session's fuse time rating.
   aggregate "Reaping" do
     description "Signalbox's ruling that one ended session or one copy of the checkout is reaped, from Roundhouse's meter."
     created_by "Reaping.rule!"
