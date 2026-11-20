@@ -49,8 +49,11 @@ module Hecks
 
       def plan
         Dispatching::Plan.new(items.planned, items.started, cap: cap, load: machine.load, max_load: machine.max_load,
-                                                            frozen: machine.frozen)
+                                                            frozen: machine.frozen, waits: waits)
       end
+
+      # The fill's own reason an item waits for another to land, so the report and the fill agree.
+      def waits = Dispatching::Dependencies.new(items).method(:reason)
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
