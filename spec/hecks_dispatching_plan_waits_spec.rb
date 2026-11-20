@@ -14,7 +14,7 @@ RSpec.describe Hecks::Adapters::Dispatching, "#preview" do
 
   def preview(landed)
     items = instance_double(described_class::WorkItems, planned: [item("w1", "Depends on: w0"), item("w2")],
-                                                        started: [], runs: {}, landed_commits: landed, status_of: "done")
+                                                        started: [], runs: {}, landed_commits: landed, status_of: "started")
     described_class.new(settings: { load: -> { 0.5 }, cpus: 4, work_items: items, reviews: [] }).preview(repo: "/repo")[:text]
   end
 
