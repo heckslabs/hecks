@@ -28,10 +28,8 @@ Hecks.bluebook "Signalbox" do
     attribute :load_tight, Percent, optional: true
     attribute :load_short, Percent, optional: true
     attribute :load_gap,   Percent, optional: true
-    # The second memory input (decided 2026-11-20): the kernel's memory pressure level as the OS
-    # reads it, 1 normal, 2 warn, 4 critical, 0 unread. The OS counts what it can compress and
-    # reclaim, which no page count says, so a normal level outweighs a low headroom figure; an
-    # unread level leaves the headroom marks alone to judge memory.
+    # The second memory input (decided 2026-11-20): the OS's memory pressure level, 1 normal, 2 warn,
+    # 4 critical, 0 unread. The OS counts what it can compress and reclaim, which no page count says.
     attribute :memory_pressure_level, Count, optional: true
     # The published signal's room (phase 3b): how many coders and how many gates the headroom fits,
     # as the beat reckoned them; none while the band is short.
@@ -286,10 +284,9 @@ Hecks.bluebook "Signalbox" do
       given("a helper does not start a helper") { asked_by.value != "helper" }
       given("a session is not started for a purpose already met") { met.value != "yes" }
       given("a session's expected draw fits the headroom") { draw.value <= headroom.value }
-      # Hysteresis: shedding trips under the floor, so a lower-tier session is admitted only while
-      # its draw leaves the gap above it, and the next reading's noise does not shed what was admitted.
-      # While the OS reads its memory pressure normal (level 1) the floor does not trip, so the gap
-      # does not bind: the draw fitting the headroom is the memory bound left, and the ramp paces it.
+      # Hysteresis: a lower-tier session leaves the gap above the floor, so noise does not shed it.
+      # At the OS's normal level the floor does not trip, so the gap does not bind: the draw fitting
+      # the headroom is the memory bound left, and the ramp paces it.
       given("a lower-tier session leaves the gap above the floor after its draw") do
         tier.value == "urgent" || memory_pressure_level.value == 1 || headroom.value - draw.value >= floor.value + gap.value
       end
@@ -1144,11 +1141,9 @@ Hecks.bluebook "Signalbox" do
     }
   end
 
-  # The band is the worse of the memory band and the load band (decided 2026-11-19). The load is in
-  # hundredths and its marks in percent of the performance cores, so `cores * mark` is in hundredths.
-  # Memory reads the OS first (decided 2026-11-20): its level 4 is short and its level 2 tight
-  # whatever the headroom, and its level 1 is never short or tight on memory; an unread level (0)
-  # leaves the headroom marks alone to judge, as before.
+  # The band is the worse of the memory and load bands; `cores * mark` is in hundredths. The OS's
+  # memory level 4 is short and 2 tight whatever the headroom, and 1 is never short or tight on
+  # memory; an unread level (0) leaves the headroom marks to judge, as before.
   policy "TripWhenHeadroomFallsUnderTheFloor" do
     on      "Pressure.PressureRead"
     where   do
@@ -1225,11 +1220,9 @@ Hecks.bluebook "Signalbox" do
     trigger Response::Wait, with: { response: :response, session: :session }
   end
 
-  # The shadow's rulings, the whole table: Signalbox starts a normal-tier coder whose draw fits the
-  # headroom while pressure is not short (law 4), and sheds only while it is short. Memory is short
-  # as the band reads it: under the floor unless the OS reads its pressure normal, or the OS's
-  # critical level. Exactly one policy answers each function of a beat; a fill with nothing planned
-  # is not ruled on.
+  # The shadow's rulings: start a normal-tier coder whose draw fits while pressure is not short (law
+  # 4), shed only while it is short, memory short as the band reads it. Exactly one policy answers
+  # each function of a beat; a fill with nothing planned is not ruled on.
   policy "RuleWithDelegatesStart" do
     on      "Shadow.DelegateHeard"
     where   do
