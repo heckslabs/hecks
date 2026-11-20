@@ -28,6 +28,12 @@ RSpec.describe "the Deploy bluebook's BoxState query", :io do
     expect(JSON.parse(out).first.fetch("box")).to eq("i-0abc")
   end
 
+  it "leaves a Deploy attached with no sibling hecksagon to that refusal, not to its unbound query" do
+    registry = BoxStateStandIn.deploy_attached_without_sibling
+
+    expect { registry.verify! }.to raise_error(Hecks::Runtime::WiringError, /attaches "Deploy".*bounded context/m)
+  end
+
   describe "what the BoxState query answers" do
     it "answers what runs on the box, its commit, its restore point and that nothing is rolling" do
       expect(state).to eq(
