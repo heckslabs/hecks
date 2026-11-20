@@ -6,6 +6,8 @@ require_relative "standing"
 require_relative "openings"
 require_relative "shared_subjects"
 require_relative "run_names"
+require_relative "settled_reads"
+require_relative "settling"
 
 module Hecks
   module Adapters
@@ -22,10 +24,13 @@ module Hecks
         # @param now [Integer] the clock's answer, in Unix epoch seconds
         # @param evidence [#call] answers a kind's `evidence` read as one line, or nil; asked only
         #   for a line past its kind's minutes, so a young line reads nothing
-        def initialize(kinds, now, evidence: ->(_kind) {})
+        # @param settled_read [#call] answers a kind's `settled_read` for an opening line's links as
+        #   what settled it, or nil ({SettledReads})
+        def initialize(kinds, now, evidence: ->(_kind) {}, settled_read: ->(_kind, _links) {})
           @kinds = kinds
           @now = now
           @evidence = evidence
+          @settled_read = settled_read
         end
 
         # @param lines [Array<Hash>] tap lines in sequence order
@@ -48,11 +53,12 @@ module Hecks
         #   line has closed since is one of them: its closing line never closes its Work item.
         def abandoned(lines, run)
           standing = Standing.new(lines)
-          pending(lines, standing, closed: true).filter_map do |kind, subject, at, branch|
+          pending(lines, standing, closed: true).filter_map do |entry|
+            kind, subject, at = entry
             stall = key(kind, subject)
             next unless standing.filed?(stall) && !standing.abandoned?(stall) && recent?(kind, at)
 
-            gone = gone(standing, kind, subject, at, branch)
+            gone = gone(standing, entry)
             reason(run, kind, subject, gone) if gone
           end
         end
@@ -64,7 +70,7 @@ module Hecks
         def open_lines(lines, run)
           standing = Standing.new(lines)
           @names = RunNames.new(lines)
-          pending(lines, standing).reject { |kind, subject, at, branch| gone(standing, kind, subject, at, branch) }
+          pending(lines, standing).reject { |entry| gone(standing, entry) }
                                   .map { |kind, subject, at, _| impediment(standing, kind, subject, at, run) }
         end
 
@@ -73,7 +79,7 @@ module Hecks
         # The open lines a look may offer to `File`: filed by their row, not handled, not a run
         # started to answer a question, in the window.
         def fileable(entries, standing, run)
-          entries.reject { |entry| entry.first[:files] == "no" || handled?(standing, *entry) || answerer?(*entry) }
+          entries.reject { |entry| entry.first[:files] == "no" || handled?(standing, entry) || answerer?(*entry) }
                  .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
                  .select { |row| row[:waited] < row[:forgets] }
         end
@@ -87,7 +93,9 @@ module Hecks
           @kinds.flat_map do |kind|
             openings = Openings.new(kind, lines, closed: closed)
             open = openings.unclosed.reject { |subject, _| about?(kind, subject, openings.branch(subject)) }
-            one_per_branch(kind, open, openings, standing).map { |subject, at| [kind, subject, at, openings.branch(subject)] }
+            one_per_branch(kind, open, openings, standing).map do |subject, at|
+              [kind, subject, at, openings.branch(subject), openings.links(subject)]
+            end
           end
         end
 
@@ -125,15 +133,12 @@ module Hecks
         def answerer?(kind, subject, *) = @names&.answerer?(kind, subject)
 
         # Filed already, its run ended or its subject settled: a look emits nothing more for it.
-        def handled?(standing, kind, subject, at, branch)
-          standing.filed?(key(kind, subject)) || gone(standing, kind, subject, at, branch)
+        def handled?(standing, entry)
+          standing.filed?(key(*entry.first(2))) || gone(standing, entry)
         end
 
-        # Why no fixer is needed: the run's ending event, or the line that settled the subject.
-        def gone(standing, kind, subject, at, branch)
-          ended = standing.ending(kind, subject, at)
-          ended ? "its run recorded #{ended}" : standing.settled(kind, subject, at, branch)&.then { "it settled: #{_1}" }
-        end
+        # Why no fixer is needed ({Settling}), for a pending `[kind, subject, at, branch, links]`.
+        def gone(standing, entry) = Settling.new(standing, @settled_read).why(entry)
 
         def reason(run, kind, subject, gone)
           { id: run, stall: key(kind, subject), subject: subject,
