@@ -1,7 +1,7 @@
 Hecks.behaviors "Composer" do
   vision "A draft is opened, revised, judged by its check and talked about with an agent, one recorded step at a time."
 
-  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "environments/memory.world", modules: :all
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon","environments/memory.world", modules: :all
 
   test "Begin opens a bluebook for editing" do
     tests "Begin", on: "Draft"
