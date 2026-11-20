@@ -457,6 +457,107 @@ Hecks.behaviors "Signalbox" do
     expect emits: ["ClearanceGranted"]
   end
 
+  # Incident: the watch's prune ran from the train copy, behind main, and judged worktrees from it.
+  test "a reap from a copy behind main is refused clearance" do
+    tests "Grant", on: "Clearance"
+    input clearance: { value: "reap-0915" }, part: { value: "reaper" }, head: { value: "98290fc2c" },
+          main: { value: "73d901367" }, missing: { value: 0 }, age: { value: 0 }, stale_after: { value: 120 }
+    expect refused: "a part acts on shared state only from the head of main"
+  end
+
+  # ---- Reaping: ended sessions and landed copies go, from the meter ----
+
+  # Incident: 60 finished helper sessions stayed listed until prune_sessions.sh removed them.
+  test "a finished helper past its ended window is reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:a1b2" }, subject: { value: "a1b2" }, kind: { value: "finished" },
+          state: { value: "done" }, role: { value: "helper" }, live: { value: "no" }, idle: { value: 12 },
+          keep: { value: 5 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect emits: ["ReapingRuled"]
+  end
+
+  test "a finished session inside its ended window is kept" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:c3d4" }, subject: { value: "c3d4" }, kind: { value: "finished" },
+          state: { value: "done" }, role: { value: "helper" }, live: { value: "no" }, idle: { value: 2 },
+          keep: { value: 5 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect refused: "a session is reaped only once it has been idle its keep window"
+  end
+
+  test "a working session is not finished" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:e5f6" }, subject: { value: "e5f6" }, kind: { value: "finished" },
+          state: { value: "working" }, role: { value: "helper" }, live: { value: "yes" }, idle: { value: 40 },
+          keep: { value: 5 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect refused: "a finished session is listed done or stopped"
+  end
+
+  test "a session with unsaved work is never reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:a7b8" }, subject: { value: "a7b8" }, kind: { value: "finished" },
+          state: { value: "done" }, role: { value: "coder" }, live: { value: "no" }, idle: { value: 90 },
+          keep: { value: 5 }, unsaved: { value: 3 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect refused: "a session with unsaved work is never reaped"
+  end
+
+  test "a pinned session is never reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:c9d0" }, subject: { value: "c9d0" }, kind: { value: "finished" },
+          state: { value: "done" }, role: { value: "helper" }, live: { value: "no" }, idle: { value: 90 },
+          keep: { value: 5 }, unsaved: { value: 0 }, pinned: { value: "yes" }, open: { value: "no" }, landed: { value: "no" }
+    expect refused: "a pinned session is never reaped"
+  end
+
+  test "the standing orchestrator seat is never reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:134d" }, subject: { value: "134d" }, kind: { value: "finished" },
+          state: { value: "done" }, role: { value: "orchestrator" }, live: { value: "no" }, idle: { value: 90 },
+          keep: { value: 5 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect refused: "the standing seat and a person's session are never reaped"
+  end
+
+  test "a session whose run is still started is never reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:f1e2" }, subject: { value: "f1e2" }, kind: { value: "finished" },
+          state: { value: "done" }, role: { value: "coder" }, live: { value: "no" }, idle: { value: 90 },
+          keep: { value: 5 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "yes" }, landed: { value: "no" }
+    expect refused: "what a started run or a live session holds is never reaped"
+  end
+
+  # Incident: phantom load. A helper listed blocked whose process is gone holds a place for nothing.
+  test "a stale helper with no live process, past its fuse's time rating, is reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:b3c4" }, subject: { value: "b3c4" }, kind: { value: "stale" },
+          state: { value: "blocked" }, role: { value: "helper" }, live: { value: "no" }, idle: { value: 45 },
+          keep: { value: 30 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect emits: ["ReapingRuled"]
+  end
+
+  test "a stale session whose process still runs is not reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:d5e6" }, subject: { value: "d5e6" }, kind: { value: "stale" },
+          state: { value: "blocked" }, role: { value: "helper" }, live: { value: "yes" }, idle: { value: 45 },
+          keep: { value: 30 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect refused: "a stale session has no live process"
+  end
+
+  # Incident: merged worktrees piled up until the watch's pass.sh removed them.
+  test "a copy whose branch is on main, with nothing unsaved, is reaped" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:copy-tiles" }, subject: { value: "pipeline-board-tiles" }, kind: { value: "copy" },
+          state: { value: "none" }, role: { value: "copy" }, live: { value: "no" }, idle: { value: 0 },
+          keep: { value: 0 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "yes" }
+    expect emits: ["ReapingRuled"]
+  end
+
+  test "a copy whose branch main lacks is kept" do
+    tests "Rule", on: "Reaping"
+    input reaping: { value: "reap-1:copy-adr" }, subject: { value: "signalbox-five-laws-adr" }, kind: { value: "copy" },
+          state: { value: "none" }, role: { value: "copy" }, live: { value: "no" }, idle: { value: 0 },
+          keep: { value: 0 }, unsaved: { value: 0 }, pinned: { value: "no" }, open: { value: "no" }, landed: { value: "no" }
+    expect refused: "a copy is reaped only once its branch is on main"
+  end
+
   # ---- Protection: the smallest breaker first ----
 
   # Incident: the boot fuse tripped at 24.16 of 24 hours (1450 of 1440 boot minutes) while the
