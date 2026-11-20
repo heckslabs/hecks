@@ -92,8 +92,8 @@ module Hecks
           def optional_expectation(result) = cross_domain_expectation(result).merge(saga_expectation(result))
 
           # @api private
-          # @return [Hash{String => Array}] `sagas` (the saga log, in order) when the run logged any,
-          #   otherwise empty
+          # @return [Hash{String => Array}] `sagas` (the saga log, in order) when the run logged
+          #   any, otherwise empty
           def saga_expectation(result)
             log = roundtrip(result[:sagas] || [])
             log.empty? ? {} : { "sagas" => log }
