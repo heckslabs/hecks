@@ -2,6 +2,7 @@
 
 require_relative "delivery_library"
 Hecks::Adapters::DeliveryLibrary.require("git_landing")
+require_relative "landing/retired_caches"
 require_relative "landed_branches"
 
 module Hecks
