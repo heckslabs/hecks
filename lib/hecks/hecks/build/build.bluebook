@@ -450,7 +450,7 @@ Hecks.bluebook "Hecks" do
 
       command "ProjectToolsDoc" do
         role "Maintainer"
-        goal "Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them"
+        goal "Write the launcher forms of docs/tools.md from the RetiredScript rows and the command sections of the CLI guides from the module layout, or with check only compare them"
 
         attribute :check,   Switch, optional: true, sets: true
         attribute :run,     RunKey, sets: true

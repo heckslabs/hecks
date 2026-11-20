@@ -1,5 +1,6 @@
 # The command line, by task
 
+<!-- prose anchor="The command line, by task" purpose="concept" mentions="adr:0163" supports="doc:docs/decisions/0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md" -->
 The modules are the ones
 [ADR 0163](../../../decisions/0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md)
 groups the commands into. Where a module's commands are not yet grouped that way, its page says so.*
@@ -9,6 +10,7 @@ Run `hecks` with no arguments for the everyday commands, `hecks <module>` for on
 
 ## The words
 
+<!-- prose anchor="The words" purpose="concept" mentions="command:GateRun.gate!" supports="doc:docs/decisions/0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md" -->
 **A bluebook** is a domain, declared: its aggregates, commands, events and policies. It names no
 database, clock or file. A **hecksagon** is the wiring: which adapters the domain plugs into.
 
@@ -26,26 +28,30 @@ It decides what is listed, not who may run it.
 
 ## The bang rule
 
+<!-- prose anchor="The bang rule" purpose="concept" supports="doc:docs/decisions/0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md" -->
 A name with a bang changes something. A name without one only reads. A line that names a command
 without its bang is refused, with the bang spelling in the reply.
 
 ## Modules
 
-- [operate](operate.md): run a domain and look inside it
-- [check](check.md): is it right?
-- [test](test.md): run the specs and fuzzers
-- [build](build.md): compile and regenerate
-- [deliver](deliver.md): take finished work into the shared line
-- [release](release.md): certify, publish and pin versions
-- [migrate](migrate.md): move a store between shapes
-- [evolve](evolve.md): change the language and rewrite to match
-- [start](start.md): begin a domain or a project
-- [serve](serve.md): open something on a port or stdio
-- [find](find.md): read the code
-- [delegate](delegate.md): hand work to a background session
+<!-- generated:begin cli section=index -->
+- [build](build.md): Compile and regenerate.
+- [check](check.md): Is it right? Gate, model check, style, inspection and audit.
+- [delegate](delegate.md): Hand work to a background session.
+- [deliver](deliver.md): Take finished work into the shared line.
+- [evolve](evolve.md): Change the language and rewrite to match.
+- [find](find.md): Read the code: search the checkout's text, read a file, outline what it declares, find where a name is declared. Read the record: search work items, findings and decisions by their words.
+- [migrate](migrate.md): Move a store between shapes.
+- [operate](operate.md): Run a domain and look inside it.
+- [release](release.md): Certify, publish and pin versions.
+- [serve](serve.md): Open something on a port until it is stopped: the Composer, a rendered example, or a static site.
+- [start](start.md): Begin a domain or a project.
+- [test](test.md): Run the specs and fuzzers.
+<!-- generated:end cli -->
 
 ## Flags
 
+<!-- prose anchor="Flags" purpose="concept" supports="code_file:lib/hecks/adapters/driving/launcher_options.rb" -->
 Two kinds of flag exist, and each has one home.
 
 A launcher flag is accepted by every command, whatever its bluebook declares: `--wait`, `--confirm`, `--plan`, `--json`, `-q`, `-v` and `--help`. A command that has nothing to wait for accepts `--wait` and ignores it, so a script can pass it everywhere.

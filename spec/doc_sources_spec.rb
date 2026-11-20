@@ -27,6 +27,12 @@ RSpec.describe Hecks::Doc::Sources do
     expect(sources.drift("docs/tools.md", region("tools:Custodian"))).to include("project_tools_doc!")
   end
 
+  it "names a CLI guide section that still lists a renamed command" do
+    sources = editing("docs/implemented/guides/cli/migrate.md", "`hecks SchemaRevision.compact!", "`hecks Era.compact!")
+    expect(sources.drift("docs/implemented/guides/cli/migrate.md", region("cli:migrate")))
+      .to include("project_tools_doc!")
+  end
+
   it "never checks a prose region" do
     expect(described_class.new(root).drift("README.md", region("", kind: "prose"))).to be_nil
   end
