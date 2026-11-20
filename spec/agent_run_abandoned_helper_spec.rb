@@ -5,8 +5,10 @@ require_relative "support/stand_in_claude"
 # A helper session blocked on a question nobody answers ends itself. Through the booted Hecks
 # domain, whose world gives a blocked helper `abandon_after_minutes` (30): a reviewer blocked past
 # it ends its run `abandoned` with its question kept, and the reap that follows removes its
-# session; one blocked under it, a coder, the orchestrator, a session `pins.json` names, a trial
-# run, one in a world that sets no time and one answered in time all stay started.
+# session; one blocked under it, a coder, the standing seat, a session `pins.json` names, a trial
+# run, one in a world that sets no time and one answered in time all stay started. A stall fixer's
+# run is a helper too: it ends the same way, its kept session is stopped, and `retire!` of one
+# whose session is still listed is refused with the reason.
 # The stand-in `claude` lists the session and logs each `rm`.
 RSpec.describe "AgentRun: a helper blocked with no answer" do
   include_context "with a stand-in claude"
@@ -15,6 +17,14 @@ RSpec.describe "AgentRun: a helper blocked with no answer" do
 
   before(:all) do
     @hecks = boot_hecks_in_memory
+  end
+
+  # The examples share one registry and one stand-in session, so a pinned role (the orchestrator's)
+  # would be read as held by the run an earlier example left started, and its dispatch declined.
+  before do
+    allow(Hecks::Adapters::Dispatching::WorkItems).to(receive(:new).and_wrap_original do |original, *args|
+      original.call(*args).tap { |items| allow(items).to receive(:pinned_roles).and_return([]) }
+    end)
   end
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
@@ -49,7 +59,7 @@ RSpec.describe "AgentRun: a helper blocked with no answer" do
 
   def work_still_queued
     allow(Hecks::Adapters::Dispatching::WorkItems).to(receive(:new).and_wrap_original do |original, *args|
-      original.call(*args).tap { |items| allow(items).to receive(:work_status).and_return("planned") }
+      original.call(*args).tap { |items| allow(items).to receive_messages(work_status: "planned", pinned_roles: []) }
     end)
   end
 
@@ -82,8 +92,72 @@ RSpec.describe "AgentRun: a helper blocked with no answer" do
     expect(blocked_run("ab-coder", "coder", 40)).to include("status" => "started")
   end
 
-  it "leaves the orchestrator blocked past the time started" do
-    expect(blocked_run("ab-orchestrator", "orchestrator", 40)).to include("status" => "started")
+  it "leaves the standing seat blocked past the time started" do
+    expect(blocked_run("orchestrator-seat", "orchestrator", 40)).to include("status" => "started")
+  end
+
+  it "ends a stall run blocked past the time abandoned and removes its session", :aggregate_failures do
+    quiet_transcript
+    blocked_run("stall-ab-train", "orchestrator", 40)
+    expect(status_of("stall-ab-train")).to include(condition: { value: "abandoned" }, status: "tidied")
+    expect(removed).to include("stand-in-session")
+  end
+
+  it "leaves a stall run blocked under the time started" do
+    expect(blocked_run("stall-ab-young", "orchestrator", 10)).to include("status" => "started")
+  end
+
+  # The reap finds uncommitted files in the worktree of every session it reviews.
+  def unsaved_work
+    allow(Hecks::Adapters::SessionReaping).to(receive(:new).and_wrap_original do |original, *args, **kwargs|
+      original.call(*args, **kwargs).tap do |reaping|
+        allow(reaping).to(receive(:facts).and_wrap_original { |facts, *held| facts.call(*held).merge(dirty: true) })
+      end
+    end)
+  end
+
+  def stops = @hecks.registry.event_log.map(&:name).count("SessionStopped")
+
+  it "stops the session of an abandoned stall run the reap keeps for its unsaved work", :aggregate_failures do
+    quiet_transcript
+    unsaved_work
+    expect { blocked_run("stall-ab-kept", "orchestrator", 40) }.to change { stops }.by_at_least(1)
+    expect(removed).not_to include("stand-in-session")
+  end
+
+  # A stall run whose job reads blocked for `minutes`, not checked since it blocked.
+  def unchecked_stall(run, minutes)
+    launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=fix the stall",
+           "agent.value=orchestrator", "--wait")
+    job("blocked", minutes)
+  end
+
+  def retire(run) = launch("AgentRun.retire!", "to=#{run}", "--wait")
+
+  def refused = Hecks::Adapters::Driving::ExitStatus::REFUSED
+
+  def answered = Hecks::Adapters::Driving::ExitStatus::ANSWERED
+
+  it "refuses to retire a stall run blocked past the time whose session is still listed", :aggregate_failures do
+    unchecked_stall("stall-ab-listed", 40)
+    answer, status, why = retire("stall-ab-listed")
+    expect([status, why]).to match([refused, a_string_including("is not retired")])
+    expect(JSON.parse(answer).dig("state", "refusal")).to eq("session stand-in-session is still listed, blocked")
+  end
+
+  # The listing holds no session, and a started session is given no time to appear.
+  def session_gone
+    File.write(File.join(scratch, "sessions.json"), "[]")
+    allow(Hecks::Adapters::SessionLookup).to(receive(:new).and_wrap_original do |lookup, listing, **rest|
+      lookup.call(listing, **rest, grace: -> { 0 })
+    end)
+  end
+
+  it "retires a stall run blocked past the time whose session is gone" do
+    unchecked_stall("stall-ab-gone", 40)
+    session_gone
+    answer, status = retire("stall-ab-gone")
+    expect([JSON.parse(answer).dig("state", "status"), status]).to eq(["retired", answered])
   end
 
   it "leaves a helper whose session pins.json names started" do
