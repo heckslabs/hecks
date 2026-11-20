@@ -8,7 +8,12 @@ RSpec.describe Hecks::Adapters::SourceTree do
   after { Hecks::Adapters::Codebase::Tree.root = nil }
 
   it "reports that this repository is a checkout" do
-    expect(adapter.examine).to eq(checkout: { value: true })
+    expect(adapter.examine).to include(checkout: { value: true })
+  end
+
+  it "names a gate run's check by its stage, with the tree's git facts" do
+    answer = adapter.examine(operation: { value: "gate" }, stage: { value: "quick" })
+    expect(answer).to include(check_name: { value: "gate-quick" }, linked: a_kind_of(Hash), branch: a_kind_of(Hash))
   end
 
   context "without the gemspec in the tree" do
@@ -20,7 +25,7 @@ RSpec.describe Hecks::Adapters::SourceTree do
     end
 
     it "reports that it is not a checkout" do
-      expect(adapter.examine).to eq(checkout: { value: false })
+      expect(adapter.examine).to include(checkout: { value: false })
     end
 
     it "refuses to carry anything out outside a checkout" do
