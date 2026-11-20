@@ -82,6 +82,7 @@ spec/git_train_termination_spec.rb
 spec/git_train_train_env_spec.rb
 spec/hecks_command_table_spec.rb
 spec/hecks_deploy_bluebook_diff_spec.rb
+spec/hecks_deploy_box_state_spec.rb
 spec/hecks_deploy_companion_roll_spec.rb
 spec/hecks_deploy_data_copy_spec.rb
 spec/hecks_deploy_handover_spec.rb
