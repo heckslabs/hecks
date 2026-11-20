@@ -215,13 +215,14 @@ Hecks.bluebook "Hecks" do
                move: "Read the boarding (exe/hecks send_train.status, Integration.advance! confirm=true) and the train's " \
                      "log; a held lock or a dead push is reported as the cause, and the boarding is boarded again once."
         # A volume at high past half an hour is a stall, once per volume, ever: the DiskSpace
-        # `Volume` it opens on rises once. The orchestrator it wakes runs the relief or hands it
-        # to a pruner run.
+        # `Volume` it opens on rises once. The orchestrator it wakes frees space with its own verbs:
+        # it retires merged worktrees and tidies done runs, as the pruner's relief does.
         member kind: "disk", aggregate: "Hecks::Volume", state: "high", opens: "VolumeRose", closes: "VolumeEased",
                minutes: 30, forgets: 10080, fixer: "orchestrator",
-               move: "Relief.plan! run.value=<stall> to see what frees space, then Relief.relieve! " \
-                     "run.value=<stall>-relief state.value=high --confirm, which retires merged worktrees and " \
-                     "tidies done runs only; report unpushed, dirty and pinned subjects by path, never remove them."
+               move: "Free space: Landing.retire! branch.value=<branch> --confirm each worktree whose work is on main " \
+                     "(git worktree list, git branch --merged main), and AgentRun.tidy! to=<run> each run whose " \
+                     "session ended done (AgentRun.running names the rest); report unpushed, dirty and pinned " \
+                     "subjects by path, never remove them."
         # The machine's load over its mark for five minutes, keyed by the beat that heard each crossing.
         # Only the beat's readings (`launchd-`) are the fleet's load: a gate step's `<sha>-<step>`
         # reading is never followed by a fall under its key, so it opens no stall.
