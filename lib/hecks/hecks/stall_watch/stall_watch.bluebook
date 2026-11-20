@@ -451,13 +451,10 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # One call for help with one impediment: `help-<impediment>`. Its key is the bound (ADR 0219,
-    # decision 10): a second `Raise` while one is open or assigned is refused by name, and a closed
-    # one frees its key, so a block that comes back is recruited for again. The Lead reads the
-    # unassigned ones and assigns each. No command records a helper's report: only the look that
-    # no longer holds the impediment closes it, so a finished helper leaves it assigned and aging.
+    # Its key is the bound of ADR 0219, decision 10: one call per impediment, and a closed one
+    # frees its key. No command records a helper's report, so a finished helper leaves it aging.
     aggregate "HelpWanted" do
-      description "One call for help with one impediment: the block, when it opened, what it holds up, the help it needs and the role that fits, and the helper the Lead assigned."
+      description "One call for help with one impediment, keyed `help-<impediment>`: when the block opened, what it holds up, the help it needs and the role that fits, and the helper the Lead assigned. A second call for an impediment whose call stands is refused by name; only a look that does not hold the impediment closes it."
       created_by "HelpWanted.raise!"
 
       # The impediment it is for, as `help-` and that impediment's key in the view: one fact, so
