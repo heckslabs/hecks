@@ -4,7 +4,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
-require "hecks/ci_speed/shard_planner"
+require "hecks/ci_speed/adapters/shard_planner"
 
 module Hecks
   module Adapters
