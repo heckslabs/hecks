@@ -19,7 +19,7 @@ module Hecks
       # can write to stdin (ADR 0062). Spawning with `HECKS_SERVER_TOOLS=readers` and
       # `HECKS_SERVER_DOMAINS=<dir>[:<dir>...]` narrows a server to read-only tools and
       # named domains (`McpScope`); this limits what one agent can reach and is
-      # not itself authentication.
+      # not itself authentication. Only a commands server serves `run` (`LauncherRun`).
       module Mcp
         PROTOCOL_VERSION = "2024-11-05".freeze
 
