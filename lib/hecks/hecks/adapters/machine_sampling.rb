@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "time"
 require_relative "console_capture"
 require_relative "machine_sampling/marks"
 require_relative "machine_sampling/states"
@@ -22,6 +23,9 @@ module Hecks
       # The seconds on a clock that only moves forward, for the interval between two readings.
       MONOTONIC = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
 
+      # When a reading is taken, on the wall clock in ISO-8601 UTC, so stamps sort as times do.
+      WALL = -> { Time.now.utc.iso8601 }
+
       @last = nil
 
       class << self
@@ -33,12 +37,14 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins: `readings:` answers the gauges, `clock:` answers seconds,
       #   `processes:` answers the process classes ({ProcessClasses} when absent), `meter:` answers
-      #   Roundhouse's load (none beside stand-in `readings:`, the live meter otherwise)
+      #   Roundhouse's load (none beside stand-in `readings:`, the live meter otherwise), `stamp:`
+      #   answers when a reading is taken (ISO-8601 UTC from the wall clock when absent)
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
         @readings = settings[:readings] || -> { Readings.new.call }
-        @clock = settings[:clock] || MONOTONIC
+        @clock = settings.fetch(:clock, MONOTONIC)
+        @stamp = settings.fetch(:stamp, WALL)
         @processes = settings[:processes] || ProcessClasses.new
         @meter = settings.fetch(:meter) { settings.key?(:readings) ? -> {} : -> { Dispatching::MeterSwitch.load } }
       end
@@ -49,14 +55,15 @@ module Hecks
       def busiest(**) = @processes.rows
 
       # @param held [Hash] the `Machine` record
-      # @return [Hash{Symbol => Object}] the gauges, the states they leave and stood in before, and
-      #   the owner's bounds on the moving work cap ({CapBounds})
+      # @return [Hash{Symbol => Object}] the gauges, the states they leave and stood in before, the
+      #   owner's bounds on the moving work cap ({CapBounds}) and `taken_at`, when it was taken
       # @raise [ConsoleCapture::Failure] when the last reading is less than `interval` seconds old
       def read(**held)
         marks = Marks.of(@registry)
         refuse_a_repeat(marks[:interval], held)
         gauges = metered(@readings.call)
-        gauges.merge(States.new(gauges, marks, History.new(@registry).states).to_h, CapBounds.of(@registry))
+        states = States.new(gauges, marks, History.new(@registry).states).to_h
+        gauges.merge(states, CapBounds.of(@registry), taken_at: @stamp.call)
       end
 
       private
