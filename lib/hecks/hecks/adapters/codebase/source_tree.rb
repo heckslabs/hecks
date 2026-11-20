@@ -20,6 +20,7 @@ require_relative "composing"
 require_relative "previewing"
 require_relative "publishing"
 require_relative "promotion"
+require_relative "tree_facts"
 require_relative "scripting"
 require_relative "../git"
 require_relative "../output_brief"
@@ -132,14 +133,18 @@ module Hecks
       #   a release the facts to judge
       def examine(**held)
         operation = plain(held[:operation])
+        checkout_answer(operation, held).merge(run_facts(operation, held))
+      end
+
+      # @return [Hash{Symbol => Hash}] `checkout:`, and for a release the facts to judge
+      def checkout_answer(operation, held)
         return { checkout: { value: folder_specs?(held) } } if Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation)
 
         answer = { checkout: { value: tree.checkout? } }
         return answer.merge(promotion_facts(held)) if Codebase::Promotion::OPERATIONS.include?(operation)
         return answer unless Codebase::Publishing::OPERATIONS.include?(operation)
 
-        facts = tree.checkout? ? Git.new.survey(**held) : Codebase::Publishing.no_facts(operation)
-        answer.merge(facts)
+        answer.merge(tree.checkout? ? Git.new.survey(**held) : Codebase::Publishing.no_facts(operation))
       end
 
       # Carries out the operation an accepted request names.
@@ -303,6 +308,10 @@ module Hecks
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
+
+      # @return [Hash{Symbol => Hash}] the facts every run is examined with
+      #   ({Codebase::TreeFacts.answer})
+      def run_facts(operation, held) = Codebase::TreeFacts.answer(tree.root, operation, plain(held[:stage]))
     end
   end
 end
