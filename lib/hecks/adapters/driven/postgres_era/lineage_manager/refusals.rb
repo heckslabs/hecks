@@ -5,19 +5,23 @@ module Hecks
         # The refusals a mint raises: toward the scaffold when no edge exists, and for a forked or
         # stale edge. Each is built from the era check's `Context`.
         module Refusals
+          # The remedy that writes the missing edge.
+          SCAFFOLD = "run hecks SchemaRevision.scaffold_translation domain.value=… to write the edge".freeze
+
+          # The remedy that audits an edge, then boots again.
+          AUDIT = "check it with hecks SchemaRevision.audit_translation domain.value=…, then boot again".freeze
+
           # Refuses toward the authoring loop, or, under HECKS_SCAFFOLD=1, scaffolds the
           # missing edge first and names the file it wrote.
           def refuse_toward_the_scaffold!(context)
             if ENV["HECKS_SCAFFOLD"] == "1" && context.directory
               path = scaffold!(context.registry, context.bluebook, context.lineage, context.latest, context.directory)
               raise era_refusal(context, "the shape changed (era #{context.ordinal}) — wrote #{path}; " \
-                                         "review it (resolve every unresolved), check it with hecks audit_translation, " \
-                                         "then boot again", minting: false)
+                                         "review it (resolve every unresolved), #{AUDIT}", minting: false)
             end
 
             raise era_refusal(context, "the shape changed (era #{context.ordinal}) and no translation edge " \
-                                       "covers it — run hecks scaffold_translation to write the edge, " \
-                                       "check it with hecks audit_translation, then boot again", minting: false)
+                                       "covers it — #{SCAFFOLD}, #{AUDIT}", minting: false)
           end
 
           # Refuses to move a database to a newer shape from a copy that may not mint: minting

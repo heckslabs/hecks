@@ -108,7 +108,8 @@ module Hecks
       rescue Hecks::Runtime::WiringError => e
         puts "#{bluebook.name}: stopped at a row that isn't merely legacy — it fails its own integrity check:"
         puts "  #{e.message}"
-        puts "  resolve that first (see hecks reattest), then run this again for the remaining rows."
+        puts "  resolve that first (see hecks SchemaRevision.reattest! domain.value=… era.value=…), " \
+             "then run this again for the remaining rows."
         false
       end
     end
