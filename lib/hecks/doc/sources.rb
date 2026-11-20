@@ -1,4 +1,5 @@
 require_relative "reference"
+require_relative "cli_guides"
 require "hecks/tools/tools_doc"
 
 module Hecks
@@ -9,6 +10,7 @@ module Hecks
     # - `readme:<id>` is README's generated region `id`, rendered by `Reference.render_readme`
     # - `tools:<Section>` is a section table of `docs/tools.md`, rendered by `Tools::ToolsDoc`
     # - `reference:<page>` is a DSL reference page, rendered whole by `Reference.pages`
+    # - `cli:<section>` is a CLI guide's generated section, rendered by `CliGuides`
     # - `doctest:<path>` is a page whose examples are booted, run by the `doctest` callable given
     #
     # Each comparison renders the whole page once and compares one region of it, so a drift names
@@ -17,15 +19,19 @@ module Hecks
       # The command that rewrites each projected source.
       REMEDY = { "readme"    => "hecks language_run.project_reference!",
                  "reference" => "hecks language_run.project_reference!",
-                 "tools"     => "hecks regeneration_run.project_tools_doc! --confirm" }.freeze
+                 "tools"     => "hecks regeneration_run.project_tools_doc! --confirm",
+                 "cli"       => "hecks regeneration_run.project_tools_doc! --confirm" }.freeze
 
       # @param root [String] the checkout
       # @param doctest [#call, nil] answers true when the page at a path backs its claims; nil
       #   leaves doctested regions to `spec/guides_spec.rb`, which boots each guide
       # @param committed [#call, nil] reads a page as committed, given its checkout-relative path;
       #   nil reads the file under `root`
-      def initialize(root, doctest: nil, committed: nil)
+      # @param layout [CliGuides::Layout, nil] the command line's modules; nil boots one when a
+      #   `cli` region is first compared
+      def initialize(root, doctest: nil, committed: nil, layout: nil)
         @root = root
+        @layout = layout
         @doctest = doctest
         @committed = committed || method(:read_file)
         @rendered = {}
@@ -39,7 +45,7 @@ module Hecks
         return if source.nil?
         return doctest_drift(path, region, target) if source == "doctest"
 
-        committed, fresh = pair(source, target)
+        committed, fresh = pair(source, target, path)
         return if committed == fresh
 
         "#{path}##{region[:anchor]}: differs from what #{region[:source]} renders; run #{REMEDY[source]}"
@@ -49,8 +55,9 @@ module Hecks
 
       # @return [Array(String, String)] the region as committed and as its source renders it
       # @raise [ArgumentError] when the source is not one this class knows
-      def pair(source, target)
+      def pair(source, target, path)
         case source
+        when "cli" then cli_pair(path, target)
         when "readme" then readme_pair(target)
         when "tools" then tools_pair(target)
         when "reference" then reference_pair(target)
@@ -87,6 +94,14 @@ module Hecks
         directory = File.join(@root, "docs/implemented/reference")
         @rendered[:reference] ||= Reference.pages(directory)
         [@committed.call(File.join("docs/implemented/reference", name)), @rendered[:reference][name]]
+      end
+
+      # @return [Array(String, String)] a CLI guide's section as committed and as rendered
+      def cli_pair(path, section)
+        text = @committed.call(path).to_s
+        @layout ||= CliGuides::Layout.new(@root)
+        fresh = CliGuides.rewrite(text, section, CliGuides.render(@layout, @root, section))
+        [CliGuides.section_text(text, section), CliGuides.section_text(fresh, section)]
       end
 
       # @return [String, nil] the committed file, or nil when it does not exist
