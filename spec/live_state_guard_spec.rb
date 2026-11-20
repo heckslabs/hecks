@@ -33,7 +33,7 @@ RSpec.describe LiveStateGuard do
   it "switches the tap off when the Hecks domain boots for a spec" do
     registry = boot_hecks_in_memory.registry
 
-    expect(registry.world("Hecks").for_verb("event_log")[:path].to_s).to eq("")
+    expect(registry.world("Hecks").for_verb("event_tap")[:path].to_s).to eq("")
   end
 
   it "installs no tap on the booted registry" do
