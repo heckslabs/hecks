@@ -65,11 +65,11 @@ module ProbeWindow
     yield
   end
 
+  # A `probe` of nil leaves the argument out, so the command's declared default applies.
   def turn(registry, probe)
-    Hecks::Runtime::Dispatcher.new(registry).dispatch_flat(
-      "Hecks::Dial.Turn", run: { value: "r1" }, setting: { value: "admission.signalbox" }, becomes: { value: "on" },
-                          probe: { value: probe }
-    )
+    asked = { run: { value: "r1" }, setting: { value: "admission.signalbox" }, becomes: { value: "on" } }
+    asked[:probe] = { value: probe } unless probe.nil?
+    Hecks::Runtime::Dispatcher.new(registry).dispatch_flat("Hecks::Dial.Turn", **asked)
   end
 
   def status(probe) = probe && probe[:status]
