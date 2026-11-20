@@ -757,6 +757,12 @@ Hecks.bluebook "Tickets" do
     attribute :no_change, WorkText, optional: true
     # Why the last finish left the item open: no landing of it was on main. A close clears it.
     attribute :refusal,   WorkText, optional: true
+    # The lead of the batch a planned work item is held in: the started work item whose one coder
+    # session builds the whole batch on the lead's branch. Empty when the item is in no batch.
+    attribute :batch,        WorkText, optional: true
+    # The commit on the lead's branch that holds the item, once its coder has committed it; empty
+    # until then. A committed item closes when its lead lands.
+    attribute :batch_commit, WorkText, optional: true
     identified_by :work
 
     # The interview a record came from, named by the key its Interviews bluebook identifies it by.
@@ -1238,6 +1244,55 @@ Hecks.bluebook "Tickets" do
       emits "WorkLapsed"
     end
 
+    # A batch is one coder session for several planned work items whose areas overlap. Its lead is
+    # started as usual and holds the whole batch's area; each other member stays planned and is held
+    # by naming its lead, so the cap and the area guard see one session, not one per member.
+    command "Enlist" do
+      role "System"
+      goal "Hold a planned work item in the batch a started lead's one coder session builds"
+
+      reference_to Work
+      attribute :batch, WorkText, sets: true
+
+      given("only a planned work item is held in a batch") { status == "planned" }
+      given("a batch names its lead") { !batch.to_s.empty? }
+
+      sets :batch_commit, to: ""
+
+      emits "WorkEnlisted"
+    end
+
+    # The batch's coder committed this member on the lead's branch: it is landed with the lead.
+    command "Commit" do
+      role "System"
+      goal "Record the commit on its lead's branch that holds a batch member"
+
+      reference_to Work
+      attribute :batch_commit, WorkText, sets: true
+
+      given("only a planned work item is committed in a batch") { status == "planned" }
+      given("a commit names its sha") { !batch_commit.to_s.empty? }
+
+      emits "WorkCommitted"
+    end
+
+    # A member the batch cannot do (a review said rethink, a spec would not go green), or every
+    # member its lead left behind, goes back to the plan on its own, with the reason.
+    command "Leave" do
+      role "System"
+      goal "Return a batch member to the plan on its own, with why the batch let it go"
+
+      reference_to Work
+      attribute :reason, WorkText, sets: true
+
+      given("only a planned work item leaves a batch") { status == "planned" }
+
+      sets :batch, to: ""
+      sets :batch_commit, to: ""
+
+      emits "WorkLeftBatch"
+    end
+
     query "Undone" do
       description "Every work item not yet done or dropped, in plan order."
       where(status: { in: "planned,started,batched" })
@@ -1355,6 +1410,28 @@ Hecks.bluebook "Tickets" do
       description "Every work item of one epic, finished or not, in plan order."
       attribute :epic, String
       where(epic: :epic)
+      order_by :step
+    end
+
+    # The batch a lead's one coder session builds: its members still planned, in plan order.
+    query "BatchOf" do
+      description "The planned work items held in one lead's batch, committed or not, in plan order."
+      attribute :work, String
+      where(batch: :work, status: "planned")
+      order_by :step
+    end
+
+    query "CommittedIn" do
+      description "The planned members of one lead's batch already committed on the lead's branch."
+      attribute :work, String
+      where(batch: :work, status: "planned", batch_commit: { ne: "" })
+      order_by :step
+    end
+
+    query "UncommittedIn" do
+      description "The planned members of one lead's batch not yet committed on the lead's branch."
+      attribute :work, String
+      where(batch: :work, status: "planned", batch_commit: "")
       order_by :step
     end
   end
@@ -1533,6 +1610,41 @@ Hecks.bluebook "Tickets" do
     on       "Adr.AdrSuperseded"
     for_each "Work.UndoneUnder"
     trigger  Work::Lapse, with: { work: :work }
+  end
+
+  # A lead that lands takes its committed batch members with it: their commits are on its branch,
+  # so its landing is theirs. The members it did not commit then go back to the plan on their own.
+  policy "CloseBatchWhenLeadFinished" do
+    on       "Work.WorkFinished"
+    for_each "Work.CommittedIn"
+    trigger  Work::Close, with: { work: :work, landing: :landing, no_change: :no_change }
+  end
+
+  policy "ReleaseBatchWhenLeadFinished" do
+    on       "Work.WorkFinished"
+    for_each "Work.BatchOf"
+    trigger  Work::Leave, with: { work: :work, reason: "its batch lead finished without it" }
+  end
+
+  # A lead sent back to the plan lets go of the members it had not committed; a committed member
+  # stays with its lead, whose branch holds its commit, so a restart never builds it twice.
+  policy "ReleaseBatchWhenLeadYielded" do
+    on       "Work.WorkYielded"
+    for_each "Work.UncommittedIn"
+    trigger  Work::Leave, with: { work: :work, reason: "its batch lead yielded" }
+  end
+
+  policy "ReleaseBatchWhenLeadRefused" do
+    on       "Work.WorkRefused"
+    for_each "Work.UncommittedIn"
+    trigger  Work::Leave, with: { work: :work, reason: "its batch lead's landing was refused" }
+  end
+
+  # A lead set aside takes its branch with it, so every member goes back to the plan.
+  policy "ReleaseBatchWhenLeadDropped" do
+    on       "Work.WorkDropped"
+    for_each "Work.BatchOf"
+    trigger  Work::Leave, with: { work: :work, reason: "its batch lead was dropped" }
   end
 
   # Only a landing finishes a work item, never a submission, which a landing job may still refuse.
