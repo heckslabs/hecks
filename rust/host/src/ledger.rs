@@ -1,4 +1,4 @@
-//! Seals over a domain's lineage journal, and the walk that shows the journal was not rewritten.
+//! Seals over a domain's journal, and the walk that shows the journal was not rewritten.
 //!
 //! The journal (`hecks_journal_<domain>`) is append-only for an ordinary role: Postgres refuses an
 //! update or a delete under row-level security. A seal is evidence against someone the database
