@@ -95,7 +95,8 @@ module Hecks
           def conflict_refusal(unresolved)
             "cannot merge the tail of #{@domain}: touched by both worlds since the cut — " \
               "#{unresolved.map { |storage, id| "#{storage}##{id}" }.sort.join(", ")}. " \
-              "Name each winner (--winner <id>=old or --winner <id>=new), then run hecks merge_tail again. " \
+              "Name each winner as <id>:old or <id>:new, then run " \
+              "hecks SchemaRevision.merge_tail! domain.value=… winners.value=<id>:old,<id>:new again. " \
               "A winner takes the WHOLE record — the aggregate is the consistency boundary, so the " \
               "loser's edits are discarded even where they touched different attributes"
           end

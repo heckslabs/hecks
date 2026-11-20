@@ -24,6 +24,15 @@ module Hecks
         resolution(scope, rest, typed, asking).problem
       end
 
+      # @param words [Array<String>] the words after the launcher's name
+      # @return [String, nil] the command the line runs, as the launcher lists it, or nil when it
+      #   runs no command
+      def command_of(words)
+        scope, rest = scope_of(words)
+        typed = rest.first
+        typed && resolution(scope, rest, typed, false).listed_command
+      end
+
       private
 
       # The line read against its scope, or, when the first bluebook does not know the name and

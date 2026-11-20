@@ -69,7 +69,7 @@ module Hecks
       end
 
       def run_wasm(domain, script, wasm)
-        raise Failure, "#{wasm}: no such file — run hecks build_wasm #{domain} first" unless File.exist?(wasm)
+        raise Failure, "#{wasm}: no such file — run hecks Build.build_wasm! domain.value=#{domain} first" unless File.exist?(wasm)
 
         run_process(["wasmtime", "run", wasm], kernel_input(domain, script))
       end
@@ -111,7 +111,7 @@ module Hecks
       def built_binary(domain)
         feature = File.basename(domain.chomp("/"))
         NativeBuild.build_rust_for(feature, RustBuild.rust_dir) or
-          raise Failure, "no `#{feature}` feature in rust/Cargo.toml — run hecks project_rust #{domain} first"
+          raise Failure, "no `#{feature}` feature in rust/Cargo.toml — run hecks Build.project_rust! domain.value=#{domain} first"
       end
 
       def report(domain, script, ours, theirs)

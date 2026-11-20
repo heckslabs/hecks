@@ -86,9 +86,9 @@ RSpec.describe Hecks::RustBuild::KernelEngine, :io do
 
     after { dispatcher.close }
 
-    it "is raised with the kernel's own text" do
+    it "is raised as the class the kernel names, with its own text" do
       expect { dispatcher.dispatch_flat("Pizzas::Order.NoSuchCommand", {}) }
-        .to raise_error(Hecks::Runtime::KernelDispatcher::Refused, /unknown command/)
+        .to raise_error(Hecks::Runtime::TypeMismatch, /unknown command/)
     end
   end
 

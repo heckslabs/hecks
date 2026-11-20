@@ -1,0 +1,10 @@
+# Resend email delivery as a Wasm component (rust/adapters/resend, world `email-adapter`). The
+# Rust host runs resend.wasm for a deploy whose hecksagon says `mailed_by "Resend"`, granting it
+# the one key it reads, the clock it waits on between retries, and requests to Resend's API.
+Hecks.adapter "Resend" do
+  port    "email"
+  runs    "resend.wasm"
+  secret  :RESEND_API_KEY
+  imports :clock
+  imports :http_out, hosts: ["api.resend.com"]
+end

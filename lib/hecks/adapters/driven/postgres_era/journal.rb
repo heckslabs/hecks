@@ -90,9 +90,7 @@ module Hecks
         # @return [Adapters::PostgresEra] this adapter
         # @raise [Runtime::WiringError] if the journal held rows and the DELETE removed none
         def reset!
-          before = @db.exec_params(
-            "SELECT count(*) FROM #{@lineage.quoted_journal} WHERE aggregate = $1", [table]
-          )[0]["count"].to_i
+          before = journal_rows(table)
           result = @db.exec_params("DELETE FROM #{@lineage.quoted_journal} WHERE aggregate = $1", [table])
           refuse_silent_delete!(before, result)
           self

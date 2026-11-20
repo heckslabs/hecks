@@ -9,10 +9,8 @@
 //! `wasm_runner`'s per-path cache.
 
 use crate::store::Store;
-use crate::{dispatch, wasm_runner};
-use base64::Engine as _;
+use crate::{dispatch, module_cache, wasm_runner};
 use serde_json::{json, Map, Value};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
 /// One question a plugin answers, and what the host needs to ask it.
@@ -141,49 +139,20 @@ fn refusal(question: &str, args: &Value, kind: &str, message: &str) -> Value {
 
 /// Writes the plugin's module to a cache file named by its digest, once, and answers its path.
 fn module_path(domain_ir: &Value, plugin: &PluginQuery) -> Result<PathBuf, String> {
-    let path = plugin_dir().join(format!("{}.wasm", plugin.sha256));
-    if path.exists() {
-        return Ok(path);
-    }
     let encoded = domain_ir["plugins"]
         .as_array()
         .and_then(|all| all.iter().find(|p| p["adapter"] == plugin.adapter.as_str()))
         .and_then(|p| p["module"].as_str())
         .ok_or_else(|| format!("the IR carries no module for {}", plugin.adapter))?;
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(encoded)
-        .map_err(|e| format!("{}'s module is not base64: {e}", plugin.adapter))?;
-    let digest = hex(&Sha256::digest(&bytes));
-    if digest != plugin.sha256 {
-        return Err(format!(
-            "{}'s module does not match its digest",
-            plugin.adapter
-        ));
-    }
-    std::fs::create_dir_all(plugin_dir()).map_err(|e| e.to_string())?;
-    // Written beside and renamed, so a concurrent reader never compiles a partial module.
-    let partial = path.with_extension(format!("{}.partial", std::process::id()));
-    std::fs::write(&partial, &bytes).map_err(|e| e.to_string())?;
-    std::fs::rename(&partial, &path).map_err(|e| e.to_string())?;
-    Ok(path)
-}
-
-/// Where modules are written, one file per digest.
-fn plugin_dir() -> PathBuf {
-    std::env::temp_dir().join("hecks-plugins")
-}
-
-fn hex(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    bytes.iter().fold(String::new(), |mut out, byte| {
-        let _ = write!(out, "{byte:02x}");
-        out
-    })
+    module_cache::cached(&plugin.adapter, &plugin.sha256, encoded)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine as _;
+    use module_cache::hex;
+    use sha2::{Digest, Sha256};
 
     const DOUBLER: &[u8] = include_bytes!("../../../../spec/fixtures/wasm_plugin/doubler.wasm");
 

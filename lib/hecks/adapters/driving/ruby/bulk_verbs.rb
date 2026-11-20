@@ -109,7 +109,7 @@ module Hecks
           end
 
           def record(dispatcher, bulk, run)
-            instance = dispatcher.registry.repository(BLUEBOOK, bulk).find(run)
+            instance = dispatcher.repository(BLUEBOOK, bulk).find(run)
             Handle.new(dispatcher: dispatcher, domain: BLUEBOOK, aggregate: bulk, instance: instance)
           end
 
