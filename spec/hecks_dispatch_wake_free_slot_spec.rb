@@ -28,10 +28,21 @@ RSpec.describe "a beat that fills a free slot no event announced" do
 
   def budget = Hecks::Adapters::BootBudget.new(entries: ->(_cutoff) { [] }, now: -> { now })
 
-  def waking
-    settings = { load: -> { machine[:load] }, cpus: 10, cap: machine[:cap], work_items: work_items, boots: budget,
-                 now: -> { now }, runner: ->(*) { raise "no launch" } }
-    Hecks::Adapters::Waking.new(registry: boot_hecks_in_memory.registry, settings: settings)
+  def waking = Hecks::Adapters::Waking.new(registry: boot_hecks_in_memory.registry, settings: settings)
+
+  # The machine and clock the beat reads, with Signalbox's admission once a case names its answer.
+  def settings
+    held = { load: -> { machine[:load] }, cpus: 10, cap: machine[:cap], work_items: work_items, boots: budget,
+             now: -> { now }, runner: ->(*) { raise "no launch" } }
+    held.merge(admitted)
+  end
+
+  # Signalbox's admission, standing in only once a case names its answer.
+  def admitted = machine.key?(:refusal) ? { admitting: admission(machine[:refusal]) } : {}
+
+  # Signalbox's admission by headroom: nil admits a coder, a refusal names the given that holds it.
+  def admission(refusal)
+    double(clause: "admission by headroom 7000 MB").tap { |door| allow(door).to receive(:reason).and_return(refusal) }
   end
 
   # One beat's answer: why it rolls, or the refusal's message.
@@ -64,6 +75,20 @@ RSpec.describe "a beat that fills a free slot no event announced" do
     expect(dispatching::Filling.during(true) { beat }).to start_with("quiet")
   end
 
+  describe "with admission by headroom in place of the cap" do
+    before { machine[:cap] = 2 }
+
+    it "wakes for a coder Signalbox admits though the cap is full" do
+      machine[:refusal] = nil
+      expect(beat).to eq("a slot is free and a filling would start 1")
+    end
+
+    it "stays quiet while Signalbox does not admit the coder" do
+      machine[:refusal] = "skipped: signalbox: at most the ramp step starts in one ramp window"
+      expect(beat).to start_with("quiet")
+    end
+  end
+
   describe "through the clock's beat" do
     # A roll that records its key.
     def roller(rolls) = Struct.new(:rolls) { def roll(**held) = (rolls << held[:run]) && { report: { value: "ok" } } }.new(rolls)
@@ -80,6 +105,13 @@ RSpec.describe "a beat that fills a free slot no event announced" do
 
     it "starts one roll when a slot is free", :aggregate_failures do
       rolls = []
+      expect(names_of_the_beat(rolls)).to include("WakeDue", "RollRequested")
+      expect(rolls.size).to eq(1)
+    end
+
+    it "starts one roll when Signalbox admits a coder past a full cap", :aggregate_failures do
+      rolls = []
+      machine.merge!(cap: 2, refusal: nil)
       expect(names_of_the_beat(rolls)).to include("WakeDue", "RollRequested")
       expect(rolls.size).to eq(1)
     end
