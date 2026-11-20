@@ -22,6 +22,11 @@ RSpec.describe Hecks::Adapters::MainIntegration::FirstBad do
 
   alias_method :search, :search_for
 
+  it "keeps a log of each probe: the merge and whether it was green or red" do
+    search(%w[sha5 sha6 sha7])
+    expect(@search.log).to eq(["sha3 green", "sha5 red", "sha5 red", "sha4 green"])
+  end
+
   it "names the first merge that fails among good ones", :aggregate_failures do
     found = search(%w[sha5 sha6 sha7])
     expect(found[:sha]).to eq("sha5")
