@@ -1,5 +1,6 @@
 require "tmpdir"
 require "fileutils"
+require "hecks/behaviors"
 require "hecks/behaviors/expectations"
 require "hecks/rust_build/kernel_engine"
 require_relative "../support/engine_choice"
