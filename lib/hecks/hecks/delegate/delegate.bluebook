@@ -765,6 +765,97 @@ Hecks.bluebook "Hecks" do
       trigger Dispatch::Decline, with: { refusal: :refusal }
     end
 
+    # Tickets' `sweep` items (wording, renames, comments, docs) are done by one coder as one batch.
+    # A reading brings facts only; the givens and policies below compose or hold.
+    aggregate "SweepBatch" do
+      description "One reading of the waiting sweep items: composed into one batch work item once enough wait or the oldest has waited long enough, held otherwise."
+      created_by "SweepBatch.Read"
+
+      attribute :batch,    BatchKey
+      attribute :waiting,  SweepCount
+      attribute :size,     SweepCount
+      attribute :waited,   SweepHours
+      attribute :patience, SweepHours
+      attribute :title,    BatchText, optional: true
+      attribute :brief,    BatchText, optional: true
+      attribute :area,     list_of(BatchPath), optional: true
+      identified_by :batch
+
+      # The key the batch work item is planned under.
+      value_object "BatchKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "SweepCount", Integer
+      value_object "SweepHours", Integer
+      value_object "BatchText", String
+
+      # A path a member says it edits, which the batch work item claims.
+      value_object "BatchPath" do
+        attribute :value, String, matches: :present
+      end
+
+      lifecycle :status, default: "read" do
+        transition "Compose" => "composed", from: "read"
+        transition "Hold"    => "held",     from: "read"
+        mark :terminal, "composed", "held"
+        # A reading is decided by the policies below as it is recorded: nothing waits there.
+        mark :rests, "read"
+      end
+
+      command "Read" do
+        role "System"
+        goal "Record what the waiting sweep items are: how many, how long the oldest has waited, and the batch they would make"
+
+        attribute :batch,    BatchKey, sets: true
+        attribute :waiting,  SweepCount, sets: true
+        attribute :size,     SweepCount, sets: true
+        attribute :waited,   SweepHours, sets: true
+        attribute :patience, SweepHours, sets: true
+        attribute :title,    BatchText, optional: true, sets: true
+        attribute :brief,    BatchText, optional: true, sets: true
+        attribute :area,     list_of(BatchPath), optional: true, sets: true, default: []
+
+        emits "SweepRead"
+      end
+
+      command "Compose" do
+        role "System"
+        goal "Make the waiting sweep items one batch, for one coder"
+
+        reference_to SweepBatch
+        attribute :title, BatchText, sets: true
+        attribute :brief, BatchText, sets: true
+        attribute :area,  list_of(BatchPath), optional: true, sets: true, default: []
+
+        given("a batch has a member") { waiting >= 1 }
+        given("a batch is full or its oldest member has waited long enough") { waiting >= size || waited >= patience }
+
+        emits "SweepBatchComposed"
+      end
+
+      command "Hold" do
+        role "System"
+        goal "Leave the waiting sweep items waiting: too few, and none has waited long enough"
+
+        reference_to SweepBatch
+
+        emits "SweepBatchHeld"
+      end
+    end
+
+    policy "ComposeWhenTheSweepIsFull" do
+      on      "SweepBatch.SweepRead"
+      where   { waiting >= 1 && (waiting >= size || waited >= patience) }
+      trigger SweepBatch::Compose, with: { batch: :batch, title: :title, brief: :brief, area: :area }
+    end
+
+    policy "HoldWhenTheSweepIsShort" do
+      on      "SweepBatch.SweepRead"
+      where   { waiting < 1 || (waiting < size && waited < patience) }
+      trigger SweepBatch::Hold, with: { batch: :batch }
+    end
+
     # Planned Work items start by themselves: a reaction to an event that frees capacity or adds work
     # runs one filling (`Dispatch.Fill`'s choice, confirmed), so nobody calls Fill. The choice, its
     # guards and its priority order are the `Dispatching` port's; the owner's switch is read by
