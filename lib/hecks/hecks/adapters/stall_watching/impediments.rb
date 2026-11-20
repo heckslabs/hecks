@@ -25,11 +25,14 @@ module Hecks
 
         def due = @open.select { |row| row[:waited] >= row[:minutes].to_i && row[:waited] < row[:forgets].to_i }
 
-        # The group's oldest line, standing for the rest.
+        # The group's oldest line, standing for the rest, under the key the group keeps.
         def folded(group)
           oldest = group.min_by { |row| row[:opened_at] }
-          oldest.except(:folds).merge(count: group.size)
+          oldest.except(:folds).merge(count: group.size, impediment: key(oldest))
         end
+
+        # What the row stands for over every look: its stall, or its kind when its row folds.
+        def key(row) = row[:folds] == "kind" ? "stall-#{row[:stall_kind]}" : row[:stall]
       end
     end
   end

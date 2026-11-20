@@ -304,6 +304,9 @@ Hecks.bluebook "Hecks" do
         # how many lines it stands for (one unless its row folds).
         attribute :filed,      String
         attribute :count,      Integer
+        # What an impediment stands for, the same over every look: its stall key, or
+        # `stall-<kind>` for a row that folds, whose oldest line changes as lines close.
+        attribute :impediment, String
       end
 
       command "Detect" do
@@ -337,6 +340,20 @@ Hecks.bluebook "Hecks" do
         description "Every opening line of every stall kind still open past its kind's minutes and within its window, filed or not: its run not ended, its subject not settled, its closing line not come. One per subject, or one per kind for a row that folds, with how many lines it stands for; oldest first. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Sighting)
+      end
+
+      # An open call for help whose impediment a look no longer holds: it is closed with the
+      # reason, whatever its helper reported.
+      value_object "Relieved" do
+        attribute :id,     String
+        attribute :help,   String
+        attribute :reason, String
+      end
+
+      query "Relieved" do
+        description "The calls for help the tap shows raised and not closed since, whose impediment is no longer among the impediments, each with that as its reason. Read-only: it reads the tap and boots nothing."
+        attribute :run, String
+        returns list_of(Relieved)
       end
 
       query "Abandoned" do
@@ -432,6 +449,195 @@ Hecks.bluebook "Hecks" do
 
         emits StallAbandoned
       end
+    end
+
+    # Its key is the bound of ADR 0219, decision 10: one call per impediment, and a closed one
+    # frees its key. No command records a helper's report, so a finished helper leaves it aging.
+    aggregate "HelpWanted" do
+      description "One call for help with one impediment, keyed `help-<impediment>`: when the block opened, what it holds up, the help it needs and the role that fits, and the helper the Lead assigned. A second call for an impediment whose call stands is refused by name; only a look that does not hold the impediment closes it."
+      created_by "HelpWanted.raise!"
+
+      # The impediment it is for, as `help-` and that impediment's key in the view: one fact, so
+      # the call and its impediment cannot name different blocks.
+      attribute :help,       HelpKey
+      attribute :opened_at,  Word
+      attribute :waited,     Minutes
+      attribute :holds_up,   Line
+      attribute :kind,       HelpKindName
+      attribute :needs,      Line
+      attribute :role,       HelperRole
+      attribute :helper,     Word, optional: true
+      attribute :how,        Way, optional: true
+      attribute :reason,     Line, optional: true
+      # The look that closed it.
+      reference_to StallWatch, as: :watch, optional: true
+      identified_by :help
+
+      value_object "HelpKey" do
+        attribute :value, String, pattern: '\Ahelp-stall-[A-Za-z0-9._-]+\z'
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Line" do
+        attribute :value, String, matches: :present
+      end
+
+      # The block's age in minutes when help was asked; its age now is read from `opened_at`.
+      value_object "Minutes" do
+        attribute :value, Integer
+
+        invariant("minutes are not negative") { !value.negative? }
+      end
+
+      # One kind of help, one row each: the role that fits it and what a helper of that kind
+      # does. A record names its kind and says in `needs` what this block wants of it.
+      value_object "HelpKind" do
+        attribute :kind,  String
+        attribute :role,  String
+        attribute :needs, String
+
+        member kind: "rebase", role: "coder",
+               needs: "Rebase the branch onto main, run its specs and submit it again."
+        member kind: "owner-answer", role: "owner",
+               needs: "An answer only the owner can give: it is asked on the board, never assigned."
+        member kind: "release-dead-holder", role: "orchestrator",
+               needs: "Release what the holder holds, once the holder is confirmed dead."
+      end
+
+      value_object "HelpKindName" do
+        attribute :value, String, one_of: %w[rebase owner-answer release-dead-holder]
+      end
+
+      # The role that fits the help: one of the pipeline's agent roles, or the owner.
+      value_object "HelperRole" do
+        attribute :value, String, one_of: %w[orchestrator coder architect planner reviewer owner]
+      end
+
+      # How the Lead assigns: `idle` answers a started run that has room, `dispatch` starts a run.
+      value_object "Way" do
+        attribute :value, String, one_of: %w[idle dispatch]
+      end
+
+      lifecycle :status, default: "open" do
+        transition "Assign" => "assigned", from: %w[open assigned]
+        transition "Close"  => "closed",   from: %w[open assigned]
+        mark :terminal, "closed"
+        mark :reusable, "closed"
+      end
+
+      command "Raise" do
+        role "System"
+        goal "Ask for help with one impediment, once while the call stands"
+
+        attribute :help,       HelpKey, sets: true
+        attribute :opened_at,  Word, sets: true
+        attribute :waited,     Minutes, sets: true
+        attribute :holds_up,   Line, sets: true
+        attribute :kind,       HelpKindName, sets: true
+        attribute :needs,      Line, sets: true
+        attribute :role,       HelperRole, sets: true
+
+        emits HelpWantedRaised
+      end
+
+      # Assigning again, after a helper finished with the block still in the view, names the
+      # next helper; a dispatch then starts a new run under the same key.
+      command "Assign" do
+        role "Operator"
+        goal "Give a call for help to an idle run or to a new run of the role that fits"
+
+        reference_to HelpWanted
+        attribute :helper, Word, sets: true
+        attribute :how,    Way, sets: true
+
+        given("the owner's help is asked on the board, never assigned") { role.value != "owner" }
+
+        emits HelpWantedAssigned
+      end
+
+      # What the call needs and the role that fits, said beside the helper the Lead named, so the
+      # reaction that reaches the helper reads them from the event. It changes nothing.
+      command "Brief" do
+        role "System"
+        goal "Say what an assigned call for help needs of its helper"
+
+        reference_to HelpWanted
+        attribute :helper, Word
+        attribute :how,    Way
+        attribute :needs,  Line
+        attribute :role,   HelperRole
+
+        emits HelperBriefed
+      end
+
+      command "Close" do
+        role "System"
+        goal "Close a call for help whose impediment has left the view"
+
+        reference_to HelpWanted
+        reference_to StallWatch, as: :watch
+        attribute :reason, Line, sets: true
+
+        sets :watch
+
+        emits HelpWantedClosed
+      end
+
+      query "Open" do
+        description "Every call for help not closed, assigned or not, the oldest block first."
+        where(status: { ne: "closed" })
+        order_by :opened_at
+      end
+
+      query "Unassigned" do
+        description "Every call for help no helper was assigned to, the oldest block first: what the Lead assigns."
+        where(status: "open")
+        order_by :opened_at
+      end
+
+      # The one call under a key while it is assigned, so the reaction that reaches its helper
+      # reads what the call needs and the role that fits from the record.
+      query "AssignedOfHelp" do
+        description "The call for help under one key, when it is assigned."
+        attribute :help, HelpKey
+        where(status: "assigned", help: :help)
+      end
+    end
+
+    # A call for help closes when a look no longer holds its impediment, and only then: no
+    # helper's report closes it.
+    policy "CloseEveryHelpWantedWhenItsBlockLeavesTheView" do
+      on       "StallWatch.StallDetectRequested"
+      for_each "StallWatch.Relieved"
+      trigger  HelpWanted::Close, with: { watch: :id, help: :help, reason: :reason }
+    end
+
+    # An assigned call says what it needs of its helper, read from its own record.
+    policy "BriefTheHelperWhenAssigned" do
+      on       "HelpWanted.HelpWantedAssigned"
+      for_each "HelpWanted.AssignedOfHelp"
+      trigger  HelpWanted::Brief, with: { help: :help, helper: :helper, how: :how, needs: :needs, role: :role }
+    end
+
+    # Assigned to an idle run, the call is that run's next answer: what the block needs of it.
+    # A root, as the dispatch below is: answering or starting a session is a chain of its own.
+    policy "AnswerTheIdleHelperWhenBriefed" do
+      on      "HelpWanted.HelperBriefed"
+      root
+      where   { how.value == "idle" }
+      trigger AgentRun::Answer, with: { run: :helper, answer: :needs }
+    end
+
+    # Assigned to a new dispatch, the call starts one run of its role under the call's own key,
+    # so a second dispatch is refused by name while that run stands.
+    policy "DispatchAHelperWhenBriefed" do
+      on      "HelpWanted.HelperBriefed"
+      root
+      where   { how.value == "dispatch" }
+      trigger AgentRun::Dispatch, with: { run: :help, agent: :role, brief: :needs }
     end
 
     # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
