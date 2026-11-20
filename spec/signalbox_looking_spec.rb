@@ -24,6 +24,14 @@ RSpec.describe Hecks::Adapters::Looking do
     )
   end
 
+  it "passes on the OS's memory pressure level and the metered draw beside the world's draw" do
+    machine.merge!(memory_pressure_level: 1, coder_draw_mb: 1100)
+
+    expect(looking.look(beat: { value: "beat-1" })).to include(
+      memory_pressure_level: { value: 1 }, metered_draw: { value: 1100 }, coder_draw: { value: 1536 }
+    )
+  end
+
   it "keys the beat's two rulings by the beat" do
     expect(looking.look(beat: { value: "beat-1" })).to include(fill_ruling: { value: "beat-1:fill" },
                                                                shed_ruling: { value: "beat-1:shed" })
