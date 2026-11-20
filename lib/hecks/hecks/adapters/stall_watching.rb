@@ -5,6 +5,8 @@ require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
 require_relative "stall_watching/impediments"
 require_relative "stall_watching/relieved"
+require_relative "stall_watching/open_branches"
+require_relative "stall_watching/shared_files"
 require_relative "stall_watching/slot_evidence"
 require_relative "machine_sampling/process_classes"
 
@@ -23,13 +25,15 @@ module Hecks
       # @param tap [String, nil] a log in place of the world's, for a spec; a boot never passes it
       # @param reads [Hash] the machine reads, each for a spec: `processes:` the `processes`
       #   evidence ({MachineSampling::ProcessClasses} when absent), `slots:` the `slots` evidence
-      #   ({SlotEvidence}), `origin:` whether a commit is on origin/main ({SettledReads}, git)
+      #   ({SlotEvidence}), `origin:` whether a commit is on origin/main ({SettledReads}, git),
+      #   `branches:` the open branches' tips and changed files ({OpenBranches}, git)
       def initialize(registry: nil, aggregate: nil, tap: nil, **reads)
         @registry = registry
         @aggregate = aggregate
         @tap = tap
         @processes = reads[:processes]
         @slots = reads[:slots]
+        @branches = reads[:branches]
         @settled_read = SettledReads.new(origin: reads[:origin])
       end
 
@@ -55,27 +59,40 @@ module Hecks
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
       # @return [Array<Hash>] one `Sighting` row per impediment, oldest first, with `filed` and
-      #   `count`; none when the world declares no tap
+      #   `count`: the tap's ({Impediments}) and one per pair of open branches that changed the
+      #   same files ({SharedFiles}); none when the world declares no tap
       def impediments(run:)
         path = tap_path
         return [] unless path
 
-        Impediments.new(sightings.open_lines(lines(path), plain(run).to_s)).rows
+        held(lines(path), plain(run).to_s)
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
       # @return [Array<Hash>] one `Relieved` row per open call for help whose impediment the look
-      #   does not hold; none when the world declares no tap
+      #   does not hold, the computed ones among what it holds; none when the world declares no tap
       def relieved(run:)
         path = tap_path
         return [] unless path
 
         read = lines(path)
         look = plain(run).to_s
-        Relieved.new(read, Impediments.new(sightings.open_lines(read, look)).rows).rows(look)
+        Relieved.new(read, held(read, look)).rows(look)
       end
 
       private
+
+      # What a look holds: the tap's impediments and the computed ones, oldest first.
+      def held(read, look)
+        rows = Impediments.new(sightings.open_lines(read, look)).rows + shared_files.rows(read, look)
+        rows.sort_by { |row| [row[:opened_at], row[:stall]] }
+      end
+
+      # The computed impediments, read from the `ComputedSignal` rows and the open branches.
+      def shared_files
+        branches = @branches || OpenBranches.new(Dir.pwd)
+        SharedFiles.new(members("ComputedSignal"), SystemClock.now, branches: branches)
+      end
 
       def sightings = Sightings.new(kinds, SystemClock.now, evidence: method(:evidence), settled_read: @settled_read)
 
@@ -94,8 +111,11 @@ module Hecks
       def lines(path) = Runtime::EventFeed.new(path: path).read(since: 0, limit: EVERY_LINE)[:events]
 
       # The `StallKind` rows, as the bluebook declares them.
-      def kinds
-        rows = @aggregate&.value_objects&.find { |object| object.hecks_name == "StallKind" }
+      def kinds = members("StallKind")
+
+      # The member rows of one of the aggregate's value objects, as the bluebook declares them.
+      def members(name)
+        rows = @aggregate&.value_objects&.find { |object| object.hecks_name == name }
         Array(rows&.members).map { |row| row.to_h.transform_keys(&:to_sym) }
       end
 

@@ -1,7 +1,7 @@
 Hecks.behaviors "Custodian" do
   vision "A check and an operation are recorded as requested before anything outside is asked."
 
-  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "environments/memory.world", modules: :all
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon","environments/memory.world", modules: :all
 
   test "ModelCheck records the request, runs the analysis and keeps a clean verdict" do
     tests "ModelCheck", on: "ModelCheckRun"

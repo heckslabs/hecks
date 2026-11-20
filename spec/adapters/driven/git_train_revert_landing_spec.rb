@@ -20,6 +20,12 @@ RSpec.describe Hecks::Adapters::GitTrain::Reverting, "#revert" do
     expect([git("rev-list", "--count", "#{one}..HEAD"), answer[:report]]).to match(["3", /brings in nothing/])
   end
 
+  it "opens the report with the reason and names the revert commit in full", :aggregate_failures do
+    report = revert(land("one"), reason: "one broke a spec.")[:report]
+    expect(report).to start_with("one broke a spec. It was reverted as #{git("rev-parse", "HEAD")}.")
+    expect(report).to include("revert that revert", "Never rebase or re-merge the old branch")
+  end
+
   it "refuses a commit that is not a landing" do
     land("one")
     expect { revert(git("rev-parse", "HEAD~1")) }.to raise_error(failure, /not a landing/)

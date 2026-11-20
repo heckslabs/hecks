@@ -38,7 +38,7 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      # @param registry [Runtime::Registry, nil] where the started Work items are read
+      # @param registry [Runtime::Registry, nil] where the adapters the project bound are found
       # @param tune [Hash] overrides of the line's limits and collaborators (see `Lineup`)
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **tune)
         @git = Git.new

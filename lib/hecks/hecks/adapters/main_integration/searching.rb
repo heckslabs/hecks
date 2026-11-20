@@ -20,11 +20,6 @@ module Hecks
         # What the owner reads when the search ends with no merge and the base is green.
         UNFOUND = "main is red and no single merge was found"
 
-        # What a reopened Work item is told about landing its reverted work again.
-        LAND_AGAIN = "To land it again: bring the branch up to main, revert the commit that reverted this merge " \
-                     "(its message says \"This reverts commit\" and names the merge) so its changes come back, fix " \
-                     "the failing example, run it, then land."
-
         # @param repository [Repository] the repository the landings are in
         # @param failing [Array<String>] the spec files the failed verification named
         # @param runner [#call, nil] stands in for {SpecProbe}
@@ -89,13 +84,13 @@ module Hecks
           { finding: finding_line(found, finding, log), spec: finding[:spec].to_s, example: finding[:example].to_s }
         end
 
-        # What a reopened Work item's detail says of the merge: what it broke, each probe the
-        # search made, and how to land the work again.
+        # What a reopened Work item's detail says of the merge: what it broke and each probe the
+        # search made. The revert's report adds the revert commit and how the work lands again.
         def finding_line(found, finding, log)
           parts = ["culprit #{found[:sha]} #{found[:subject]}", ("spec #{finding[:spec]}" unless finding[:spec].to_s.empty?),
                    ("first failing example #{finding[:example]}" unless finding[:example].to_s.empty?),
                    ("search: #{log.join(", ")}" unless log.empty?)]
-          "A red main reverted this merge: #{parts.compact.join("; ")}. #{LAND_AGAIN}"
+          "A red main reverted this merge: #{parts.compact.join("; ")}."
         end
 
         def branch_of(subject)

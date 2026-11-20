@@ -71,9 +71,9 @@ RSpec.describe "a red train bisecting to its culprit" do
 
   it "reopens the culprit's work item with the example, the search's log and how to land again", :aggregate_failures do
     red_train
-    reverting = payload("EpisodeReverting")
-    expect(reverting.dig(:work, :value)).to eq("three")
-    expect(reverting.dig(:finding, :value)).to include("culprit #{@bad}", "breaks the build", "search: ", "To land it again")
+    made = payload("EpisodeRevertMade")
+    expect(made.dig(:work, :value)).to eq("three")
+    expect(made.dig(:report, :value)).to include("culprit #{@bad}", "breaks the build", "search: ", "To land this work again")
   end
 
   it "lowers the flag once the revert of a landing that never left local main is verified" do

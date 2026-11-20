@@ -1,7 +1,7 @@
 Hecks.behaviors "Codebase" do
   vision "A request to work on this repository is recorded, the tree is examined, and only a hecks checkout lets it through."
 
-  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "environments/memory.world", modules: :all
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon","environments/memory.world", modules: :all
 
   test "ProjectModel reports what the language projects, and keeps the answer" do
     tests "ProjectModel", on: "LanguageRun"

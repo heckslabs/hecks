@@ -73,6 +73,8 @@ Hecks.bluebook "Hecks" do
                reason: "a shipment is judged, landed and boarded by launcher calls of their own"
         member domain: "Hecks", aggregate: "Overload", checkout: "both",
                reason: "each beat counts its reading into the streaks the verdict stands on, in a process of its own"
+        member domain: "Hecks", aggregate: "LoadStanding", checkout: "both",
+               reason: "each reading turns the one load standing, and the next reading and the fill read it, in processes of their own"
         member domain: "Hecks", aggregate: "WorkCap", checkout: "both",
                reason: "each beat counts its reading into the runs the moving cap stands on, and the fill reads it, in processes of their own"
         member domain: "Hecks", aggregate: "Probe", checkout: "main",

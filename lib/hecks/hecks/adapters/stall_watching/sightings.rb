@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "digest"
 require "time"
+require_relative "key"
 require_relative "standing"
 require_relative "openings"
 require_relative "shared_subjects"
@@ -18,7 +18,7 @@ module Hecks
       # has waited and what its row allows. Whether that is a stall is `Stall.File`'s rule.
       class Sightings
         # The longest stall key, and so Work id, a look files.
-        KEY_LIMIT = 120
+        KEY_LIMIT = Key::LIMIT
 
         # @param kinds [Array<Hash>] the `StallKind` rows: `kind`, `aggregate`, `opens`,
         #   `closes`, `closed_by`, `evidence`, `minutes`, `forgets`, `fixer`
@@ -123,13 +123,8 @@ module Hecks
 
         def exempt_subjects(kind) = kind[:exempt].to_s.split(",").map(&:strip)
 
-        # `stall-<kind>-<subject>`; past {KEY_LIMIT} characters the tail is a digest of the whole.
-        def key(kind, subject)
-          full = "stall-#{kind[:kind]}-#{subject}"
-          return full if full.length <= KEY_LIMIT
-
-          "#{full[0, KEY_LIMIT - 17]}-#{Digest::SHA256.hexdigest(full)[0, 16]}"
-        end
+        # The stall's key ({Key}).
+        def key(kind, subject) = Key.of(kind[:kind], subject)
 
         def answerer?(kind, subject, *) = @names&.answerer?(kind, subject)
 

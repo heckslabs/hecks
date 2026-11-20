@@ -41,7 +41,16 @@ module Hecks
           revisions.uniq.join(" ")
         end
 
+        # @param service [String] a service of the Compose project
+        # @return [String] the image tag that service runs; empty when it is not on the box
+        def tag_of(service)
+          _, image = @rows.find { |name, *| name == service }
+          image ? tag(image) : ""
+        end
+
         private
+
+        def tag(image) = image.split(":").last
 
         # The revision of each container whose image carries one.
         def revisions

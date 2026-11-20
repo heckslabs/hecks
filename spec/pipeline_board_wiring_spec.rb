@@ -133,7 +133,7 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     end
 
     it "answers /api/settings with the settings a turn may set" do
-      expect(JSON.parse(fetch("/api/settings").body)).to eq("dials" => [], "cap" => nil)
+      expect(JSON.parse(fetch("/api/settings").body)).to include("dials" => [], "cap" => nil, "marks" => [])
     end
 
     it "serves the diagram page at /wiring" do

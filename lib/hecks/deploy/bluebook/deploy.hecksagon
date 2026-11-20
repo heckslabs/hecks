@@ -82,6 +82,16 @@ Hecks.hecksagon "Deploy" do
     answers_query "BoxState"
   end
 
+  # The same read, asked by a roll that follows stable before it begins: the facts as BoxRead, with
+  # the tag the service runs now, or BoxUnreadable with the reason.
+  Deploy::StableRoll.port "BoxState" do
+    asks "ReadBox", to: StableRoll do
+      attribute :run, RunKey
+      answers "BoxRead"
+      refuses "BoxUnreadable"
+    end
+  end
+
   Deploy::DataCopy.port "DeployToolchain" do
     asks "CopyData", to: DataCopy do
       attribute :run, RunKey

@@ -9,10 +9,16 @@ module Hecks
       # Reverts one landing on local main with a new commit (`git revert -m 1`). History is never
       # rewritten and nothing is forced: a revert that conflicts is aborted and refused by name.
       #
-      # Reverting a merge leaves its branch's changes recorded as undone, so landing that branch
-      # again brings in nothing until the revert is itself reverted; the report says so.
+      # Reverting a merge leaves its branch's commits held by the branch it was landed on, so
+      # rebasing or merging that branch again brings in nothing; the report says how the work
+      # lands again.
       class Reverting
         include Reading
+
+        # How reverted work lands again, said of the revert commit the report names.
+        LAND_AGAIN = "To land this work again, revert that revert (git revert %<revert>s) and add new commits, " \
+                     "or make fresh commits. Never rebase or re-merge the old branch: main already holds its " \
+                     "commits, so it brings in nothing."
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
@@ -25,16 +31,17 @@ module Hecks
         end
 
         # @param merge [String] the landing's merge commit, which the branch must hold
+        # @param reason [String] why the landing is reverted; the report opens with it
         # @return [Hash{Symbol => String}] `reverted:` the new commit and `report:`
         # @raise [ConsoleCapture::Failure] when the checkout is not on the branch or not clean, the
         #   commit is not a merge the branch holds, or the revert conflicts (it is aborted)
-        def revert(merge)
+        def revert(merge, reason: "")
           @guard.clean!
           merge = read("rev-parse", "--verify", "#{merge}^{commit}")
           held!(merge)
           result = @git.capture("revert", "-m", "1", "--no-edit", merge, chdir: @checkout)
           refuse!(merge, result) unless result.ok?
-          { reverted: @guard.head, report: report(merge) }
+          { reverted: @guard.head, report: report(merge, reason.to_s.strip) }
         end
 
         private
@@ -53,9 +60,9 @@ module Hecks
           raise ConsoleCapture::Failure, "reverting #{short(merge)} #{why}: #{result.err.strip}; the revert was aborted"
         end
 
-        def report(merge)
-          "reverted landing #{short(merge)} as #{short(@guard.head)}; landing its branch again brings in " \
-            "nothing until that revert is reverted"
+        def report(merge, reason)
+          opening = reason.empty? ? "Reverted landing #{short(merge)}" : "#{reason} It was reverted"
+          "#{opening} as #{@guard.head}. #{format(LAND_AGAIN, revert: @guard.head)}"
         end
       end
     end

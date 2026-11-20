@@ -2,6 +2,8 @@
 
 require "hecks/hecks/adapters/dial_turning"
 require "hecks/hecks/adapters/moving_cap"
+require_relative "in_force"
+require_relative "signalbox_marks"
 
 module Hecks
   module Adapters
@@ -17,11 +19,17 @@ module Hecks
         def settings_page = File.read(PATH)
 
         # @return [Hash] `dials:` each setting a turn may set, with its `value` now, whether a turn
-        #   set it (`turned`), its `kind`, its bounds, the `context` it governs and what it `says`;
-        #   `cap:` where the moving work cap stands ({MovingCap.standing}), nil while it is fixed
+        #   set it (`turned`), its `kind`, its bounds, the `context` it governs and what it `says`,
+        #   and its `force` (whether it is in force now, standing by or without effect, and why);
+        #   `cap:` where the moving work cap stands ({MovingCap.standing}), nil while it is fixed;
+        #   `governs:` the side that governs load, admission, protection and reaping; `signal:`
+        #   Signalbox's posted signal while current; `marks:` Signalbox's marks, read only
         def settings
           registry = @wiring.registry
-          { dials: DialTurning::Standing.rows(registry), cap: MovingCap.standing(registry) }
+          dials = DialTurning::Standing.rows(registry)
+          reading = InForce.reading(registry)
+          { dials: InForce.rows(dials, reading), cap: reading[:moving], governs: InForce.governs(dials, reading),
+            signal: reading[:posted], marks: SignalboxMarks.of(registry, cores: reading[:posted]&.fetch(:cores, nil)) }
         end
       end
     end

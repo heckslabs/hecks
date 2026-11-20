@@ -1249,6 +1249,237 @@ Hecks.bluebook "Deploy" do
     trigger ServiceRoll::FlagSmoke, with: { service_roll: :run, smoke: :refusal, refusal: :refusal }
   end
 
+  # Nothing here restores anything: a stopped roll keeps the way back and a person decides. The
+  # roll builds the project as it stands and does not compare the box's commit with promoted_commit.
+  aggregate "StableRoll" do
+    description "One service rolled because stable moved to promoted_commit: held while its auto-roll switch is off; otherwise the box is read, the roll begins only on a box that is ready, runs through ServiceRoll.Run and its smoke, and ends rolled or stopped with the reason, the tag the service ran before and the ADR 0105 restore point."
+
+    attribute :run,             RunKey
+    attribute :service,         ServiceName
+    attribute :project,         Location
+    attribute :promoted_commit, Commit
+    attribute :auto_roll,       Switch
+    attribute :box,             Fact, optional: true
+    attribute :running,         Fact, optional: true
+    attribute :box_commit,      Fact, optional: true
+    attribute :rolling,         Switch, optional: true
+    attribute :restore_point,   Fact, optional: true
+    attribute :previous_tag,    Fact, optional: true
+    attribute :report,          Report, optional: true
+    attribute :reason,          Report, optional: true
+
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Location" do
+      attribute :value, String, matches: :not_empty
+
+      invariant("a project is named by its path") { !value.to_s.empty? }
+    end
+
+    # A container name from the world, as `ServiceRoll` takes it.
+    value_object "ServiceName" do
+      attribute :value, String, pattern: '^[a-z0-9][a-z0-9_-]*$'
+    end
+
+    # The commit the stable lane moved to.
+    value_object "Commit" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Switch", Boolean
+
+    # One fact read from the box; empty when the box does not say.
+    value_object "Fact" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "Report" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "stopped"
+      transition "Hold"   => "held",    from: "requested"
+      transition "Begin"  => "rolling", from: "requested"
+      transition "Stop"   => "stopped", from: %w[requested rolling]
+      transition "Settle" => "rolled",  from: "rolling"
+      mark :terminal, "held", "rolled", "stopped"
+    end
+
+    command "Request" do
+      goal "Record that one service is to follow stable onto a promoted commit, with its auto-roll switch"
+
+      attribute :run,             RunKey, sets: true
+      attribute :service,         ServiceName, sets: true
+      attribute :project,         Location, sets: true
+      attribute :promoted_commit, Commit, sets: true
+      attribute :auto_roll,       Switch, sets: true
+
+      emits "StableRollRequested"
+    end
+
+    command "Hold" do
+      goal "Record that the roll waits because the service's auto-roll switch is off"
+
+      reference_to StableRoll
+      attribute :reason, Report, sets: true
+
+      emits "StableRollHeld"
+    end
+
+    command "Begin" do
+      goal "Let the roll start only on a box that is not rolling, names its restore point and runs the service"
+
+      reference_to StableRoll
+      attribute :project,       Location, sets: true
+      attribute :service,       ServiceName, sets: true
+      attribute :box,           Fact, sets: true
+      attribute :running,       Fact, sets: true
+      attribute :box_commit,    Fact, sets: true
+      attribute :rolling,       Switch, sets: true
+      attribute :restore_point, Fact, sets: true
+      attribute :previous_tag,  Fact, sets: true
+
+      given("no command is still running on the box: wait for it to end") { !rolling.value }
+      given("the box names its restore point before anything changes (ADR 0105)") { restore_point.value != "" }
+      given("the service runs on the box, so the tag it ran before is known") { previous_tag.value != "" }
+
+      emits "StableRollBegun"
+    end
+
+    command "Stop" do
+      goal "Record that the roll did not take or was not started, and why"
+
+      reference_to StableRoll
+      attribute :reason, Report, sets: true
+
+      emits "StableRollStopped"
+    end
+
+    command "Settle" do
+      goal "Record that the service rolled and its smoke passed"
+
+      reference_to StableRoll
+      attribute :report, Report, sets: true
+
+      emits "StableRollSettled"
+    end
+
+    query "Outcome" do
+      description "How one roll that followed stable ended: its status, the reason, the tag the service ran before and the restore point."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Rolling" do
+      description "The roll under one key while its service roll and smoke are still running; nothing once it has ended."
+      attribute :run, RunKey
+      where(run: :run, status: "rolling")
+      order_by :run
+    end
+
+    query "Held" do
+      description "Every roll that waits because its service's auto-roll switch is off."
+      where(status: "held")
+      order_by :run
+    end
+
+    query "Stopped" do
+      description "Every roll that did not take or was not started, with the reason, the tag the service ran before and the restore point."
+      where(status: "stopped")
+      order_by :run
+    end
+  end
+
+  policy "HoldStableRollWhenAutoRollIsOff" do
+    on      "StableRoll.StableRollRequested"
+    where   { !auto_roll.value }
+    trigger StableRoll::Hold, with: { reason: "auto-roll is off for this service" }
+  end
+
+  policy "ReadTheBoxWhenStableRollRequested" do
+    on      "StableRoll.StableRollRequested"
+    where   { auto_roll.value }
+    ask     :read_box, with: { run: :run }
+  end
+
+  policy "BeginStableRollWhenBoxReady" do
+    on      "StableRoll.BoxRead"
+    where   { !rolling.value && restore_point.value != "" && previous_tag.value != "" }
+    trigger StableRoll::Begin, with: { project: :project, service: :service, box: :box, running: :running,
+                                       box_commit: :box_commit, rolling: :rolling,
+                                       restore_point: :restore_point, previous_tag: :previous_tag }
+  end
+
+  policy "StopStableRollWhenBoxRolling" do
+    on      "StableRoll.BoxRead"
+    where   { rolling.value }
+    trigger StableRoll::Stop, with: { reason: "a command is still running on the box" }
+  end
+
+  policy "StopStableRollWithNoRestorePoint" do
+    on      "StableRoll.BoxRead"
+    where   { !rolling.value && restore_point.value == "" }
+    trigger StableRoll::Stop, with: { reason: "the box names no restore point (ADR 0105)" }
+  end
+
+  policy "StopStableRollWhenServiceNotRunning" do
+    on      "StableRoll.BoxRead"
+    where   { !rolling.value && restore_point.value != "" && previous_tag.value == "" }
+    trigger StableRoll::Stop, with: { reason: "the service is not running on the box" }
+  end
+
+  policy "StopStableRollWhenBoxUnreadable" do
+    on      "StableRoll.BoxUnreadable"
+    trigger StableRoll::Stop, with: { reason: :refusal }
+  end
+
+  # A `ServiceRoll` under the stable roll's own key, with the project and service `Begin` carried
+  # from the box read. A root: its chain through the smoke to this record's end is as deep as a
+  # reaction chain may go, so it cannot also count the box read before it.
+  policy "RollServiceWhenStableRollBegun" do
+    on      "StableRoll.StableRollBegun"
+    root
+    trigger ServiceRoll::Run, with: { project: :project, run: :run, service: :service }
+  end
+
+  # The endings read the smoke's own events, beside the chain's last step and not after it. Each
+  # asks `StableRoll.Rolling` for the event's key, so a roll no stable roll asked for finds no row.
+  policy "SettleStableRollWhenSmokePassed" do
+    on       "SmokeRun.SmokePassed"
+    where    { after.value == "service_roll" }
+    for_each "StableRoll.Rolling"
+    trigger  StableRoll::Settle, with: { stable_roll: :run, report: :report }
+  end
+
+  policy "StopStableRollWhenSmokeFlagged" do
+    on       "SmokeRun.SmokeFlagged"
+    where    { after.value == "service_roll" }
+    for_each "StableRoll.Rolling"
+    trigger  StableRoll::Stop, with: { stable_roll: :run, reason: :refusal }
+  end
+
+  # A project with no smoke script has no smoke to wait for: the roll settles with that said.
+  policy "SettleStableRollWhenNoSmokeRuns" do
+    on       "ServiceRoll.ServiceRollAnswered"
+    where    { !run_smoke.value }
+    for_each "StableRoll.Rolling"
+    trigger  StableRoll::Settle, with: { stable_roll: :run, report: :smoke }
+  end
+
+  policy "StopStableRollWhenRollFlagged" do
+    on       "ServiceRoll.ServiceRollFlagged"
+    for_each "StableRoll.Rolling"
+    trigger  StableRoll::Stop, with: { stable_roll: :run, reason: :refusal }
+  end
+
   aggregate "BoxRoll" do
     description "One roll of the whole app box: the generated deploy-box script run, and how it ended."
 
