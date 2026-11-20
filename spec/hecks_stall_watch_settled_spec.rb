@@ -4,7 +4,7 @@ require "hecks/hecks/adapters/dispatching"
 require_relative "support/stall_settled_looks"
 
 # A subject that settled (a landing whose branch landed, a run whose work item is done) is filed
-# for no fixer, and a filed stall whose subject settles is abandoned with its work item dropped.
+# for no fixer, and a filed stall whose subject settles is abandoned; it planned no work item.
 RSpec.describe "StallWatch settled subjects" do
   include_context "with a stall watch tap"
   include StallSettledLooks
@@ -39,9 +39,9 @@ RSpec.describe "StallWatch settled subjects" do
       .to eq(["Hecks::AgentRun w1 can no longer be answered: it settled: Tickets::Work recorded WorkFinished"])
   end
 
-  it "drops the stall's work item once its subject settles" do
+  it "leaves no work item behind once its subject settles" do
     file_then_finish("w1")
 
-    expect(work_status("stall-agent-run-session-w1")).to eq("dropped")
+    expect(work_status("stall-agent-run-session-w1")).to be_nil
   end
 end
