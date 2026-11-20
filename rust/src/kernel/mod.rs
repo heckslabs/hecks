@@ -39,7 +39,7 @@ pub use hecks_expr::{attribute_shapes, expr, expression_operators, ruby_float, R
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
     orchestrate, CompletedCompensation, CrossDomainPolicyRule, DispatchSpec, Handler,
-    PendingCrossDomainReaction, PolicyRule, ProcessManagerDef, SagaInstance, Tables, WithValue,
+    PendingCrossDomainReaction, PolicyRule, SagaDef, SagaInstance, Tables, WithValue,
     MAX_REACTION_DEPTH, REFUSED,
 };
 pub use reference_lookup::{

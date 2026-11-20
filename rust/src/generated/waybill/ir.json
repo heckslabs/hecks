@@ -744,7 +744,7 @@
   "policies": [
 
   ],
-  "process_managers": [
+  "sagas": [
     {
       "name": "Packing",
       "correlates_by": "reference.value",

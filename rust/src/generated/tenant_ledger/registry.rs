@@ -439,32 +439,31 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
-    &[crate::kernel::ProcessManagerDef {
-        name: "SettleAcrossRegions",
-        correlates_by: "reference.value",
-        starts_on: "TransferRequested",
-        ends_on: "LedgerCredited",
-        initial_state: "settling",
-        handlers: &[crate::kernel::Handler {
-            event_type: "TransferRequested",
-            from_state: "settling",
-            to_state: "settling",
-            dispatches: &[crate::kernel::DispatchSpec {
-                command_name: "Ledger.Credit",
-                with: &[
-                    ("code", crate::kernel::WithValue::Ref("ledger")),
-                    (
-                        "amount_cents",
-                        crate::kernel::WithValue::Ref("amount_cents"),
-                    ),
-                    ("sequence", crate::kernel::WithValue::Ref("reference")),
-                    ("reference", crate::kernel::WithValue::Ref("reference")),
-                ],
-                compensates: None,
-            }],
+pub const SAGAS: &[crate::kernel::SagaDef] = &[crate::kernel::SagaDef {
+    name: "SettleAcrossRegions",
+    correlates_by: "reference.value",
+    starts_on: "TransferRequested",
+    ends_on: "LedgerCredited",
+    initial_state: "settling",
+    handlers: &[crate::kernel::Handler {
+        event_type: "TransferRequested",
+        from_state: "settling",
+        to_state: "settling",
+        dispatches: &[crate::kernel::DispatchSpec {
+            command_name: "Ledger.Credit",
+            with: &[
+                ("code", crate::kernel::WithValue::Ref("ledger")),
+                (
+                    "amount_cents",
+                    crate::kernel::WithValue::Ref("amount_cents"),
+                ),
+                ("sequence", crate::kernel::WithValue::Ref("reference")),
+                ("reference", crate::kernel::WithValue::Ref("reference")),
+            ],
+            compensates: None,
         }],
-    }];
+    }],
+}];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {

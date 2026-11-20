@@ -24,10 +24,10 @@ module Hecks
 
         def to_h
           bluebook_fields.merge(
-            aggregates:       declared_as("Aggregate", :aggregate),
-            read_models:      declared_as("ReadModel", :read_model),
-            policies:         declared_as("Policy", :policy),
-            process_managers: declared_as("ProcessManager", :process_manager)
+            aggregates:  declared_as("Aggregate", :aggregate),
+            read_models: declared_as("ReadModel", :read_model),
+            policies:    declared_as("Policy", :policy),
+            sagas:       declared_as("ProcessManager", :process_manager)
           )
         end
 

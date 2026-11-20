@@ -11,7 +11,7 @@ use crate::ir;
 pub fn resolve_bare(file: &str, bluebook: &mut ir::Bluebook) -> ParseResult<()> {
     let aggregates = bluebook.aggregates.clone();
 
-    for process_manager in &mut bluebook.process_managers {
+    for process_manager in &mut bluebook.sagas {
         let key = process_manager.correlates_by.clone();
         if key.is_empty() || key.contains('.') {
             continue;
@@ -76,7 +76,7 @@ mod tests {
     fn bluebook_with(aggregates: Vec<ir::Aggregate>, key: &str) -> ir::Bluebook {
         ir::Bluebook {
             aggregates,
-            process_managers: vec![ir::ProcessManager {
+            sagas: vec![ir::Saga {
                 name: "ScheduledSend".to_string(),
                 correlates_by: key.to_string(),
                 ..Default::default()
@@ -91,7 +91,7 @@ mod tests {
 
         resolve_bare("t.bluebook", &mut bluebook).unwrap();
 
-        assert_eq!(bluebook.process_managers[0].correlates_by, "Message.id");
+        assert_eq!(bluebook.sagas[0].correlates_by, "Message.id");
     }
 
     #[test]
@@ -100,7 +100,7 @@ mod tests {
 
         resolve_bare("t.bluebook", &mut bluebook).unwrap();
 
-        assert_eq!(bluebook.process_managers[0].correlates_by, "Sighting.code");
+        assert_eq!(bluebook.sagas[0].correlates_by, "Sighting.code");
     }
 
     #[test]
@@ -120,6 +120,6 @@ mod tests {
 
         resolve_bare("t.bluebook", &mut bluebook).unwrap();
 
-        assert_eq!(bluebook.process_managers[0].correlates_by, "Message.id");
+        assert_eq!(bluebook.sagas[0].correlates_by, "Message.id");
     }
 }

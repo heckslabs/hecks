@@ -356,10 +356,7 @@ pub fn generate(
     let mut aggregate_files: Vec<GeneratedFile> = Vec::new();
     let mut registry_aggregates: Vec<AggregateEntry> = Vec::new();
     let mut manifest = Manifest::default();
-    let process_managers: Vec<Json> = ir
-        .get("process_managers")
-        .map_or_default(Json::each)
-        .to_vec();
+    let sagas: Vec<Json> = ir.get("sagas").map_or_default(Json::each).to_vec();
 
     // Owner of each value object across the whole domain: a command attribute can name a value
     // object declared by another aggregate. Last writer wins per name.
@@ -687,7 +684,7 @@ pub fn generate(
                             domain_name,
                             &value_objects_by_name,
                             &aggregates_by_name,
-                            &process_managers,
+                            &sagas,
                         ),
                     );
                     puts_blank(&mut out);
@@ -790,7 +787,7 @@ pub fn generate(
                         domain_name,
                         &value_objects_by_name,
                         &aggregates_by_name,
-                        &process_managers,
+                        &sagas,
                     ),
                 );
                 puts_blank(&mut out);
@@ -957,8 +954,7 @@ pub fn generate(
                 &json_codec::emit_to_json_flat_sparse(exemplar, &args_struct, cmd_attrs),
             );
             puts_blank(&mut out);
-            let allowlist =
-                json_codec::command_argument_allowlist(aggregate, command, &process_managers, &[]);
+            let allowlist = json_codec::command_argument_allowlist(aggregate, command, &sagas, &[]);
             puts_str(
                 &mut out,
                 &json_codec::emit_from_json_flat(
@@ -1321,7 +1317,7 @@ pub fn generate(
     for policy in ir.get("policies").map_or_default(Json::each) {
         manifest.routed("policy", format!("{domain_name}::{}", node_name(policy)));
     }
-    for pm in &process_managers {
+    for pm in &sagas {
         manifest.routed(
             "process_manager",
             format!("{domain_name}::{}", node_name(pm)),
@@ -1375,7 +1371,7 @@ pub fn generate(
     puts_blank(&mut registry_rs);
     puts_str(
         &mut registry_rs,
-        &reactions::emit_process_manager_table(exemplar, &process_managers),
+        &reactions::emit_saga_table(exemplar, &sagas),
     );
     puts_blank(&mut registry_rs);
     let generated_names: Vec<String> = registry_aggregates.iter().map(|a| a.name.clone()).collect();

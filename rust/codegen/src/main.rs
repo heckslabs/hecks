@@ -229,10 +229,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     let mut merged_aggregates = target_gen.registry_aggregates;
     let mut merged_queries = target_gen.query_defs;
     let mut merged_read_models = target_gen.read_model_defs;
-    let mut merged_process_managers: Vec<Json> = target_ir
-        .get("process_managers")
-        .map_or_default(Json::each)
-        .to_vec();
+    let mut merged_sagas: Vec<Json> = target_ir.get("sagas").map_or_default(Json::each).to_vec();
 
     // Policies and process managers merge across bluebooks; `bluebook_irs` keeps each parsed
     // bluebook alive so `policy_sources` can borrow from it.
@@ -273,12 +270,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
         merged_aggregates.extend(bluebook_gen.registry_aggregates);
         merged_queries.extend(bluebook_gen.query_defs);
         merged_read_models.extend(bluebook_gen.read_model_defs);
-        merged_process_managers.extend(
-            bluebook_ir
-                .get("process_managers")
-                .map_or_default(Json::each)
-                .to_vec(),
-        );
+        merged_sagas.extend(bluebook_ir.get("sagas").map_or_default(Json::each).to_vec());
 
         bluebook_domain_names.push(bluebook_domain_name);
         bluebook_irs.push(bluebook_ir);
@@ -330,7 +322,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_blank(&mut merged_rs);
     puts_str(
         &mut merged_rs,
-        &reactions::emit_process_manager_table(&ex, &merged_process_managers),
+        &reactions::emit_saga_table(&ex, &merged_sagas),
     );
     puts_blank(&mut merged_rs);
     puts_str(

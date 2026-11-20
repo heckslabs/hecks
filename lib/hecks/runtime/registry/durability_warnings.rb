@@ -65,14 +65,14 @@ module Hecks
         end
 
         def undurable_outbox_wording(hecksagon, bind)
-          "[hecks] #{hecksagon.domain} declares policies/process_managers but its persistence adapter " \
+          "[hecks] #{hecksagon.domain} declares policies/sagas but its persistence adapter " \
             "(#{bind.adapter}) has no outbox — reactions run inline and a crash between a command's commit " \
             "and its reactions loses them silently. Bind SqlitePersistence or Postgres for a durable outbox " \
             "(see Runtime::Outbox), or accept in-process-only reactions on purpose."
         end
 
         def reactions_declared?(bluebook_ir)
-          !bluebook_ir.process_managers.empty? || any_policy_listens_to?(bluebook_ir)
+          !bluebook_ir.sagas.empty? || any_policy_listens_to?(bluebook_ir)
         end
 
         def any_policy_listens_to?(bluebook_ir)
@@ -109,7 +109,7 @@ module Hecks
         # A warning, not a refusal: running sagas on a store with no `save_saga` is
         # legitimate on purpose in a fast in-memory test/dev boot.
         def warn_undurable_sagas!(hecksagon)
-          undurable = undurable_process_managers(hecksagon.domain)
+          undurable = undurable_sagas(hecksagon.domain)
           return if undurable.empty?
 
           names = undurable.map(&:name).join(", ")
@@ -122,9 +122,9 @@ module Hecks
 
         # The process managers whose checkpoints no store keeps: each is held by its starting
         # aggregate's store or by the domain's, and either may be the null store.
-        def undurable_process_managers(domain)
-          process_managers = bluebook(domain)&.process_managers || []
-          process_managers.select do |process_manager|
+        def undurable_sagas(domain)
+          sagas = bluebook(domain)&.sagas || []
+          sagas.select do |process_manager|
             saga_persistence(domain, process_manager).equal?(Ports::Persistence::NULL_SAGA_STORE)
           end
         end

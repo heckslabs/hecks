@@ -68,7 +68,7 @@ RSpec.describe "a shipment judged by its checkout's gate" do
   end
 
   it "names no check of this repository in the saga" do
-    saga = hecks.registry.bluebook("Hecks").process_managers.find { |manager| manager.name == "GateAndBoard" }
+    saga = hecks.registry.bluebook("Hecks").sagas.find { |manager| manager.name == "GateAndBoard" }
     heard = saga.handlers.map { |handler| handler.event_type.to_s } + saga.resumes
     expect(heard.grep(/StyleRun|ConformanceRun|GateRun/)).to be_empty
   end

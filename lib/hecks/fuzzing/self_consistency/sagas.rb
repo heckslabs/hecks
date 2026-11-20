@@ -56,7 +56,7 @@ module Hecks
         def each_domain_process_manager(runtime)
           found = []
           runtime.bluebooks.each do |domain_name, bluebook|
-            bluebook.process_managers.each { |pm| found << [domain_name, pm] }
+            bluebook.sagas.each { |pm| found << [domain_name, pm] }
           end
           found
         end

@@ -69,7 +69,7 @@ module Hecks
         # A saga threads its correlation key through every leg's payload, so the key arrives on
         # commands that never declare it. Refusing it would break every saga.
         def correlation_keys(domain)
-          Array(@registry.bluebook(domain)&.process_managers)
+          Array(@registry.bluebook(domain)&.sagas)
             .filter_map { |saga| saga.correlates_by && saga.correlation_head }
         end
 
