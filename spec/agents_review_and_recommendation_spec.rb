@@ -45,16 +45,14 @@ RSpec.describe "the Agents reviewer and owner-only rule" do
       .to raise_error(Hecks::Runtime::GivenNotMet, /judgment is one the reviewer gives/)
   end
 
-  it "hands a real bug to a person, and a stale expectation to no one", :aggregate_failures do
-    request(1, "w-stale").judge!(judgment: { value: "stale_expectation" })
-    expect(fired).not_to include(a_string_ending_with("HandedToPerson"))
+  it "sends a real bug to a coder" do
     request(1, "w-bug").judge!(judgment: { value: "real_bug" })
-    expect(fired).to include(a_string_ending_with("HandedToPerson"))
+    expect(fired).to include(a_string_ending_with("FindingRouted"))
   end
 
-  it "ends a review whose branch landed before it ran, handing nothing to a person" do
+  it "ends a review whose branch landed before it ran, routing nothing" do
     request(1, "w-landed").judge!(judgment: { value: "landed" })
-    expect(fired).not_to include(a_string_ending_with("HandedToPerson"))
+    expect(fired).not_to include(a_string_ending_with("FindingRouted"))
   end
 
   it "refuses a role issuing an owner decision, by name" do

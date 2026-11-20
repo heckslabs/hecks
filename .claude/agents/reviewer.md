@@ -18,4 +18,4 @@ You judge a submission; you do not repair it. You are given a branch name. The c
 
 ## What you hand back
 
-End your report with exactly one of these words on its own, so the board can read it: `landed` if the branch has landed, `real_bug` if any failure is a real bug, otherwise `stale_expectation`. `landed` ends the review and hands nothing to a person. A real bug goes to a person; you never fix it. Before that word, list each failing spec with its line and your reason.
+End your report with exactly one of these words on its own, so the board can read it: `landed` if the branch has landed, `real_bug` if any failure is a real bug, otherwise `stale_expectation`. `landed` ends the review and routes nothing. A real bug goes to a coder on the same branch; you never fix it. Before that word, list each failing spec with its line and your reason.
