@@ -44,11 +44,11 @@ RSpec.describe "StallWatch over many beats" do
     expect(rows.first[:reason]).to include("SessionFinished")
   end
 
-  it "abandons it once over three beats and drops its work item", :aggregate_failures do
+  it "abandons it once over three beats and plans no work item", :aggregate_failures do
     filed_then_ended
     3.times { |look| beat("again-#{look}") }
 
     expect(events_named("StallAbandoned")).to eq(1)
-    expect(keys("Tickets", "Work", :status)).to eq(%w[dropped])
+    expect(keys("Tickets", "Work", :work)).to be_empty
   end
 end
