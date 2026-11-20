@@ -617,10 +617,9 @@ Hecks.bluebook "Tickets" do
       emits "EpicOutcomeMissed"
     end
 
-    # Names the row the epic's outcome is measured by. Epics are data, so this is a command and no
-    # bluebook edit; a name no row carries is refused when the outcome is read.
-    # The row it names has not been read, so the last reading and its evidence, which were another
-    # row's, are cleared. The status stays: a complete epic stays complete, unread, until it is reviewed.
+    # Names the row the epic's outcome is measured by; a name no row carries is refused when the
+    # outcome is read. The last reading and its evidence were another row's, so they are cleared.
+    # The status stays: a complete epic stays complete, unread, until it is reviewed.
     command "MeasureBy" do
       role "Maintainer"
       goal "Say which OutcomeMeasure row measures an epic's outcome"
