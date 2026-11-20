@@ -4,7 +4,7 @@ require "hecks/hecks/adapters/rolling"
 # read by the real {WorkItems}.
 module RollForwardFixtures
   Entry = Struct.new(:work, :title, :status, :priority, :step, :area, :detail, :yield_kind, :retry_at, :yield_count,
-                     :epic, keyword_init: true)
+                     :epic, :waits_on, keyword_init: true)
   Item = Hecks::Adapters::Dispatching::Plan::Item
   Word = Struct.new(:value)
 
