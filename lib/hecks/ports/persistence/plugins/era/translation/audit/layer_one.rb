@@ -2,13 +2,18 @@ require_relative "../../../../../../runtime/errors"
 require_relative "../../../../../../runtime/instance"
 require_relative "../../../../../../runtime/value/invariant_violation"
 require_relative "../../../../../../bluebook/model_check"
+require_relative "stored_values"
 
 module Hecks
   module Translation
     module Audit
       # Layer 1: every translated state must pass the new era's types, invariants and lifecycle.
       # Old records that violate a stricter invariant surface here; no translation rule fixes them.
+      # Each stored value is first held to dispatch's own checks (`StoredValues`), so a required
+      # field stored nil is refused here as the Rust audit refuses it.
       module LayerOne
+        include StoredValues
+
         # Hydrates every translated state as a current-era instance and records each one
         # the era's types, invariants or lifecycle refuse.
         #
@@ -24,6 +29,9 @@ module Hecks
 
         def check_record!(violations, aggregate, id, state)
           symbolized = JSON.parse(JSON.generate(state), symbolize_names: true)
+          refusal = stored_value_refusal(aggregate, symbolized)
+          return violations << "#{aggregate.name}##{id}: #{refusal}" if refusal
+
           instance = Runtime::Instance.new(aggregate: aggregate, id: id, state: symbolized)
           lifecycle = aggregate.lifecycle
           return unless lifecycle
