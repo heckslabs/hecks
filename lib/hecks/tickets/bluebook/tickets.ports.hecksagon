@@ -86,6 +86,17 @@ end
     answers_query "Charter"
   end
 
+  # Every `OutcomeMeasure` row read from the event tap now, read and never written. OutcomeReadings
+  # answers one epic's ask; this answers a query that names no epic.
+  Tickets::Epic.port "MeasureReadings" do
+    answers_query "Measures"
+  end
+
+  # The ranked epics with measure, stored reading state and members counted, read and never written.
+  Tickets::Epic.port "EpicOutcomes" do
+    answers_query "Outcomes"
+  end
+
   # One epic's members counted, read and never written.
   Tickets::Work.port "EpicProgress" do
     answers_query "EpicProgress"
