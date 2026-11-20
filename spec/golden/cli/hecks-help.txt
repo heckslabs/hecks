@@ -264,6 +264,9 @@ commands:
   Board:
     …
     serve!
+  HelpWanted:
+    …
+    assign!
   Launch:
     …
     project_cli!
@@ -429,6 +432,7 @@ queries (nothing here changes anything):
     …
     unclosed
     impediments
+    relieved
     abandoned
   TestSuiteRun:
     …
