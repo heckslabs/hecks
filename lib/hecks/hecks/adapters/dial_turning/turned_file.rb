@@ -6,7 +6,8 @@ module Hecks
       # The checkout's `turned.local.world`: the settings turned from a command, one line a verb
       # under the world it belongs to. It is gitignored and loads after every other local world of
       # the domain (the local files load in name order), so a line here is the value that stands.
-      # The file is written whole each time; nothing else writes it.
+      # A turn changes only its own verb's line: {#replace} reads the lines the file holds now,
+      # under a lock, so a turn never writes back a stale copy of another turn's line.
       class TurnedFile
         NAME = "turned.local.world"
         # The line that opens a world's block, and a verb's line inside one.
@@ -58,6 +59,46 @@ module Hecks
           return text.delete('"') if text.start_with?('"')
 
           text.include?(".") ? Float(text) : Integer(text, 10)
+        end
+
+        # @return [Hash{String => Hash{String => String}}] each world's verb lines, as held
+        def lines
+          return {} unless File.exist?(@path)
+
+          world = nil
+          File.readlines(@path).each_with_object({}) do |line, held|
+            world = line[WORLD, 1] || world
+            (held[world] ||= {})[line[VERB, 1]] = line.strip if world && line[VERB, 1]
+          end
+        end
+
+        # Sets one verb's line in the file, keeping every other line as the file holds it now, while
+        # holding a lock that every turn takes.
+        #
+        # @param world [String] the world the verb belongs to
+        # @param verb [String] a world verb
+        # @param text [String] the line, from {.line}
+        # @return [String] the path written
+        def replace(world, verb, text)
+          locked do
+            held = lines
+            (held[world] ||= {})[verb] = text
+            write(held.transform_values(&:values))
+          end
+        end
+
+        # Runs the block holding an exclusive lock on the file's directory; turns queue behind it
+        # and no lock file is left behind.
+        def locked(&)
+          return yield if @locked
+
+          File.open(File.dirname(@path)) do |lock|
+            lock.flock(File::LOCK_EX)
+            @locked = true
+            yield
+          ensure
+            @locked = false
+          end
         end
 
         # @param worlds [Hash{String => Array<String>}] each world with its verb lines
