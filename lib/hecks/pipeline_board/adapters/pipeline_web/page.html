@@ -274,6 +274,8 @@ function badge(state) {
 /* A blocked session is waiting on a person: amber, not green. */
 /* The server decides who is waiting on you (`waiting_on_you`); a row only asks if it is in that set. */
 function waitingOnYou(s) { return !!(lastState && lastState.waiting_on_you && (lastState.waiting_on_you.ids || []).includes(s.id)); }
+/* The calls for help the server decided the owner is shown, one line each; none while unread. */
+function helpLines() { return (lastState && lastState.waiting_on_you && lastState.waiting_on_you.help) || []; }
 function sessionBadge(s) {
   if (waitingOnYou(s)) return h("span", { class: "badge attention" }, ICON.attention, " blocked");
   if (s.status === "blocked") return h("span", { class: "badge" }, " " + (s.held || "held"));
@@ -544,12 +546,16 @@ function renderAttention(metrics, stages, sessions) {
   const groups = [
     ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: stood(t.since), act: () => resolve(t.label, t.full || t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: s.count ?? "-", detail: s.detail, since: stood(s.since), act: () => resolve(s.name, s.detail) }))],
-    ["Sessions waiting on you", sessions.filter(waitingOnYou).map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
+    ["Sessions waiting on you", sessions.filter(waitingOnYou).map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))],
+    // A call for help the owner is shown (`waiting_on_you.help`): one line, read here and sent nowhere. It is not a session, so it has no answer prompt.
+    ["Help waiting on you", helpLines().map((c) => ({ kind: "Help", item: c.line, state: "attention", value: c.help || "-", detail: "", since: stood(c.opened_at) }))]
   ].filter(([, items]) => items.length);
   setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, 0));
   const sized = Object.fromEntries(groups.map(([title, items]) => [title, items.length]));
+  // The one sum of what waits on the owner: the sessions to answer and the calls for help shown.
+  const waitingOnOwner = (sized["Sessions waiting on you"] || 0) + (sized["Help waiting on you"] || 0);
   summarize("attn", !groups.length ? [["nothing needs you", "ok"]] : [
-    sized["Sessions waiting on you"] && [sized["Sessions waiting on you"] + " waiting on you", "attention"],
+    waitingOnOwner && [waitingOnOwner + " waiting on you", "attention"],
     sized["Pipeline stages"] && [sized["Pipeline stages"] + " stages: " + stages.filter((s) => needsAttention(s.state)).map((s) => s.name).join(", "), "attention"],
     sized["Metrics"] && [sized["Metrics"] + " metrics: " + metrics.filter((m) => needsAttention(m.state)).map((m) => m.label).join(", "), "attention"]]);
   if (!groups.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
@@ -608,7 +614,7 @@ function renderThroughput(t) {
 function attentionTable(items) {
   const node = table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, h("div", { class: "clamp" }, typeof it.detail === "string" ? tidy(it.detail) : it.detail), it.since]));
   const trs = node.querySelectorAll("tbody tr");
-  items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
+  items.forEach((it, i) => { if (!it.act) return; trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
   return node;
 }
 // A session's deep link: the board with its row highlighted, by run key, else by session id.
