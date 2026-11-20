@@ -1,7 +1,7 @@
 Hecks.behaviors "StallWatch" do
   vision "A look reads the event tap and the open branches' file names, and where no tap is kept it reads nothing."
 
-  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "environments/memory.world", modules: :all
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon", "environments/memory.world", modules: :all
 
   # The pair of open branches that share files, and its going when a tip moves, need a tap and
   # branches: spec/hecks_impediments_shared_files_spec.rb holds them.
