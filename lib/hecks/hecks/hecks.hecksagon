@@ -1518,12 +1518,13 @@ Hecks.hecksagon "Agents" do
                                                role: "reviewer", repo: :checkout }
   end
 
-  # The reviewer's session closes with its judgment, which the adapter reads off the job; the run's key
-  # is the submitted commit, so it names the review.
+  # The reviewer's session closes with its judgment, which the adapter reads off the job, and its report
+  # is the findings (a missing_behavior names the scenario there); the run's key is the submitted commit,
+  # so it names the review.
   translates "RecordTheReviewersJudgment" do
     on AgentRun::JobRead
     where { judgment != "" && previous != state }
-    trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment }
+    trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment, findings: :findings }
   end
 
   # The architect's run closes with its verdict, or says it and goes idle; the run's key names the

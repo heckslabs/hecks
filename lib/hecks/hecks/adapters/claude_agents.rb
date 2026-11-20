@@ -167,12 +167,14 @@ module Hecks
         { verdict: ArchitectVerdict.of(text), findings: ArchitectFindings.clip(text) }
       end
 
-      # @return [Hash{Symbol => String}] the reviewer's `judgment` ({ReviewerJudgment}), empty for
-      #   any other agent or a text that names none
+      # @return [Hash{Symbol => String}] the reviewer's `judgment` ({ReviewerJudgment}) and its
+      #   `findings`, both read from its {#last_words}; the judgment is empty for any other agent or
+      #   a text whose last line is not a closing word, and another agent's findings are left alone
       def reviewer_facts(job, held)
         return { judgment: "" } unless plain(held[:agent]).to_s == "reviewer"
 
-        { judgment: ReviewerJudgment.of([job.dig("output", "result"), job["detail"]].compact.join(" ")) }
+        text = last_words(job, held)
+        { judgment: ReviewerJudgment.of(text), findings: ArchitectFindings.clip(text) }
       end
 
       # @return [Hash{Symbol => String}] the run the job belongs to: its key, the Work item it
