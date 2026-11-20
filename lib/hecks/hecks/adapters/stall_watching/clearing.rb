@@ -18,7 +18,7 @@ module Hecks
           return ITEM if named.empty? || named == ITEM
           return HELP if named == HELP
 
-          raise ArgumentError, "StallKind #{kind[:kind]} is cleared by #{named.inspect}: it is #{ITEM} or #{HELP}"
+          raise ArgumentError, "the row #{kind[:kind]} is cleared by #{named.inspect}: it is #{ITEM} or #{HELP}"
         end
 
         # @param kind [Hash] a `StallKind` row
