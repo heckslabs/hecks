@@ -18,9 +18,9 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanTile do
       include Hecks::Adapters::PipelineBoard::PlanTile
 
       define_method(:initialize) do
-        @tickets = Struct.new(:runs, :epics, :work_times) do
+        @tickets = Struct.new(:runs, :epics, :work_times, :open_help) do
           def undone_work = [{ slug: "open-one", title: "T", status: "planned" }]
-        end.new(held, [], {})
+        end.new(held, [], {}, [])
         @jobs = Struct.new(:rows).new([])
         @fill = Struct.new(:preview).new({ would_start: [], skipped: [] })
         @now = -> { Time.utc(2026, 11, 16, 12) }
