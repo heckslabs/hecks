@@ -77,6 +77,10 @@ Hecks.world "Tickets" do
   # their declared order, so `cpu_budget` holds new coders only once the helpers are within their
   # share. Off, the boot fuse holds as before.
   protection "Dispatch", signalbox: false
+  # `reaping.signalbox` (ADR 0222, phase 3): a reap's plain sweep is Signalbox's, ruled on each
+  # finished, stale and copy subject of Roundhouse's meter, and refused from a stale copy. The Hecks
+  # world's `reaping` line keeps the windows the old sweep reads. Off, the plain sweep reaps.
+  reaping "Sessions", signalbox: false
   epic_wip_limit "Dispatch", limit: 4
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
   # `load_shed` bounds the Delegate `Shed`: a rise of the load asks one started item to yield.
