@@ -2,6 +2,7 @@
 
 require_relative "../rust_build"
 require_relative "kernel_client"
+require_relative "kernel_hello"
 require_relative "native_build"
 require_relative "../runtime/kernel_dispatcher"
 
@@ -49,7 +50,10 @@ module Hecks
                                    Assembly.selected_environment(Assembly::FROM_ENV), chosen: !adapters.nil?)
       end
 
-      # Connects a kernel dispatcher for already-read declarations; it checks no persistence.
+      # Connects a kernel dispatcher for already-read declarations; it checks no persistence. The
+      # hello carries the tables the declarations' IR builds; a clock fact a step leaves out is
+      # filled, and a fact the kernel asks for answered, from the registry's clock port (see
+      # {KernelHello}).
       #
       # @param registry [Runtime::Registry] the declarations the kernel runs
       # @param feature [String] the Cargo feature the kernel is built with
@@ -57,7 +61,10 @@ module Hecks
       # @return [Runtime::KernelDispatcher] connected, answering `registry` from the declarations
       # @raise [BinaryUnavailable] when the feature is not declared or its build fails
       def connect(registry, feature, binary: nil)
-        Runtime::KernelDispatcher.new(KernelClient.open(binary || binary_for(feature)), registry: registry)
+        tables = KernelHello.tables(registry)
+        hello = { tables: tables, fill: KernelHello.filler(registry, tables) }
+        client = KernelClient.open(binary || binary_for(feature), **hello, &KernelHello.answerer(registry))
+        Runtime::KernelDispatcher.new(client, registry: registry)
       end
 
       # @param feature [String] a Cargo feature name
