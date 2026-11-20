@@ -3,28 +3,37 @@ require "tmpdir"
 require "fileutils"
 require "hecks/rust_build/component"
 
-# The build_component tool's check mode compares a committed adapter component with its digest
-# file. Each example writes a crate into a temporary workspace, so no toolchain is needed.
-RSpec.describe Hecks::RustBuild::Component do
-  let(:workspace) { Dir.mktmpdir("rust_build_component") }
-  let(:crate) { File.join(workspace, "adapters", "mailer") }
+# A temporary checkout holding a crate under `rust/adapters/mailer` and its committed component
+# beside the `.adapter` file that would run it, under `lib/hecks/adapters/driven/mailer`.
+module ComponentCheckout
+  def committed = File.join(checkout, "lib", "hecks", "adapters", "driven", "mailer")
 
-  before do
-    FileUtils.mkdir_p(crate)
+  def lay_out
+    crate = File.join(checkout, "rust", "adapters", "mailer")
+    FileUtils.mkdir_p([crate, committed])
     File.write(File.join(crate, "Cargo.toml"), "[package]\n")
-    File.write(File.join(crate, "mailer.wasm"), "component bytes")
+    File.write(File.join(committed, "mailer.wasm"), "component bytes")
   end
 
-  after { FileUtils.rm_rf(workspace) }
-
   def check(name = "mailer")
-    Hecks::RustBuild.in_workspace(workspace) { described_class.call([name, "--check"]) }
+    Hecks::RustBuild.in_workspace(File.join(checkout, "rust")) { described_class.call([name, "--check"]) }
   end
 
   def record_digest(of: "component bytes")
-    File.write(File.join(crate, "mailer.wasm.sha256"),
+    File.write(File.join(committed, "mailer.wasm.sha256"),
                "#{format(described_class::BANNER, "mailer")}\n#{Digest::SHA256.hexdigest(of)}  mailer.wasm\n")
   end
+end
+
+# The build_component tool's check mode compares a committed adapter component, kept beside the
+# `.adapter` file that runs it, with its digest file. No toolchain is needed.
+RSpec.describe Hecks::RustBuild::Component do
+  include ComponentCheckout
+
+  let(:checkout) { Dir.mktmpdir("rust_build_component") }
+
+  before { lay_out }
+  after { FileUtils.rm_rf(checkout) }
 
   it "passes a component that matches its digest file" do
     record_digest

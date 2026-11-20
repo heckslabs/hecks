@@ -64,12 +64,15 @@ module Hecks
           bluebook ? ShapeLedger::Kept.of?(registry, @domain_name, bluebook) : Framework.members.key?(@domain_name)
         end
 
-        # The wasm plugins the host runs for queries no hecksagon binds; none, no key.
+        # The wasm plugins the host runs for queries no hecksagon binds, and the components the
+        # target's hecksagon binds to its ports; none, no key.
         #
         # @return [void]
         def add_plugins(document, exporter)
           plugins = exporter.plugins(@registry)
           document[:plugins] = shaped(plugins) unless plugins.empty?
+          components = exporter.components(@registry, @domain_name)
+          document[:components] = shaped(components) unless components.empty?
         end
 
         # The bound persistence adapters' declarations, from the `.adapter` files under the

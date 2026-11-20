@@ -475,8 +475,8 @@ async fn boot_postgres(
         // `ir::ir()`) against held eras to decide the boot action: boot
         // at a matching era, mint era 1 if the domain is new, or mint
         // the next era if it has drifted -- refusing toward
-        // `hecks scaffold_translation` (no edge covers it) or
-        // `hecks audit_translation --approve` (needs review) otherwise.
+        // `hecks SchemaRevision.scaffold_translation` (no edge covers it) or
+        // `hecks SchemaRevision.audit_translation` (needs review) otherwise.
         let era_phase = log::phase("era_resolve");
         let held = journal::held_eras(&client, domain)
             .await
@@ -508,7 +508,7 @@ async fn boot_postgres(
                 let source_text = ir
                     .get("source_text")
                     .and_then(serde_json::Value::as_str)
-                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
+                    .ok_or("ir.json is missing source_text — regenerate with hecks Build.project_rust! domain.value=…")?;
                 let phase = log::phase_with("hold_first", serde_json::json!({ "era": 1 }));
                 mint::hold_first(&client, domain, source_text, ir, &aggregates, None)
                     .await
@@ -538,8 +538,10 @@ async fn boot_postgres(
                 let chain = mint::edge_chain(&edges, &labels).map_err(|e| {
                     format!(
                         "cannot boot: {domain} has drifted from era {from_ordinal} ({from_label}) to a shape \
-                         ({my_label}) no translation edge covers -- {e} -- run hecks scaffold_translation, review it \
-                         with hecks audit_translation, then redeploy",
+                         ({my_label}) no translation edge covers -- {e} -- \
+                         run hecks SchemaRevision.scaffold_translation domain.value=…, \
+                         review it with hecks SchemaRevision.audit_translation domain.value=…, \
+                         then redeploy",
                     )
                 })?;
 
@@ -578,7 +580,7 @@ async fn boot_postgres(
                 let held_text = ir
                     .get("source_text")
                     .and_then(serde_json::Value::as_str)
-                    .ok_or("ir.json is missing source_text — regenerate with hecks project_rust")?;
+                    .ok_or("ir.json is missing source_text — regenerate with hecks Build.project_rust! domain.value=…")?;
                 let mint_phase = log::phase_with(
                     "mint_era",
                     serde_json::json!({ "era": ordinal, "edges": chain.len() }),

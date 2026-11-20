@@ -7,6 +7,7 @@ require_relative "../rust_build/kernel_input"
 require_relative "nondeterministic"
 require_relative "differential/wire_comparison"
 require_relative "differential/serve_engine"
+require_relative "differential/shrink_sessions"
 require_relative "replay/engine/kernel"
 
 module Hecks
@@ -50,7 +51,7 @@ module Hecks
           { field: "manifest", verb: row["query"],
             detail: "#{row["query"]} is declared generated: false in manifest.json " \
                     "(#{gaps.not_generated(row["query"]).values_at("gap_class", "construct").join("/")}), " \
-                    "but the Rust binary answered it — regenerate with hecks project_rust" }
+                    "but the Rust binary answered it — regenerate with hecks Build.project_rust! domain.value=…" }
         end
       end
 

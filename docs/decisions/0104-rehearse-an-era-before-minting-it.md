@@ -83,6 +83,8 @@ A first run against a real-shaped dump gave a clean answer that was wrong: the d
 7. **Launcher: a run is kept by the process that made it.** `request` is settled (it waits for its reactions and prints the whole outcome, as with `--wait`), and `rehearsal_outcome` for a run the process does not hold is refused as unknown, through the launcher setting `unknown_runs`, instead of an empty list that reads as no outcome yet. The setting is opt-in per question, so other chapters' outcome questions are unchanged.
 8. **Parity: `differ` says which engine refused what.** The note lists the records only one engine refused, and says a record only Rust refused is the known difference between the engines (the Ruby audit's first layer does not hold a stored value to its closed set, a required field or an undeclared value-object key), not a second finding. The union is refused either way. The closed-set change in Ruby is separate work and is not made here.
 
+   **Amended (audit-parity-required-nil):** the Ruby audit's first layer now holds each stored value to dispatch's own checks (`Translation::Audit::StoredValues`), so it refuses what the Rust audit refuses (a closed set, a required field stored nil, an undeclared value-object key) and both are pinned to the same corpus answers. The note no longer excuses a Rust-only refusal as a known difference: a `differ` is a finding.
+
 ### Open: top-level undeclared keys
 
 A stored aggregate carrying a top-level key the aggregate does not declare is accepted by both engines' audit; only an undeclared key inside a value object is refused. See the design note for the reading of the two runtimes and the options. No behaviour changes here.

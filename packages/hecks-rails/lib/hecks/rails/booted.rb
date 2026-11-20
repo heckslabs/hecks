@@ -4,7 +4,9 @@ module Hecks
     # without each booting their own.
     module Booted
       class << self
-        # Boots a domain directory and holds the dispatcher it answers.
+        # Boots a domain directory and holds the dispatcher it answers. Under `HECKS_ENGINE=kernel`
+        # that is the kernel engine's dispatcher: `registry`, `declaration` and `door` still read
+        # the described declarations, and the door dispatches through the kernel.
         #
         # @param path [String] the directory holding the app's bluebooks
         # @param environment [String, nil] the environment overlay to boot under
@@ -17,8 +19,8 @@ module Hecks
         # @raise [RuntimeError] if no domain has been booted
         def dispatcher = @dispatcher || raise("no Hecks domain booted; call Hecks::Rails::Booted.boot")
 
-        # @return [Array<Hecks::Bluebook::Declaration>] the booted bluebooks the app declared, without
-        #   the ones a hecksagon attached, such as Governance
+        # @return [Array<Hecks::Bluebook::Declaration>] the booted bluebooks the app declared,
+        #   without the ones a hecksagon attached, such as Governance
         def app_bluebooks = registry.bluebooks.values.reject { |declaration| registry.bounded?(declaration.name) }
 
         # @return [Boolean] whether a domain has been booted
