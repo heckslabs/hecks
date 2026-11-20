@@ -26,6 +26,9 @@ module Hecks
         # The files a development checkout keeps for itself and a clean copy must not hold.
         LOCAL_FILES = "lib/**/*.local.{hecksagon,world}"
 
+        # The line `git revert` writes into its commit's message, naming the commit it undid.
+        REVERTED = /^This reverts commit ([0-9a-f]{7,40})/
+
         # @return [String] the checkout the repository is read in
         attr_reader :checkout
 
@@ -92,6 +95,18 @@ module Hecks
             sha if subject.to_s.start_with?("Revert \"Merge")
           end
         end
+
+        # @return [Array<String>] the commits the range's first-parent reverts say they undid
+        def reverted(base, tip) = read("log", "--first-parent", "--format=%B", "#{base}..#{tip}").scan(REVERTED).flatten
+
+        # @param sha [String] a commit
+        # @return [String, nil] its first parent, nil when it has none
+        def first_parent(sha) = commit("#{sha}^1")
+
+        # @param ref [String] a commit
+        # @param path [String] a file's path from the repository's top level
+        # @return [String, nil] the file as the commit holds it, nil when it holds none
+        def file_at(ref, path) = @git.capture("show", "#{ref}:#{path}", chdir: @checkout).then { |done| done.out if done.ok? }
 
         # @return [Array<String>] the message of every commit in the range
         def messages(base, tip) = read("log", "--format=%B%x1e", "#{base}..#{tip}").split("\x1e").map(&:strip)

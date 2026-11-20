@@ -40,7 +40,7 @@ module Hecks
         private
 
         def search(example, landed, since)
-          runner = @runner || ExampleProbe.new(@repository.checkout, landed)
+          runner = @runner || ExampleProbe.new(@repository, landed)
           facts = Searching.new(@repository, failing: [example], runner: runner).call(landed, since)
           facts.merge(reason: [example, facts[:reason]].compact.join(": "))
         end

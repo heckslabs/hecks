@@ -3,7 +3,6 @@
 require_relative "../console_capture"
 require_relative "../git_shallow_check/impacted_batch"
 require_relative "impacted_check"
-require_relative "history"
 
 module Hecks
   module Adapters
@@ -28,11 +27,11 @@ module Hecks
         # How many of a failed run's last characters the failure keeps.
         KEPT = 600
 
-        # @param checkout [String] the repository the train's head is read in
+        # @param repository [Repository] the repository the train's head is read in
         # @param landed [String] the train's head, where CI named the examples
         # @param shell [#capture] runs the launcher: `capture(*argv, env:, chdir:)`
-        def initialize(checkout, landed, shell: ImpactedCheck::Launched.new)
-          @history = History.new(checkout)
+        def initialize(repository, landed, shell: ImpactedCheck::Launched.new)
+          @repository = repository
           @landed = landed
           @shell = shell
         end
@@ -53,7 +52,7 @@ module Hecks
         # @return [String] the description the line declares at the train's head; a single space,
         #   which matches every example of the file, when the line declares none
         def description(file, line)
-          held = line.positive? ? @history.file_at(@landed, file).to_s.lines[line - 1].to_s : ""
+          held = line.positive? ? @repository.file_at(@landed, file).to_s.lines[line - 1].to_s : ""
           held[DESCRIBED, 2] || " "
         end
 

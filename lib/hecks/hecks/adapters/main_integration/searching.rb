@@ -2,7 +2,6 @@
 
 require_relative "first_bad"
 require_relative "merge_probe"
-require_relative "history"
 
 module Hecks
   module Adapters
@@ -23,8 +22,8 @@ module Hecks
 
         # What a reopened Work item is told about landing its reverted work again.
         LAND_AGAIN = "To land it again: bring the branch up to main, revert the commit that reverted this merge " \
-                     "(`git log --grep=\"This reverts commit\"` names it) so its changes come back, fix the failing " \
-                     "example, run it, then land."
+                     "(its message says \"This reverts commit\" and names the merge) so its changes come back, fix " \
+                     "the failing example, run it, then land."
 
         # @param repository [Repository] the repository the landings are in
         # @param failing [Array<String>] the spec files the failed verification named
@@ -32,7 +31,6 @@ module Hecks
         def initialize(repository, failing:, runner: nil)
           @repository = repository
           @failing = failing
-          @history = History.new(repository.checkout)
           @probe = MergeProbe.new(repository, failing: failing, runner: runner)
         end
 
@@ -42,7 +40,7 @@ module Hecks
         def call(landed, since)
           reverts = @repository.reverts(since, landed)
           found = @failing.empty? ? unnamed : probed(@repository.merges(since, landed), since)
-          undone = reverted?(found[:culprit].to_s, reverts, @history.reverted(since, landed))
+          undone = reverted?(found[:culprit].to_s, reverts, @repository.reverted(since, landed))
           { base: since }.merge(found, searched: true, already_reverted: undone)
         end
 
@@ -71,7 +69,7 @@ module Hecks
         # before it in the range was probed green by the search and the range's base is `base_red`,
         # so only a first parent that is neither is probed here.
         def parent_red?(found, merges, since)
-          parent = @history.first_parent(found[:sha])
+          parent = @repository.first_parent(found[:sha])
           index = merges.index { |merge| merge[:sha] == found[:sha] }
           known = @repository.commit(index.zero? ? since : merges[index - 1][:sha])
           !parent.nil? && parent != known && @probe.red_at?(parent)
