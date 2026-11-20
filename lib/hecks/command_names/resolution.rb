@@ -30,6 +30,10 @@ module Hecks
       # @return [Boolean] whether the scope declares a command or a query of this name
       def known? = !(command || question).nil?
 
+      # @return [String, nil] the command as the launcher lists it (`Build.project_rust`), or nil
+      #   when the word names no command
+      def listed_command = command
+
       # @return [Problem, nil] nil when the launcher would run the line
       def problem
         return unknown unless command || question
