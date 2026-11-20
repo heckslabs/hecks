@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/hecks/adapters/started_work"
+require "hecks/agents/adapters/run_records/acceptance_report"
 
 module Hecks
   module Adapters
@@ -48,7 +49,34 @@ module Hecks
         answer(named, key, record, status)
       end
 
+      # How one acceptance reference's scenario ended in the behaviors run cited for it. This
+      # refusal of a run whose subject is not the reference's file is the one place that match is
+      # enforced; which results make a verdict clean is the bluebook's given.
+      #
+      # @param ref [Hash, String] `<path>.behaviors#<scenario>`
+      # @param run [Hash, String] the cited behaviors run's key
+      # @return [Hash{Symbol => Hash}] `ref:`, `run:` and `result:` (passed, failed or unresolved)
+      # @raise [Unkept] naming why the run cannot be read for the reference
+      def read_acceptance(ref:, run:, **)
+        reference = AcceptanceReport.new(plain(ref))
+        record = ended(plain(run))
+        subject = field(record, :subject)
+        raise Unkept, "the behaviors run #{plain(run)} ran #{subject}, not #{reference.file}" unless subject == reference.file
+
+        { ref: { value: plain(ref) }, run: { value: plain(run) }, result: { value: reference.result(report(record)) } }
+      end
+
       private
+
+      def ended(key)
+        record = @records.call("behaviors", key) || raise(Unkept, "no behaviors run is kept under #{key}")
+        status = field(record, :status)
+        raise Unkept, "the behaviors run #{key} has not ended (#{status})" if status == "requested"
+
+        record
+      end
+
+      def report(record) = [field(record, :output), field(record, :refusal)].join("\n")
 
       def answer(kind, key, record, status)
         { kind: { value: kind }, run: { value: key }, subject: { value: field(record, KEPT.fetch(kind).last) },
@@ -60,8 +88,7 @@ module Hecks
       def scenarios(kind, record)
         return field(record, :checked).to_i if kind == "model_check"
 
-        report = [field(record, :output), field(record, :refusal)].join("\n")
-        report.scan(TEST_LINE).size
+        report(record).scan(TEST_LINE).size
       end
 
       def kept_record(kind, key)

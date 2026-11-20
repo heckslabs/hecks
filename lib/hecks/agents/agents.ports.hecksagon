@@ -74,6 +74,17 @@ Hecks.hecksagon "Agents" do
       answers "RunRead"
       refuses "RunUnkept"
     end
+
+    # How one acceptance reference's scenario ended in the behaviors run cited for it. The same
+    # adapter answers it; its refusal of a run whose subject is not the reference's `.behaviors`
+    # file is the one place that match is enforced.
+    asks "ReadAcceptance", to: SubmissionReview do
+      attribute :submission, SubmissionRef
+      attribute :ref,        AcceptanceRef
+      attribute :run,        EvidenceRunKey
+      answers "AcceptanceRead"
+      refuses "RunUnkept"
+    end
   end
 
   # The sessions claude lists, joined to the AgentRun ledger (adapters/fleet_control). The examines
