@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "hecks/hecks/adapters/git_worktrees"
-require_relative "git_main_pull/carried"
 require_relative "git_main_pull/nowhere"
 require_relative "git_main_pull/replay"
 
@@ -16,10 +15,9 @@ module Hecks
     # a commit and never merges onto `main`. A repository without an `origin` (or with no
     # `origin/main`) has nothing to be behind, and the answer says so.
     #
-    # A squash-merged train is rebased past (`Carried`); `main` checked out nowhere is `Nowhere`.
+    # `main` checked out nowhere is `Nowhere`.
     # An includer has the `GitWorktrees` helpers and sets `@git`.
     module GitMainPull
-      include Carried
       include Nowhere
       include Replay
 
@@ -67,6 +65,9 @@ module Hecks
         raise ConsoleCapture::Failure, "cannot pull main: the checkout has uncommitted changes" unless changed.empty?
       end
 
+      # The arguments of the rebase onto `origin/main`, merge commits kept.
+      def rebase_args = ["rebase", "--rebase-merges", REMOTE_MAIN]
+
       def git_path(dir, name) = read("rev-parse", "--path-format=absolute", "--git-path", name, dir: dir)
 
       def fast_forward(host, behind)
@@ -81,10 +82,9 @@ module Hecks
       def rebase_main(host, ahead, behind)
         return pull_unhosted_main(ahead, behind) unless host
 
-        note = carried_note
         result = @git.capture(*replay_identity(host.path), *rebase_args, chdir: host.path)
         refuse_conflict(host.path, ahead, result) unless result.ok?
-        "main rebased #{ahead} unpushed commits onto #{REMOTE_MAIN} (#{behind} new) at #{short(read("rev-parse", "main"))}#{note}"
+        "main rebased #{ahead} unpushed commits onto #{REMOTE_MAIN} (#{behind} new) at #{short(read("rev-parse", "main"))}"
       end
 
       # Abandons a failed rebase in `dir` and refuses by name, leaving `main` where it was.
