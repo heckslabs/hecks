@@ -41,6 +41,8 @@ module Hecks
           add_all("AddSecret", @adapter.secrets)
           add_all("AnswerQuery", @adapter.answered_queries)
           add_all("Provide", @adapter.capabilities)
+          add_all("Import", @adapter.granted_imports)
+          add_all("Reach", @adapter.granted_hosts)
         end
 
         # Offers the `Declare` that names the adapter, its port, its plugin module and its reach.

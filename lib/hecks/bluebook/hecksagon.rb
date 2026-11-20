@@ -11,19 +11,17 @@ module Hecks
       def effect? = signal == :effect
     end
 
-    # One `.adapter`: the port it implements, the settings a world may give it, and the secrets.
-    # `defaults` maps a field's name to the value used when the world gives none; a string may hold
-    # a `{name}` or `{storage_name}` placeholder, filled from the aggregate the adapter is built
-    # for.
+    # One `.adapter`: its port, the settings a world may give it (`defaults` holds a field's value
+    # when the world gives none, `{name}`/`{storage_name}` filled from the aggregate), its secrets.
     #
-    # A plugin adapter instead `runs` a `.wasm` module beside its `.adapter` file (`source_dir`)
-    # and names the queries it `answers` (`"Bluebook::Aggregate.Query"`); it needs no port, and the
-    # runtime binds each query it answers without a hecksagon line.
+    # A plugin `runs` a `.wasm` module beside its file (`source_dir`) and names the queries it
+    # `answers`, with no port. A component `runs` one for its `port`, granted its `secrets`, the
+    # `imports` it names (`"clock"`, `"http_out"`) and the `hosts` its requests may reach.
     #
     # `provides` names what it can do beyond its port's contract (`"set_transform"`), and
     # `stays_inside` is true when it reaches nothing outside the process and checkout (ADR 0171).
     Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, :answers, :runs, :provides, :source_dir,
-                         :stays_inside, keyword_init: true) do
+                         :stays_inside, :imports, :hosts, keyword_init: true) do
       def declares?(field) = all_fields.include?(field.to_sym)
 
       def all_fields = (fields || []) + (secrets || [])
@@ -44,8 +42,17 @@ module Hecks
       # @return [Boolean] whether this adapter says it stays inside
       def stays_inside? = stays_inside == true
 
-      # @return [Boolean] whether this adapter is a wasm plugin
-      def plugin? = !runs.nil?
+      # @return [Boolean] whether this adapter is a wasm plugin: it runs a module and names no port
+      def plugin? = !runs.nil? && port.nil?
+
+      # @return [Boolean] whether this adapter is a wasm component: it runs a module for its port
+      def component? = !runs.nil? && !port.nil?
+
+      # @return [Array<String>] the host capabilities a component imports, empty when none
+      def granted_imports = imports || []
+
+      # @return [Array<String>] the hosts a component's requests may reach, empty when none
+      def granted_hosts = hosts || []
 
       # @return [String, nil] where the plugin's module is, beside its `.adapter` file
       def plugin_path = runs && File.expand_path(runs, source_dir || Dir.pwd)

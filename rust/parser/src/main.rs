@@ -345,6 +345,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("runs", "Adapter"),
     ("provides", "Adapter"),
     ("stays_inside", "Adapter"),
+    ("imports", "Adapter"),
     ("world", "File"),
     ("realm", "World"),
     ("latest", "World"),

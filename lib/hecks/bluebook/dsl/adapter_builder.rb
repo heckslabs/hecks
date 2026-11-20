@@ -24,6 +24,8 @@ module Hecks
           @defaults = {}
           @answers  = []
           @provides = []
+          @imports  = []
+          @hosts    = []
         end
 
         # Names the port this adapter implements; a repeated call replaces the earlier name.
@@ -74,6 +76,17 @@ module Hecks
         # @return [String] the file name as stored
         def runs(file) = @runs = file.to_s
 
+        # Grants this component adapter capabilities of the host's: `:clock`, and `:http_out`
+        # with the hosts its requests may reach. Its secrets are the ones it declares with `secret`.
+        #
+        # @param names [Array<Symbol, String>] the capabilities, such as `:clock` or `:http_out`
+        # @param hosts [Array<String>] the hosts `http_out` may reach, such as `"api.resend.com"`
+        # @return [Array<String>] every host named so far
+        def imports(*names, hosts: [])
+          @imports.concat(names.map(&:to_s))
+          @hosts.concat(Array(hosts).map(&:to_s))
+        end
+
         # Assembles the collected port, fields, defaults, secrets and plugin, judged by the adapter
         # language.
         #
@@ -83,7 +96,7 @@ module Hecks
           MetaValidator.call_adapter(
             Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets, defaults: @defaults,
                         answers: @answers, runs: @runs, provides: @provides, source_dir: @source_dir,
-                        stays_inside: @stays_inside == true)
+                        stays_inside: @stays_inside == true, imports: @imports, hosts: @hosts)
           )
         end
 
