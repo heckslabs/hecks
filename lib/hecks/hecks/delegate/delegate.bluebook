@@ -21,8 +21,8 @@ Hecks.bluebook "Hecks" do
       attribute :agent,     AgentName, optional: true
       attribute :works_as,  Part,      optional: true
       attribute :session,   SessionId, optional: true
-      # The session the run held before an answer's resume started a copy (`Fork`); empty while
-      # every resume woke the session in place.
+      # The session the run last moved off: the one a fork superseded (`Fork`) or a rebind left
+      # (`Rebound`); empty while the run has kept its first session.
       attribute :forked_from, SessionId, optional: true
       attribute :started_at, Moment,   optional: true
       attribute :condition, Condition, optional: true
