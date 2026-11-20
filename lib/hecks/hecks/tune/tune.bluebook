@@ -14,6 +14,9 @@ Hecks.bluebook "Hecks" do
       attribute :becomes, Word
       attribute :output,  Report, optional: true
       attribute :refusal, Report, optional: true
+      attribute :probe,   Probing
+      attribute :before,  Written, optional: true
+      attribute :after,   Written, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -26,6 +29,16 @@ Hecks.bluebook "Hecks" do
 
       value_object "Report" do
         attribute :value, String, matches: :present
+      end
+
+      # Whether a turn is watched for its window after it settles, and turned back if it hurt.
+      value_object "Probing" do
+        attribute :value, Boolean, default: true
+      end
+
+      # A setting's value as the world file writes it, in words: empty when the world held none.
+      value_object "Written" do
+        attribute :value, String, default: ""
       end
 
       value_object "Turnable" do
@@ -107,6 +120,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,     RunKey, sets: true
         attribute :setting, Word, sets: true
         attribute :becomes, Word, sets: true
+        attribute :probe,   Probing, sets: true
 
         emits DialTurnRequested
       end
@@ -117,6 +131,8 @@ Hecks.bluebook "Hecks" do
 
         reference_to Dial
         attribute :output, Report, sets: true
+        attribute :before, Written, sets: true
+        attribute :after,  Written, sets: true
 
         emits DialSettled
       end
@@ -130,6 +146,12 @@ Hecks.bluebook "Hecks" do
 
         emits DialDeclined
       end
+
+      query "OfRun" do
+        description "The turn keyed by one run: its setting, what it was and what it became."
+        attribute :run, RunKey
+        where(run: :run)
+      end
     end
 
     policy "SetTheDialWhenTurned" do
@@ -139,12 +161,277 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheTurn" do
       on      "Dial.DialSet"
-      trigger Dial::Settle, with: { output: :output }
+      trigger Dial::Settle, with: { output: :output, before: :before, after: :after }
     end
 
     policy "RecordTheRefusedTurn" do
       on      "Dial.DialRefused"
       trigger Dial::Decline, with: { refusal: :refusal }
+    end
+
+    # The rates are compared per second of their own span (`starts * span` against `base * window`),
+    # so the 2 h baseline and the 30 min window weigh alike; the sublanguage has `*` and no `/`. Two
+    # turns watched at once read the same pipeline, so each one's window holds the other's effect too.
+    aggregate "Probe" do
+      description "The window after a settled turn: a baseline of the pipeline over the span before the turn (work items started, branches landed, work items yielded within five minutes of their start, and the age of the oldest unanswered block), read again when the window ends. Starts or landings that fell by half, or quick yields or the oldest block that doubled, turn the setting back to what it was and record why; a turn that held, or that a later turn has moved, is kept. A turn with probe false opens none."
+
+      attribute :run,           ProbeKey
+      attribute :setting,       Name
+      attribute :before,        Written
+      attribute :after,         Written
+      attribute :opened_at,     Instant, optional: true
+      attribute :window,        Window
+      attribute :span,          Span
+      attribute :base_starts,   Count
+      attribute :base_landings, Count
+      attribute :base_yields,   Count
+      attribute :base_block,    Count
+      attribute :starts,        Count
+      attribute :landings,      Count
+      attribute :yields,        Count
+      attribute :block,         Count
+      attribute :standing,      Written
+      attribute :reason,        Report, optional: true
+      attribute :output,        Report, optional: true
+      attribute :refusal,       Report, optional: true
+      identified_by :run
+
+      # The run of the turn the probe watches.
+      value_object "ProbeKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Name" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Written" do
+        attribute :value, String, default: ""
+      end
+
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Asked" do
+        attribute :value, Boolean, default: true
+      end
+
+      # Epoch seconds, as the clock port answers `now`.
+      value_object "Instant" do
+        attribute :value, Integer, default: 0
+      end
+
+      # The seconds after the turn the pipeline is read again.
+      value_object "Window" do
+        attribute :value, Integer, default: 1800
+      end
+
+      # The seconds before the turn the baseline is read over.
+      value_object "Span" do
+        attribute :value, Integer, default: 7200
+      end
+
+      # A count of events, or the age in seconds of the oldest unanswered block.
+      value_object "Count" do
+        attribute :value, Integer, default: 0
+      end
+
+      lifecycle :status, default: "opened" do
+        mark :failure, "stranded"
+        transition "Record"  => "watching",  from: "opened"
+        transition "Keep"    => "kept",      from: "watching"
+        transition "Revert"  => "reverting", from: "watching"
+        transition "Close"   => "reverted",  from: "reverting"
+        transition "Strand"  => "stranded",  from: "reverting"
+        mark :terminal, "kept", "reverted", "stranded"
+        # No ask is pending in either: the baseline is answered in the turn's own call, and the
+        # machine's beat looks at every watching probe until its window ends.
+        mark :rests, "opened", "watching"
+      end
+
+      command "Open" do
+        role "System"
+        goal "Watch a settled turn for its window, against the pipeline over the span before it"
+
+        reference_to Dial
+        attribute :run,     ProbeKey, sets: true
+        attribute :setting, Name, sets: true
+        attribute :before,  Written, sets: true
+        attribute :after,   Written, sets: true
+        attribute :probe,   Asked
+        attribute :now,     Instant
+        needs :now
+
+        given("the turn asked to be watched") { probe.value == true }
+        given("the setting stood at a value before the turn") { before.value != "" }
+
+        sets :opened_at, to: :now
+
+        emits ProbeOpened
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record the pipeline over the span before the turn"
+
+        reference_to Probe
+        attribute :base_starts,   Count, sets: true
+        attribute :base_landings, Count, sets: true
+        attribute :base_yields,   Count, sets: true
+        attribute :base_block,    Count, sets: true
+
+        emits ProbeBaselined
+      end
+
+      command "Look" do
+        role "System"
+        goal "Ask for the pipeline over the window once the window has ended"
+
+        reference_to Probe
+        attribute :now, Instant
+        needs :now
+
+        given("the probe is watching") { status == "watching" }
+        given("the window has ended") { opened_at.value + window.value <= now.value }
+
+        emits ProbeLooked
+      end
+
+      command "Keep" do
+        role "System"
+        goal "Keep a turn the pipeline held through, or one a later turn has moved"
+
+        reference_to Probe
+        attribute :starts,   Count, sets: true
+        attribute :landings, Count, sets: true
+        attribute :yields,   Count, sets: true
+        attribute :block,    Count, sets: true
+        attribute :standing, Written, sets: true
+
+        # The negation of Revert's two givens.
+        given("the pipeline held, or a later turn has moved the setting") do
+          standing.value != after.value ||
+            !((base_starts.value > 0 && starts.value * 2 * span.value <= base_starts.value * window.value) ||
+              (base_landings.value > 0 && landings.value * 2 * span.value <= base_landings.value * window.value) ||
+              (yields.value >= 2 && yields.value * span.value >= base_yields.value * 2 * window.value) ||
+              (block.value >= 1200 && block.value >= base_block.value * 2))
+        end
+
+        emits ProbeKept
+      end
+
+      # A doubled block counts once it is twenty minutes old, and doubled yields once there are two,
+      # so a quiet baseline is not read as a doubling by one late answer.
+      command "Revert" do
+        role "System"
+        goal "Turn the setting back to what it was: starts or landings fell by half, or quick yields or the oldest block doubled"
+
+        reference_to Probe
+        attribute :starts,   Count, sets: true
+        attribute :landings, Count, sets: true
+        attribute :yields,   Count, sets: true
+        attribute :block,    Count, sets: true
+        attribute :standing, Written, sets: true
+
+        given("the setting still stands where the turn put it") { standing.value == after.value }
+        given("starts or landings fell by half, or quick yields or the oldest block doubled") do
+          (base_starts.value > 0 && starts.value * 2 * span.value <= base_starts.value * window.value) ||
+            (base_landings.value > 0 && landings.value * 2 * span.value <= base_landings.value * window.value) ||
+            (yields.value >= 2 && yields.value * span.value >= base_yields.value * 2 * window.value) ||
+            (block.value >= 1200 && block.value >= base_block.value * 2)
+        end
+
+        sets :reason, to: "starts or landings fell by half, or quick yields or the oldest block doubled, in the window after the turn"
+
+        emits ProbeReverted
+      end
+
+      command "Close" do
+        role "System"
+        goal "Record that the setting stands at what it was again"
+
+        reference_to Probe
+        attribute :output, Report, sets: true
+
+        emits ProbeClosed
+      end
+
+      command "Strand" do
+        role "System"
+        goal "Record why the setting could not be turned back"
+
+        reference_to Probe
+        attribute :refusal, Report, sets: true
+
+        emits ProbeStranded
+      end
+
+      query "OfRun" do
+        description "The probe of one turn, keyed by the turn's run."
+        attribute :run, ProbeKey
+        where(run: :run)
+      end
+
+      query "Watching" do
+        description "Every probe whose turn is still being watched."
+        where(status: "watching")
+      end
+    end
+
+    policy "WatchTheSettledTurn" do
+      on       "Dial.DialSettled"
+      for_each "Dial.OfRun"
+      trigger  Probe::Open, with: { dial: :dial, run: :run, setting: :setting, before: :before, after: :after, probe: :probe }
+    end
+
+    policy "MeasureTheBaseline" do
+      on      "Probe.ProbeOpened"
+      ask     :measure, with: { run: :run }
+    end
+
+    policy "RecordTheBaseline" do
+      on      "Probe.ProbeMeasured"
+      trigger Probe::Record, with: { base_starts: :starts, base_landings: :landings, base_yields: :yields, base_block: :block }
+    end
+
+    # A root, since the reading sits at the end of the beat's chain and the look, the judgement and
+    # the restore after it are four steps long.
+    policy "LookOnTheBeat" do
+      on       "Machine.MachineSampled"
+      root
+      for_each "Probe.Watching"
+      trigger  Probe::Look, with: { probe: :probe }
+    end
+
+    policy "JudgeTheLook" do
+      on      "Probe.ProbeLooked"
+      ask     :judge, with: { run: :run }
+    end
+
+    policy "KeepTheHeldTurn" do
+      on      "Probe.ProbeRead"
+      trigger Probe::Keep, with: { starts: :starts, landings: :landings, yields: :yields, block: :block, standing: :standing }
+    end
+
+    policy "RevertTheHurtTurn" do
+      on      "Probe.ProbeRead"
+      trigger Probe::Revert, with: { starts: :starts, landings: :landings, yields: :yields, block: :block, standing: :standing }
+    end
+
+    policy "RestoreTheSetting" do
+      on      "Probe.ProbeReverted"
+      ask     :restore, with: { run: :run }
+    end
+
+    policy "CloseTheRestore" do
+      on      "Probe.ProbeRestored"
+      trigger Probe::Close, with: { output: :output }
+    end
+
+    policy "StrandTheRefusedRestore" do
+      on      "Probe.ProbeRestoreRefused"
+      trigger Probe::Strand, with: { refusal: :refusal }
     end
 
     # Rises slowly and is cut quickly, as congestion control does. A reading counts by the states the
