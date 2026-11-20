@@ -76,6 +76,12 @@ Hecks.hecksagon "Deploy" do
     end
   end
 
+  # Read-only towards the box: what runs on it, its commit, its restore point and whether a command
+  # is still running there. The adapter beside this bluebook asks AWS; nothing on the box changes.
+  Deploy::BoxRoll.port "BoxState" do
+    answers_query "BoxState"
+  end
+
   Deploy::DataCopy.port "DeployToolchain" do
     asks "CopyData", to: DataCopy do
       attribute :run, RunKey
