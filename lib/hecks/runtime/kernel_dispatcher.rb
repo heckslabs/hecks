@@ -1,9 +1,12 @@
 require_relative "event"
 require_relative "errors"
 require_relative "caller"
+require_relative "declarations"
 require_relative "kernel_dispatcher/refusals"
 require_relative "kernel_dispatcher/unanswered"
 require_relative "kernel_dispatcher/settled"
+require_relative "kernel_dispatcher/result"
+require_relative "kernel_dispatcher/rebuilding"
 
 module Hecks
   module Runtime
@@ -14,22 +17,23 @@ module Hecks
     # It answers what `Runtime::Dispatcher` answers where the protocol carries it (see {Settled}
     # for the store read back and reset), and sends the bound caller's role on each step. What
     # the protocol does not carry yet is raised as {NotAnswered} (see {Unanswered}), never
-    # answered empty. A dispatch refusal is raised as {Refused} with the kernel's text; a
-    # `dry_run?` refusal as the Ruby class the kernel names (see {Refusals}); a dispatch from
-    # inside a callback as {NestedDispatch}.
+    # answered empty. A flat dispatch's refusal and a `dry_run?` refusal are raised as the Ruby
+    # class the kernel names (see {Refusals} and {Rebuilding}), with the kernel's text; a refused
+    # dispatch addressed with `to:` as {Refused}; a dispatch from inside a callback as
+    # {NestedDispatch}.
     class KernelDispatcher
+      # `Declarations` answers the described bluebooks; it comes before `Settled`, so `Settled`'s
+      # `repository`, which reads the kernel's store, wins over the registry's.
+      include Declarations
       include Unanswered
       include Settled
+      include Rebuilding
 
       # Raised when the kernel refuses a dispatch; the message is the kernel's error.
       class Refused < StandardError; end
 
       # Raised when a dispatch starts while another is still open on the same dispatcher.
       class NestedDispatch < StandardError; end
-
-      # What one dispatch settled on, in the shape `Dispatcher::Result` shares: the verb, the events
-      # it announced, the identity its first event names, and no state (read it back by `id`).
-      Result = Struct.new(:verb, :events, :id, :state, keyword_init: true)
 
       # @return [Array<Runtime::Event>] every event the kernel announced, oldest first
       attr_reader :events
@@ -73,10 +77,16 @@ module Hecks
       # @param verb [String] a qualified command
       # @param args [Hash] the command's facts, keyed by argument name
       # @return [Result] the verb and the events it announced
-      # @raise [Refused] when the kernel refuses
+      # @raise [StandardError] the `Runtime::DOMAIN_REFUSALS` class the kernel names for a refusal,
+      #   else {Refused}
       # @raise [NestedDispatch] when called while another dispatch is open
       def dispatch_flat(verb, args = {})
-        exclusively(verb) { settle(verb, @client.dispatch(verb, args, caller: caller_fields)) }
+        exclusively(verb) do
+          answer = @client.dispatch(verb, args, caller: caller_fields)
+          raise refusal_of(verb, args, answer) unless answer["ok"]
+
+          settle(verb, answer)
+        end
       end
 
       # Answers whether a command would succeed now, without saving, emitting or reacting.
@@ -116,12 +126,7 @@ module Hecks
 
         announced = answer.fetch("events").map { |wire| rebuild(wire) }
         @events.concat(announced)
-        Result.new(verb: verb, events: announced, id: announced.first&.id)
-      end
-
-      def rebuild(wire)
-        Event.new(name: wire["name"], aggregate: wire["aggregate"], id: wire["id"], payload: wire["payload"],
-                  occurred_at: wire["occurred_at"] || @clock.call, correlation: {}).tap(&:emit!)
+        Result.new(verb: verb, events: announced, store: method(:stored))
       end
     end
   end

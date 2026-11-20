@@ -82,7 +82,7 @@ module Hecks
           def define_reflection(mod, dispatcher, domain, aggregate, fqn)
             mod.define_singleton_method(:fqn) { fqn }
             mod.define_singleton_method(:ir)  { aggregate }
-            mod.define_singleton_method(:repository) { dispatcher.registry.repository(domain, aggregate) }
+            mod.define_singleton_method(:repository) { dispatcher.repository(domain, aggregate) }
           end
 
           # The names of the aggregate's commands and queries.
@@ -121,12 +121,12 @@ module Hecks
           # `find` and `all` read the aggregate's repository and wrap each instance in a handle.
           def define_finders(mod, dispatcher, domain, aggregate)
             mod.define_singleton_method(:find) do |id|
-              found = dispatcher.registry.repository(domain, aggregate).find(id)
+              found = dispatcher.repository(domain, aggregate).find(id)
               found && Handle.new(dispatcher: dispatcher, domain: domain, aggregate: aggregate, instance: found)
             end
 
             mod.define_singleton_method(:all) do |**opts|
-              repository = dispatcher.registry.repository(domain, aggregate)
+              repository = dispatcher.repository(domain, aggregate)
               repository.all(**opts).map do |instance|
                 Handle.new(dispatcher: dispatcher, domain: domain, aggregate: aggregate, instance: instance)
               end
@@ -135,7 +135,7 @@ module Hecks
 
           # `count` and `events` read what the aggregate has stored and emitted.
           def define_tallies(mod, dispatcher, domain, aggregate, fqn)
-            mod.define_singleton_method(:count)  { dispatcher.registry.repository(domain, aggregate).count }
+            mod.define_singleton_method(:count)  { dispatcher.repository(domain, aggregate).count }
             mod.define_singleton_method(:events) { dispatcher.events.select { |event| event.aggregate == fqn } }
           end
         end
