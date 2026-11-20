@@ -9,11 +9,12 @@ module Hecks
     class Rolling
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] stand-ins for the machine and the launcher
+      # @param settings [Hash] stand-ins for the machine, the launcher and the clock (`now:`)
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @dispatching = Dispatching.new(registry: registry, settings: settings)
         @world = Dispatching::Settings.new(registry)
+        @clock = settings[:now] || -> { Time.now.utc }
       end
 
       # Answers the owner's switch as the Tickets world says it now, and the pause the `RollSwitch`
@@ -36,7 +37,7 @@ module Hecks
 
       private
 
-      def roll_key(held) = "#{plain(held[:run])}@#{Time.now.utc.strftime("%Y-%m-%dT%H:%M:%S.%9NZ")}"
+      def roll_key(held) = "#{plain(held[:run])}@#{@clock.call.utc.strftime("%Y-%m-%dT%H:%M:%S.%9NZ")}"
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
