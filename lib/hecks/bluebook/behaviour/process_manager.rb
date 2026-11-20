@@ -2,7 +2,7 @@ module Hecks
   module Bluebook
     module Behaviour
       # Readings over a process manager's trigger, states and handlers.
-      # Its `saga` is derived from the handler that answers a refusal, not declared.
+      # Its `compensation` is derived from the handler that answers a refusal, not declared.
       module ProcessManager
         # The bluebook's name for this construct.
         #
@@ -50,9 +50,9 @@ module Hecks
 
         # The compensation half, read off the handler that answers `REFUSED`.
         #
-        # @return [Bluebook::Saga, nil] `nil` when no handler answers a refusal, which is
+        # @return [Bluebook::Compensation, nil] `nil` when no handler answers a refusal, which is
         #   legitimate: a hiring pipeline cannot un-interview anybody
-        def saga
+        def compensation
           leg = handler_for(Bluebook::ProcessManager::REFUSED)
           return nil unless leg
 
@@ -60,14 +60,14 @@ module Hecks
           # Derived `compensates` come first, then the leg's hand-written body, so a saga
           # can derive some compensation and hand-write the rest.
           derived = handlers.flat_map { |handler| handler.dispatches.filter_map(&:compensates) }
-          Bluebook::Saga.new(trigger: Bluebook::ProcessManager::REFUSED, from_state: leg.from_state,
-                             to_state: leg.to_state, compensations: derived + leg.dispatches)
+          Bluebook::Compensation.new(trigger: Bluebook::ProcessManager::REFUSED, from_state: leg.from_state,
+                                     to_state: leg.to_state, compensations: derived + leg.dispatches)
         end
 
         # Whether this procedure declares a handler for `REFUSED`.
         #
         # @return [Boolean]
-        def saga? = !saga.nil?
+        def compensates? = !compensation.nil?
       end
     end
   end
