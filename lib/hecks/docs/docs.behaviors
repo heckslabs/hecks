@@ -1,0 +1,70 @@
+Hecks.behaviors "Docs" do
+  vision "A documentation page is made of regions, each projected from a bluebook, doctested by a booted example, or prose, and only a live page is held to its sources."
+
+  # `docs.hecksagon` binds Page to Memory and attaches Governance. The pages below are this repo's
+  # own: a live DSL guide and a frozen audit.
+  loads "docs.bluebook", "docs.hecksagon"
+
+  test "Declare writes down a live page" do
+    tests "Declare", on: "Page"
+    input path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" }, standing: { value: "live" }
+    expect emits: ["PageDeclared"]
+  end
+
+  test "Declare writes down a frozen page" do
+    tests "Declare", on: "Page"
+    input path: { value: "docs/audits/ir-audit.md" }, title: { value: "IR audit" }, standing: { value: "frozen" }
+    expect emits: ["PageDeclared"]
+  end
+
+  test "AddProjected adds a region projected from a named bluebook" do
+    tests "AddProjected", on: "Page"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input page: "docs/query-dsl.md", anchor: { value: "Queries" }, source: { value: "Triage" }
+    expect emits: ["ProjectedRegionAdded"]
+  end
+
+  test "AddProjected refuses a region that names no source" do
+    tests "AddProjected", on: "Page"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input page: "docs/query-dsl.md", anchor: { value: "Queries" }, source: { value: "" }
+    expect refused: "a projected region names the bluebook or IR it projects"
+  end
+
+  test "AddDoctested adds a region whose example is booted and asserted" do
+    tests "AddDoctested", on: "Page"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input page: "docs/query-dsl.md", anchor: { value: "where" }, source: { value: "examples/pizzas" },
+          assertion: { value: "the open orders are listed" }
+    expect emits: ["DoctestedRegionAdded"]
+  end
+
+  test "AddDoctested refuses a region that names no example" do
+    tests "AddDoctested", on: "Page"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input page: "docs/query-dsl.md", anchor: { value: "where" }, source: { value: "" },
+          assertion: { value: "the open orders are listed" }
+    expect refused: "a doctested region names the example it boots"
+  end
+
+  test "AddDoctested refuses a region that asserts nothing" do
+    tests "AddDoctested", on: "Page"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input page: "docs/query-dsl.md", anchor: { value: "where" }, source: { value: "examples/pizzas" },
+          assertion: { value: "" }
+    expect refused: "a doctested region says what its example asserts"
+  end
+
+  test "AddProse adds a region held to no source" do
+    tests "AddProse", on: "Page"
+    setup "Docs::Page.Declare", path: { value: "docs/query-dsl.md" }, title: { value: "Query DSL" },
+                                standing: { value: "live" }
+    input page: "docs/query-dsl.md", anchor: { value: "Why queries" }
+    expect emits: ["ProseRegionAdded"]
+  end
+end
