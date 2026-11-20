@@ -49,7 +49,7 @@ RSpec.describe "the DiskSpace stall", :aggregate_failures do
     detect("look-1")
 
     expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-disk-data])
-    expect(keys("Hecks", "Stall", :detail).first).to include("Relief.relieve!", "never remove them")
+    expect(keys("Hecks", "Stall", :detail).first).to include("Landing.retire!", "AgentRun.tidy!", "never remove them")
   end
 
   it "wakes the orchestrator once for the volume and plans no work item" do
