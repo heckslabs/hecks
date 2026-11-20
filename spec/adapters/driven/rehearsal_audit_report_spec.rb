@@ -43,14 +43,17 @@ RSpec.describe Hecks::Adapters::Rehearsal::AuditReport do
     differing = report(rust: rust(violations: ["Widget#w2: Band admits small"])).parity
 
     expect(differing[:status]).to eq("differ")
-    expect(differing[:note]).to include("Only rust refused: Widget#w2", "Ruby audit's first layer does not yet")
+    expect(differing[:note]).to include("Only rust refused: Widget#w2", "the union is refused")
   end
 
-  it "does not call a Ruby-only refusal the known gap", :aggregate_failures do
-    note = report(ruby: ["Widget#w1: x"]).parity[:note]
+  it "excuses no Rust-only refusal as a known gap, since both engines hold the same checks" do
+    note = report(rust: rust(violations: ["Widget#w2: Band admits small"])).parity[:note]
 
-    expect(note).to include("Only ruby refused: Widget#w1")
     expect(note).not_to include("known difference")
+  end
+
+  it "names a Ruby-only refusal" do
+    expect(report(ruby: ["Widget#w1: x"]).parity[:note]).to include("Only ruby refused: Widget#w1")
   end
 
   it "is not run when no harness was built" do

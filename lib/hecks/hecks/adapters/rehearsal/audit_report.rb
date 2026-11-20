@@ -13,12 +13,6 @@ module Hecks
         # The record a refusal names: everything before its first colon.
         REFUSED_RECORD = /\A[^:]+/
 
-        # The wording that explains a Rust-only refusal: the Ruby audit's first layer does not hold
-        # a stored value to a closed set, a required field or an undeclared value-object key.
-        RUST_ONLY = "The Rust audit also holds a stored value to its closed set, a required field and an " \
-                    "undeclared value-object key, which the Ruby audit's first layer does not yet: a row " \
-                    "only Rust refuses is that known difference between the engines, not a second finding."
-
         # @param minting [String] none, first or next
         # @param edge [Bluebook::Translation, nil] the edge the audit ran through
         # @param states [Hash{String => Hash}] the translated records the audit read, by aggregate
@@ -93,11 +87,9 @@ module Hecks
           rust_only = rust_records - ruby_records
           ruby_only = ruby_records - rust_records
           "the engines refused different records: ruby #{ruby_records.size}, rust #{rust_records.size}. " \
-            "#{only("rust", rust_only)}#{only("ruby", ruby_only)}#{known_gap(rust_only)}" \
+            "#{only("rust", rust_only)}#{only("ruby", ruby_only)}" \
             "Both are held against the report: the union is refused."
         end
-
-        def known_gap(rust_only) = rust_only.empty? ? "" : "#{RUST_ONLY} "
 
         def only(engine, held)
           return "" if held.empty?
