@@ -90,6 +90,8 @@ spec/hecks_deploy_preview_run_spec.rb
 spec/hecks_deploy_roll_scripts_spec.rb
 spec/hecks_deploy_roll_spec.rb
 spec/hecks_deploy_smoke_run_spec.rb
+spec/hecks_deploy_stable_roll_box_spec.rb
+spec/hecks_deploy_stable_roll_spec.rb
 spec/hecks_journal_survives_spec.rb
 spec/hecks_primary_checkout_spec.rb
 spec/installed_gem_smoke_spec.rb

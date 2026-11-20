@@ -337,6 +337,31 @@
       "role": null
     },
     {
+      "scope": "deploy:stable_roll.begin",
+      "verb": "Deploy::StableRoll.Begin",
+      "role": null
+    },
+    {
+      "scope": "deploy:stable_roll.hold",
+      "verb": "Deploy::StableRoll.Hold",
+      "role": null
+    },
+    {
+      "scope": "deploy:stable_roll.request",
+      "verb": "Deploy::StableRoll.Request",
+      "role": null
+    },
+    {
+      "scope": "deploy:stable_roll.settle",
+      "verb": "Deploy::StableRoll.Settle",
+      "role": null
+    },
+    {
+      "scope": "deploy:stable_roll.stop",
+      "verb": "Deploy::StableRoll.Stop",
+      "role": null
+    },
+    {
       "scope": "deploy:template_comparison.diff",
       "verb": "Deploy::TemplateComparison.Diff",
       "role": null
