@@ -1506,6 +1506,150 @@ Hecks.bluebook "Hecks" do
       trigger Roll::Start, with: { run: :roll }
     end
 
+    # The `Dispatching` port answers facts on each beat and at each start: the rollable items waiting,
+    # the free places, what the plan would start, the minutes since the last start, and the dominant
+    # reason with its reading and governor. The policies decide; no clock or machine is read here.
+    aggregate "FillStall" do
+      description "Whether the fill of a store stands stalled, one record per store: nothing has started for 15 minutes while rollable work waits and places are free. FillStalled is recorded once for each stall, with the dominant reason, the reading behind it, how long it has held and the setting or switch that governs it; the first start after it records FillStallCleared."
+
+      attribute :stall,        StallKey
+      attribute :standing,     StallStanding
+      attribute :since,        StallNote, optional: true
+      attribute :reason,       StallNote, optional: true
+      attribute :reading,      StallNote, optional: true
+      attribute :governed_by,  StallNote, optional: true
+      attribute :held_minutes, StallMinutes, optional: true
+      identified_by :stall
+
+      value_object "StallKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One while a stall is recorded, zero while the fill moves.
+      value_object "StallStanding" do
+        attribute :value, Integer, default: 0
+        invariant("a stall stands or it does not") { [0, 1].include?(value) }
+      end
+
+      value_object "StallNote", String
+
+      value_object "StallMinutes", Integer
+
+      command "Open" do
+        role "System"
+        goal "Open the one stall record of a store, with no stall recorded"
+
+        attribute :stall, StallKey, sets: true
+
+        emits FillStallOpened
+      end
+
+      command "Watch" do
+        role "System"
+        goal "Ask whether the fill has started nothing while work waits and places are free"
+
+        reference_to FillStall
+        attribute :run, StallKey
+
+        emits FillWatchRequested
+      end
+
+      command "Mark" do
+        role "System"
+        goal "Record the time the idle minutes are counted from: the last start, or the first watch"
+
+        reference_to FillStall
+        attribute :since, StallNote, sets: true
+
+        emits FillStartMarked
+      end
+
+      command "Raise" do
+        role "System"
+        goal "Record once that the fill is stalled, why, on what reading, for how long and what governs it"
+
+        reference_to FillStall
+        attribute :reason,       StallNote, sets: true
+        attribute :reading,      StallNote, sets: true
+        attribute :governed_by,  StallNote, sets: true
+        attribute :held_minutes, StallMinutes, sets: true
+
+        given("the stall is not recorded yet") { standing.value == 0 }
+
+        sets :standing, to: { value: 1 }
+
+        emits FillStalled
+      end
+
+      command "Clear" do
+        role "System"
+        goal "Record that the stalled fill moves again"
+
+        reference_to FillStall
+
+        given("a stall is recorded") { standing.value == 1 }
+
+        sets :standing, to: { value: 0 }
+
+        emits FillStallCleared
+      end
+    end
+
+    policy "OpenTheFillStallOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      trigger FillStall::Open, with: { stall: "fill" }
+    end
+
+    # A root, like the wake and the sampling, so each beat's watch begins its own chain.
+    policy "WatchTheFillOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger FillStall::Watch, with: { fill_stall: "fill", run: :beat }
+    end
+
+    policy "OpenTheFillStallWhenWorkStarts" do
+      on      "Work.WorkStarted"
+      trigger FillStall::Open, with: { stall: "fill" }
+    end
+
+    # A start is what the idle minutes are counted from, so it is marked as it happens.
+    policy "MarkTheStartWhenWorkStarts" do
+      on      "Work.WorkStarted"
+      trigger FillStall::Mark, with: { fill_stall: "fill", since: :claimed_at }
+    end
+
+    # The watch that follows a start finds the idle minutes short, which clears a standing stall.
+    policy "WatchTheFillWhenWorkStarts" do
+      on      "Work.WorkStarted"
+      trigger FillStall::Watch, with: { fill_stall: "fill", run: :work }
+    end
+
+    policy "GaugeTheFillWhenWatched" do
+      on      "FillStall.FillWatchRequested"
+      ask     :gauge, with: { run: :run }
+    end
+
+    # A store that has recorded no start counts from its first watch.
+    policy "MarkTheFirstWatch" do
+      on      "FillStall.FillGauged"
+      where   { since == "" }
+      trigger FillStall::Mark, with: { since: :now }
+    end
+
+    policy "RaiseTheStalledFill" do
+      on      "FillStall.FillGauged"
+      where   { standing == 0 && waiting >= 1 && room >= 1 && chosen == 0 && idle_minutes >= 15 }
+      trigger FillStall::Raise,
+              with: { reason: :reason, reading: :reading, governed_by: :governed_by, held_minutes: :idle_minutes }
+    end
+
+    # A start makes the idle minutes short; a queue with nothing left to roll is no stall either.
+    policy "ClearTheFillStall" do
+      on      "FillStall.FillGauged"
+      where   { standing == 1 && (idle_minutes < 15 || waiting < 1) }
+      trigger FillStall::Clear, with: { fill_stall: "fill" }
+    end
+
     # The machine's load, heard instead of asked. Each beat of the clock takes one reading through the
     # `Sampling` port: the CPU idle percentage, swap used as a percentage of swap total, the compressor's
     # size in gigabytes and the load average (a third reading, which counts processes waiting on swap and
