@@ -15,6 +15,15 @@ RSpec.describe Hecks::Adapters::Memory do
                           name: { value: name }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
   end
 
+  describe "archiving an ended occupant" do
+    include_context "with the archiving Ticket aggregate"
+
+    let(:aggregate) { ticket_aggregate("MemoryArchiving") }
+    let(:store) { Hecks::Ports::Persistence::AppendOnly.new(described_class.new(aggregate: aggregate)) }
+
+    it_behaves_like "an archiving atomic_put adapter"
+  end
+
   describe "dispatch claims" do
     let(:adapter) { repository.instance_variable_get(:@adapter) }
 

@@ -1,4 +1,5 @@
 require_relative "../../ports/persistence/append_only"
+require_relative "../../ports/persistence/archiving_put"
 require_relative "../../ports/query/in_memory"
 require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
@@ -15,6 +16,7 @@ module Hecks
       include OutboxRows
       include DispatchClaims
       include Snapshot
+      include Ports::Persistence::ArchivingPut
 
       # Reports that two tenant boots of this adapter never share state.
       #
@@ -123,21 +125,18 @@ module Hecks
       # Stores an entry and reports whether it inserted, replaced or conflicted.
       #
       # One in-memory critical section in the only thread touching this plain
-      # Hash: classify and replace without a preliminary repository lookup.
-      # Durable append and projection remain ordered exactly as ordinary save.
+      # Hash: classify, archive an ended occupant and replace without a preliminary
+      # repository lookup. Durable append and projection remain ordered exactly as ordinary save.
       #
       # @param entry [Ports::Persistence::Entry] the save to store
-      # @param insert_only [Boolean] when true, an existing record is left untouched
-      # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met an
-      #   existing record and nothing was written
-      def atomic_put(entry, insert_only: false)
-        exists = @records.key?(entry.id.to_s)
-        return :conflicted if insert_only && exists
-
-        status = exists ? :replaced : :inserted
-        append(entry)
-        project(entry)
-        status
+      # @param insert_only [Boolean] when true, an existing record the rule does not replace is
+      #   left untouched
+      # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended
+      #   and is archived under `<id>~<n>` before the write
+      # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` met a
+      #   live record and nothing was written
+      def atomic_put(entry, insert_only: false, replace_when: nil)
+        archiving_put(entry, insert_only, replace_when)
       end
 
       # Journals a delete and removes the record, whether or not one is held.
@@ -197,6 +196,8 @@ module Hecks
       end
 
       private
+
+      def occupied?(id) = @records.key?(id.to_s)
 
       # Skips the codec copy and rehydration round trip while judging the
       # self-hosted grammar (S17, ADR 0026), where re-validating already-valid

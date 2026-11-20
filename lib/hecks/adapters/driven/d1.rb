@@ -9,6 +9,7 @@ require_relative "sqlite/repository"
 require_relative "sqlite/sagas"
 require_relative "sqlite"
 require_relative "d1/connection"
+require_relative "d1/replacing_put"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/common/order_by"
@@ -28,6 +29,7 @@ module Hecks
       include Sqlite::Events
       include Sqlite::Sagas
       include Sqlite::Dialect
+      include ReplacingPut
 
       SQL_TYPES = { "Integer" => "INTEGER", "Float" => "REAL" }.freeze
 
@@ -87,17 +89,23 @@ module Hecks
       # Stores an entry in one D1 batch; returns `:inserted`, `:replaced` or `:conflicted`.
       #
       # The existence check is the batch's first statement and both writes are gated by
-      # WHERE NOT EXISTS, so `insert_only` has no gap between check and write.
-      # @return [Symbol] `:conflicted` only when `insert_only` met an existing row
-      def atomic_put(entry, insert_only: false)
-        results = @db.batch([status_statement(entry, insert_only),
-                             entry_statement(entry, insert_only),
-                             aggregate_statement(entry, insert_only)])
+      # WHERE NOT EXISTS, so `insert_only` has no gap between check and write. With
+      # `replace_when`, an ended occupant is archived under `<id>~<n>` in the same batch.
+      # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended
+      # @return [Symbol] `:conflicted` only when `insert_only` met a live row
+      def atomic_put(entry, insert_only: false, replace_when: nil)
+        results = @db.batch(put_statements(entry, insert_only, replace_when))
         status_row = results.fetch(0).fetch(0)
         status_row.fetch("status").to_sym
       end
 
       private
+
+      def put_statements(entry, insert_only, replace_when)
+        return replacing_statements(entry, insert_only, replace_when) if replace_when
+
+        [status_statement(entry, insert_only), entry_statement(entry, insert_only), aggregate_statement(entry, insert_only)]
+      end
 
       # The settings are read under a Symbol or a String key; each credential is required.
       def connect(settings)
