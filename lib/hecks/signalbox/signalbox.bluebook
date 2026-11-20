@@ -293,6 +293,11 @@ Hecks.bluebook "Signalbox" do
       given("only an urgent coder is admitted while pressure is short") do
         band.value != "short" || (role.value == "coder" && tier.value == "urgent")
       end
+      # Starts are held before finishing is slowed: tight pressure holds a new lower-tier coder or
+      # helper, while a gate, a seat and the work already in flight keep the machine.
+      given("no lower-tier coder or helper starts while pressure is tight") do
+        band.value != "tight" || tier.value == "urgent" || (role.value != "coder" && role.value != "helper")
+      end
       given("at most the ramp step starts in one ramp window") { started.value < ramp.value }
       given("helpers stay within their share of the coders") do
         role.value != "helper" || helpers.value * 100 < coders.value * share.value
@@ -397,7 +402,7 @@ Hecks.bluebook "Signalbox" do
 
     command "Defer" do
       role "System"
-      goal "Have the coder defer its heavy steps (gates, builds, full spec runs) until pressure eases"
+      goal "Have the coder defer its heavy steps (gates, builds, full spec runs) until pressure is short no more"
 
       reference_to Response
       attribute :session, SessionKey
@@ -417,7 +422,7 @@ Hecks.bluebook "Signalbox" do
 
     command "Wait" do
       role "System"
-      goal "Hold the gate in its turn until pressure eases"
+      goal "Hold the gate in its turn until pressure is short no more"
 
       reference_to Response
       attribute :session, SessionKey
@@ -966,6 +971,8 @@ Hecks.bluebook "Signalbox" do
     attribute :load,          Hundredths
     attribute :cores,         Count
     attribute :load_short,    Percent
+    attribute :target,        Megabytes
+    attribute :load_tight,    Percent
     attribute :memory_pressure_level, Count, optional: true
     attribute :draw,          Megabytes
     attribute :fill_ruling,   RulingKey
@@ -1034,6 +1041,8 @@ Hecks.bluebook "Signalbox" do
       attribute :load,          Hundredths, sets: true
       attribute :cores,         Count, sets: true
       attribute :load_short,    Percent, sets: true
+      attribute :target,        Megabytes, sets: true
+      attribute :load_tight,    Percent, sets: true
       attribute :memory_pressure_level, Count, default: { value: 0 }, sets: true
       attribute :draw,          Megabytes, sets: true
       attribute :fill_ruling,   RulingKey, sets: true
@@ -1134,7 +1143,8 @@ Hecks.bluebook "Signalbox" do
     on      "Beat.BeatPublished"
     trigger Shadow::Hear, with: {
       shadow: :beat, headroom: :headroom, floor: :floor, load: :load, cores: :cores,
-      load_short: :load_short, memory_pressure_level: :memory_pressure_level, draw: :coder_draw,
+      load_short: :load_short, target: :target, load_tight: :load_tight,
+      memory_pressure_level: :memory_pressure_level, draw: :coder_draw,
       fill_ruling: :fill_ruling, fill_subject: :fill_subject,
       fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
       shed_delegate: :shed_delegate
@@ -1202,9 +1212,18 @@ Hecks.bluebook "Signalbox" do
     trigger Response::Run, with: { response: :response, session: :session }
   end
 
+  # Tight pressure holds starts (`Admission`), never the heavy jobs of work in flight: a coder at
+  # its last spec run and a landing's gate run, and the heavy-job places are the only line they
+  # wait in. The holds below are for the short band and a dark signal.
+  policy "WorkInFlightKeepsRunningInTightPressure" do
+    on      "Response.ResponseAsked"
+    where   { band.value == "tight" && (role.value == "coder" || role.value == "gate") && tier.value != "urgent" }
+    trigger Response::Run, with: { response: :response, session: :session }
+  end
+
   policy "LowerTierCodersDeferHeavySteps" do
     on      "Response.ResponseAsked"
-    where   { band.value != "normal" && role.value == "coder" && tier.value != "urgent" }
+    where   { band.value != "normal" && band.value != "tight" && role.value == "coder" && tier.value != "urgent" }
     trigger Response::Defer, with: { response: :response, session: :session }
   end
 
@@ -1216,25 +1235,26 @@ Hecks.bluebook "Signalbox" do
 
   policy "GatesWaitTheirTurn" do
     on      "Response.ResponseAsked"
-    where   { band.value != "normal" && role.value == "gate" && tier.value != "urgent" }
+    where   { band.value != "normal" && band.value != "tight" && role.value == "gate" && tier.value != "urgent" }
     trigger Response::Wait, with: { response: :response, session: :session }
   end
 
-  # The shadow's rulings: start a normal-tier coder whose draw fits while pressure is not short (law
-  # 4), shed only while it is short, memory short as the band reads it. Exactly one policy answers
-  # each function of a beat; a fill with nothing planned is not ruled on.
+  # The shadow's rulings, by the band's own marks: start a normal-tier coder whose draw fits while
+  # pressure is neither tight nor short (law 4, as `Admission` does), shed only while it is short.
+  # Exactly one policy answers each function of a beat; a fill with nothing planned is not ruled on.
   policy "RuleWithDelegatesStart" do
     on      "Shadow.DelegateHeard"
     where   do
       fill_delegate.value == "start" &&
         (draw.value <= headroom.value &&
           !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
-          load.value <= cores.value * load_short.value)
+          !((headroom.value < target.value && memory_pressure_level.value != 1) || memory_pressure_level.value == 2) &&
+          load.value <= cores.value * load_tight.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
       decision: { value: "start" }, load: :load, headroom: :headroom,
-      law: { value: "a coder's expected draw fits the headroom and pressure is not short" },
+      law: { value: "a coder's expected draw fits the headroom and pressure is neither tight nor short" },
       agrees: { value: "yes" }
     }
   end
@@ -1245,12 +1265,13 @@ Hecks.bluebook "Signalbox" do
       fill_delegate.value == "start" &&
         !(draw.value <= headroom.value &&
           !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
-          load.value <= cores.value * load_short.value)
+          !((headroom.value < target.value && memory_pressure_level.value != 1) || memory_pressure_level.value == 2) &&
+          load.value <= cores.value * load_tight.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
       decision: { value: "wait" }, load: :load, headroom: :headroom,
-      law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is short" },
+      law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is tight or short" },
       agrees: { value: "no" }
     }
   end
@@ -1261,12 +1282,13 @@ Hecks.bluebook "Signalbox" do
       fill_delegate.value == "wait" &&
         !(draw.value <= headroom.value &&
           !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
-          load.value <= cores.value * load_short.value)
+          !((headroom.value < target.value && memory_pressure_level.value != 1) || memory_pressure_level.value == 2) &&
+          load.value <= cores.value * load_tight.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
       decision: { value: "wait" }, load: :load, headroom: :headroom,
-      law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is short" },
+      law: { value: "a coder waits: its expected draw does not fit the headroom, or pressure is tight or short" },
       agrees: { value: "yes" }
     }
   end
@@ -1277,12 +1299,13 @@ Hecks.bluebook "Signalbox" do
       fill_delegate.value == "wait" &&
         (draw.value <= headroom.value &&
           !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
-          load.value <= cores.value * load_short.value)
+          !((headroom.value < target.value && memory_pressure_level.value != 1) || memory_pressure_level.value == 2) &&
+          load.value <= cores.value * load_tight.value)
     end
     trigger Ruling::Record, with: {
       ruling: :fill_ruling, function: { value: "fill" }, subject: :fill_subject, delegate: :fill_delegate,
       decision: { value: "start" }, load: :load, headroom: :headroom,
-      law: { value: "a coder's expected draw fits the headroom and pressure is not short" },
+      law: { value: "a coder's expected draw fits the headroom and pressure is neither tight nor short" },
       agrees: { value: "no" }
     }
   end
