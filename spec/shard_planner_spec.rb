@@ -1,9 +1,9 @@
 require "spec_helper"
-require "hecks/tools/shard_planner"
+require "hecks/ci_speed/adapters/shard_planner"
 
 # The split every sharded CI family shares: a pure function of the items, the shard count and the
 # prices, so every leg that computes it agrees.
-RSpec.describe Hecks::Tools::ShardPlanner do
+RSpec.describe Hecks::Adapters::ShardPlanner do
   let(:sizes) { :size.to_proc }
   let(:files) { (1..12).map { |number| "spec/f#{number}_spec.rb" } }
 

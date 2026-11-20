@@ -3,7 +3,7 @@ require "fileutils"
 require "open3"
 require "rbconfig"
 require "tmpdir"
-require "hecks/tools/project_cli"
+require "hecks/hecks/adapters/local_files/project_cli"
 require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_fixture"
 
@@ -16,8 +16,8 @@ RSpec.describe "exe/hecks quality_control reads the QA ledger", :io do
 
   # The launcher as `hecks project_cli` writes it for the checkout's own `exe/hecks`.
   def self.generated_launcher
-    Hecks::Tools::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
-                                      executable: "exe/hecks", ledgers: Hecks::Corpus::ROTATION_LEDGER)
+    Hecks::Adapters::LocalFiles::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli",
+                                                     executable: "exe/hecks", ledgers: Hecks::Corpus::ROTATION_LEDGER)
   end
 
   before(:all) do
