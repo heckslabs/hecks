@@ -1,6 +1,6 @@
 Hecks.bluebook "Hecks" do
   domain_module "StallWatch" do
-    vision "A stall is noticed by data, not by a person watching: each kind is a row, and every stall wakes one run of the orchestrator, keyed by the stall, that settles it in place and is never a Work item."
+    vision "A stall is noticed by data, not by a person watching: each kind is a row that says how its stall is cleared. Its stall item wakes one run of the orchestrator, keyed by the stall, that settles it in place and is never a Work item; a call for help is assigned by the Lead. No stall gets both."
 
     # One look at the event tap for stalls. The clock's beat asks it (`DetectOnHeartbeat`), and so may
     # anyone (`StallWatch.detect!`). The `Watching` port reads the tap and answers the opening lines
@@ -59,9 +59,10 @@ Hecks.bluebook "Hecks" do
         # `settled_by` does: "boarded-on-origin", the commit the opening line links as `boarded`
         # is on origin/main (a merge the tap never recorded). The adapter refuses any other value.
         attribute :settled_read,      String
-        # Whether a line past its minutes is filed as a stall: empty (the default) files it, "no"
-        # only lists it among the impediments, for a source another handler already acts on.
-        attribute :files,             String
+        # How the stall is cleared, one path each: "item" (or empty) by its stall item, which a look
+        # files and the row's move fixes; "help" by a call for help (`HelpWanted`), for a block that
+        # needs judgment, which a look only lists. The adapter refuses any other value.
+        attribute :cleared_by,        String
         # "kind" lists every open line of the row as one impediment, the oldest line's, with how
         # many lines it stands for; empty lists one per subject.
         attribute :folds,             String
@@ -186,7 +187,7 @@ Hecks.bluebook "Hecks" do
                settled_aggregate: "Tickets::Work",
                settled_by: "WorkStarted,WorkYielded,WorkReleased,WorkRefused,WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunStarted,AgentRunRetired,AgentTrialRunRetired", minutes: 0, forgets: 1440,
-               fixer: "orchestrator", files: "no",
+               fixer: "orchestrator", cleared_by: "help",
                move: "Read the run's last report (AgentRun.check!), then Work.yield! its Work item with the " \
                      "failure as the reason, so the fill starts it again."
         # Main held for a boarding ten minutes on and not released. One marker holds main, so any
@@ -194,7 +195,7 @@ Hecks.bluebook "Hecks" do
         # (20 minutes), after which it is history.
         member kind: "held-lock", aggregate: "Hecks::BoardingHold", opens: "BoardingHoldSettled",
                settled_aggregate: "Hecks::BoardingRelease", settled_by: "BoardingReleaseSettled", settled_on: "any",
-               minutes: 10, forgets: 20, fixer: "orchestrator", files: "no",
+               minutes: 10, forgets: 20, fixer: "orchestrator", cleared_by: "help",
                move: "Read send_train.status and the train's log: a rehearsal still running is only slow, so leave it. " \
                      "With none, the hold expires at the boarding_hold window by itself; Work.plan! a work item naming " \
                      "the hold's run and what took it, so the cause is fixed."
@@ -204,7 +205,7 @@ Hecks.bluebook "Hecks" do
         member kind: "codebase-check-failed", aggregate: "Tickets::Finding", opens: "RunFindingReported",
                closes: "FindingResolved,FindingDismissed", settled_aggregate: "Tickets::Work",
                settled_by: "WorkFinished,WorkDropped,WorkLapsed", minutes: 0, forgets: 10080,
-               fixer: "orchestrator", files: "no", folds: "kind",
+               fixer: "orchestrator", cleared_by: "help", folds: "kind",
                move: "Read the open findings titled 'A Codebase check failed' (Work.undone): a cause a later green " \
                      "gate cleared is Work.drop!ped with that run as the reason; the rest are one red-* work item."
         # A boarding begun ten minutes ago and not pushed, refused or superseded. `Board` moves no
@@ -307,6 +308,8 @@ Hecks.bluebook "Hecks" do
         # What an impediment stands for, the same over every look: its stall key, or
         # `stall-<kind>` for a row that folds, whose oldest line changes as lines close.
         attribute :impediment, String
+        # How its row says the stall is cleared: "item" by its stall item, "help" by a call for help.
+        attribute :cleared_by, String
       end
 
       command "Detect" do
@@ -351,7 +354,7 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Relieved" do
-        description "The calls for help the tap shows raised and not closed since, whose impediment is no longer among the impediments, each with that as its reason. Read-only: it reads the tap and boots nothing."
+        description "The calls for help the tap shows raised and not closed since, whose impediment is no longer among the impediments or is one its stall item clears, each with that as its reason. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Relieved)
       end
@@ -454,7 +457,7 @@ Hecks.bluebook "Hecks" do
     # Its key is the bound of ADR 0219, decision 10: one call per impediment, and a closed one
     # frees its key. No command records a helper's report, so a finished helper leaves it aging.
     aggregate "HelpWanted" do
-      description "One call for help with one impediment, keyed `help-<impediment>`: when the block opened, what it holds up, the help it needs and the role that fits, and the helper the Lead assigned. A second call for an impediment whose call stands is refused by name; only a look that does not hold the impediment closes it."
+      description "One call for help with one impediment, keyed `help-<impediment>`: when the block opened, what it holds up, the help it needs and the role that fits, and the helper the Lead assigned. A second call for an impediment whose call stands is refused by name, and so is a call for a stall its stall item clears; only a look that does not hold the impediment closes it."
       created_by "HelpWanted.raise!"
 
       # The impediment it is for, as `help-` and that impediment's key in the view: one fact, so
@@ -516,6 +519,11 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, one_of: %w[orchestrator coder architect planner reviewer owner]
       end
 
+      # How the impediment's row says its stall is cleared, as the impediment view gives it.
+      value_object "Clearing" do
+        attribute :value, String, one_of: %w[item help]
+      end
+
       # How the Lead assigns: `idle` answers a started run that has room, `dispatch` starts a run.
       value_object "Way" do
         attribute :value, String, one_of: %w[idle dispatch]
@@ -539,6 +547,10 @@ Hecks.bluebook "Hecks" do
         attribute :kind,       HelpKindName, sets: true
         attribute :needs,      Line, sets: true
         attribute :role,       HelperRole, sets: true
+        # The impediment's `cleared_by` in the view: the call says which path its stall has.
+        attribute :cleared_by, Clearing
+
+        given("a stall its stall item clears gets no call for help") { cleared_by.value == "help" }
 
         emits HelpWantedRaised
       end
