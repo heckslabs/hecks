@@ -4,6 +4,7 @@ Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/red_flagging"
 require "tmpdir"
 require "open3"
+require_relative "support/landing_holds_registry"
 
 # A landing takes no place in a line. It builds the commit it lands as, then moves the target only
 # if the target still points where the landing started; when it moved, the landing is built again.
@@ -63,7 +64,9 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge by compare-and-swap" do
     Hecks::Adapters::Shell::Result.new("{\"status\": \"completed\"}", "", ended)
   end
 
-  def land(name) = described_class.new.merge(checkout: tree(name), branch: name, onto: "main")
+  def landing = described_class.new(registry: LandingHoldsRegistry.landing_holds_registry)
+
+  def land(name) = landing.merge(checkout: tree(name), branch: name, onto: "main")
 
   # A landing in a process of its own, which leaves a file saying why when the branch did not land.
   def land_apart(name)
@@ -88,7 +91,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge by compare-and-swap" do
     end
   end
 
-  def finish(gate) = described_class.new.finish_branch(checkout: tree("a"), branch: "a", onto: "main", gate: gate)
+  def finish(gate) = landing.finish_branch(checkout: tree("a"), branch: "a", onto: "main", gate: gate)
 
   def swap = described_class::Swap.new(Hecks::Adapters::Git.new, repo, onto: "main")
 

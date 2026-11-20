@@ -111,4 +111,28 @@ Hecks.hecksagon "Delivery" do
 
     answers_query "Unlanded"
   end
+
+  # What may keep a landing off main, asked of whatever stands above delivery: a hold before the
+  # landing takes its place in the line, a flag just before it merges, and the record of each
+  # landing on main with the commit main moved to. A project that binds no adapter has nothing that
+  # holds a landing. It is a port of its own because `Worktrees` is the git adapter's.
+  Delivery::Landing.port "Holds" do
+    asks "Hold", to: Landing do
+      attribute :run, RunKey
+      answers "HoldAnswered"
+      refuses "HoldRefused"
+    end
+
+    asks "Flag", to: Landing do
+      attribute :run, RunKey
+      answers "FlagAnswered"
+      refuses "FlagRefused"
+    end
+
+    asks "RecordLanding", to: Landing do
+      attribute :run, RunKey
+      answers "LandingRecordAnswered"
+      refuses "LandingRecordRefused"
+    end
+  end
 end
