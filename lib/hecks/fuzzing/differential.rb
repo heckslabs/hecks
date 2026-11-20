@@ -7,6 +7,7 @@ require_relative "../rust_build/kernel_input"
 require_relative "nondeterministic"
 require_relative "differential/wire_comparison"
 require_relative "differential/serve_engine"
+require_relative "differential/shrink_sessions"
 require_relative "replay/engine/kernel"
 
 module Hecks
