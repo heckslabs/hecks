@@ -297,4 +297,18 @@ Hecks.behaviors "Agents" do
     input  script: "s4", command: { value: "ruby -e 1" }
     expect refused: "no hecks command ran since the last script"
   end
+
+  test "Finish records committed_not_pushed as the turn's landing state" do
+    tests "Finish", on: "Turn"
+    input  run: { value: "r-cnp" }, role: { value: "coder" }, at: { value: "2026-11-20T10:00:00Z" },
+           verdict: { value: "routed" }, landing_state: { value: "committed_not_pushed" }
+    expect landing_state: { value: "committed_not_pushed" }
+  end
+
+  test "Finish refuses a landing state it does not know" do
+    tests "Finish", on: "Turn"
+    input  run: { value: "r-bad" }, role: { value: "coder" }, at: { value: "2026-11-20T10:00:00Z" },
+           verdict: { value: "routed" }, landing_state: { value: "somewhere" }
+    expect refused: "a landing state is landed, pushed_not_landed, committed_not_pushed or uncommitted"
+  end
 end
