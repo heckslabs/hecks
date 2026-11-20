@@ -63,5 +63,5 @@ One fuzz sweep or benchmark, and how it ended; and the generated sequences it re
 - `hecks FuzzRun.fuzz! [<domain>] [seeds=] [steps=] [workers=] [adapter=] [shard=] [list_shards=] [--persist-regressions]`: Fuzz a domain with generated sequences and keep whether anything broke a property
 - `hecks FuzzRun.mutate! <domain> [seeds=] [steps=] [budget=]`: Mutate a domain's rules and keep whether its checks noticed each change
 - `hecks FuzzRun.bench! [<domains>] [targets=] [iterations=] [warmup=] [runs=] [rust_binary=] [format=] [output=]`: Measure command throughput and latency for each target, and keep the report
-- `hecks FuzzRun.generate_sequence <domain> [seed=] [steps=] [adversarial=]`: One generated, valid dispatch sequence for a domain, as a script `hecks run` replays.
+- `hecks FuzzRun.generate_sequence <domain> [seed=] [steps=] [adversarial=]`: One generated, valid dispatch sequence for a domain, as a script `hecks run` replays. <!-- dead-name-check: skip -->
 <!-- generated:end cli -->

@@ -55,7 +55,7 @@ One brief handed to a background Claude session: started and tracked, or refused
 
 One check of every started run's session: each change of state is recorded on its run.
 
-- `hecks SessionSweep.check_all!`: Check every run whose session was started and is not known to have ended
+- `hecks agent_run.check_all!`: Check every run whose session was started and is not known to have ended
 
 ### Dispatch
 

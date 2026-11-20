@@ -45,8 +45,8 @@ Every command and query this module lists for a person, generated from its blueb
 
 A look at how this copy of Hecks is set up: its settings, its stores and whether it can run here.
 
-- `hecks Workspace.config [<domain>]`: What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it.
-- `hecks Workspace.doctor [<domain>]`: Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
+- `hecks config [<domain>]`: What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it.
+- `hecks doctor [<domain>]`: Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
 - `hecks Workspace.where [<domain>]`: Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
 
 ### LandingPace
