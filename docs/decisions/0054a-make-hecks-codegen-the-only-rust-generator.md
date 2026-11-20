@@ -12,7 +12,7 @@ both") and its "no immediate driver" framing; everything else in 0054 stands,
 including the reason option 1 was rejected (a Ruby-free toolchain is a
 product requirement, so `hecks-codegen` is the generator that stays).
 Adopts the recommended order in
-[0054-option-2-scoping.md](0054-option-2-scoping.md) and settles the design
+[0230-option-2-scoping.md](0230-option-2-scoping.md) and settles the design
 questions that document deliberately left open. Nothing is deleted by this
 document; the migration it orders is migration track B (B1–B5 below), and
 no B-step PR merges before this document does.
@@ -181,7 +181,7 @@ observed rather than hypothetical.
   by making it the only build, not by keeping a second generator.
 - **"That migration is real, unscoped work with no immediate driver and is
   not decided or started by this document."** The migration is now scoped
-  (0054-option-2-scoping.md), has a driver (the evidence above), and is
+  (0230-option-2-scoping.md), has a driver (the evidence above), and is
   decided (this document).
 - **Not superseded:** 0054's rejection of option 1, its premise that a
   Ruby-free toolchain is a product requirement, and its statement that the
