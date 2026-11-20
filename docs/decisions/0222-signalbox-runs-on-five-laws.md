@@ -153,6 +153,11 @@ whole-machine fuse, and trips last. `dispatch_roll_forward` stays as the owner's
 3. **Function by function.** One function at a time moves from Delegate to the new parts, each behind
    its own switch and each read on the live machine after it lands: metering, then the pressure
    signal, then admission, then local response, then protection, then reaping.
+   Protection moves behind the Tickets world's `protection.signalbox`: a fill puts the helper
+   share and the machine fuse (rated by `cpu_budget`) to `Breaker.Trip` in the order `Breaker`'s
+   Order rows declare, and only a tripped breaker whose row `holds` new starts stops coders. The
+   shadow's fill ruling does not yet read the breakers, so while the machine fuse holds it records
+   "start" against Delegate's "wait"; that disagreement is the shadow's, not Delegate's.
 4. **Delete.** Once every function has moved and held for a measured day, Delegate's machinery and the
    settings it alone read are deleted.
 

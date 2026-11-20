@@ -1,0 +1,34 @@
+# frozen_string_literal: true
+
+require_relative "protection_switch"
+require_relative "protecting"
+
+module Hecks
+  module Adapters
+    class Dispatching
+      # What a filling reads of protection: with the owner's `protection.signalbox` switch on, the
+      # boot-budget hold is Signalbox's breakers ({Protecting}), so the machine fuse holds new
+      # coders only once no smaller breaker can act, and the header names the breaker that acts
+      # first. Off, the `cpu_budget` boot fuse ({Settings#boot_stop}) holds as before. It reads the
+      # registry, machine and stand-ins of the {Dispatching} that includes it; `protecting:` stands
+      # in.
+      module ProtectionReads
+        private
+
+        # @return [String, nil] why every coder waits on a fuse, nil when none holds them
+        def fuse_stop = protecting ? protecting.stop : machine.boot_stop
+
+        # @return [String] `; <the protection clause>` with the switch on, else nothing
+        def protection_clause = protecting ? "; #{protecting.clause}" : ""
+
+        def protecting
+          return @standins[:protecting] if @standins.key?(:protecting)
+          return unless ProtectionSwitch.on?(@registry)
+
+          @protecting ||= Protecting.new(budget: machine.boot_budget, boots: machine.boots, legacy: -> { machine.boot_stop },
+                                         sessions: -> { Metering.new(registry: @registry).rows })
+        end
+      end
+    end
+  end
+end

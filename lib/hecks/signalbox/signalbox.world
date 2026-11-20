@@ -27,9 +27,10 @@ Hecks.world "Signalbox" do
   mcp_servers "Admission", architect: ["hecks"], hecks_helper: ["hecks"], hecks_composer: ["hecks"],
                            hecks_agent: ["hecks"]
 
-  # Protection, smallest first. The machine fuse keeps the boot-hours budget the 24.16 of 24 trip
-  # read against; `gap` is how far under its rating a breaker's load falls before it resets.
-  breakers "Breaker", helpers_percent: 100, shedding_min_coders: 2, machine_boot_hours: 24, reset_gap_percent: 10
+  # Protection, in `Breaker`'s Order. The helper share is `helpers_percent` of the live coders; the
+  # machine fuse is rated by the Tickets world's `cpu_budget`; the model fuse is unrated until ADR
+  # 0220's bound is set. `gap` is how far under its rating a load falls before a breaker resets.
+  breakers "Breaker", helpers_percent: 100, shedding_min_coders: 2, reset_gap_percent: 10
 
   # One standing orchestrator seat at most; a gone seat is the only one restarted.
   seats "Admission", orchestrator: 1
