@@ -1,11 +1,15 @@
 require "json"
 
+require_relative "../../../ports/persistence/archiving_put"
+
 module Hecks
   module Adapters
     class PostgresEra
       # Writing and reading the journal: every append, with the head snapshot and field caches
       # it keeps current in the same transaction, and the reads of the whole journal.
       module Journal
+        include Ports::Persistence::ArchivingPut
+
         # Appends one entry to the journal and updates the head snapshot and every field cache,
         # all in one transaction under the domain's write lock.
         #
@@ -47,19 +51,21 @@ module Hecks
         # that guards the write.
         #
         # @param entry [Ports::Persistence::Entry] the save to journal
-        # @param insert_only [Boolean] when true, an id already in the head is left untouched
+        # @param insert_only [Boolean] when true, an id in the head the rule does not replace is
+        #   left untouched
+        # @param replace_when [Ports::Persistence::ReplaceWhen, nil] when an occupant has ended and
+        #   is archived under `<id>~<n>` under the same lock
         # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` hit a
-        #   record
+        #   live record
         # @raise [Runtime::WiringError] if this boot's shape is not minted yet, or its era has been
         #   superseded by a mint
         # @raise [PG::Error] if Postgres refuses a statement
-        def atomic_put(entry, insert_only: false)
+        def atomic_put(entry, insert_only: false, replace_when: nil)
           refuse_unwritable_boot!(entry)
           status = nil
           transaction do
             lock_writes!
-            status = put_status(head_row?(entry.id), insert_only)
-            append_and_project!(entry) unless status == :conflicted
+            status = archiving_put(entry, insert_only, replace_when)
           end
           status
         end
@@ -138,15 +144,12 @@ module Hecks
             "reboot to write again."
         end
 
-        def head_row?(id)
+        def occupied?(id)
           !@db.exec_params("SELECT 1 FROM #{quoted_head} WHERE id = $1 LIMIT 1", [id.to_s]).ntuples.zero?
         end
 
-        def put_status(exists, insert_only)
-          return :conflicted if insert_only && exists
-
-          exists ? :replaced : :inserted
-        end
+        # Journals and snapshots in the transaction `atomic_put` holds, under its lock.
+        def write_put(entry) = append_and_project!(entry)
 
         def entry_from_row(row)
           state = row["state"] && JSON.parse(row["state"])

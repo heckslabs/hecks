@@ -49,4 +49,20 @@ RSpec.describe "PostgresEra execution-plan capabilities", :io do
   end
 
   it_behaves_like "an atomic_put adapter"
+
+  # Runs where Postgres is reachable; the io job in CI covers it.
+  describe "archiving an ended occupant" do
+    include_context "with the archiving Ticket aggregate"
+
+    let(:aggregate) { ticket_aggregate("PostgresEraArchiving") }
+    let(:source) { "Hecks.bluebook \"PostgresEraArchiving\" do\n  aggregate \"Ticket\" do\n  end\nend\n" }
+    let(:store) do
+      settings = { database: EXECUTION_PLAN_DB, domain: "PostgresEraArchiving" }
+      Hecks::Ports::Persistence::AppendOnly.new(Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: settings))
+    end
+
+    before { hold_first_era!(url: EXECUTION_PLAN_DB, domain: "PostgresEraArchiving", source: source) }
+
+    it_behaves_like "an archiving atomic_put adapter"
+  end
 end
