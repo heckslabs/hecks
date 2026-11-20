@@ -4,6 +4,7 @@ require "json"
 require "time"
 require_relative "cache"
 require_relative "rules"
+require_relative "rows"
 require_relative "session_context"
 
 module Hecks
@@ -28,8 +29,8 @@ module Hecks
         @now = settings[:now] || -> { Time.now }
       end
 
-      # @return [Hash{Symbol => String}] `text:` the sessions as JSON, busy first, then newest first
-      def sessions = { text: JSON.generate(rows) }
+      # @return [Array<Hash>] the sessions as `SessionLine` rows, busy first, then newest first
+      def sessions = PipelineBoard::Rows.of("SessionLine", rows)
 
       # @return [Array<Hash>] the sessions, each with `id`, `name`, `status`, `state`, `detail`,
       #   `started`, `ended` and the `work_item` it was dispatched for
@@ -77,7 +78,7 @@ module Hecks
         status = status_of(state, agent, age)
         row = { id: id, name: name_of(id, agent, state), status: status, state: live_state(state, agent),
                 detail: state["detail"].to_s.slice(0, 140), started: stamp(agent, edges),
-                ended: ended_of(status, edges) }
+                ended: ended_of(status, edges), idle_seconds: age.round }
         row.merge(ran_of(ran || {})).merge(context_of(status, state))
       end
 

@@ -31,9 +31,9 @@ module Hecks
         @stamp = @source&.stamp
       end
 
-      # @return [Hash{Symbol => String}] `text:` the graph as JSON: `nodes` and `edges`
+      # @return [Array<Hash>] the graph's edges as `WiringEdge` rows: `from`, `to`, `label`, `kind`
       # @raise [PipelineBoard::Unavailable] when no registry is booted here
-      def wiring = { text: JSON.generate(graph) }
+      def wiring = graph[:edges].map { |edge| edge.slice(:from, :to, :label, :kind).transform_values(&:to_s) }
 
       # @return [Hash] `nodes` (aggregates, ports, adapters) and `edges` (policy, ask, adapter),
       #   as the bluebook files declare them now

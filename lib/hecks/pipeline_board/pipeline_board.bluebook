@@ -1,15 +1,22 @@
 # PipelineBoard: the pipeline from coding to release, read live and shown on one local page. The
-# read side is six queries, each answered by an adapter behind a port: GitHub for the CI runs, Git
+# read side is queries, each answered by an adapter behind a port: GitHub for the CI runs, Git
 # for local main and the train, Tickets for the Work items, Jobs for the sessions, Journal for the
 # events the tooling recorded. The bluebook names the questions and never fetches, shells out or
 # opens a file.
+#
+# The read model is typed. `Board` answers one `Snapshot`: its `Stage` rows (the strip), its
+# `Reading` rows (every other number, one key each), what is stuck, the roles, the runs, the
+# train, the release and the newest events. Every other query answers rows of a value object
+# declared here, and the runtime refuses an adapter's answer that is not that shape. Only the
+# two texts drawn for a terminal (`Snapshot`, the panel, and `TurnBlock`) answer a `Document`.
+# `Board` takes the name `Snapshot` when the panel's command moves.
 #
 # The commands are `Serve` and `Act`. `Serve` opens the page on 127.0.0.1 and answers `GET /` and
 # `GET /api/state` until it is stopped. `Act` is the page's one way to change anything: `POST
 # /api/act` runs one of the steps in the `ActionRule` rows (answer a blocked session, reply, check
 # in, tidy, discard, board a train, promote), and a step that moves code runs only once confirmed.
-# Every other request only reads. A read that fails answers `unknown: <reason>` for its stage and
-# leaves the others alone.
+# Every other request only reads. A read that fails is a `Stage` or a `Reading` in state `unknown`
+# with the reason as its note, and leaves the others alone.
 #
 # What the board says is decided here, not in its adapters. The `Verdict` rows say which state a
 # stage or a tile is in, the `Setting` rows hold the numbers those rules compare with, the
@@ -54,9 +61,218 @@ Hecks.bluebook "PipelineBoard" do
       attribute :value, String, matches: :present
     end
 
-    # A JSON document: the results of a query, or `unknown: <reason>` for a read that failed.
+    # A text drawn for a terminal: the panel, or one turn's block. Never JSON.
     value_object "Document" do
       attribute :text, String
+    end
+
+    # One number the board shows, under one key, read once. `state` is decided by a `Verdict` row
+    # and never by an adapter; a read that failed is a `Reading` in state `unknown` with the
+    # reason as its `note`. `source` is the port it came from and `fresh_at` when it was read.
+    value_object "Reading" do
+      attribute :key,      String, matches: :present
+      attribute :label,    String
+      attribute :value,    String, default: ""
+      attribute :unit,     String, default: ""
+      attribute :state,    String
+      attribute :note,     String, default: ""
+      attribute :since,    String, default: ""
+      attribute :link,     String, default: ""
+      attribute :source,   String, default: ""
+      attribute :fresh_at, String, default: ""
+
+      invariant("a reading's state is ok, attention, failed, working or unknown") do
+        state == "ok" || state == "attention" || state == "failed" || state == "working" || state == "unknown"
+      end
+    end
+
+    # One node of the strip: a `Reading` and where it stands, left to right.
+    value_object "Stage" do
+      attribute :key,      String, matches: :present
+      attribute :label,    String
+      attribute :value,    String, default: ""
+      attribute :unit,     String, default: ""
+      attribute :state,    String
+      attribute :note,     String, default: ""
+      attribute :since,    String, default: ""
+      attribute :link,     String, default: ""
+      attribute :source,   String, default: ""
+      attribute :fresh_at, String, default: ""
+      attribute :order,    Integer
+
+      invariant("a stage's state is ok, attention, failed, working or unknown") do
+        state == "ok" || state == "attention" || state == "failed" || state == "working" || state == "unknown"
+      end
+    end
+
+    # One thing the pipeline is stuck on: `kind` is `blocked_run`, `red_main`, `stalled_session`,
+    # `train_blocked` or `owner_ask`, and `owner_run` the run that owns it.
+    value_object "StuckItem" do
+      attribute :kind,      String
+      attribute :what,      String
+      attribute :since,     String, default: ""
+      attribute :owner_run, String, default: ""
+      attribute :link,      String, default: ""
+    end
+
+    # One run: its role, session and condition, the Work item it holds, the seconds since its
+    # session last wrote its state, and its last word (the verdict of its newest finished turn).
+    value_object "RunCard" do
+      attribute :run,          String
+      attribute :role,         String, default: ""
+      attribute :session,      String, default: ""
+      attribute :condition,    String, default: ""
+      attribute :work_item,    String, default: ""
+      attribute :idle_seconds, Integer, default: 0
+      attribute :last_word,    String, default: ""
+      attribute :link,         String, default: ""
+    end
+
+    # The open train pull request: its checks counted, its red jobs by name.
+    value_object "TrainCard" do
+      attribute :pr,         Integer, default: 0
+      attribute :head_sha,   String, default: ""
+      attribute :commits,    Integer, default: 0
+      attribute :green,      Integer, default: 0
+      attribute :red,        Integer, default: 0
+      attribute :skipped,    Integer, default: 0
+      attribute :red_jobs,   String, default: ""
+      attribute :auto_merge, String, default: ""
+      attribute :age,        String, default: ""
+      attribute :state,      String, default: "unknown"
+      attribute :superseded, String, default: ""
+    end
+
+    # The release as it stands: the latest tag, the version the next one takes and what holds it.
+    value_object "ReleaseCard" do
+      attribute :latest_tag,                String, default: ""
+      attribute :next_version,              String, default: ""
+      attribute :changelog_heading,         String, default: ""
+      attribute :stable_has_version_commit, String, default: ""
+      attribute :holds,                     String, default: ""
+    end
+
+    # One recorded event: when, which aggregate and record, and the policies that reacted.
+    value_object "EventLine" do
+      attribute :at,        String, default: ""
+      attribute :aggregate, String, default: ""
+      attribute :id,        String, default: ""
+      attribute :name,      String
+      attribute :source,    String, default: ""
+      attribute :reactions, String, default: ""
+    end
+
+    # One CI run as the CI records hold it: `event` is `push` for main, `pull_request` for a train.
+    value_object "CiRun" do
+      attribute :id,           Integer, default: 0
+      attribute :sha,          String
+      attribute :started,      String, default: ""
+      attribute :status,       String, default: ""
+      attribute :conclusion,   String, default: ""
+      attribute :pushed,       String, default: ""
+      attribute :url,          String, default: ""
+      attribute :event,        String, default: ""
+      attribute :failed_jobs,  Integer, default: 0
+      attribute :wall_minutes, Float, default: 0.0
+    end
+
+    # One job of a CI run and the minutes it took.
+    value_object "JobTime" do
+      attribute :name,       String
+      attribute :minutes,    Float, default: 0.0
+      attribute :conclusion, String, default: ""
+    end
+
+    # One flake: a job or spec file an earlier attempt of a run failed and a later one passed,
+    # how many runs it flaked in and their branches, and how far back the runs read reach.
+    value_object "Flake" do
+      attribute :item,         String
+      attribute :kind,         String, default: ""
+      attribute :count,        Integer
+      attribute :branches,     String, default: ""
+      attribute :reaches_back, String, default: ""
+      attribute :unreadable,   Integer, default: 0
+    end
+
+    # One undone Work item as the plan shows it.
+    value_object "WorkLine" do
+      attribute :slug,           String
+      attribute :status,         String, default: ""
+      attribute :title,          String, default: ""
+      attribute :area,           list_of(String)
+      attribute :claimed_by,     String, default: ""
+      attribute :claimed_at,     String, default: ""
+      attribute :priority,       String, default: ""
+      attribute :category,       String, default: ""
+      attribute :epic,           String, default: ""
+      attribute :budget_minutes, Integer, default: 0
+      attribute :yield_count,    Integer, default: 0
+      attribute :reason,         String, default: ""
+      attribute :step,           String, default: ""
+      attribute :decision,       String, default: ""
+    end
+
+    # One dispatched session: its status by the `Session status` rows, the job's own state, the
+    # run and Work item it holds and the seconds since its job last wrote.
+    value_object "SessionLine" do
+      attribute :id,            String
+      attribute :name,          String, default: ""
+      attribute :status,        String, default: ""
+      attribute :state,         String, default: ""
+      attribute :detail,        String, default: ""
+      attribute :started,       String, default: ""
+      attribute :ended,         String, default: ""
+      attribute :idle_seconds,  Integer, default: 0
+      attribute :work_item,     String, default: ""
+      attribute :run,           String, default: ""
+      attribute :repo,          String, default: ""
+      attribute :agent,         String, default: ""
+      attribute :works_as,      String, default: ""
+      attribute :superseded_by, String, default: ""
+      attribute :parent,        String, default: ""
+      attribute :question_kind, String, default: ""
+    end
+
+    # One Work item's cycle: its seconds so far, each stage's seconds in order as words, and the
+    # stage still open while the item is in flight.
+    value_object "Cycle" do
+      attribute :work,    String
+      attribute :started, String, default: ""
+      attribute :seconds, Integer, default: 0
+      attribute :open,    String, default: ""
+      attribute :stages,  String, default: ""
+    end
+
+    # One run the MainIntegration saga remembers: `parked` is `yes` for one that waits on a person.
+    value_object "IntegrationRun" do
+      attribute :landed,  String
+      attribute :stage,   String
+      attribute :at,      String, default: ""
+      attribute :minutes, Integer, default: 0
+      attribute :parked,  String, default: ""
+    end
+
+    # One edge of the wiring: `kind` is `policy`, `ask` or `adapter`, and `label` the policy.
+    value_object "WiringEdge" do
+      attribute :from,  String
+      attribute :to,    String
+      attribute :label, String, default: ""
+      attribute :kind,  String
+    end
+
+    # The board's whole read model, as the page, the text panel and the MCP door render it.
+    # `stale_seconds` is the age of the read it holds. Every number is one `Reading` or `Stage`.
+    value_object "Snapshot" do
+      attribute :generated_at,  String
+      attribute :stale_seconds, Integer, default: 0
+      attribute :stages,        list_of(Stage)
+      attribute :readings,      list_of(Reading)
+      attribute :stuck,         list_of(StuckItem)
+      attribute :roles,         list_of(Reading)
+      attribute :runs,          list_of(RunCard)
+      attribute :train,         list_of(TrainCard)
+      attribute :release,       ReleaseCard
+      attribute :events,        list_of(EventLine)
     end
 
     # How many columns a text panel is drawn in.
@@ -170,6 +386,40 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Pipeline health", position: 2, measure: "found", op: ">",       than: "0", scale: 1, state: "attention"
       member stage: "Pipeline health", position: 3, measure: "",      op: "always",  than: "",  scale: 1, state: "ok"
 
+      # A number with no bound of its own (commit to green CI, landed to pushed, the latest
+      # release's age): it is read, or it is not.
+      member stage: "Read", position: 1, measure: "value", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Read", position: 2, measure: "",      op: "always",  than: "", scale: 1, state: "ok"
+
+      # The room left on the disk, in gigabytes: failed at `disk_failed_gb` or less, attention at
+      # `disk_attention_gb` or less. The Hecks world's `disk_health` line overrides both.
+      member stage: "Disk free", position: 1, measure: "free_gb", op: "missing", than: "",                  scale: 1, state: "unknown"
+      member stage: "Disk free", position: 2, measure: "free_gb", op: "<=",      than: "disk_failed_gb",    scale: 1, state: "failed"
+      member stage: "Disk free", position: 3, measure: "free_gb", op: "<=",      than: "disk_attention_gb", scale: 1, state: "attention"
+      member stage: "Disk free", position: 4, measure: "",        op: "always",  than: "",                  scale: 1, state: "ok"
+
+      # The launcher's boot hours today as a percent of the day's budget (`share`, unread when no
+      # budget is set): failed once the budget is spent, attention from `boot_attention_percent`.
+      member stage: "Boot hours", position: 1, measure: "share", op: "missing", than: "",                       scale: 1, state: "ok"
+      member stage: "Boot hours", position: 2, measure: "share", op: ">=",      than: "100",                    scale: 1, state: "failed"
+      member stage: "Boot hours", position: 3, measure: "share", op: ">=",      than: "boot_attention_percent", scale: 1, state: "attention"
+      member stage: "Boot hours", position: 4, measure: "",      op: "always",  than: "",                       scale: 1, state: "ok"
+
+      # A live session whose job has written nothing for `session_idle_seconds` has stalled.
+      member stage: "Session idle", position: 1, measure: "idle_seconds", op: "missing", than: "",                     scale: 1, state: "unknown"
+      member stage: "Session idle", position: 2, measure: "idle_seconds", op: ">",       than: "session_idle_seconds", scale: 1, state: "attention"
+      member stage: "Session idle", position: 3, measure: "",             op: "always",  than: "",                     scale: 1, state: "working"
+
+      # An open train pull request, by its checks: any red fails it, any still going is working.
+      member stage: "Train PR", position: 1, measure: "red",     op: ">",      than: "0", scale: 1, state: "failed"
+      member stage: "Train PR", position: 2, measure: "pending", op: ">",      than: "0", scale: 1, state: "working"
+      member stage: "Train PR", position: 3, measure: "",        op: "always", than: "",  scale: 1, state: "ok"
+
+      # A role, by its live sessions.
+      member stage: "Role", position: 1, measure: "live", op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "Role", position: 2, measure: "live", op: ">",       than: "0", scale: 1, state: "working"
+      member stage: "Role", position: 3, measure: "",     op: "always",  than: "",  scale: 1, state: "ok"
+
       # ---- a session's status, from what its job and `claude agents` say ----
       # `waiting` is 1 when the job says blocked and is listed or recently written; `needs` is 1
       # when the job set `needs`, which is how it says it waits on a person. A session paused on a
@@ -250,6 +500,13 @@ Hecks.bluebook "PipelineBoard" do
       # How many integration runs the Integration tile lists: the runs the event log's tail holds
       # an event of first, newest first, then those parked for a person.
       member name: "integration_runs_shown",  value: 8
+      # Gigabytes free on the checkout's volume at which the disk needs attention, and fails.
+      member name: "disk_attention_gb",       value: 20
+      member name: "disk_failed_gb",          value: 5
+      # The percent of the day's boot budget from which the boot hours need attention.
+      member name: "boot_attention_percent",  value: 80
+      # Seconds a live session's job may write nothing before the session reads as stalled.
+      member name: "session_idle_seconds",    value: 900
     end
 
     # A project that keeps a board: its name and its checkout beside Hecks, whose local world
@@ -467,55 +724,65 @@ Hecks.bluebook "PipelineBoard" do
       emits BoardRefused
     end
 
+    query "Board" do
+      description "The board's whole read model as one Snapshot: the strip's stages, every other reading under its one key, what is stuck, the roles, the runs, the open train pull requests, the release and the newest events. It reads only, and the board need not be running."
+      returns Snapshot
+    end
+
     query "Stages" do
-      description "One entry per stage, left to right: Work items, Sessions, Local main, Train, CI, Promote, Release, each with its state, count and a one-line detail."
-      returns Document
+      description "One Stage per node of the strip, left to right: Work items, Sessions, Local main, Integration, Train, CI, Promote, Release, and ahead of them the rows built only while something needs a person. Each has its state, its count as the value and a one-line note."
+      returns list_of(Stage)
+    end
+
+    query "Readings" do
+      description "Every number the board shows that is not on the strip, one Reading per key: CI success, median wall, failed jobs on the head, how long main has been red, commit to green, landed to pushed, commits not pushed, dispatched sessions, work finished, the latest release's age, disk, boot hours, open pull requests and the pipeline's health."
+      returns list_of(Reading)
     end
 
     query "CiRuns" do
       description "The last CI runs on main, oldest first: sha, started, wall minutes, conclusion and how many jobs failed."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(CiRun)
     end
 
     query "SlowestJobs" do
       description "The jobs of the last completed CI run, slowest first, in minutes."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(JobTime)
     end
 
     query "TrainCiRuns" do
       description "The last CI runs on train pull requests, oldest first, first attempts only (a rerun's wall time is not a run's): sha, started, wall minutes, conclusion and how many jobs failed."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(CiRun)
     end
 
     query "TrainSlowestJobs" do
       description "The jobs of the last completed first-attempt CI run on a train pull request, slowest first, in minutes."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(JobTime)
     end
 
     query "TrainFlakes" do
-      description "The flakes of the last 14 days on train pull requests, most often first: an item is a flake when an earlier attempt of a run failed it and a later attempt of the same run concluded success, counted once per run. A spec failure is told by its spec file, a failure before the specs by its job and step. A run that was closed, never passed or is still running is not counted. The answer says how far back the runs read reach (reaches_back) and how many runs could not be read."
+      description "The flakes of the last 14 days on train pull requests, most often first: an item is a flake when an earlier attempt of a run failed it and a later attempt of the same run concluded success, counted once per run. A spec failure is told by its spec file, a failure before the specs by its job and step. A run that was closed, never passed or is still running is not counted. Each row says how far back the runs read reach (reaches_back) and how many runs could not be read."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(Flake)
     end
 
     query "OpenWork" do
-      description "The Work items that are not done: slug, status and area."
-      returns Document
+      description "The Work items that are not done: slug, status, area and where each stands in the plan."
+      returns list_of(WorkLine)
     end
 
     query "ProjectWork" do
-      description "A project's epics and undone Work items, read from its own Tickets store without booting the project: `undone` by the rule of the Tickets bluebook's `Work.Undone`. A name no ProjectBoard row holds, or a store that cannot be found or read, answers `unknown: <reason>`."
+      description "A project's undone Work items, read from its own Tickets store without booting the project: `undone` by the rule of the Tickets bluebook's `Work.Undone`. A name no ProjectBoard row holds, or a store that cannot be found or read, is refused with the reason."
       attribute :project, String
-      returns Document
+      returns list_of(WorkLine)
     end
 
     query "Sessions" do
-      description "The busy and the recent dispatched sessions, with the job's own state."
-      returns Document
+      description "The busy and the recent dispatched sessions, with the job's own state and the seconds since it last wrote."
+      returns list_of(SessionLine)
     end
 
     query "Snapshot" do
@@ -527,42 +794,47 @@ Hecks.bluebook "PipelineBoard" do
     end
 
     query "Cycles" do
-      description "One cycle per recent Work item, newest first: each stage's start, end and seconds, the stage still open for an item in flight, and per stage the median and the cycle_percentile over the last cycle_items items."
+      description "One cycle per recent Work item, newest first: its seconds so far, each stage's seconds in order, and the stage still open for an item in flight."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(Cycle)
+    end
+
+    query "CycleStats" do
+      description "One Reading per stage of a Work item's cycle: the median seconds over the last cycle_items items, with the cycle_percentile and how many items closed the stage in its note."
+      returns list_of(Reading)
     end
 
     query "DailyHealth" do
-      description "What the pipeline found of its own day by the HealthCheck rows: boardings made by hand or of an unverified commit, verifications over their bound, Work items finished with parts not delivered, sessions left blocked or stopped and findings left open, each with its age, and one line that says it all. It reads only and alerts no one."
-      returns Document
+      description "What the pipeline found of its own day, one Reading per HealthCheck row: boardings made by hand or of an unverified commit, verifications over their bound, Work items finished with parts not delivered, sessions left blocked or stopped and findings left open. The value is how many were found and the note names each with its age. It reads only and alerts no one."
+      returns list_of(Reading)
     end
 
     query "IntegrationRuns" do
-      description "The runs the MainIntegration saga remembers: how many are stored in each stage, how many are being pushed or watched, how many are parked for a person, the newest advance, and the runs listed with the stage each is stored in and the time of its last recorded event. It reads the saga's checkpoints and the event log, and advances nothing."
-      returns Document
+      description "The runs the MainIntegration saga remembers, the most recently advanced first: the landed commit, the stage it is stored in, the time of its last recorded event and whether it is parked for a person. It reads the saga's checkpoints and the event log, and advances nothing."
+      returns list_of(IntegrationRun)
     end
 
     query "Wiring" do
-      description "What the loaded bluebooks wire together: aggregates, the policies between them, the ports an ask goes out through and the adapters that answer them."
-      returns Document
+      description "What the loaded bluebooks wire together, one edge each: a policy from an aggregate to the aggregate it triggers, an ask from an aggregate to a port, and a port to the adapter that answers it."
+      returns list_of(WiringEdge)
     end
 
     query "Events" do
-      description "The most recent events the tooling recorded, newest first: time, aggregate, event, and the policy that reacted where the journal holds one."
+      description "The most recent events the tooling recorded, newest first: time, aggregate, event, and the policies that reacted where the journal holds them."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(EventLine)
     end
 
     query "RunCards" do
-      description "One card per run, newest first: the run, its role, session and time, and its last word, the verdict of the run's newest TurnFinished."
+      description "One card per run, newest first: the run, its role and session, and its last word, the verdict of the run's newest TurnFinished."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(RunCard)
     end
 
     query "Stuck" do
       description "What the pipeline is stuck on, across runs: the stuck rows of each run's newest TurnFinished, with what, since when, the run that owns it and a link."
       attribute :limit, Limit, optional: true
-      returns Document
+      returns list_of(StuckItem)
     end
 
     query "TurnBlock" do

@@ -24,7 +24,12 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_flakes" do
     described_class.new(settings: { gh: ->(*) { raise "gh asked" }, seats: -> { seats }, ttl: 0 })
   end
 
-  def flakes(subject) = JSON.parse(subject.train_flakes[:text])
+  def flakes(subject) = JSON.parse(JSON.generate(subject.flakes))
+
+  it "answers each flake as a Flake row, with its branches and how far back the runs reach" do
+    row = adapter(flaked(1)).train_flakes.first
+    expect(row).to include(item: "rspec_shard (3)", kind: "job", count: 1, branches: "train/main-1", reaches_back: today)
+  end
 
   it "lists the job that failed attempt 1 and passed on the rerun once", :aggregate_failures do
     row = flakes(adapter(flaked(1)))["flakes"]

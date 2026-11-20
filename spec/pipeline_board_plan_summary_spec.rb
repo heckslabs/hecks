@@ -53,7 +53,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanSummary do
       held_events = events
       Class.new do
         define_method(:plan_events) { { work: held_events, epic: [] } }
-        def open_work = raise("a draw scanned the Work items")
+        def undone_work = raise("a draw scanned the Work items")
       end.new
     end
     let(:tile) do

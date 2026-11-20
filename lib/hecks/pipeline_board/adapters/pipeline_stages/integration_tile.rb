@@ -18,8 +18,6 @@ module Hecks
         end
 
         # @return [Hash{Symbol => String}] `text:` the runs of the MainIntegration saga, as JSON
-        def integration_runs = { text: JSON.generate(guard { @integration.reading }) }
-
         private
 
         # The readers of the stores: those of the work and, over the same store and the journal
