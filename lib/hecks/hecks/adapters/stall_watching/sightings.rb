@@ -153,9 +153,10 @@ module Hecks
 
         def sighting(kind, subject, at, run)
           waited = waited(at)
-          { id: run, stall: key(kind, subject), stall_kind: kind[:kind], subject: subject,
-            opened_at: at.to_s, waited: waited, minutes: kind[:minutes], forgets: kind[:forgets],
-            fixer: kind[:fixer], title: title(kind, subject), detail: detail(kind, subject, at, waited), filed: "", count: 1 }
+          stall = key(kind, subject)
+          { id: run, stall: stall, stall_kind: kind[:kind], subject: subject, opened_at: at.to_s, waited: waited,
+            minutes: kind[:minutes], forgets: kind[:forgets], fixer: kind[:fixer], title: title(kind, subject),
+            detail: detail(kind, subject, at, waited), filed: "", count: 1, impediment: stall }
         end
 
         def title(kind, subject) = "#{kind[:kind]} stalled: #{kind[:aggregate]} #{subject}"

@@ -88,6 +88,10 @@ Hecks.bluebook "Agents" do
       # The one Passage command it issues, and the read of the passages it marked.
       member role: "orchestrator", pattern: "Passage.stall!"
       member role: "orchestrator", pattern: "Passage.stalled"
+      # The calls for help it reads and assigns; raising one is the scrum master's, never its own.
+      member role: "orchestrator", pattern: "HelpWanted.open"
+      member role: "orchestrator", pattern: "HelpWanted.unassigned"
+      member role: "orchestrator", pattern: "HelpWanted.assign!"
       member role: "orchestrator", pattern: "git status"
       member role: "orchestrator", pattern: "git log"
       member role: "orchestrator", pattern: "git diff"
