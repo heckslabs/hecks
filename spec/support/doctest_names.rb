@@ -1,4 +1,5 @@
 require_relative "doctest"
+require "hecks/doc/pages/catalogue"
 
 # Tracks which markdown doctest owns which bluebook name: installed bluebook
 # names are never uninstalled, so collisions must be caught before boot.
@@ -7,22 +8,19 @@ module DoctestNames
 
   module_function
 
-  # AUTHORING.md and index.md aren't guides with claims of their own to back.
+  # The pages whose doctested regions the Docs catalogue declares: every guide with claims of its
+  # own to back, and README.md.
   #
   # @return [Array<String>] every guide's own path, README.md included
   def guides
-    (Dir.glob(File.join(ROOT, "docs/implemented/guides/*.md")) -
-     [File.join(ROOT, "docs/implemented/guides/AUTHORING.md"),
-      File.join(ROOT, "docs/implemented/guides/index.md")]) +
-      [File.join(ROOT, "README.md")]
+    Hecks::Doc::Pages::Catalogue.new(ROOT).guide_doctest_paths.map { |path| File.join(ROOT, path) }
   end
 
-  # Lists the DSL reference pages, one runnable example per word.
+  # The DSL reference word pages the Docs catalogue declares, one runnable example per word.
   #
   # @return [Array<String>] every DSL reference page's own path
   def reference
-    Dir.glob(File.join(ROOT, "docs/implemented/reference/*.md")) -
-      [File.join(ROOT, "docs/implemented/reference/index.md")]
+    Hecks::Doc::Pages::Catalogue.new(ROOT).reference_paths.map { |path| File.join(ROOT, path) }
   end
 
   # Lists every document this gate covers.
