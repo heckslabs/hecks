@@ -1,0 +1,56 @@
+Hecks.behaviors "EventDelivery" do
+  vision "A delivery is claimed before it is answered, redriven only when it failed, and a cursor never moves back."
+
+  loads "event_delivery.bluebook", "governance.bluebook",
+        "../../../../spec/fixtures/event_delivery/event_delivery.hecksagon",
+        "../../../../spec/fixtures/change/governance.hecksagon"
+
+  test "Enqueue refuses a delivery that is not named" do
+    tests "Enqueue", on: "Delivery"
+    input delivery_id: { value: "" }, event_id: { value: "e1" }, domain: { value: "Pizzas" },
+          consumer: { value: "policy:Pizzas::Bake" }, kind: { value: "reaction" }
+    expect refused: "must match"
+  end
+
+  test "Enqueue owes the event to its consumer, pending" do
+    tests "Enqueue", on: "Delivery"
+    input delivery_id: { value: "e1/policy:Pizzas::Bake" }, event_id: { value: "e1" }, domain: { value: "Pizzas" },
+          consumer: { value: "policy:Pizzas::Bake" }, kind: { value: "reaction" }
+    expect status: "pending"
+  end
+
+  test "Deliver refuses a delivery nobody claimed" do
+    tests "Deliver", on: "Delivery"
+    setup  "EventDelivery::Delivery.Enqueue", delivery_id: { value: "d2" }, event_id: { value: "e2" },
+           domain: { value: "Pizzas" }, consumer: { value: "policy:Pizzas::Bake" }, kind: { value: "effect" }
+    input  delivery_id: { value: "d2" }
+    expect refused: "pending"
+  end
+
+  test "Redrive owes a failed delivery again" do
+    tests "Redrive", on: "Delivery"
+    setup  "EventDelivery::Delivery.Enqueue", delivery_id: { value: "d3" }, event_id: { value: "e3" },
+           domain: { value: "Pizzas" }, consumer: { value: "policy:Pizzas::Bake" }, kind: { value: "reaction" }
+    setup  "EventDelivery::Delivery.Claim", delivery_id: { value: "d3" }
+    setup  "EventDelivery::Delivery.Fail", delivery_id: { value: "d3" }, error: { value: "boom" }
+    input  delivery_id: { value: "d3" }
+    expect status: "pending"
+  end
+
+  test "Advance refuses moving a cursor back" do
+    tests "Advance", on: "Consumer"
+    setup  "EventDelivery::Consumer.Start", key: { value: "Pizzas/Bake" }, log: { value: "Pizzas" },
+           consumer: { value: "policy:Pizzas::Bake" }
+    setup  "EventDelivery::Consumer.Advance", key: { value: "Pizzas/Bake" }, to: { value: 5 }
+    input  key: { value: "Pizzas/Bake" }, to: { value: 3 }
+    expect refused: "a cursor never moves back"
+  end
+
+  test "Record refuses a reaction already recorded" do
+    tests "Record", on: "Reaction"
+    setup  "EventDelivery::Reaction.Record", key: { value: "k1" }, consumer: { value: "Pizzas" },
+           event_id: { value: "e1" }, policy: { value: "Bake" }
+    input  key: { value: "k1" }, consumer: { value: "Pizzas" }, event_id: { value: "e1" }, policy: { value: "Bake" }
+    expect refused: "already"
+  end
+end
