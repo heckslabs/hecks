@@ -31,6 +31,24 @@ module Hecks
           "#{@row[:measure]} read #{number}: #{counted} in the last #{@row[:minutes]} minutes; wanted #{bounds}."
         end
 
+        # How far back the reading could see: the minutes from the oldest line the tap still keeps
+        # to now, and no more than the row's window. A tap that keeps no line saw nothing.
+        #
+        # @param lines [Array<Hash>] tap lines
+        # @return [Integer] the minutes of the row's window the tap covers
+        def sight(lines)
+          oldest = lines.filter_map { |line| line["at"] && at(line) }.min
+          oldest ? ((@now - oldest) / 60).clamp(0, @row[:minutes].to_i) : 0
+        end
+
+        # @param lines [Array<Hash>] tap lines
+        # @return [String] how far back the reading saw, in words
+        def sight_words(lines) = "The tap saw back #{sight(lines)} of #{@row[:minutes]} minutes."
+
+        # @param number [Integer] what was read
+        # @return [Boolean] whether the number lies within the row's bounds
+        def met?(number) = number >= @row[:at_least].to_i && (@row[:at_most].nil? || number <= @row[:at_most])
+
         private
 
         def per_id? = @row[:per] == "id"
