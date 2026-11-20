@@ -1,5 +1,6 @@
 # The commands
 
+<!-- prose anchor="The commands" purpose="concept" mentions="keyword:RetiredScript" supports="code_file:lib/hecks/language/bluebook/vocabulary.bluebook code_file:lib/hecks/tools/tools_doc.rb" -->
 Every job the `bin/` scripts did is a command of the `Hecks` bluebook or of a bluebook it attaches, and the
 `hecks` launcher answers it. This page covers only those retired scripts; commands that never had one
 (for example `site_projection.check_site`, `operation.bootstrap_admin`, `promotion_run.promote`) are not
@@ -85,6 +86,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks site site_projection.project_site! <domain> [out=] [template=] [cms=] [root=] [editor=] [extension=] [--check]` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
+<!-- prose anchor="Site, for clients" purpose="concept" mentions="aggregate:SiteProjection command:SiteProjection.project_site!" supports="doc:docs/site-routes.md code_file:lib/hecks/site/bluebook/site.bluebook" -->
 `project_site` has no retired script to point at, so its row names `(new)` for the script; see
 `docs/site-routes.md`. It writes `routes.ts` (`routes.mts` with `extension=mts`, for a commonjs package) and, when the
 project declares an edge, rewrites the marked regions of the infrastructure template with the CloudFront behaviours and,
@@ -145,6 +147,7 @@ still need a checkout.
 
 ## Releasing from CI
 
+<!-- prose anchor="Releasing from CI" purpose="tutorial" supports="code_file:.github/workflows/release.yml" -->
 `.github/workflows/release.yml` cuts a release, so it does not need `hecks publishing_run.publish --confirm` run
 from a laptop. It starts when a commit on `main` changes `lib/hecks/version.rb` (the merged release PR), or by
 hand with `gh workflow run release.yml -f tag=vX.Y.Z`. It refuses unless `Hecks::VERSION`,
