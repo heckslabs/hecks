@@ -326,6 +326,9 @@ queries (nothing here changes anything):
   Machine:
     …
     busiest
+  Overload:
+    …
+    standing
   SessionCleanup:
     …
     removable
@@ -349,6 +352,7 @@ queries (nothing here changes anything):
     …
     status
     timeline
+    failures
   BoardingHold:
     …
     status
