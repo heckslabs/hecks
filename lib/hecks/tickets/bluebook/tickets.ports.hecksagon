@@ -29,6 +29,13 @@ Hecks.hecksagon "Tickets" do
       answers "AreaCleared"
       refuses "AreaRefused"
     end
+    # Whether each word of a planned or rescoped work item's area names a path in the checkout or
+    # a declaration of the bluebook it names, while the Tickets world's `area_names` is on.
+    asks "CheckNames", to: Work do
+      attribute :work, WorkKey
+      answers "AreaNamed"
+      refuses "AreaUnnamed"
+    end
   end
 
 # Whether a landing of a work item's branch is on main, which reads the Landing records and git
