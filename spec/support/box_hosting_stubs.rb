@@ -54,10 +54,13 @@ module BoxHostingStubs
             else tag="$(jq -r --arg k "$param" '.[] | select(.k == $k) | .v' "$STUB_DIR/params.json")"; fi
             echo "123456789012.dkr.ecr.us-east-1.amazonaws.com/widget-${name}:${tag}" ;;
         esac ;;
+      "ssm list-commands") [ ! -f "$STUB_DIR/in_progress" ] || cat "$STUB_DIR/in_progress" ;;
       "ssm send-command") printf '%s' "$args" > "$STUB_DIR/last_command"; echo cmd-1 ;;
       "ssm get-command-invocation")
         case "$args" in
           *StandardOutputContent*)
+            # A BoxState read lists the containers with their images; `containers` answers it.
+            if grep -q 'hecks box state' "$STUB_DIR/last_command"; then cat "$STUB_DIR/containers" 2>/dev/null; exit 0; fi
             # The settle check asks for the Compose file and the container list; the roll only the file.
             if grep -q '===PS===' "$STUB_DIR/last_command"; then cat "$STUB_DIR/box_report"
             else sed '/^===PS===$/,$d' "$STUB_DIR/box_report"; fi ;;
