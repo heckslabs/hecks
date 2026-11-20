@@ -87,6 +87,23 @@ Hecks.hecksagon "Agents" do
     end
   end
 
+  # A canary's scratch branch, cut through `LinkedTree.add!` and the patch committed in it; bound
+  # by adapters/scratch_branches, which never pushes. A refusal that begins "the patch does not
+  # apply" is the patch's; any other may pass.
+  Agents::Canary.port "ScratchBranches" do
+    asks "CutScratch", to: Canary do
+      attribute :canary,  CanaryName
+      attribute :base,    BaseRef
+      attribute :patch,   PatchText
+      attribute :finding, FindingWord
+      attribute :branch,  BranchName
+      attribute :message, CommitMessage
+      attribute :round,   Tally
+      answers "ScratchCut"
+      refuses "ScratchUncut"
+    end
+  end
+
   # The sessions claude lists, joined to the AgentRun ledger (adapters/fleet_control). The examines
   # read the facts Fleet's policies judge; the adapter refuses only a session not listed, a boot
   # with no ledger, and a command `claude` refused.
