@@ -1,8 +1,8 @@
 require "spec_helper"
 
-# A procedure coordinates; it is a saga when a leg also declares compensation.
-# `saga` is derived from that leg and never written in a .bluebook.
-RSpec.describe "a procedure, and when it is a saga" do
+# A saga coordinates; it compensates when a leg also declares compensation.
+# `compensation` is derived from that leg and never written in a .bluebook.
+RSpec.describe "a saga, and when it compensates" do
   # Coordination only: ordered steps, no undo.
   HIRING_DOMAIN = proc do
     vision "Carry a candidate from application to offer."
@@ -51,7 +51,7 @@ RSpec.describe "a procedure, and when it is a saga" do
   end
 
   def hiring
-    in_registry { Hecks.bluebook("Hiring", &HIRING_DOMAIN) }.bluebook("Hiring").process_managers.first
+    in_registry { Hecks.bluebook("Hiring", &HIRING_DOMAIN) }.bluebook("Hiring").sagas.first
   end
 
   # Banking's settlement compensates. Booted once per file; nothing dispatches.
@@ -61,33 +61,33 @@ RSpec.describe "a procedure, and when it is a saga" do
       MemoryPorts.load!
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
     end
-    @settlement = registry.bluebook("Banking").process_managers.find { |pm| pm.name == "Settlement" }
+    @settlement = registry.bluebook("Banking").sagas.find { |pm| pm.name == "Settlement" }
   end
 
   attr_reader :settlement
 
-  it "is a procedure without being a saga, when nothing needs undoing", :aggregate_failures do
+  it "compensates nothing, when nothing needs undoing", :aggregate_failures do
     expect(hiring.handlers).not_to be_empty
-    expect(hiring).not_to be_saga
-    expect(hiring.saga).to be_nil
+    expect(hiring).not_to be_compensates
+    expect(hiring.compensation).to be_nil
   end
 
-  it "is a saga once a leg says what makes a refusal good again", :aggregate_failures do
-    expect(settlement).to be_saga
-    expect(settlement.saga.to_state).to eq("reversed")
-    expect(settlement.saga.trigger).to eq("refused")
+  it "compensates once a leg says what makes a refusal good again", :aggregate_failures do
+    expect(settlement).to be_compensates
+    expect(settlement.compensation.to_state).to eq("reversed")
+    expect(settlement.compensation.trigger).to eq("refused")
   end
 
-  it "names what the saga undoes, in the order it undoes it" do
+  it "names what the compensation undoes, in the order it undoes it" do
     # The order is the author's: one hand-written `on :refused` leg.
-    expect(settlement.saga.undoes).to eq(
+    expect(settlement.compensation.undoes).to eq(
       ["Account.Credit", "Transfer.Reverse"]
     )
   end
 
   it "keeps the word out of the shared IR contract" do
-    # `saga?` is a reading of the source, not a fact about it, and the IR is a shared
+    # `compensates?` is a reading of the source, not a fact about it, and the IR is a shared
     # contract that must not carry derived fields.
-    expect(settlement.to_h.keys).not_to include(:saga, :saga?)
+    expect(settlement.to_h.keys).not_to include(:compensation, :compensates?)
   end
 end

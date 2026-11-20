@@ -1,4 +1,4 @@
-require_relative "behaviour/process_manager"
+require_relative "behaviour/saga"
 require_relative "../ir"
 require_relative "keyword_fields"
 
@@ -17,8 +17,8 @@ module Hecks
       )
     end
 
-    ProcessManagerHandler = Struct.new(:event_type, :from_state, :to_state,
-                                       :dispatches, keyword_init: true) do
+    SagaHandler = Struct.new(:event_type, :from_state, :to_state,
+                             :dispatches, keyword_init: true) do
       include Hecks::IR
 
       emits_ir(
@@ -31,7 +31,7 @@ module Hecks
 
     # The compensation half of a procedure: the commands sent to undo a refused leg.
     # `undoes` is a static declaration-order preview; per-instance order is the runtime's.
-    Saga = Struct.new(:trigger, :from_state, :to_state, :compensations, keyword_init: true) do
+    Compensation = Struct.new(:trigger, :from_state, :to_state, :compensations, keyword_init: true) do
       def undoes = compensations.map(&:command_name)
 
       def to_s = "#{trigger} → #{to_state} (#{undoes.join(", ")})"
@@ -39,13 +39,13 @@ module Hecks
 
     # The built form of a `process_manager "Name" do ... end` block, made by
     # `DSL::ProcessManagerBuilder`.
-    class ProcessManager
+    class Saga
       # The trigger of a compensating leg. Not an event name: no aggregate announces a declined
       # leg. Held to the language's Trigger vocabulary by spec/vocabulary_conformance_spec.
       REFUSED = Hecks::Vocabulary.fetch("Trigger").first
 
       include Hecks::IR
-      include Behaviour::ProcessManager
+      include Behaviour::Saga
 
       emits_ir(
         name:          :name,

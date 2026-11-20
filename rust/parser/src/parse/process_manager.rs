@@ -17,8 +17,8 @@ pub fn parse_body(
     lines: &[SourceLine],
     pos: &mut usize,
     name: &str,
-) -> ParseResult<ir::ProcessManager> {
-    let mut pm = ir::ProcessManager {
+) -> ParseResult<ir::Saga> {
+    let mut pm = ir::Saga {
         name: name.to_string(),
         ..Default::default()
     };
@@ -101,7 +101,7 @@ pub fn parse_body(
 
 /// Every state named by a handler's `from_state` or `to_state`, in first-seen order.
 /// Order matters: `begin_saga` starts a fresh instance in `pm.states.first`.
-pub(crate) fn derived_states(handlers: &[ir::ProcessManagerHandler]) -> Vec<String> {
+pub(crate) fn derived_states(handlers: &[ir::SagaHandler]) -> Vec<String> {
     let mut states = Vec::new();
     for handler in handlers {
         for state in [&handler.from_state, &handler.to_state] {
@@ -124,7 +124,7 @@ fn parse_transition(
     pos: &mut usize,
     line: usize,
     gated: &GatedLine<'_>,
-) -> ParseResult<Vec<ir::ProcessManagerHandler>> {
+) -> ParseResult<Vec<ir::SagaHandler>> {
     let pair_text = super::named_raw(&gated.args, "=>").ok_or_else(|| {
         Diagnostic::new(file, line, "'transition' names no 'event => state' pair")
     })?;
@@ -157,7 +157,7 @@ fn parse_transition(
 
     Ok(from_states
         .into_iter()
-        .map(|from_state| ir::ProcessManagerHandler {
+        .map(|from_state| ir::SagaHandler {
             event_type: event_type.clone(),
             from_state,
             to_state: to_state.clone(),

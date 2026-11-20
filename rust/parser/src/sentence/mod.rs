@@ -65,7 +65,7 @@ pub fn parse_bluebook(
                 declaration.aggregates.extend(parsed.aggregates);
                 declaration.policies.extend(parsed.policies);
                 declaration.read_models.extend(parsed.read_models);
-                declaration.process_managers.extend(parsed.process_managers);
+                declaration.sagas.extend(parsed.sagas);
                 if declaration.vision.is_none() {
                     declaration.vision = parsed.vision;
                 }

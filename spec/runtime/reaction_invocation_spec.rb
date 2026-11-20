@@ -92,7 +92,7 @@ RSpec.describe "reaction invocation routing" do
   # Locates the Carry process manager's WireAsked handler and drives deliver_saga_dispatch
   # directly; answers the calls the dispatcher received.
   def carry_calls(registry)
-    process_manager = registry.bluebook("Wire").process_managers.find { |candidate| candidate.name == "Carry" }
+    process_manager = registry.bluebook("Wire").sagas.find { |candidate| candidate.name == "Carry" }
     dispatch = process_manager.handler_for("WireAsked").dispatches.first
     dispatcher = RecordingReactionDispatcher.new
     event = wire_asked_event

@@ -2,8 +2,8 @@
 
 **Status:** Accepted (owner, 2026-11-02): saga. Date: 2026-11-02. Found by the ubiquitous-language
 survey of the same day; Tickets finding `ul-saga-vs-process-manager`. This record laid out both sides
-and recommended process manager; the owner picked saga. The word is settled; no rename in the table below is on `main` yet, and each
-row says so.
+and recommended process manager; the owner picked saga. The word is settled; the internal identifiers have moved, the language has not, and each
+row says which.
 
 ## Context
 
@@ -56,7 +56,8 @@ The renames, in two slices, language then internal identifiers:
 | Rust parser keyword and context `"ProcessManager"`; `parse/process_manager.rs` | `"saga"`, `"Saga"`; `parse/saga.rs` | open: Work `saga-language-slice` |
 | `policies-and-process-managers.md`, `reference/process_manager.md` | `policies-and-sagas.md`, `reference/saga.md` | open: Work `saga-language-slice` |
 | "process manager" in live docs, help text, comments | "saga" | open: Work `saga-language-slice` |
-| IR key `process_managers`; `ir::ProcessManager`; `Bluebook::ProcessManager` and its `Behaviour` | `sagas`; `ir::Saga`; `Bluebook::Saga` | open: Work `saga-internal-identifiers` |
+| IR key `process_managers`; `ir::ProcessManager`; `Bluebook::ProcessManager` and its `Behaviour` | `sagas`; `ir::Saga` and `ir::SagaHandler`; `Bluebook::Saga`, `Bluebook::SagaHandler` and `Behaviour::Saga`; the kernel's `SagaDef` and `SAGAS` table, its live instances `saga_instances`. The compensation half, once the Struct `Bluebook::Saga`, is `Bluebook::Compensation`, and `Behaviour::Saga` reads it as `compensation` and `compensates?` | built: Work `saga-internal-identifiers` |
+| `ProcessManagerBuilder::InvalidProcessManager` | `InvalidSaga`, held under `ProcessManagerBuilder` on purpose until `saga-language-slice` renames the builder | built: Work `saga-internal-identifiers` |
 | saga stores' `process_manager` column (`hecks_saga_instances`, `hecks_lambda_sagas`) | kept: a column rename is a shape move under ADR 0133's seals, and the column already lives in a table called sagas | kept |
 | ADR 0169 and 0170 titles | kept, as dated records; a note under each says the word was settled here | built |
 
@@ -72,8 +73,8 @@ The renames, in two slices, language then internal identifiers:
   and the host, so they move in their own slice, both sides at once, with the goldens regenerated.
 - Custom persistence adapters are untouched: `save_saga` already carried the chosen word.
 
-## Open question
+## Settled question
 
-- Whether `compensates` deserves its own noun once the construct is a process manager throughout.
-  Today a compensation is a dispatch with a direction; if a compensation run needs an identity to
-  report on, "saga" is free for it.
+- Whether `compensates` deserves its own noun once the construct is a saga throughout: it does.
+  The compensation half a saga reads off its refusal leg is a `Compensation`, so "saga" names the
+  construct alone.

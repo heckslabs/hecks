@@ -11,7 +11,7 @@ RSpec.describe "the transactional outbox" do
 
   OUTBOX_STALLED_ROW_WARNING =
     /outbox row .*policy:Shop::RecordOrder.*claimed before the last crash.*not redelivered/m
-  OUTBOX_HEKI_WARNING = %r{Shop declares policies/process_managers but its persistence adapter \(Heki\) has no outbox}
+  OUTBOX_HEKI_WARNING = %r{Shop declares policies/sagas but its persistence adapter \(Heki\) has no outbox}
 
   # Two aggregates, one policy between them: placing an Order owes the
   # Ledger a Record. The policy is the outbox's consumer; the Ledger row
