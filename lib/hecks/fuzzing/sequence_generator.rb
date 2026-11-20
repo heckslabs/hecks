@@ -10,12 +10,17 @@ require_relative "sequence_generator/outcome_tracker"
 require_relative "sequence_generator/query_binding"
 require_relative "sequence_generator/adversary"
 require_relative "sequence_generator/prefixing"
+require_relative "sequence_generator/drive"
+require_relative "sequence_generator/seeded_clock"
+require_relative "sequence_generator/options"
 
 module Hecks
   module Fuzzing
     # A random-but-valid sequence of dispatches and queries, in the `{name, note, steps}`
     # shape of `spec/corpus/*.json`, so a generated sequence replays as a corpus member.
-    # Each step is dispatched for real against a throwaway boot while the sequence is built.
+    # Each step is dispatched for real against a throwaway boot while the sequence is built, on
+    # the engine `engine:` names (see {Drive}); a needed fact the drawn arguments leave out is
+    # answered from a {SeededClock}, so the same seed gives the same steps on either engine.
     class SequenceGenerator
       include Catalog
       include Picker
@@ -24,6 +29,7 @@ module Hecks
       include QueryBinding
       include Adversary
       include Prefixing
+      include Options
 
       # Creating commands are always eligible; weighting them up reaches an actionable
       # state sooner without starving domains that have few aggregates.
@@ -50,6 +56,7 @@ module Hecks
       # @param dry_run [Float] fraction of command steps dispatched as dry runs
       # @param prefix [Hash, nil] `{"seed", "steps", "favor", "prefix"}` replayed first
       # @param favor [Array<String>] verbs the picker weights up
+      # @param engine [Symbol] `:ruby` (default) or `:kernel`, run by `binary:` or a fresh build
       # @return [Array<Hash>] the generated steps
       def self.generate(domain_path, seed:, steps:, **)
         new(domain_path, seed: seed, steps: steps, **).call
@@ -80,12 +87,13 @@ module Hecks
 
       # The keywords `.new` takes beyond `seed:` and `steps:`, with their defaults.
       OPTION_DEFAULTS = { adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0,
-                          prefix: nil, favor: [] }.freeze
+                          prefix: nil, favor: [], engine: :ruby, binary: nil }.freeze
 
       # Takes the same keywords as `.generate`, plus `adapter:` (default `:memory`).
       #
       # @raise [ArgumentError] if `adversarial`, `role_draw`, or `dry_run` is not a
-      #   Numeric between 0.0 and 1.0, or a keyword is not one `.new` takes
+      #   Numeric between 0.0 and 1.0, `engine` is not one `Drive::ENGINES` names, or a keyword
+      #   is not one `.new` takes
       def initialize(domain_path, seed:, steps:, **options)
         settings = OPTION_DEFAULTS.merge(options)
         validate_options!(settings)
@@ -98,42 +106,22 @@ module Hecks
         reset_run_state
       end
 
-      # Runs the generation against a fresh, isolated boot of the domain.
+      # Runs the generation against a fresh, isolated boot of the domain on the chosen engine.
       #
       # @return [Array<Hash>] the generated steps; a picker miss is dropped
       def call
         # Leftover data under the example's data/ would start the run from state
         # known_ids does not track; IsolatedBoot resets it and rebinds persistence to Memory.
         IsolatedBoot.call(@domain_path, adapter: @adapter) do |copy|
-          runtime = Hecks.boot(copy, environment: nil)
-          catalog = build_catalog(runtime)
-          @verbs  = catalog_verbs(catalog)
-          generate_steps(runtime, catalog)
+          Drive.open(@engine, copy, @domain_path, binary: method(:kernel_binary)) do |runtime|
+            catalog = build_catalog(runtime)
+            @verbs  = catalog_verbs(catalog)
+            generate_steps(runtime, catalog)
+          end
         end
       end
 
       private
-
-      def validate_options!(settings)
-        unknown = settings.keys - OPTION_DEFAULTS.keys
-        raise ArgumentError, "unknown keyword: #{unknown.first.inspect}" if unknown.any?
-
-        settings.slice(:adversarial, :role_draw, :dry_run).each do |name, fraction|
-          next if fraction.is_a?(Numeric) && fraction.between?(0, 1)
-
-          raise ArgumentError, "#{name}: must be a fraction between 0.0 and 1.0, got #{fraction.inspect}"
-        end
-      end
-
-      def configure(settings)
-        @adapter     = settings[:adapter]
-        @adversarial = settings[:adversarial].to_f
-        @role_draw   = settings[:role_draw].to_f
-        @dry_run     = settings[:dry_run].to_f
-        @prefix      = settings[:prefix]
-        @favor       = Array(settings[:favor])
-        @own_favor   = @favor
-      end
 
       # Everything a run accumulates: the ids it has seen, the rows it has written, what it has
       # exercised, and the coverage it has reached.
