@@ -8,10 +8,12 @@ module Hecks
   module Adapters
     class MainIntegration
       # The facts about a failed verification's range of landings that a rule about reverting
-      # needs: the first merge whose own specs fail, whether those specs are red at the last
-      # verified commit too, whether a landing of the range was already reverted, and whether the
-      # merge reached `origin/main`. It reads and decides nothing; whether to revert is the
-      # domain's rule. It runs outside any verification's copy, one probe after another.
+      # needs: the merge at which the failing example turned red while green at its first parent
+      # ({FirstBad}), whether it is red at the last verified commit too, whether a landing of the
+      # range was already reverted, and whether the merge reached `origin/main`. It reads and
+      # decides nothing; whether to revert is the domain's rule. It runs outside any
+      # verification's copy, one probe after another, all of a search's probes in one heavy-job
+      # place.
       class Bisecting
         # What the merge's keys hold when no merge failed. `searched` is false until a search ran,
         # and `examples` is empty unless the search is a red train's.
@@ -47,10 +49,23 @@ module Hecks
             held!(repository, landed)
             repository.refresh
             since = repository.remote_main
-            answer(TrainSearching.new(repository, runner: runner).call(landed, since, named).merge(examples: examples), since)
+            facts = in_a_place(repository, runner) { TrainSearching.new(repository, runner: runner).call(landed, since, named) }
+            answer(facts.merge(examples: examples), since)
           rescue StandardError, ConsoleCapture::Failure => e
             why = "#{Searching::UNFOUND}: the search could not run: #{e.message}"
             answer({ searched: true, examples: examples, reason: why }, "")
+          end
+
+          # Holds one heavy-job place for a whole search, so its probes share it and the launcher
+          # calls they start take none. A stand-in runner starts nothing heavy and takes no place.
+          #
+          # @param repository [Repository] the repository the search reads
+          # @param runner [#call, nil] the stand-in runner, nil when the real one runs
+          # @return [Object] what the block answered
+          def in_a_place(repository, runner, &)
+            return yield if runner
+
+            Codebase::HeavySlots.held(repository.checkout, ImpactedCheck::JOB, &).first
           end
 
           # @param facts [Hash, nil] what {.search} answered; nil when no search was made
@@ -88,9 +103,12 @@ module Hecks
 
         # @param repository [Repository] the repository the landings are in
         # @param failing [Array<String>] the spec files the failed verification named
-        # @param runner [#call, nil] stands in for {SpecProbe}: given a copy's directory and the
-        #   spec files, it returns, or raises `ConsoleCapture::Failure` when one is red
+        # @param runner [#call, nil] stands in for {MergeProbe::OneExample}: given a copy's
+        #   directory and the spec files, it returns, or raises `ConsoleCapture::Failure` when one
+        #   is red
         def initialize(repository, failing: [], runner: nil)
+          @repository = repository
+          @runner = runner
           @search = Searching.new(repository, failing: failing, runner: runner)
         end
 
@@ -99,7 +117,7 @@ module Hecks
         # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `work`,
         #   `finding`, `spec`, `example`, `base_red`, `already_reverted`, `local`, `searched` and
         #   `reason`; the merge's keys are "" when none failed
-        def facts(landed, since) = @search.call(landed, since)
+        def facts(landed, since) = self.class.in_a_place(@repository, @runner) { @search.call(landed, since) }
       end
     end
   end
