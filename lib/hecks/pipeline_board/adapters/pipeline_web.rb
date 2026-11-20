@@ -14,6 +14,7 @@ require_relative "pipeline_web/ci_page"
 require_relative "pipeline_web/settings_page"
 require_relative "pipeline_web/events_page"
 require_relative "pipeline_web/snapshot"
+require_relative "pipeline_web/panel_serving"
 require_relative "sentinel/standing"
 
 module Hecks
@@ -23,6 +24,8 @@ module Hecks
     # {PipelineStages}; the one write is `POST /api/act`, which runs one step from {Actions} through
     # the launcher and nothing else.
     class PipelineWeb
+      include PipelineBoard::PanelServing
+
       PAGE = File.expand_path("pipeline_web/page.html", __dir__)
       WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
       SEQUENCE_PAGE = File.expand_path("pipeline_web/sequence.html", __dir__)
@@ -172,7 +175,7 @@ module Hecks
       # @raise [Errno::EADDRINUSE] when another process holds the port, before the snapshot or the
       #   journal follower starts; the asking `Listen` turns it into `ServerRefused`
       def open_at(port)
-        server = PipelineBoard::Server.new(port: port || 4747, app: self)
+        server = PipelineBoard::Server.new(port: port || DEFAULT_PORT, app: self)
         [@snapshot, @pushed].each(&:start)
         server.start
       end
@@ -231,9 +234,7 @@ module Hecks
       #
       # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring` digest,
       #   a `tile` fragment or a heartbeat
-      def stream(&)
-        PipelineBoard::Stream.new(hub: @pushed.hub, state: method(:state), wiring: method(:wiring)).each(&)
-      end
+      def stream(&) = PipelineBoard::Stream.new(hub: @pushed.hub, state: method(:state), wiring: method(:wiring)).each(&)
     end
   end
 end
