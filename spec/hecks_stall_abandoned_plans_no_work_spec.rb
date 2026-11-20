@@ -29,8 +29,8 @@ module BlockedRunLooks
   def ids_of(name) = registry.event_log.select { |event| event.name == name }.map { |event| event.id.to_s }
 end
 
-# The beat that sights a blocked run files an agent-run-blocked stall and plans its work item; a
-# later beat, after the run is tidied, abandons the stall and drops that same work item.
+# The beat that sights a blocked run files an agent-run-blocked stall and plans no work item; a
+# later beat, after the run is tidied, abandons the stall.
 RSpec.describe "An agent-run-blocked stall whose run is tidied" do
   include_context "with a stall watch tap"
   include BlockedRunLooks
@@ -42,10 +42,9 @@ RSpec.describe "An agent-run-blocked stall whose run is tidied" do
     expect(ids_of("StallAbandoned")).to eq([BlockedRunLooks::KEY])
   end
 
-  it "drops the work item the filed stall planned", :aggregate_failures do
+  it "plans no work item for the stall it files and abandons" do
     blocked_then_tidied
 
-    expect(keys("Tickets", "Work", :work)).to eq([BlockedRunLooks::KEY])
-    expect(keys("Tickets", "Work", :status)).to eq(%w[dropped])
+    expect(keys("Tickets", "Work", :work)).to be_empty
   end
 end

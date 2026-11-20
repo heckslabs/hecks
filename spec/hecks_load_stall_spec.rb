@@ -18,7 +18,7 @@ RSpec.describe "the load stall", :aggregate_failures do
     detect("look-1")
 
     expect(filed).to eq(%w[stall-load-launchd-1])
-    expect(keys("Tickets", "Work", :detail).first).to include("yes x24", "1032.0% CPU", "session s1", "Machine.busiest")
+    expect(keys("Hecks", "Stall", :detail).first).to include("yes x24", "1032.0% CPU", "session s1", "Machine.busiest")
   end
 
   it "files nothing once a later beat heard the load fall" do

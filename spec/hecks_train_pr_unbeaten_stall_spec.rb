@@ -28,12 +28,12 @@ RSpec.describe "StallWatch train-pr-unbeaten" do
   include_context "with a stall watch tap"
   include TrainPrUnbeatenLooks
 
-  it "files a chain asked for 9 minutes ago that never beat, naming the commit", :aggregate_failures do
+  it "files a chain asked for 9 minutes ago that never beat, naming the commit, and plans no work item", :aggregate_failures do
     write_ticker([["TickerRequested", 9]])
     detect("look-1")
 
     expect(keys("Hecks", "Stall", :stall)).to eq([stall])
-    expect(keys("Tickets", "Work", :work)).to eq([stall])
+    expect(keys("Tickets", "Work", :work)).to be_empty
   end
 
   # What a look files for each tap: a young chain, one that beat, one stopped, and one declined
