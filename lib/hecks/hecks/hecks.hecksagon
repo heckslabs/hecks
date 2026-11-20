@@ -1107,6 +1107,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: LanguageRun do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "LanguageAnswered"
       refuses "LanguageRefused"
     end
@@ -1123,6 +1126,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: KernelRun do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "KernelAnswered"
       refuses "KernelRefused"
     end
@@ -1137,6 +1143,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: ConformanceRun do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "ConformanceAnswered"
       refuses "ConformanceRefused"
     end
@@ -1151,6 +1160,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: RegenerationRun do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "RegenerationAnswered"
       refuses "RegenerationRefused"
     end
@@ -1165,6 +1177,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: GateRun do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "GateAnswered"
       refuses "GateRefused"
     end
@@ -1223,6 +1238,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: CodemodRun do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "CodemodAnswered"
       refuses "CodemodRefused"
     end
@@ -1237,6 +1255,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: TestSuiteRun do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "TestSuiteAnswered"
       refuses "TestSuiteRefused"
     end
@@ -1265,6 +1286,9 @@ Hecks.hecksagon "Hecks" do
 
     asks "Perform", to: Server do
       attribute :run, RunKey
+      attribute :linked,     Switch, optional: true
+      attribute :branch,     Report, optional: true
+      attribute :check_name, Report, optional: true
       answers "ServerAnswered"
       refuses "ServerRefused"
     end
