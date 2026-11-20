@@ -1031,7 +1031,6 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 correlation: &correlation,
                 domain_name,
             };
-            let mut refused = false;
             for spec in handler.dispatches {
                 let args = build_dispatch_args(
                     pm,
@@ -1046,22 +1045,20 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 let compensation_args = spec.compensates.map(|r| {
                     build_dispatch_args(pm, r, event, &correlation, &memory, domain_name, &tables)
                 });
-                let delivered =
-                    self.deliver_saga_dispatch(&leg, spec, &args, depth, compensation_args);
-                if delivered == Some(false) {
-                    refused = true;
+                // Each refused dispatch unwinds where it fails, and the leg's later dispatches still
+                // run, as Ruby's `settle_refusal` does; a second unwind finds the state moved on.
+                if !self.deliver_saga_dispatch(&leg, spec, &args, depth, compensation_args) {
+                    self.compensate(&leg, event, &memory, depth);
                 }
-            }
-
-            if refused {
-                self.compensate(&leg, event, &memory, depth);
             }
         }
     }
 
-    // Returns `Some(delivered)`, or `None` when the depth ceiling stopped the leg before it tried.
-    // The compensation is pushed before the forward dispatch runs: a nested refusal re-entering
-    // this saga must already see it. It is popped again if this leg's own attempt refuses.
+    // Returns whether the dispatch was delivered. A leg the depth ceiling stopped before it tried
+    // answers `false` like a refused one, so the saga unwinds either way (Ruby's
+    // `refuse_at_depth_ceiling`). The compensation is pushed before the forward dispatch runs: a
+    // nested refusal re-entering this saga must already see it. It is popped again if this leg's
+    // own attempt refuses.
     fn deliver_saga_dispatch(
         &mut self,
         leg: &SagaLeg,
@@ -1069,7 +1066,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
         args: &Json,
         depth: usize,
         compensation_args: Option<Json>,
-    ) -> Option<bool> {
+    ) -> bool {
         // Ruby logs the unqualified name and qualifies only at dispatch; this mirrors that split.
         let record = |extra: Vec<(&str, Json)>| -> Json {
             let mut fields = vec![
@@ -1089,7 +1086,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                     Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached")),
                 ),
             ]));
-            return None;
+            return false;
         }
 
         // `spec.command_name` is bare on the wire, so it is qualified before `dispatch_by_name`.
@@ -1114,7 +1111,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
             Ok(()) => {
                 self.saga_log
                     .push(record(vec![("delivered", Json::Bool(true))]));
-                Some(true)
+                true
             }
             Err(refusal) => {
                 // This leg failed, so its speculative entry was never earned. `pop` is safe: any
@@ -1128,7 +1125,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                     ("delivered", Json::Bool(false)),
                     ("reason", Json::str(refusal.to_string())),
                 ]));
-                Some(false)
+                false
             }
         }
     }
@@ -1214,8 +1211,9 @@ impl<S: AggregateScan> Cascade<'_, S> {
         }
     }
 
-    // The `on :refused` leg, run once against the post-transition state. Its own dispatches never
-    // compensate on failure.
+    // The `on :refused` leg, run against the post-transition state. One of its own dispatches that
+    // is refused, or stopped at the depth ceiling, unwinds again as Ruby's does: the instance has
+    // already left this leg's `from:` state, so that logs the miss and runs nothing.
     fn compensate(&mut self, leg: &SagaLeg, event: &Event, memory: &Json, depth: usize) {
         let (pm, correlation, domain_name) = (leg.pm, leg.correlation, leg.domain_name);
         let key = leg.key();
@@ -1278,7 +1276,9 @@ impl<S: AggregateScan> Cascade<'_, S> {
             let compensation_args = spec.compensates.map(|r| {
                 build_dispatch_args(pm, r, event, correlation, memory, domain_name, &tables)
             });
-            self.deliver_saga_dispatch(leg, spec, &args, depth, compensation_args);
+            if !self.deliver_saga_dispatch(leg, spec, &args, depth, compensation_args) {
+                self.compensate(leg, event, memory, depth);
+            }
         }
     }
 }
