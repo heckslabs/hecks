@@ -98,9 +98,13 @@ module Hecks
       # @param limit [Hash, Integer, nil] how many planned Work items and finished sessions to list
       # @return [Hash{Symbol => String}] `text:` the panel
       def snapshot(width: nil, colour: nil, limit: nil)
-        drawn = state.merge(train_prs: guard { @github.train_prs })
+        drawn = state.merge(train_prs: train_prs)
         { text: PipelineBoard::Panel.render(drawn, width: held(width), colour: held(colour).to_s == "true", limit: held(limit)) }
       end
+
+      # @return [Array<Hash>, Hash] the open train pull requests the panel lists, or
+      #   `{unknown: reason}`
+      def train_prs = guard { @github.train_prs }
 
       # @return [Hash] the next fill's dry run (see {PipelineFill#preview}), or `{unknown: reason}`
       def fill_tile = guard { @fill.preview }
@@ -198,10 +202,7 @@ module Hecks
           reviews: PipelineBoard::AgentRoles.review_lines(guard { @tickets.runs }) }
       end
 
-      def sections
-        data = owned(gathered)
-        data.merge(dated(data))
-      end
+      def sections = owned(gathered).then { |data| data.merge(dated(data)) }
 
       def fanout(data)
         return data[:sessions] unless data[:sessions].is_a?(Array)
