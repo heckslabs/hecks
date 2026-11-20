@@ -9,7 +9,7 @@ module Hecks
         # The closing sections, or `nil` when the bluebook has neither policies nor sagas.
         def call(bluebook, depth)
           out = reaction_lines(bluebook, depth)
-          bluebook.process_managers.each { |saga| out.concat(saga_lines(saga, depth)) }
+          bluebook.sagas.each { |saga| out.concat(saga_lines(saga, depth)) }
           out.empty? ? nil : out.join("\n")
         end
 

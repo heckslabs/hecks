@@ -39,7 +39,7 @@ module Hecks
           bluebook = @registry.bluebook(domain)
           return unless bluebook
 
-          bluebook.process_managers.each do |process_manager|
+          bluebook.sagas.each do |process_manager|
             stalled_instances(process_manager).each do |correlation, instance|
               redrive_instance(process_manager, correlation, instance, domain)
             end

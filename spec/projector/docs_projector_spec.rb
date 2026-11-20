@@ -135,9 +135,9 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
 
     it "describes a saga by where it starts, ends and correlates", :aggregate_failures do
-      skip "banking declares no saga" if registry.bluebook("Banking").process_managers.empty?
+      skip "banking declares no saga" if registry.bluebook("Banking").sagas.empty?
 
-      saga = registry.bluebook("Banking").process_managers.first.to_h
+      saga = registry.bluebook("Banking").sagas.first.to_h
       expect(banking).to include("#{saga[:name]} (a saga)")
       expect(banking).to include("correlated by `#{saga[:correlates_by]}`")
     end

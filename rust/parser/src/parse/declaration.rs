@@ -557,7 +557,7 @@ fn parse_body_into(
                 let pm_name =
                     super::positional_text(file, line, "process_manager", &gated.args, 1)?;
                 bluebook
-                    .process_managers
+                    .sagas
                     .push(process_manager::parse_body(file, lines, pos, &pm_name)?);
             }
             _ => {

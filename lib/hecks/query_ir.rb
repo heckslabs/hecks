@@ -26,7 +26,7 @@ module Hecks
       "Policy"         => Hecks::Bluebook::Policy,
       "Query"          => Hecks::Bluebook::Query,
       "ReadModel"      => Hecks::Bluebook::ReadModel,
-      "ProcessManager" => Hecks::Bluebook::ProcessManager
+      "ProcessManager" => Hecks::Bluebook::Saga
     }.freeze
 
     Rule = Struct.new(:kind, :description, :canonical, :location, keyword_init: true)

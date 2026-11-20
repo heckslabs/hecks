@@ -56,7 +56,7 @@ module Hecks
             end
 
             def sagas(bluebook, name)
-              bluebook.process_managers.select { |pm| handles?(pm, name) }.map do |manager|
+              bluebook.sagas.select { |pm| handles?(pm, name) }.map do |manager|
                 { consumer: "saga:#{bluebook.name}::#{manager.name}", kind: "saga" }
               end
             end

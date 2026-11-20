@@ -359,7 +359,7 @@ pub struct DispatchSpec {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ProcessManagerHandler {
+pub struct SagaHandler {
     pub event_type: String,
     pub from_state: String,
     pub to_state: String,
@@ -367,7 +367,7 @@ pub struct ProcessManagerHandler {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ProcessManager {
+pub struct Saga {
     pub name: String,
     pub correlates_by: String,
     pub starts_on: Option<String>,
@@ -375,7 +375,7 @@ pub struct ProcessManager {
     pub endings: Vec<String>,
     pub resumes: Vec<String>,
     pub states: Vec<String>,
-    pub handlers: Vec<ProcessManagerHandler>,
+    pub handlers: Vec<SagaHandler>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -423,7 +423,7 @@ pub struct Bluebook {
     pub aggregates: Vec<Aggregate>,
     pub read_models: Vec<ReadModel>,
     pub policies: Vec<Policy>,
-    pub process_managers: Vec<ProcessManager>,
+    pub sagas: Vec<Saga>,
     // Core contexts this bluebook attaches to (`attaches_to "Query", "ReadModel"`).
     pub attaches_to: Vec<String>,
     // `provides "authorization", grant: "..."`: one row per key, in source order.
@@ -445,7 +445,7 @@ impl Default for Bluebook {
             aggregates: Vec::new(),
             read_models: Vec::new(),
             policies: Vec::new(),
-            process_managers: Vec::new(),
+            sagas: Vec::new(),
             attaches_to: Vec::new(),
             provides: Vec::new(),
             modules: Vec::new(),

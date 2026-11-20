@@ -4,7 +4,7 @@ require_relative "saga_interpreter/lifecycle"
 require_relative "saga_interpreter/transitions"
 require_relative "saga_interpreter/delivery"
 require_relative "saga_interpreter/compensation"
-require_relative "../bluebook/process_manager"
+require_relative "../bluebook/saga"
 require_relative "errors"
 require_relative "reaction_invocation"
 require_relative "value"
@@ -24,8 +24,8 @@ module Hecks
       include Compensation
       include Redrive
 
-      # The trigger lives on the declaration it triggers — see ProcessManager::REFUSED.
-      REFUSED = Bluebook::ProcessManager::REFUSED
+      # The trigger lives on the declaration it triggers — see Saga::REFUSED.
+      REFUSED = Bluebook::Saga::REFUSED
 
       # The state a saga parks in when a stage faults, and the memory key that records the state it
       # faulted from.
@@ -63,7 +63,7 @@ module Hecks
         # `needs_human` also records that state in the instance's memory, so a resume knows the
         # stage that faulted.
         #
-        # @param leg_handler [Bluebook::ProcessManager::Handler] the leg being taken
+        # @param leg_handler [Bluebook::SagaHandler] the leg being taken
         # @return [void]
         def take(leg_handler)
           self.handler   = leg_handler
@@ -117,7 +117,7 @@ module Hecks
       #
       # @param event [Runtime::Event] the just-emitted event to react to
       # @param domain [String, Symbol] the domain that emitted the event
-      # @param only [Bluebook::ProcessManager, nil] one process manager to run, not all loaded
+      # @param only [Bluebook::Saga, nil] one process manager to run, not all loaded
       # @param home [String, Symbol, nil] the bluebook declaring `only`; the emitting one when nil
       # @return [void]
       def advance(event, domain, only: nil, home: nil)
@@ -154,7 +154,7 @@ module Hecks
         return [[only, (home || domain).to_s]] if only
 
         own, others = @registry.bluebooks.each_value.partition { |bluebook| bluebook.name == domain.to_s }
-        (own + others).flat_map { |bluebook| bluebook.process_managers.map { |declared| [declared, bluebook.name] } }
+        (own + others).flat_map { |bluebook| bluebook.sagas.map { |declared| [declared, bluebook.name] } }
       end
 
       # Moves a needs_human instance back to the stage it faulted from, forgets that record, and
@@ -162,7 +162,7 @@ module Hecks
       def restore_faulted_stage(domain, process_manager, correlation, instance)
         stage = instance[:memory].delete(FAULTED_FROM_KEY)
         instance[:state] = stage
-        definition = @registry.bluebook(domain).process_managers.find { |pm| pm.name == process_manager }
+        definition = @registry.bluebook(domain).sagas.find { |pm| pm.name == process_manager }
         checkpoint(definition, correlation, instance, domain)
         { resumed: true, stage: stage, arguments: instance[:memory].dup }
       end

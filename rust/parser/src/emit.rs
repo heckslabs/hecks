@@ -95,13 +95,8 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
             JsonValue::Array(bb.policies.iter().map(policy_json).collect()),
         ),
         (
-            "process_managers".to_string(),
-            JsonValue::Array(
-                bb.process_managers
-                    .iter()
-                    .map(process_manager_json)
-                    .collect(),
-            ),
+            "sagas".to_string(),
+            JsonValue::Array(bb.sagas.iter().map(saga_json).collect()),
         ),
         (
             "attaches_to".to_string(),
@@ -817,8 +812,8 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
     JsonValue::Object(pairs)
 }
 
-/// `IR::ProcessManager#to_h`.
-fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
+/// `IR::Saga#to_h`.
+fn saga_json(pm: &ir::Saga) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(pm.name.clone())),
         (
@@ -838,18 +833,13 @@ fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
         ("states".to_string(), JsonValue::strings(&pm.states)),
         (
             "handlers".to_string(),
-            JsonValue::Array(
-                pm.handlers
-                    .iter()
-                    .map(process_manager_handler_json)
-                    .collect(),
-            ),
+            JsonValue::Array(pm.handlers.iter().map(saga_handler_json).collect()),
         ),
     ])
 }
 
-/// `IR::ProcessManagerHandler#to_h`.
-fn process_manager_handler_json(h: &ir::ProcessManagerHandler) -> JsonValue {
+/// `IR::SagaHandler#to_h`.
+fn saga_handler_json(h: &ir::SagaHandler) -> JsonValue {
     JsonValue::Object(vec![
         (
             "event_type".to_string(),

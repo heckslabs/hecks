@@ -745,6 +745,8 @@ Hecks.bluebook "Tickets" do
     attribute :area,   list_of(Word), optional: true
     attribute :budget_minutes, Minutes, optional: true
     attribute :category, Category, optional: true
+    # The batch work item a batched sweep item waits in; empty once it is returned.
+    attribute :batch,    WorkText, optional: true
     reference_to Epic, as: :epic, optional: true
     attribute :priority, Priority, optional: true
     reference_to Adr, as: :decision, optional: true
@@ -865,10 +867,11 @@ Hecks.bluebook "Tickets" do
       invariant("a step is not negative") { !value.negative? }
     end
 
-    # What kind of work an item is, or which theme it belongs to (the last eight values), one per item. It never decides whether two items clash: that is the
-    # path claim in `area`.
+    # What kind of work an item is, or which theme it belongs to (the eight values after `tooling`), one per item. It never decides whether two items clash: that is the
+    # path claim in `area`. A `sweep` item is only a wording, rename, comment or docs change: it never
+    # starts alone, and Delegate's SweepBatch gathers the open ones into one batch work item.
     value_object "Category" do
-      attribute :value, String, one_of: %w[bluebook-gap language delivery coder parity host tooling agent-roles-and-handoff autonomous-pipeline pipeline-board landing-review-and-train bluebook-gaps-and-tool-dissolve kernel-parity-and-simulation docs-and-interviews side-projects]
+      attribute :value, String, one_of: %w[bluebook-gap language delivery coder parity host tooling agent-roles-and-handoff autonomous-pipeline pipeline-board landing-review-and-train bluebook-gaps-and-tool-dissolve kernel-parity-and-simulation docs-and-interviews side-projects sweep]
     end
 
     # How soon an item is wanted. Unset means nobody has said.
@@ -876,15 +879,21 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, one_of: %w[expedite now next later]
     end
 
+    # A `batched` item is a sweep item enlisted in a batch work item: it waits there, never starts,
+    # and is done when its batch is, or goes back to the plan when the batch's coder returns it.
     lifecycle :status, default: "planned" do
       transition "Start"   => "started", from: "planned"
+      transition "Enlist"  => "batched", from: "planned"
+      transition "Return"  => "planned", from: "batched"
       transition "Release" => "planned", from: "started"
       transition "Yield"   => "planned", from: "started"
       transition "Refuse"  => "planned", from: "started"
-      transition "Close"  => "done",    from: %w[planned started]
-      transition "Drop"   => "dropped", from: %w[planned started]
-      transition "Lapse"  => "dropped", from: %w[planned started]
+      transition "Close"  => "done",    from: %w[planned started batched]
+      transition "Drop"   => "dropped", from: %w[planned started batched]
+      transition "Lapse"  => "dropped", from: %w[planned started batched]
       transition "Reopen" => "planned", from: %w[done dropped]
+      # A batched item waits on its batch work item, which closes it or hands it back: nothing times it.
+      mark :rests, "batched"
     end
 
     command "Plan" do
@@ -979,6 +988,7 @@ Hecks.bluebook "Tickets" do
       attribute :category, Category, sets: true
 
       given("a done or dropped work item takes no category") { status != "done" && status != "dropped" }
+      given("a sweep item names the paths it edits") { category.value != "sweep" || area.size >= 1 }
 
       emits "WorkCategorized"
     end
@@ -1058,8 +1068,40 @@ Hecks.bluebook "Tickets" do
 
       given("a claim names its claimant") { !claimed_by.value.to_s.empty? }
       given("a claim records when it was taken") { !claimed_at.value.to_s.empty? }
+      given("a sweep item starts only in its batch") { category == nil || category.value != "sweep" }
 
       emits "WorkStarted"
+    end
+
+    # A planned sweep item waits in a batch work item, which one coder does for every member. It
+    # leaves the plan, so no fill starts it alone.
+    command "Enlist" do
+      role "System"
+      goal "Put a planned sweep item into the batch work item that does it"
+
+      reference_to Work
+      attribute :batch, WorkText, sets: true
+
+      given("only a sweep item joins a batch") { category != nil && category.value == "sweep" }
+      given("a batch is named by its work item") { !batch.value.to_s.empty? }
+
+      emits "WorkEnlisted"
+    end
+
+    # The batch's coder could not do one member: it goes back to the plan alone, with the reason,
+    # and the batch still lands the rest.
+    command "Return" do
+      role "Maintainer"
+      goal "Hand one batched sweep item back to the plan, with why its batch could not do it"
+
+      reference_to Work
+      attribute :reason, WorkText, sets: true
+
+      given("a returned item says why") { !reason.value.to_s.empty? }
+
+      sets :batch, to: ""
+
+      emits "WorkReturned"
     end
 
     # A started work item that may not go on goes back to the plan with the refusal as its reason:
@@ -1198,7 +1240,7 @@ Hecks.bluebook "Tickets" do
 
     query "Undone" do
       description "Every work item not yet done or dropped, in plan order."
-      where(status: { in: "planned,started" })
+      where(status: { in: "planned,started,batched" })
       order_by :step
     end
 
@@ -1247,28 +1289,42 @@ Hecks.bluebook "Tickets" do
     query "UndoneUnder" do
       description "The work items of one decision's plan not yet done or dropped: the ones its superseding drops."
       attribute :adr, String
-      where(decision: :adr, status: { in: "planned,started" })
+      where(decision: :adr, status: { in: "planned,started,batched" })
       order_by :step
     end
 
     query "UndoneInTier" do
       description "Every work item not yet done or dropped that is wanted now, next or later, in plan order."
       attribute :tier, String
-      where(priority: :tier, status: { in: "planned,started" })
+      where(priority: :tier, status: { in: "planned,started,batched" })
       order_by :step
     end
 
     query "UndoneInCategory" do
       description "Every work item not yet done or dropped in one category, in plan order."
       attribute :kind, String
-      where(category: :kind, status: { in: "planned,started" })
+      where(category: :kind, status: { in: "planned,started,batched" })
       order_by :step
+    end
+
+    # The sweep items waiting for a batch, in plan order: the ones Delegate's SweepBatch counts.
+    query "SweepWaiting" do
+      description "Every planned sweep item not yet in a batch, in plan order."
+      where(category: "sweep", status: "planned")
+      order_by :step
+    end
+
+    # The members still waiting in one batch work item: the ones its landing closes.
+    query "InBatch" do
+      description "Every sweep item still batched in one batch work item."
+      attribute :work, String
+      where(batch: :work, status: "batched")
     end
 
     query "UndoneInEpic" do
       description "Every work item not yet done or dropped in one epic, in plan order."
       attribute :epic, String
-      where(epic: :epic, status: { in: "planned,started" })
+      where(epic: :epic, status: { in: "planned,started,batched" })
       order_by :step
     end
 
@@ -1301,6 +1357,34 @@ Hecks.bluebook "Tickets" do
       where(epic: :epic)
       order_by :step
     end
+  end
+
+  # A done batch closes the members still in it with its landing or no-change reason; a returned
+  # member stays planned. A member's close finds no batch of its own key, and is a root.
+  policy "CloseMembersWhenBatchFinished" do
+    on       "Work.WorkFinished"
+    root
+    for_each "Work.InBatch"
+    trigger  Work::Close, with: { work: :work, landing: :landing, no_change: :no_change }
+  end
+
+  # A composed sweep batch becomes one work item: every waiting sweep item is enlisted in it, it is
+  # planned with the brief the batch composed, and it is given a priority, the opt-in mark a roll
+  # starts by, so it reaches a coder by events alone. It claims the paths its members name.
+  policy "EnlistWhenSweepBatchComposed" do
+    on       "SweepBatch.SweepBatchComposed"
+    for_each "Work.SweepWaiting"
+    trigger  Work::Enlist, with: { work: :work, batch: :batch }
+  end
+
+  policy "PlanTheBatchWhenSweepBatchComposed" do
+    on      "SweepBatch.SweepBatchComposed"
+    trigger Work::Plan, with: { work: :batch, title: :title, detail: :brief, area: :area }
+  end
+
+  policy "PrioritizeTheBatchWhenSweepBatchComposed" do
+    on      "SweepBatch.SweepBatchComposed"
+    trigger Work::Prioritize, with: { work: :batch, priority: "next" }
   end
 
   # A member closing asks the EpicMembers port whether its epic has a member and none open. An item

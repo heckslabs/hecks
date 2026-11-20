@@ -208,7 +208,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
   # Needs two distinct emitted events (Make/Finish), so it cannot reuse `make_emitting_qualified`.
   it "accepts a bare, qualified event constant on a process_manager's starts_on/ends_on/transition, but " \
      "stores only the bare event name — SagaInterpreter matches a bare event.name, never a dotted one", :aggregate_failures do
-    pm = bare_starts_ends_on_ir.process_managers.first
+    pm = bare_starts_ends_on_ir.sagas.first
     # A qualified constant stores the bare name here, unlike `on`/`emits`, which keep the ".".
     expect(pm.starts_on).to eq("WidgetMade")
     expect(pm.ends_on).to eq("WidgetFinished")
@@ -220,7 +220,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
   end
 
   it "still accepts the old quoted-string form for starts_on/ends_on, unchanged", :aggregate_failures do
-    pm = quoted_starts_ends_on_ir.process_managers.first
+    pm = quoted_starts_ends_on_ir.sagas.first
 
     expect(pm.starts_on).to eq("WidgetMade")
     expect(pm.ends_on).to eq("WidgetMade")

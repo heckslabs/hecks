@@ -12,7 +12,7 @@ use super::{
 use crate::generated::active::{
     command_attributes_for_verb, command_creates, dispatch_by_name, entity_identity_head_for_path,
     identity_head_for_aggregate, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES,
-    POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS,
+    POLICIES, QUERIES, READ_MODELS, SAGAS,
 };
 use std::collections::HashMap;
 
@@ -308,7 +308,7 @@ pub fn run(input: &str) -> String {
         let tables = Tables {
             policies: POLICIES,
             cross_domain_policies: CROSS_DOMAIN_POLICIES,
-            process_managers: PROCESS_MANAGERS,
+            sagas: SAGAS,
             reference_key_fn: reference_key_for_aggregate,
             queries: QUERIES,
             command_creates_fn: command_creates,
@@ -539,7 +539,7 @@ fn tables() -> Tables<'static> {
     Tables {
         policies: POLICIES,
         cross_domain_policies: CROSS_DOMAIN_POLICIES,
-        process_managers: PROCESS_MANAGERS,
+        sagas: SAGAS,
         reference_key_fn: reference_key_for_aggregate,
         queries: QUERIES,
         command_creates_fn: command_creates,

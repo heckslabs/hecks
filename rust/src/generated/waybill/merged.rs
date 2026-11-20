@@ -628,79 +628,78 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
-    &[crate::kernel::ProcessManagerDef {
-        name: "Packing",
-        correlates_by: "reference.value",
-        starts_on: "ConsignmentRequested",
-        ends_on: "ConsignmentShipped",
-        initial_state: "packing",
-        handlers: &[
-            crate::kernel::Handler {
-                event_type: "ConsignmentRequested",
-                from_state: "packing",
-                to_state: "packing",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "Manifest.Open",
-                    with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
-                    compensates: None,
-                }],
-            },
-            crate::kernel::Handler {
-                event_type: "ManifestOpened",
-                from_state: "packing",
-                to_state: "packing",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "Manifest.AddSlot",
-                    with: &[
-                        ("reference", crate::kernel::WithValue::Ref("reference")),
-                        ("number", crate::kernel::WithValue::Ref("number")),
-                    ],
-                    compensates: None,
-                }],
-            },
-            crate::kernel::Handler {
-                event_type: "SlotAdded",
-                from_state: "packing",
-                to_state: "filling",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "Manifest::Slot.Fill",
+pub const SAGAS: &[crate::kernel::SagaDef] = &[crate::kernel::SagaDef {
+    name: "Packing",
+    correlates_by: "reference.value",
+    starts_on: "ConsignmentRequested",
+    ends_on: "ConsignmentShipped",
+    initial_state: "packing",
+    handlers: &[
+        crate::kernel::Handler {
+            event_type: "ConsignmentRequested",
+            from_state: "packing",
+            to_state: "packing",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "Manifest.Open",
+                with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
+                compensates: None,
+            }],
+        },
+        crate::kernel::Handler {
+            event_type: "ManifestOpened",
+            from_state: "packing",
+            to_state: "packing",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "Manifest.AddSlot",
+                with: &[
+                    ("reference", crate::kernel::WithValue::Ref("reference")),
+                    ("number", crate::kernel::WithValue::Ref("number")),
+                ],
+                compensates: None,
+            }],
+        },
+        crate::kernel::Handler {
+            event_type: "SlotAdded",
+            from_state: "packing",
+            to_state: "filling",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "Manifest::Slot.Fill",
+                with: &[
+                    ("number", crate::kernel::WithValue::Ref("number")),
+                    ("item", crate::kernel::WithValue::Ref("item")),
+                ],
+                compensates: Some(&crate::kernel::DispatchSpec {
+                    command_name: "Manifest::Slot.Clear",
                     with: &[
                         ("number", crate::kernel::WithValue::Ref("number")),
                         ("item", crate::kernel::WithValue::Ref("item")),
                     ],
-                    compensates: Some(&crate::kernel::DispatchSpec {
-                        command_name: "Manifest::Slot.Clear",
-                        with: &[
-                            ("number", crate::kernel::WithValue::Ref("number")),
-                            ("item", crate::kernel::WithValue::Ref("item")),
-                        ],
-                        compensates: None,
-                    }),
-                }],
-            },
-            crate::kernel::Handler {
-                event_type: "SlotFilled",
-                from_state: "filling",
-                to_state: "filled",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "Consignment.Ship",
-                    with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
                     compensates: None,
-                }],
-            },
-            crate::kernel::Handler {
-                event_type: "refused",
-                from_state: "filling",
-                to_state: "cancelled",
-                dispatches: &[crate::kernel::DispatchSpec {
-                    command_name: "Consignment.Cancel",
-                    with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
-                    compensates: None,
-                }],
-            },
-        ],
-    }];
+                }),
+            }],
+        },
+        crate::kernel::Handler {
+            event_type: "SlotFilled",
+            from_state: "filling",
+            to_state: "filled",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "Consignment.Ship",
+                with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
+                compensates: None,
+            }],
+        },
+        crate::kernel::Handler {
+            event_type: "refused",
+            from_state: "filling",
+            to_state: "cancelled",
+            dispatches: &[crate::kernel::DispatchSpec {
+                command_name: "Consignment.Cancel",
+                with: &[("reference", crate::kernel::WithValue::Ref("reference"))],
+                compensates: None,
+            }],
+        },
+    ],
+}];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {

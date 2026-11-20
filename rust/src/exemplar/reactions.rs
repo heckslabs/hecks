@@ -33,8 +33,8 @@ crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_na
 // TMPL:process_manager_table BEGIN
 fn tmpl_literal_fns_placeholder() {}
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
-    crate::kernel::ProcessManagerDef { name: "tmpl_pm_name", correlates_by: "tmpl_correlates_by", starts_on: "tmpl_starts_on", ends_on: "tmpl_ends_on", initial_state: "tmpl_initial_state", handlers: &[] },
+pub const SAGAS: &[crate::kernel::SagaDef] = &[
+    crate::kernel::SagaDef { name: "tmpl_pm_name", correlates_by: "tmpl_correlates_by", starts_on: "tmpl_starts_on", ends_on: "tmpl_ends_on", initial_state: "tmpl_initial_state", handlers: &[] },
 ];
 // TMPL:process_manager_table END
 
