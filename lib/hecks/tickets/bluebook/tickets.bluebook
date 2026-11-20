@@ -619,6 +619,8 @@ Hecks.bluebook "Tickets" do
 
     # Names the row the epic's outcome is measured by. Epics are data, so this is a command and no
     # bluebook edit; a name no row carries is refused when the outcome is read.
+    # The row it names has not been read, so the last reading and its evidence, which were another
+    # row's, are cleared. The status stays: a complete epic stays complete, unread, until it is reviewed.
     command "MeasureBy" do
       role "Maintainer"
       goal "Say which OutcomeMeasure row measures an epic's outcome"
@@ -627,6 +629,9 @@ Hecks.bluebook "Tickets" do
       attribute :measure, MeasureName, sets: true
 
       given("an epic names its measure") { !measure.value.to_s.strip.empty? }
+
+      sets :measured, to: "unread"
+      sets :evidence, to: ""
 
       emits "EpicMeasureStated"
     end
