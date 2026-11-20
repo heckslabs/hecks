@@ -48,11 +48,15 @@ RSpec.describe Hecks::Adapters::Codebase::TreeFacts do
     expect(described_class.of(linked_worktree("coder-work"))).to eq(linked: { value: true }, branch: { value: "coder-work" })
   end
 
-  it "reports a detached linked tree with no branch" do
-    expect(described_class.of(linked_worktree)).to eq(linked: { value: true })
+  it "reports a detached linked tree on HEAD" do
+    expect(described_class.of(linked_worktree)).to eq(linked: { value: true }, branch: { value: "HEAD" })
   end
 
-  it "reports nothing outside git" do
-    expect(described_class.of(@dir)).to eq({})
+  it "reports a tree outside git as not linked, on HEAD" do
+    expect(described_class.of(@dir)).to eq(linked: { value: false }, branch: { value: "HEAD" })
+  end
+
+  it "answers the check's name with every fact present" do
+    expect(described_class.answer(@dir, "gate", "quick")).to include(check_name: { value: "gate-quick" })
   end
 end
