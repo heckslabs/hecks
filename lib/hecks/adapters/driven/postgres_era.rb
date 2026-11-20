@@ -10,6 +10,7 @@ require_relative "postgres_era/lineage_manager"
 require_relative "postgres_era/events"
 require_relative "postgres_era/class_methods"
 require_relative "postgres_era/boot"
+require_relative "postgres_era/name_guard"
 require_relative "postgres_era/sagas"
 require_relative "postgres_era/journal"
 require_relative "postgres_era/dialect"
@@ -34,6 +35,7 @@ module Hecks
       include Sagas
       include Journal
       include Boot
+      include NameGuard
       include Dialect
       include QueryPhases
       include HeadWrites
@@ -65,12 +67,13 @@ module Hecks
       # Joins the process's shared connection for the declared database and schema, so every
       # aggregate of a domain runs on one connection, then resolves the era it reads and the field
       # caches that era holds. Reads only: the lineage, head and cache tables are provisioned by the
-      # mint path, and a database no mint has provisioned refuses by name.
+      # mint path, and a database no mint has provisioned refuses by name. A boot whose storage name
+      # holds no journal rows while an earlier name does refuses too (`StoredNameGuard`).
       #
       # @param settings [Hash{Symbol, String => Object}] world settings plus what
       #   `RepositoryFactory.build` merges in: `domain`, `era` and `superseded_by`
       # @raise [Runtime::WiringError] if `database` is missing, the connection is refused, or the
-      #   database holds no era
+      #   database holds no era, or the aggregate's rows are journaled under an earlier name
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
@@ -78,6 +81,7 @@ module Hecks
         @domain = journal_domain(aggregate, settings)
         @lineage = Lineage.new(@db, @domain, reading: true)
         resolve_era!(settings)
+        refuse_orphaned_rows!
         @field_caches = existing_field_caches
       end
 
