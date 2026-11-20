@@ -40,9 +40,14 @@ hour, and every rescue hid why, so the refusal carried no line at all.
 
 ## Consequences
 
-- A revert of a merge makes landing its branch again bring in nothing until the revert is reverted; the
-  `SendTrain` report says so.
+- After a revert of a merge, main still holds the branch's commits, so rebasing or merging the old branch
+  again brings in nothing. The `SendTrain` report names the revert commit in full and the rule: land the
+  work again as a revert of that revert plus new commits, or as fresh commits. It opens with the reason
+  `Unland` was given, which is the episode's finding.
+- The culprit's Work item is reopened on `RedEpisode.EpisodeRevertMade`, which carries the Work item, the
+  finding, the revert and that report; the report is the reopened item's detail. A revert that is refused
+  reopens nothing: the merge still stands, and the owner is told of the refusal.
 - The search is capped at six probes plus one base probe. A range with more merges than the cap can bisect
   gives no culprit and reverts nothing.
-- Reopening the culprit's Work item with the failing spec needs a policy in the Tickets bluebook, outside
-  this change; `RedEpisode.EpisodeReverting` carries the branch (the Work item key), spec and example for it.
+- `RedEpisode.EpisodeReverting` carries the branch (the Work item key), spec and example the search found;
+  the policies that reopen the Work item are in the Tickets bluebook.
