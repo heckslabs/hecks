@@ -4,6 +4,9 @@ require "securerandom"
 require_relative "../started_work"
 require_relative "breaker_door"
 require_relative "reap_door"
+require_relative "own_cascade"
+require_relative "posted_beat"
+require "hecks/signalbox/adapters/pressure_signal"
 
 module Hecks
   module Adapters
@@ -14,15 +17,18 @@ module Hecks
       # `Admission.Admit` by dry run, so nothing is kept and Roundhouse starts nothing from it. For
       # protection it reads the breakers' order and trips one by dry run ({BreakerDoor}); for
       # reaping it asks clearance and rules each subject by dry run ({ReapDoor}).
+      #
+      # Its runtime is a registry of its own, so each dispatch into it begins its own cascade
+      # ({OwnCascade}) whatever reaction the caller is in. A beat is cleared when it published a
+      # `Pressure` record; one that was not (a beat from a linked worktree or the train copy)
+      # answers from the posted signal instead ({PostedBeat}).
       class SignalboxDoor
         include BreakerDoor
         include ReapDoor
+        include PostedBeat
 
         # Where the Signalbox bluebook stands.
         HOME = File.expand_path("../../../signalbox", __dir__)
-
-        # The band a beat that was not looked at or not cleared answers: no current reading.
-        DARK = "dark"
 
         # The head of a refused admission's message, before the given that refused it.
         REFUSED = /\AAdmit refused — /
@@ -32,18 +38,23 @@ module Hecks
 
         # @param runtime [#dispatch, #dry_run?, #registry, nil] a booted Signalbox; booted from
         #   the Signalbox directory when nil
-        def initialize(runtime = nil)
-          @runtime = runtime
+        # @param signal [#call] answers the posted signal while it is current, else nil; the
+        #   {PressureSignal} file when absent. Admission has its own switch, so the door reads it
+        #   whether or not the `signalbox_pressure` switch has the other readers read it.
+        def initialize(runtime = nil, signal: -> { PressureSignal.current })
+          @runtime = runtime && OwnCascade::Runtime.new(runtime)
+          @signal = signal
         end
 
         # @return [Hash] the beat's `headroom`, the world's marks and draws, and the `band` its
-        #   Pressure stands in, or the dark band when the beat was refused or not cleared
+        #   Pressure stands in; the posted signal's band, headroom and age when the beat was not
+        #   cleared; the dark band when neither holds a current reading
         def look
           key = "admission-#{SecureRandom.hex(6)}"
           runtime.dispatch("Signalbox::Beat.Begin", with: { beat: { value: key } })
           beat = record("Beat", key)
           pressure = record("Pressure", key)
-          { band: pressure ? value(pressure, :band) : DARK, **beat_facts(beat) }
+          pressure ? { band: value(pressure, :band), **beat_facts(beat) } : posted(beat)
         end
 
         # @param facts [Hash] the `Admission.Admit` arguments, each as `{ value: }`
@@ -66,7 +77,7 @@ module Hecks
 
         private
 
-        def runtime = @runtime ||= Hecks.boot(HOME, install_driving: false)
+        def runtime = @runtime ||= OwnCascade::Runtime.new(Hecks.boot(HOME, install_driving: false))
 
         def beat_facts(beat)
           return { headroom: 0, floor: 0, gap: 0, age: 0, stale_after: 0, draw: 0 } unless beat
