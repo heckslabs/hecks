@@ -448,8 +448,24 @@ Hecks.bluebook "Signalbox" do
       end
     end
 
-    # What a breaker is rated in: megabytes, helpers, sessions, boot minutes or model usage, by its
-    # level.
+    # The protection order, smallest first, the boot-hours machine fuse last; `holds` says whether
+    # a tripped breaker holds every new coder's start or acts on its own load. Delegate's fill reads
+    # these rows (phase 3, protection).
+    value_object "Order" do
+      attribute :level, String
+      attribute :rank,  Integer
+      attribute :holds, String
+
+      member level: "fuse",     rank: 1, holds: "no"
+      member level: "helpers",  rank: 2, holds: "no"
+      member level: "shedding", rank: 3, holds: "no"
+      member level: "model",    rank: 4, holds: "yes"
+      member level: "machine",  rank: 5, holds: "yes"
+    end
+
+    # What a breaker is rated in, by its level: megabytes (a session's fuse), live helpers (the
+    # helper share: the live coders times the share), live coders (shedding), model usage, or boot
+    # minutes (the machine fuse: the Tickets world's `cpu_budget` hours times 60).
     value_object "Amount" do
       attribute :value, Integer, default: 0
       invariant("a rating is not negative") { !value.negative? }
