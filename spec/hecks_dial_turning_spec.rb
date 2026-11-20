@@ -95,6 +95,20 @@ RSpec.describe Hecks::Adapters::DialTurning do
     end
   end
 
+  it "answers what the setting held and what it holds, in words, for the turn's probe" do
+    Dir.mktmpdir do |folder|
+      said = turning(folder).set(setting: "work_limit.cap", becomes: "9")
+      expect(said.slice(:before, :after)).to eq(before: { value: "7" }, after: { value: "9" })
+    end
+  end
+
+  it "restores a probe's setting to what it held before the turn" do
+    Dir.mktmpdir do |folder|
+      turning(folder).restore(setting: { value: "work_limit.cap" }, before: { value: "5" })
+      expect(turned(folder)).to include("work_limit \"WorkLimits\", cap: 5, urgent_reserve: 1")
+    end
+  end
+
   it "keeps the lines the file already holds when another setting is turned" do
     Dir.mktmpdir do |folder|
       turning(folder).set(setting: "work_limit.cap", becomes: "9")

@@ -144,10 +144,17 @@ RSpec.describe "a plan review request starting the architect's session" do
 
   it "records the reviewer's judgment, and hands a real bug to a person", :aggregate_failures do
     submit("w-bug", "abc9002")
-    close_job("The failing spec is a real_bug: the code is wrong.")
+    close_job("The failing spec is wrong code, not a stale expectation.\n\nreal_bug")
     launch("agent_run.check!", "to=abc9002", "--wait")
     expect(launch("agents", "SubmissionReview.reviews").first.to_s).to include("abc9002", "real_bug")
     expect(reactions("RealBugGoesToAPerson").last[:delivered]).to be(true)
+  end
+
+  it "records a missing behavior with the reviewer's report as its findings" do
+    submit("w-gap", "abc9003")
+    close_job("No scenario in lib/hecks/agents covers SubmissionReview.Judge with findings.\n\nmissing_behavior")
+    launch("agent_run.check!", "to=abc9003", "--wait")
+    expect(launch("agents", "SubmissionReview.reviews").first.to_s).to include("missing_behavior", "covers SubmissionReview")
   end
 
   def planner_runs = runs.all.select { |run| run[:agent]&.value == "planner" }
