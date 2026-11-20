@@ -11,6 +11,7 @@ require_relative "../codebase/test_scope"
 require_relative "../machine_sampling/history"
 require_relative "rethinks"
 require_relative "meter_switch"
+require_relative "batching"
 
 module Hecks
   module Adapters
@@ -167,6 +168,10 @@ module Hecks
 
         # @return [Integer] the most work items of one epic started at once
         def epic_wip_limit = Integer(declared(EPIC_WIP)[:limit] || EPIC_WIP_LIMIT)
+
+        # @return [Integer] the most work items one batch holds, its lead included: the Tickets
+        #   world's `work_group_cap` `cap:`, else {Batching::CAP}
+        def batch_cap = Integer(declared("work_group_cap")[:cap] || Batching::CAP)
 
         # @return [Integer] the fewest coders that must be running for one to be asked to yield
         def shed_min_coders = Integer(declared(SHED)[:min_coders] || SHED_MIN_CODERS)
