@@ -18,4 +18,23 @@ RSpec.describe "the vendored delivery package" do
   it "gives the Hecks domain its Landing" do
     expect(boot_hecks_in_memory.registry.bluebook("Delivery").aggregates.map(&:name)).to include("Landing")
   end
+
+  # The package owns the repository verbs: Hecks declares none of them beside it, so a declaration
+  # is changed in the package and nowhere else.
+  describe "what Hecks itself still declares" do
+    let(:hecks) { boot_hecks_in_memory.registry.bluebook("Hecks") }
+    let(:workspace) { hecks.aggregates.find { |aggregate| aggregate.name == "Workspace" } }
+
+    it "has no Revision, LinkedTree or Landing of its own" do
+      expect(hecks.aggregates.map(&:name)).not_to include("Revision", "LinkedTree", "Landing")
+    end
+
+    it "keeps only the questions about this copy of Hecks on its Workspace" do
+      expect(workspace.queries.map(&:name)).to contain_exactly("Settings", "Doctor", "Where")
+    end
+
+    it "gives its Workspace no port but the ones those questions ask" do
+      expect(workspace.ports.map(&:name)).to contain_exactly("Settings", "Doctor", "Where")
+    end
+  end
 end
