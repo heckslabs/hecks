@@ -58,13 +58,13 @@ RSpec.describe Hecks::Adapters::RehearsalStore, :io do
   describe "the Rust host's audit as the second engine" do
     before { ENV["HECKS_VALIDATE_HARNESS"] = build_harness }
 
-    it "refuses a stored value the closed set does not admit, which the Ruby audit lets through", :aggregate_failures do
+    it "refuses a stored value the closed set does not admit, as the Ruby audit does", :aggregate_failures do
       stored_row("w3", "size" => { "value" => "huge" })
       survey("closed-set")
       facts = examine("closed-set")
 
       expect(facts[:refused_rows].map { |row| row[:id] }).to eq(["w3"])
-      expect(facts[:parity]).to include(engine: "rust", status: "differ")
+      expect(facts[:parity]).to include(engine: "rust", status: "agree")
     end
 
     it "agrees with the Ruby audit when nothing stored is refused" do
