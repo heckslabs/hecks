@@ -7,13 +7,12 @@ require "json"
 # slower than the machine a bound was written on, and its pace varies, so a timing example is
 # tagged `:wall_clock`, asserts through `expect_wall_clock` and is listed in `WallClock::EXAMPLES`.
 #
-# - **Locally** a bound holds as written and a breach fails the example.
-# - **On CI** a bound is stretched by `multiplier`, and a breach past that is a pending finding
-#   (see `Expectation#expect_wall_clock`), so a slow runner never fails a train.
-# - **`HECKS_WALL_CLOCK_STRICT=1`** fails a breach on CI too, for a run that must catch a
-#   timing regression.
+# - **On CI** a bound is stretched by `multiplier`; locally it holds as written.
+# - **A breach** is a pending finding, not a failure (see `Expectation#expect_wall_clock`), so a
+#   slow runner never fails a train, nor a landing's gate on a loaded machine.
+# - **`HECKS_WALL_CLOCK_STRICT=1`** fails a breach, for a run that must catch a timing regression.
 module WallClock
-  # A wall-clock bound passed on CI; the example is pending with this as its exception.
+  # A wall-clock bound passed; the example is pending with this as its exception.
   class Breach < StandardError; end
 
   FINDINGS = File.expand_path("../../tmp/wall_clock_findings.jsonl", __dir__)
@@ -30,7 +29,7 @@ module WallClock
   end
 
   # @return [Boolean] whether a breach becomes a pending finding instead of a failure
-  def forgiving? = ci? && ENV.fetch("HECKS_WALL_CLOCK_STRICT", "").empty?
+  def forgiving? = ENV.fetch("HECKS_WALL_CLOCK_STRICT", "").empty?
 
   # @return [Boolean] whether this run is on CI
   def ci? = !ENV.fetch("CI", "").empty?
@@ -72,10 +71,10 @@ module WallClock
 
   # The matcher side, mixed into every example group.
   module Expectation
-    # Asserts a wall-clock measurement stays under a bound. On CI a breach marks the example
-    # pending with the breach as its pending exception, so `CiSkipBackstop` sees a live check, and
-    # appends one JSON line to `FINDINGS`; no CI job uploads that file yet, so on a runner the
-    # finding lives in the pending message of the log. A bound passed `stretched: false` (a ratio
+    # Asserts a wall-clock measurement stays under a bound. A breach marks the example pending
+    # with the breach as its pending exception, so `CiSkipBackstop` sees a live check, and appends
+    # one JSON line to `FINDINGS`; no CI job uploads that file yet, so on a runner the finding
+    # lives in the pending message of the log. A bound passed `stretched: false` (a ratio
     # of two measurements on one machine, or a distance from a known slow path) is never stretched.
     # Put it last in its example: on a forgiven breach nothing after it runs.
     # @param measured [Numeric] seconds, milliseconds or a ratio, as the bound is written

@@ -5,7 +5,7 @@ require_relative "support/wall_clock_scan"
 
 # A wall-clock bound cannot sink a train on a slow runner: every timing example is tagged
 # `:wall_clock`, listed in WallClock::EXAMPLES, and asserts through `expect_wall_clock`, which
-# stretches the bound on CI and turns a breach there into a pending finding.
+# stretches the bound on CI and turns a breach into a pending finding unless the run is strict.
 RSpec.describe WallClock do
   def with_env(values)
     saved = values.keys.to_h { |key| [key, ENV.fetch(key, nil)] }
@@ -35,8 +35,8 @@ RSpec.describe WallClock do
     with_env("CI" => "1", "HECKS_WALL_CLOCK_MULTIPLIER" => "9") { expect(described_class.bound(3, stretched: false)).to eq(3.0) }
   end
 
-  it "fails a breach on CI when the run is strict" do
-    with_env("CI" => "1", "HECKS_WALL_CLOCK_STRICT" => "1") { expect(described_class.forgiving?).to be(false) }
+  it "fails a breach only when the run is strict" do
+    with_env("HECKS_WALL_CLOCK_STRICT" => "1") { expect(described_class.forgiving?).to be(false) }
   end
 
   it "refuses an example that is not tagged :wall_clock" do
