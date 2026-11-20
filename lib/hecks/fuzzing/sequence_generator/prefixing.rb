@@ -1,3 +1,5 @@
+require_relative "seeded_clock"
+
 module Hecks
   module Fuzzing
     class SequenceGenerator
@@ -32,10 +34,12 @@ module Hecks
           limit
         end
 
-        # Both streams restart together so a prefix replay draws the same query bindings.
+        # The streams and the seeded clock restart together, so a prefix replay draws the same
+        # query bindings and reads the same needed facts.
         def restart_random(seed)
           @random         = Random.new(seed)
           @binding_random = Random.new(seed + QueryBinding::BINDING_SEED_OFFSET)
+          @clock          = SeededClock.new(seed)
         end
 
         def prefix_limit(spec) = Integer(spec.fetch("steps")).clamp(0, @step_count)
