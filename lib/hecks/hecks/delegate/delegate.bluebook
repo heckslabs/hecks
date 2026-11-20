@@ -2035,7 +2035,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # Each event that frees capacity or adds work opens the switch record (refused, and benign, once
-    # it is there) and consults it. Six openings are the price of one record per store: any of
+    # it is there) and consults it. Eight openings are the price of one record per store: any of
     # these events may be the first a store hears.
     policy "OpenTheRollSwitchWhenARunEnds" do
       on      "AgentRun.SessionFinished"
@@ -2082,10 +2082,34 @@ Hecks.bluebook "Hecks" do
       trigger RollSwitch::Open, with: { switch: "rolls" }
     end
 
-    # A landed branch starts no roll of its own: the session that landed it ends, and that end rolls;
-    # the machine's reading is the backstop.
+    # A reopened item is planned again, so a coder is wanted for it at once.
     policy "RollWhenWorkIsReopened" do
       on      "Work.WorkReopened"
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :work }
+    end
+
+    # A finished item frees the ground it held. Its coder's session ended at the submit, while the
+    # item was still started, so the roll that end made skipped every item waiting on its area; the
+    # landing closes it later, and that close rolls, so a waiting item starts with no hand fill.
+    policy "OpenTheRollSwitchWhenWorkIsFinished" do
+      on      "Work.WorkFinished"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
+    end
+
+    policy "RollWhenWorkIsFinished" do
+      on      "Work.WorkFinished"
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :work }
+    end
+
+    # A yielded item frees its ground and its place under the cap. A yield made inside a running
+    # fill asks for a roll the fill refuses and defers, so that fill fills once more and no more.
+    policy "OpenTheRollSwitchWhenWorkIsYielded" do
+      on      "Work.WorkYielded"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
+    end
+
+    policy "RollWhenWorkIsYielded" do
+      on      "Work.WorkYielded"
       trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :work }
     end
 
@@ -2106,12 +2130,13 @@ Hecks.bluebook "Hecks" do
     end
 
     # A root: the consult and the read are behind it, so the roll's own chain (the fill and its
-    # record) begins at the depth it has when an event starts it directly.
+    # record) begins at the depth it has when an event starts it directly. The roll is keyed by the
+    # read's own `roll`, so two events about one work item (planned, then finished) each roll.
     policy "StartTheRollWhenTheSwitchIsOn" do
       on      "RollSwitch.RollSwitchRead"
       root
       where   { state == "on" }
-      trigger Roll::Start, with: { run: :run }
+      trigger Roll::Start, with: { run: :roll }
     end
 
     policy "RecordThePause" do
