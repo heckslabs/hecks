@@ -30,4 +30,18 @@ RSpec.describe "StallWatch impediments: one entry per pair of branches" do
     shared = Hecks::Adapters::StallWatching::SharedFiles.new([{ read: "other" }], 0, branches: branch_read)
     expect { shared.rows([], "look-1") }.to raise_error(ArgumentError, /unknown read "other"/)
   end
+
+  it "is cleared by a call for help, under a key a call may hold", :aggregate_failures do
+    write_sources(started)
+
+    expect(pair).to include(cleared_by: "help", impediment: "stall-branches-share-files-one.two-aaa1111-bbb2222")
+    expect("help-#{pair[:impediment]}").to match(/\Ahelp-stall-[A-Za-z0-9._-]+\z/)
+  end
+
+  it "refuses a row that names a clearing it does not know, by name" do
+    rows = [{ kind: "odd", read: "shared-files", aggregate: "Tickets::Work", opens: "WorkStarted", cleared_by: "no" }]
+    write_sources(started)
+    shared = Hecks::Adapters::StallWatching::SharedFiles.new(rows, Time.now.to_i, branches: branch_read)
+    expect { shared.rows(tap_lines, "look-1") }.to raise_error(ArgumentError, /odd is cleared by "no"/)
+  end
 end

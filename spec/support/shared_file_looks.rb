@@ -19,4 +19,7 @@ RSpec.shared_context "with open branches that share a file" do
   end
 
   def pair = row_of("branches-share-files")
+
+  # The tap's lines as a look reads them.
+  def tap_lines = File.readlines(tap).map { |text| JSON.parse(text) }
 end
