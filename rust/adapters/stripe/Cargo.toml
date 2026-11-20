@@ -1,0 +1,25 @@
+# The Stripe payments adapter as a Wasm component (world `payments-adapter` in rust/host/wit/payments.wit).
+# Built to lib/hecks/adapters/driven/stripe/stripe.wasm, beside the stripe.adapter that runs it,
+# with its digest in stripe.wasm.sha256, by
+# `exe/hecks Build.build_component! crate.value=rust/adapters/stripe run.value=<key> --wait`;
+# the committed .wasm is that build's output, and a deploy's IR carries it to the host.
+[package]
+name = "stripe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.46"
+serde_json = "1"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1
+
+[workspace]

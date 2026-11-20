@@ -933,21 +933,20 @@ pub(crate) async fn registrations_route_at(
         publishable_key,
     } = &plan
     {
-        let auth = checkout::StripeAuth {
-            api_key,
-            base_url: &platform.api_base,
-        };
-        match checkout::create_checkout_session(
-            &auth,
+        let wanted = payments::stripe::SessionRequest {
             price_cents,
-            event_name,
-            &reference,
-            checkout::session_expires_at(
+            currency: checkout::CURRENCY.to_string(),
+            product_name: event_name.to_string(),
+            registration_id: reference.clone(),
+            expires_at: checkout::session_expires_at(
                 now_secs,
                 crate::commerce_ir::checkout_windows_binding().session_hold,
             ),
-        )
-        .await
+        };
+        match platform
+            .stripe
+            .create_checkout_session(&platform.account(api_key), wanted)
+            .await
         {
             // Stripe.js is opened with the publishable key; the answer carries
             // no `checkout_url`.
