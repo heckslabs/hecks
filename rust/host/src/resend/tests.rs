@@ -24,43 +24,95 @@ async fn the_component_mailer_passes_every_shared_case() {
 }
 
 #[test]
-fn the_embedded_component_is_the_build_its_digest_names() {
-    assert_eq!(component::embedded_digest(), component::committed_digest());
+fn the_committed_component_is_the_build_its_digest_names() {
+    assert_eq!(
+        component::committed::digest(),
+        component::committed::committed_digest()
+    );
+}
+
+/// A deploy's IR as `mailed_by "Resend"` writes it: the committed module by its digest, and the
+/// grant `resend.adapter` declares, here with `secrets` in place of its one key.
+fn wired_ir(secrets: &[&str]) -> serde_json::Value {
+    serde_json::json!({ "components": [{
+        "adapter": "Resend", "port": "email", "verb": "mailed_by", "runs": "resend.wasm",
+        "sha256": component::committed::digest(),
+        "module": component::committed::base64_of(component::committed::MODULE),
+        "secrets": secrets, "imports": ["clock", "http_out"], "hosts": ["api.resend.com"],
+    }]})
+}
+
+fn wiring(ir: &serde_json::Value) -> Option<component::Wiring> {
+    component::wired(Some(ir)).unwrap()
 }
 
 #[test]
 fn nothing_configured_is_not_a_mailer() {
-    assert!(Mailer::configured("", "", "", "").unwrap().is_none());
+    assert!(Mailer::configured("", "", "", None).unwrap().is_none());
 }
 
 #[test]
 fn a_key_without_a_from_address_is_refused() {
-    assert!(Mailer::configured("re_x", "", "", "1").is_err());
+    let wired = wiring(&wired_ir(&["RESEND_API_KEY"]));
+    assert!(Mailer::configured("re_x", "", "", wired).is_err());
 }
 
 #[test]
 fn a_key_and_from_is_live_even_when_mock_is_also_set() {
-    let mailer = Mailer::configured("re_x", "News <n@mail.example.com>", "1", "")
+    let mailer = Mailer::configured("re_x", "News <n@mail.example.com>", "1", None)
         .unwrap()
         .unwrap();
     assert!(matches!(mailer, Mailer::Live { .. }));
 }
 
 #[test]
-fn the_component_switch_picks_the_component_mailer() {
-    let mailer = Mailer::configured("re_x", "n@mail.example.com", "", "1")
+fn a_deploy_whose_ir_wires_the_component_mails_through_it() {
+    let wired = wiring(&wired_ir(&["RESEND_API_KEY"]));
+    let mailer = Mailer::configured("re_x", "n@mail.example.com", "", wired)
         .unwrap()
         .unwrap();
-    assert!(matches!(mailer, Mailer::Component(_)));
+    assert!(matches!(mailer, Mailer::Component { .. }));
+}
+
+#[test]
+fn a_deploy_whose_ir_wires_no_component_mails_natively() {
+    let unwired = wiring(&serde_json::json!({ "plugins": [] }));
+    assert!(unwired.is_none());
+    let mailer = Mailer::configured("re_x", "n@mail.example.com", "", unwired)
+        .unwrap()
+        .unwrap();
+    assert!(matches!(mailer, Mailer::Live { .. }));
+}
+
+#[test]
+fn a_wired_component_the_host_cannot_load_is_refused() {
+    let mut ir = wired_ir(&["RESEND_API_KEY"]);
+    ir["components"][0]["sha256"] = serde_json::json!("2".repeat(64));
+    assert_eq!(
+        component::wired(Some(&ir)).err(),
+        Some("Resend's module does not match its digest".to_string())
+    );
+}
+
+/// The grant is the IR's, copied: a key the wiring does not name is refused by the host, by name.
+#[tokio::test]
+async fn the_ir_grant_is_all_the_component_reaches() {
+    let wired = wiring(&wired_ir(&[])).unwrap();
+    let account = Account::new(KEY, FROM, API_BASE);
+    let delivery = component::deliver(&account, &wired, &probe()).await;
+    assert_eq!(
+        delivery.reason.as_deref(),
+        Some("secret RESEND_API_KEY is not granted")
+    );
 }
 
 #[test]
 fn mock_needs_an_explicit_opt_in_and_no_key() {
-    assert!(Mailer::configured("", "", "1", "")
+    assert!(Mailer::configured("", "", "1", None)
         .unwrap()
         .unwrap()
         .is_mock());
-    assert!(Mailer::configured("", "", "0", "1").unwrap().is_none());
+    assert!(Mailer::configured("", "", "0", None).unwrap().is_none());
 }
 
 #[test]
@@ -71,7 +123,7 @@ fn replying_to_trims_the_address_and_a_blank_one_sets_none() {
         matches!(&set, Mailer::Live { account, .. } if account.reply_to.as_deref() == Some("me@example.com"))
     );
     let blank = Mailer::component("re_x", "n@mail.example.com", "http://x").replying_to("   ");
-    assert!(matches!(&blank, Mailer::Component(account) if account.reply_to.is_none()));
+    assert!(matches!(&blank, Mailer::Component { account, .. } if account.reply_to.is_none()));
     assert!(
         Mailer::Mock.replying_to("me@example.com").is_mock(),
         "a mock mailer has no replies"
@@ -100,7 +152,8 @@ async fn the_component_reaches_no_host_but_the_base_urls() {
     let account = Account::new(KEY, FROM, "http://localhost:1");
     let mut sender_on_another_host = component::sender(&account);
     sender_on_another_host.base_url = fake.base.clone();
-    let delivery = component::deliver_as(&account, sender_on_another_host, &probe()).await;
+    let wiring = component::committed::wiring(&account);
+    let delivery = component::deliver_as(&wiring, sender_on_another_host, &probe()).await;
     assert_eq!(
         delivery.reason.as_deref(),
         Some("resend unreachable: 127.0.0.1 is not granted")

@@ -1,0 +1,4 @@
+Hecks.port "email" do
+  verb   "mailed_by"
+  signal :effect
+end

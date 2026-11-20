@@ -508,4 +508,8 @@ pub struct Adapter {
     pub provides: Vec<String>,
     // `stays_inside`: the adapter reaches nothing outside the process and the checkout (ADR 0171).
     pub stays_inside: bool,
+    // A component's host capabilities (`clock`, `http_out`), in declaration order.
+    pub imports: Vec<String>,
+    // The hosts a component's `http_out` requests may reach, in declaration order.
+    pub hosts: Vec<String>,
 }
