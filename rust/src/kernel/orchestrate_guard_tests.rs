@@ -174,7 +174,7 @@ static PING_SPEC: DispatchSpec = DispatchSpec {
     compensates: None,
 };
 
-static PROCESS_MANAGERS: [ProcessManagerDef; 3] = [
+static PROCESS_MANAGERS: [ProcessManagerDef; 5] = [
     ProcessManagerDef {
         name: "Transfer",
         correlates_by: "ref",
@@ -240,6 +240,81 @@ static PROCESS_MANAGERS: [ProcessManagerDef; 3] = [
                 compensates: None,
             }],
         }],
+    },
+    ProcessManagerDef {
+        name: "Early",
+        correlates_by: "ref",
+        starts_on: "EarlyStarted",
+        ends_on: "NeverEnds",
+        initial_state: "start",
+        handlers: &[
+            Handler {
+                event_type: "EarlyFunded",
+                from_state: "start",
+                to_state: "mid",
+                dispatches: &[
+                    DispatchSpec {
+                        command_name: "Ship.Refuse",
+                        with: &[("ref", WithValue::Ref("ref"))],
+                        compensates: None,
+                    },
+                    DispatchSpec {
+                        command_name: "Ship.Go",
+                        with: &[("ref", WithValue::Ref("ref"))],
+                        compensates: None,
+                    },
+                ],
+            },
+            Handler {
+                event_type: REFUSED,
+                from_state: "mid",
+                to_state: "undone",
+                dispatches: &[DispatchSpec {
+                    command_name: "Ship.Scrap",
+                    with: &[("ref", WithValue::Ref("ref"))],
+                    compensates: None,
+                }],
+            },
+        ],
+    },
+    ProcessManagerDef {
+        name: "Edge",
+        correlates_by: "ref",
+        starts_on: "EdgeStarted",
+        ends_on: "NeverEnds",
+        initial_state: "start",
+        handlers: &[
+            Handler {
+                event_type: "EdgeArmed",
+                from_state: "start",
+                to_state: "armed",
+                dispatches: &[DispatchSpec {
+                    command_name: "Ship.Go",
+                    with: &[("ref", WithValue::Ref("ref"))],
+                    compensates: Some(&UNDO),
+                }],
+            },
+            Handler {
+                event_type: "EdgeFunded",
+                from_state: "armed",
+                to_state: "mid",
+                dispatches: &[DispatchSpec {
+                    command_name: "Ship.Send",
+                    with: &[("ref", WithValue::Ref("ref"))],
+                    compensates: None,
+                }],
+            },
+            Handler {
+                event_type: REFUSED,
+                from_state: "mid",
+                to_state: "undone",
+                dispatches: &[DispatchSpec {
+                    command_name: "Ship.Scrap",
+                    with: &[("ref", WithValue::Ref("ref"))],
+                    compensates: None,
+                }],
+            },
+        ],
     },
 ];
 
@@ -354,7 +429,7 @@ impl World {
             .collect()
     }
 
-    fn deliver_saga(&mut self, depth: usize) -> Option<bool> {
+    fn deliver_saga(&mut self, depth: usize) -> bool {
         self.cascade().deliver_saga_dispatch(
             &ping_leg(),
             &PING_SPEC,
@@ -588,7 +663,7 @@ fn a_fan_out_over_a_query_nothing_declares_logs_the_missing_query() {
 fn a_saga_leg_stopped_at_the_ceiling_logs_it_and_never_dispatches() {
     let mut w = world();
 
-    assert_eq!(w.deliver_saga(5), None);
+    assert!(!w.deliver_saga(5));
 
     assert!(w.bus.calls.is_empty());
     assert_eq!(reason(&w.saga_log[0]), Some(DEPTH_REACHED));
@@ -598,7 +673,7 @@ fn a_saga_leg_stopped_at_the_ceiling_logs_it_and_never_dispatches() {
 fn a_saga_leg_just_under_the_ceiling_dispatches_one_level_deeper() {
     let mut w = world();
 
-    assert_eq!(w.deliver_saga(4), Some(true));
+    assert!(w.deliver_saga(4));
 
     // Dispatched at depth 5, so the `Ping` it emits meets the ceiling and is not re-triggered.
     assert_eq!(w.verbs(), ["D::Order.Ping"]);
@@ -710,6 +785,66 @@ fn a_leg_that_refuses_runs_the_refused_leg_and_fires_earlier_compensations() {
         .iter()
         .any(|e| e.get("on").and_then(Json::as_str) == Some("refused")
             && e.get("advanced") == Some(&Json::Bool(true))));
+}
+
+// Ruby's `refuse_at_depth_ceiling`: a leg the ceiling stops unwinds like a refused one. Its
+// compensation and the refused leg's own dispatch are reactions at that depth too, so they are
+// logged undelivered, and the refused dispatch's own unwind finds the instance already moved on.
+#[test]
+fn a_leg_stopped_at_the_ceiling_unwinds_and_its_compensation_fails_once() {
+    let mut w = world();
+    let key = ("Edge".to_string(), "x1".to_string());
+
+    w.orchestrate("D::Xfer.EdgeStarted", 0).unwrap();
+    w.orchestrate("D::Xfer.EdgeArmed", 0).unwrap();
+    w.orchestrate("D::Xfer.EdgeFunded", MAX_REACTION_DEPTH)
+        .unwrap();
+
+    assert_eq!(
+        w.verbs(),
+        [
+            "D::Xfer.EdgeStarted",
+            "D::Xfer.EdgeArmed",
+            "D::Ship.Go",
+            "D::Xfer.EdgeFunded"
+        ]
+    );
+    assert_eq!(w.sagas[&key].state, "undone");
+    assert_eq!(
+        dispatch_log(&w),
+        [
+            ("Ship.Go".to_string(), true, false),
+            ("Ship.Send".to_string(), false, false),
+            ("Ship.Undo".to_string(), false, true),
+            ("Ship.Scrap".to_string(), false, false)
+        ]
+    );
+    let undo = w
+        .saga_log
+        .iter()
+        .find(|e| e.get("dispatch").and_then(Json::as_str) == Some("Ship.Undo"));
+    assert_eq!(
+        undo.unwrap().get("compensation_failed"),
+        Some(&Json::Bool(true))
+    );
+    assert_eq!(
+        reason(w.saga_log.last().unwrap()),
+        Some("in \"undone\", not \"mid\"")
+    );
+}
+
+// Ruby's `settle_refusal`: the refused dispatch unwinds where it fails, before the leg's next one.
+#[test]
+fn a_dispatch_that_refuses_unwinds_before_the_legs_next_dispatch_runs() {
+    let mut w = world();
+
+    w.orchestrate("D::Xfer.EarlyStarted", 0).unwrap();
+    w.orchestrate("D::Xfer.EarlyFunded", 0).unwrap();
+
+    assert_eq!(
+        w.verbs()[2..],
+        ["D::Ship.Refuse", "D::Ship.Scrap", "D::Ship.Go"]
+    );
 }
 
 #[test]

@@ -3,7 +3,7 @@
   "spec": [
     "C10.4"
   ],
-  "note": "The reaction depth bound holds for a saga's compensation too. The Watch saga marks a lamp when it is lit, and that mark is compensable. Lamp.Flicker then triggers itself on every Flickered; the flicker the fifth reaction announces reaches the saga at the ceiling, so its leg is refused and the saga unwinds. The compensation (Unmark) and the hand-written refused leg (Retire) are reactions at that depth and are refused as well: the Lit mark stays, no Unmarked, no LampRetired.",
+  "note": "The reaction depth bound holds for a saga's compensation too. The Watch saga marks a lamp when it is lit, and that mark is compensable. Lamp.Flicker then triggers itself on every Flickered; the flicker the fifth reaction announces reaches the saga at the ceiling, so its leg is refused and the saga unwinds. The saga still unwinds: its refused leg moves it to unwound, and the compensation (Unmark) and the hand-written refused leg (Retire) are reactions at that depth, so they are logged undelivered (Unmark as compensation_failed) and refused as well: the Lit mark stays, no Unmarked, no LampRetired. The saga log is frozen so both runtimes are held to that unwind.",
   "steps": [
     {
       "verb": "Echo::Lamp.Install",
@@ -110,6 +110,110 @@
         "payload": {
           "lamp": "l1"
         }
+      }
+    ],
+    "sagas": [
+      {
+        "process_manager": "Watch",
+        "on": "LampInstalled",
+        "instance": "l1",
+        "born": true,
+        "state": "installed"
+      },
+      {
+        "process_manager": "Watch",
+        "on": "Lit",
+        "instance": "l1",
+        "advanced": true,
+        "from": "installed",
+        "to": "lit"
+      },
+      {
+        "process_manager": "Watch",
+        "instance": "l1",
+        "dispatch": "Lamp.Mark",
+        "delivered": true
+      },
+      {
+        "process_manager": "Watch",
+        "on": "Flickered",
+        "instance": "l1",
+        "advanced": true,
+        "from": "lit",
+        "to": "flickering"
+      },
+      {
+        "process_manager": "Watch",
+        "instance": "l1",
+        "dispatch": "Lamp.Mark",
+        "delivered": false,
+        "reason": "reaction depth 5 reached"
+      },
+      {
+        "process_manager": "Watch",
+        "on": "refused",
+        "instance": "l1",
+        "advanced": true,
+        "from": "flickering",
+        "to": "unwound"
+      },
+      {
+        "process_manager": "Watch",
+        "instance": "l1",
+        "dispatch": "Lamp.Unmark",
+        "delivered": false,
+        "compensation": true,
+        "compensation_failed": true,
+        "reason": "reaction depth 5 reached"
+      },
+      {
+        "process_manager": "Watch",
+        "instance": "l1",
+        "dispatch": "Lamp.Retire",
+        "delivered": false,
+        "reason": "reaction depth 5 reached"
+      },
+      {
+        "process_manager": "Watch",
+        "on": "refused",
+        "instance": "l1",
+        "advanced": false,
+        "reason": "in \"unwound\", not \"flickering\""
+      },
+      {
+        "process_manager": "Watch",
+        "on": "Flickered",
+        "instance": "l1",
+        "advanced": false,
+        "reason": "in \"unwound\", not \"lit\""
+      },
+      {
+        "process_manager": "Watch",
+        "on": "Flickered",
+        "instance": "l1",
+        "advanced": false,
+        "reason": "in \"unwound\", not \"lit\""
+      },
+      {
+        "process_manager": "Watch",
+        "on": "Flickered",
+        "instance": "l1",
+        "advanced": false,
+        "reason": "in \"unwound\", not \"lit\""
+      },
+      {
+        "process_manager": "Watch",
+        "on": "Flickered",
+        "instance": "l1",
+        "advanced": false,
+        "reason": "in \"unwound\", not \"lit\""
+      },
+      {
+        "process_manager": "Watch",
+        "on": "Flickered",
+        "instance": "l1",
+        "advanced": false,
+        "reason": "in \"unwound\", not \"lit\""
       }
     ]
   }

@@ -103,6 +103,18 @@ RSpec.describe "the semantics corpus" do
     expect(delivered).to eq(frozen) if frozen
   end
 
+  # A fixture freezes `sagas` only when it pins the saga log a run writes.
+  def expect_sagas(log, fixture)
+    frozen = fixture.fetch("expect")["sagas"]
+    expect(log).to eq(frozen) if frozen
+  end
+
+  # Checks the `cross_domain` and `sagas` a fixture froze, each only when it froze it.
+  def expect_optional(cross_domain, sagas, fixture)
+    expect_cross_domain(cross_domain, fixture)
+    expect_sagas(sagas, fixture)
+  end
+
   def replayed_fixture(path)
     fixture = load_fixture(path)
     [fixture, replay(fixture)]
@@ -118,7 +130,7 @@ RSpec.describe "the semantics corpus" do
         expect(refusal_kinds(result)).to eq(fixture.fetch("expect").fetch("refusals"))
         expect(json_round_trip(result[:instances])).to eq(fixture.fetch("expect").fetch("instances"))
         expect(normalize_events(result[:events])).to eq(fixture.fetch("expect").fetch("events"))
-        expect_cross_domain(json_round_trip(result[:cross_domain]), fixture)
+        expect_optional(json_round_trip(result[:cross_domain]), json_round_trip(result[:sagas]), fixture)
       end
     end
   end
@@ -154,7 +166,7 @@ RSpec.describe "the semantics corpus" do
 
         expect(failure).to be_nil, failure
         %w[refusals instances events].each { |key| expect(rust.fetch(key)).to eq(fixture.fetch("expect").fetch(key)) }
-        expect_cross_domain(rust_cross_domain(rust), fixture)
+        expect_optional(rust_cross_domain(rust), rust.fetch("sagas"), fixture)
       end
     end
 
