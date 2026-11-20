@@ -107,6 +107,14 @@ One step of integrating main (verify, board, observe CI) or one advance of the o
 - `hecks Integration.board! <landed> [checkout=] --confirm`: Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval
 - `hecks Integration.observe! <landed> [checkout=] [--pulled]`: Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running
 
+### RedEpisode
+
+One stretch of red main: the decision its search made (revert the first bad merge, park, acquit or unfound), when it began and ended in epoch seconds (ended 0 while it stands), and how it ended: declined (acquitted, so it ends as it begins), parked or unfound (left to the owner, standing), reverted (its revert was made and the flag lowered) or fixed (the flag was lowered with no revert of its own).
+
+- `hecks RedEpisode.recent <limit>`: The last episodes of red main, as many as the limit given, newest first: each with when it began and ended (0 while it stands), its culprit commit, branch and Work item, the decision and how it ended.
+- `hecks RedEpisode.standing`: Every episode of red main that has not ended, newest first: the red that stands now.
+- `hecks RedEpisode.reverting <run>`: The standing episode whose first bad merge is being reverted, by its run.
+
 ### ReviewRequest
 
 One pull request opened or merged on GitHub, and what GitHub answered.
