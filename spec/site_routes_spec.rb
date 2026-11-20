@@ -112,7 +112,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       _, _, err = run("--out=#{work}", "--check")
 
       expect(err).to include("out of date: #{File.join(work, "routes.ts")}, #{File.join(work, "deploy/template.yaml")}",
-                             "run hecks site site_projection.project_site")
+                             "run hecks site SiteProjection.project_site!")
     end
 
     it "with --check answers 0 when it is current" do
