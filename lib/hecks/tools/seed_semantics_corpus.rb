@@ -74,7 +74,8 @@ module Hecks
       # @param fixture [Hash] the parsed fixture: `domain` and `steps`
       # @param full [Boolean] also freeze queries, sagas, dry runs, reactions (conformance)
       # @return [Hash{String => Array}] its `"expect"` block: refusals, instances, events, and
-      #   with `full` the {CONFORMANCE_KEYS}, otherwise `cross_domain` and `sagas` when the run had any
+      #   with `full` the {CONFORMANCE_KEYS}, otherwise `cross_domain` and `sagas` when the run
+      #   had any
       def expectation_for(root, fixture, full: false)
         result = Hecks::Fuzzing::Replay.call(File.join(root, fixture["domain"]), fixture["steps"], identity: fixture["identity"])
         expect = {
