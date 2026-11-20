@@ -1,14 +1,13 @@
 require "json"
-require "open3"
 require "hecks/fuzzing"
 require "hecks/fuzzing/differential"
-require "hecks/rust_build/kernel_input"
 require_relative "support/rust_conformance_helpers"
 require_relative "support/generated_rust"
 
-# Diffs Ruby against the compiled Rust binary over seeded generated sequences per domain.
-# Needs a real `cargo build` per domain (`:io`), and is kept apart from the hand-curated
-# spec/rust_conformance_spec.rb corpus.
+# Diffs Ruby against the compiled Rust kernel over seeded generated sequences per domain, through
+# `Differential.diff` with the kernel served over the host protocol (`Differential::ServeEngine`,
+# one warm `--serve` per domain). Needs a real `cargo build` per domain (`:io`), and is kept apart
+# from the hand-curated spec/rust_conformance_spec.rb corpus.
 RSpec.describe "Rust conformance, over generated sequences (native binary)", :io do
   include_context "with the generated Rust tree"
 
@@ -40,12 +39,48 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   def build_rust_for(domain_feature) = super(domain_feature, FUZZ_RUST_DIR)
 
-  # A query row without the fields only Ruby's oracle reads (`Nondeterministic::FIELDS`): the
-  # compiled kernel answers one ask at a time, so it has no page walk to compare.
-  def without_oracle_only(row) = Hecks::Fuzzing::Nondeterministic.strip(row, :query_row)
+  # The comparison helpers `Differential.diff` takes; tolerated verbs collect in `structural_skips`.
+  def differ
+    Class.new do
+      include RustConformanceHelpers
+
+      def structural_skips = @structural_skips ||= Set.new
+    end.new
+  end
+
+  # The domain's kernel served over the host protocol, or a skip when it has no Cargo feature.
+  def served_kernel(domain)
+    feature = File.basename(domain).downcase
+    binary = build_rust_for(feature)
+    skip "rust/Cargo.toml has no #{feature} feature — run hecks project_rust for it first" unless binary
+    Hecks::Fuzzing::Differential::ServeEngine.new(binary)
+  end
+
+  # The `:differential` divergences of one seed, each tagged with the seed.
+  def seed_divergences(domain, seed, engine)
+    steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: STEPS_PER_SEQUENCE,
+                                                                  adversarial: ADVERSARIAL_FRACTION)
+    Hecks::Fuzzing::Differential.diff(differ, domain, steps, engine, modes: [:differential])
+                                .fetch(:differential).map { |divergence| divergence.merge(seed: seed) }
+  end
+
+  # A served kernel that drops the last step, so it must disagree with Ruby.
+  def short_engine(engine)
+    Class.new(SimpleDelegator) { def call(domain, steps, **) = __getobj__.call(domain, steps[0...-1], **) }.new(engine)
+  end
 
   it "pends only domains it actually fuzzes" do
     expect(RUST_FUZZ_PENDING.keys - DOMAINS.map { |domain| File.basename(domain) }).to be_empty
+  end
+
+  it "finds a seeded divergence over the served kernel" do
+    domain = File.join(InMemoryDomain::ROOT, "examples/chess")
+    steps = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/chess.json"))).fetch("steps")
+    engine = served_kernel(domain)
+    found = Hecks::Fuzzing::Differential.diff(differ, domain, steps, short_engine(engine), modes: [:differential])
+    expect(found.fetch(:differential).map { |divergence| divergence[:field] }).to include("events")
+  ensure
+    engine&.close
   end
 
   DOMAINS.each do |domain|
@@ -53,88 +88,10 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
       # One example accumulates a combined divergence report across all seeds and fields;
       # splitting would re-pay the cargo build and scatter related divergences.
       it "agrees with Ruby across #{SEEDS_PER_DOMAIN} generated sequences (instances, events, refusals, " \
-         "reactions, sagas, queries)" do
+         "reactions, sagas, queries, dry runs)" do
         pending RUST_FUZZ_PENDING.fetch(File.basename(domain)) if RUST_FUZZ_PENDING.key?(File.basename(domain))
-        feature = File.basename(domain).downcase
-        binary = build_rust_for(feature)
-        skip "rust/Cargo.toml has no #{feature} feature — run hecks project_rust for it first" unless binary
-
-        gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary, rust_dir: FUZZ_RUST_DIR)
-        divergences = []
-
-        (1..SEEDS_PER_DOMAIN).each do |seed|
-          steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: STEPS_PER_SEQUENCE,
-                                                                        adversarial: ADVERSARIAL_FRACTION)
-
-          ruby_result = Hecks::Fuzzing::Replay.call(domain, steps)
-          ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))
-          ruby_events    = JSON.parse(JSON.generate(ruby_result[:events]))
-          # Refusals compare by kind, not wording (C8.2); the message rides along only
-          # into the manifest partition below.
-          ruby_refusals  = ruby_result[:refusals].map do |r|
-            { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
-          end
-          ruby_queries   = JSON.parse(JSON.generate(ruby_result[:queries].map { |q| without_oracle_only(q) }))
-          ruby_sagas     = JSON.parse(JSON.generate(ruby_result[:sagas]))
-
-          stdout, status = Open3.capture2(binary, stdin_data: Hecks::RustBuild::KernelInput.json(domain, steps))
-          unless status.success?
-            divergences << { seed: seed, field: "process", detail: "exited #{status.exitstatus}: #{stdout}" }
-            next
-          end
-
-          rust_output = JSON.parse(stdout)
-          strip_emitted_flags!(rust_output["instances"])
-          strip_emitted_flags!(rust_output["queries"])
-          strip_occurred_at!(rust_output["events"])
-
-          if rust_output["instances"] != ruby_instances
-            divergences << { seed: seed, field: "instances",
-                              ruby: ruby_instances, rust: rust_output["instances"] }
-          end
-          if rust_output["events"] != ruby_events
-            divergences << { seed: seed, field: "events",
-                              ruby: ruby_events, rust: rust_output["events"] }
-          end
-
-          # Verbs the manifest declares `generated: false` leave both sides; a tolerated
-          # verb Rust answered anyway is a stale manifest, reported as a divergence.
-          kept = Hecks::Fuzzing::Differential.manifest_partition(
-            gaps, ruby_refusals: ruby_refusals, rust_refusals: rust_output["refusals"],
-                  ruby_queries: ruby_queries, rust_queries: rust_output["queries"]
-          )
-          kept[:stale].each { |stale| divergences << stale.merge(seed: seed) }
-
-          by_kind = ->(r) { r.slice("verb", "kind") }
-          rust_refusals = kept[:rust_refusals].map(&by_kind)
-          kept_ruby_refusals = kept[:ruby_refusals].map(&by_kind)
-          if rust_refusals != kept_ruby_refusals
-            divergences << { seed: seed, field: "refusals",
-                              ruby: kept_ruby_refusals, rust: rust_refusals }
-          end
-
-          wordless = ->(q) { reduce_to_wire_precision(q.except("error", "reference_error")) }
-          rust_queries = kept[:rust_queries].map(&wordless)
-          kept_ruby_queries = kept[:ruby_queries].map(&wordless)
-          if rust_queries != kept_ruby_queries
-            divergences << { seed: seed, field: "queries",
-                              ruby: kept_ruby_queries, rust: rust_queries }
-          end
-
-          if rust_output["sagas"] != ruby_sagas
-            divergences << { seed: seed, field: "sagas",
-                              ruby: ruby_sagas, rust: rust_output["sagas"] }
-          end
-
-          cross_domain = cross_domain_policy_names(rust_output)
-          kept_ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
-                                    .reject { |r| cross_domain.include?(r["policy"]) }
-          rust_reactions = rust_output.fetch("reactions")
-          if rust_reactions != kept_ruby_reactions
-            divergences << { seed: seed, field: "reactions",
-                              ruby: kept_ruby_reactions, rust: rust_reactions }
-          end
-        end
+        engine = served_kernel(domain)
+        divergences = (1..SEEDS_PER_DOMAIN).flat_map { |seed| seed_divergences(domain, seed, engine) }
 
         # A divergence is a finding: shrink it with `hecks fuzz shrink <domain> <seed>` first.
         # Printed so the seed and field are not buried in a large diff.
@@ -146,6 +103,8 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
         expect(divergences).to be_empty, "#{divergences.size} divergence(s) found — reproduce with " \
                                          "`SEEDS=1 bundle exec rspec` after isolating the seed below, " \
                                          "then shrink with hecks fuzz:\n#{message}"
+      ensure
+        engine&.close
       end
     end
   end
