@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "hecks/adapters/driving/resident/fingerprint"
+require_relative "../../../adapters/driving/resident/fingerprint"
 
 module Hecks
   module Adapters
