@@ -148,11 +148,13 @@ RSpec.describe "the Tickets bluebook" do
     expect(commands).to include("Plan", "Start", "Release", "Finish", "Drop", "Lapse", "Yield", "Reopen")
   end
 
-  # The WorkAreas and WorkLimits ports read Hecks's own rows and clock; nothing leaves the process.
+  # The WorkAreas and WorkLimits ports read Hecks's own records, clock and checkout; nothing leaves
+  # the process.
   it "asks only Hecks's own ports from a Work step" do
     asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 
-    expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted")
+    expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted",
+                                                      "CheckAreaNamesWhenPlanned", "CheckAreaNamesWhenRescoped")
   end
 
   it "lapses a superseded decision's undone steps" do
