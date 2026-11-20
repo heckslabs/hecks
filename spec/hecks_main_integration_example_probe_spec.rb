@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::ExampleProbe do
   let(:repo) { File.join(dir, "main") }
   let(:shell) { instance_double(Hecks::Adapters::Shell, capture: result) }
   let(:result) { instance_double(Hecks::Adapters::Shell::Result, ok?: true, out: "", err: "") }
-  let(:probe) { described_class.new(repo, head, shell: shell) }
+  let(:probe) { described_class.new(Hecks::Adapters::MainIntegration::Repository.new(repo), head, shell: shell) }
 
   before do
     open_repository
