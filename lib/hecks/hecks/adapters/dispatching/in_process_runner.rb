@@ -2,6 +2,7 @@
 
 require "stringio"
 require_relative "../shell"
+require_relative "own_cascade"
 
 module Hecks
   module Adapters
@@ -58,7 +59,7 @@ module Hecks
         private
 
         def run(argv, err)
-          at_depth_zero do
+          OwnCascade.run do
             Runtime::Caller.without do
               Driving::CliRunner.call(runtime: dispatcher, argv: argv.dup, program: @program, err: err)
             end
@@ -74,14 +75,6 @@ module Hecks
 
           out = reason ? text : ""
           Shell::Result.new(out, [noise, reason || text].join, Status.new(false, status.to_i))
-        end
-
-        def at_depth_zero
-          depth = Thread.current[:hecks_reaction_depth]
-          Thread.current[:hecks_reaction_depth] = 0
-          yield
-        ensure
-          Thread.current[:hecks_reaction_depth] = depth
         end
       end
     end
