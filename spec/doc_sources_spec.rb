@@ -34,6 +34,16 @@ RSpec.describe Hecks::Doc::Sources do
       .to include("project_tools_doc!")
   end
 
+  it "names a top-level page's region that differs from what the model renders" do
+    sources = editing("docs/site-routes.md", "| `Kind` |", "| `Sort` |")
+    expect(sources.drift("docs/site-routes.md", region("region:route-vocabulary"))).to include("project_reference!")
+  end
+
+  it "names a region whose page has no markers for it" do
+    sources = editing("docs/site-routes.md", "<!-- generated:begin id=route-vocabulary -->", "")
+    expect(sources.drift("docs/site-routes.md", region("region:route-vocabulary"))).to include("no marked region")
+  end
+
   it "never checks a prose region" do
     expect(described_class.new(root).drift("README.md", region("", kind: "prose"))).to be_nil
   end

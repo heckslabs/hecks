@@ -4,9 +4,9 @@ require_relative "../prose_markers"
 module Hecks
   module Doc
     module Pages
-      # Puts up for review every declared prose region whose mentions or supports do not resolve,
-      # through `Prose.FlagForReview` in the Memory boot of Docs, and reads them back with
-      # `Prose.NeedsReview`.
+      # Puts up for review every declared prose region whose mentions, supports or heading do not
+      # resolve, through `Prose.FlagForReview` in the Memory boot of Docs, and reads them back
+      # with `Prose.NeedsReview`.
       class ProseReview
         # @param runtime [Runtime::Dispatcher] the Memory boot of Docs, its pages declared
         # @param check [ProseCheck] answers what does not resolve
@@ -33,7 +33,7 @@ module Hecks
         def unresolved(page)
           prose = page.regions.grep(ProseMarkers::Region)
           prose.filter_map do |region|
-            why = @check.unresolved(region)
+            why = @check.unresolved(region) + @check.unheaded(page.path, region)
             [region.key(page.path), why] unless why.empty?
           end
         end

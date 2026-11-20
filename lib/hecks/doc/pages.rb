@@ -49,7 +49,8 @@ module Hecks
         runtime = Hecks.boot(DOMAIN, environment: nil)
         pages = Catalogue.new(root).pages
         pages.each { |page| declare(runtime, page) }
-        ProseReview.new(runtime, ProseCheck.new(root, layout)).drifts(pages)
+        check = ProseCheck.new(root, layout, headed: MarkedCatalogue::PATHS)
+        ProseReview.new(runtime, check).drifts(pages)
       end
 
       # Declares one catalogued page and adds its regions, in reading order.

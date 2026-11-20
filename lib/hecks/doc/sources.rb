@@ -1,5 +1,6 @@
 require_relative "reference"
 require_relative "cli_guides"
+require_relative "regions"
 require "hecks/tools/tools_doc"
 
 module Hecks
@@ -11,6 +12,7 @@ module Hecks
     # - `tools:<Section>` is a section table of `docs/tools.md`, rendered by `Tools::ToolsDoc`
     # - `reference:<page>` is a DSL reference page, rendered whole by `Reference.pages`
     # - `cli:<section>` is a CLI guide's generated section, rendered by `CliGuides`
+    # - `region:<id>` is the page's own marked region `id`, rendered by `Regions`
     # - `doctest:<path>` is a page whose examples are booted, run by the `doctest` callable given
     #
     # Each comparison renders the whole page once and compares one region of it, so a drift names
@@ -19,6 +21,7 @@ module Hecks
       # The command that rewrites each projected source.
       REMEDY = { "readme"    => "hecks language_run.project_reference!",
                  "reference" => "hecks language_run.project_reference!",
+                 "region"    => "hecks language_run.project_reference!",
                  "tools"     => "hecks regeneration_run.project_tools_doc! --confirm",
                  "cli"       => "hecks regeneration_run.project_tools_doc! --confirm" }.freeze
 
@@ -44,6 +47,7 @@ module Hecks
         source, target = region[:source].split(":", 2)
         return if source.nil?
         return doctest_drift(path, region, target) if source == "doctest"
+        return unmarked(path, region, target) if source == "region" && !marked?(path, target)
 
         committed, fresh = pair(source, target, path)
         return if committed == fresh
@@ -61,6 +65,7 @@ module Hecks
         when "readme" then readme_pair(target)
         when "tools" then tools_pair(target)
         when "reference" then reference_pair(target)
+        when "region" then region_pair(path, target)
         else raise ArgumentError, "no Region source named #{source.inspect}"
         end
       end
@@ -94,6 +99,21 @@ module Hecks
         directory = File.join(@root, "docs/implemented/reference")
         @rendered[:reference] ||= Reference.pages(directory)
         [@committed.call(File.join("docs/implemented/reference", name)), @rendered[:reference][name]]
+      end
+
+      # @return [Array(String, String)] a page's marked region `id` as committed and as rendered
+      def region_pair(path, id)
+        text = @committed.call(path).to_s
+        @rendered[path] ||= Regions.render(@root, path, text)
+        [text[Regions.marked(id)], @rendered[path][Regions.marked(id)]]
+      end
+
+      # @return [Boolean] whether the committed page carries the markers of region `id`
+      def marked?(path, id) = @committed.call(path).to_s.match?(Regions.marked(id))
+
+      # @return [String] that the page has no markers for region `id`, and the marker to add
+      def unmarked(path, region, id)
+        "#{path}##{region[:anchor]}: has no marked region #{id}; add #{Reference.region_begin(id)}"
       end
 
       # @return [Array(String, String)] a CLI guide's section as committed and as rendered
