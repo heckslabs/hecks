@@ -18,13 +18,14 @@ RSpec.describe "a stalled fill" do
   let(:paused) do
     { reason: { value: "held by pause: 324 waits (paused by load)" },
       reading: { value: "load 22.8 from roundhouse against load_high 22" },
-      held_minutes: { value: 41 }, governed_by: { value: "load_high in machine_marks; dispatch_roll_forward" } }
+      held_minutes: { value: 41 }, since: { value: "2026-11-20T09:45:00Z" }, detail: { value: "the fill started nothing" },
+      governed_by: { value: "load_high in machine_marks; dispatch_roll_forward" } }
   end
 
   def beats_with(*answers)
     looks = Looks.new(answers)
     registry = boot_hecks_in_memory(File.expand_path("../lib/hecks/hecks", __dir__)).registry
-    lookup = ->(port, _asked) { port.to_s == "FillWatching" ? looks : CountedRolls.new([]) }
+    lookup = ->(port, _asked) { port.to_s == "FillWatching" ? looks : MachineBeats::CountedRolls.new([]) }
     Hecks::Runtime::AdapterLookup.standing_in(lookup) do
       answers.size.times { |index| beat(registry, index) }
     end

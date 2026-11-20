@@ -612,6 +612,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::FillWatch.port "FillWatching" do
+    asks "Look", to: FillWatch do
+      attribute :watch, WatchKey
+      answers "FillStallFound"
+      refuses "FillFlowing"
+    end
+  end
+
   # The outside a beat of the clock reaches to learn whether the clock alone made something eligible:
   # a retry time that passed, a boot budget no longer spent, a roll refused while a filling ran, or a
   # free slot a filling would use. A beat with none of these is refused as quiet.

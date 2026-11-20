@@ -1494,6 +1494,120 @@ Hecks.bluebook "Hecks" do
       trigger Roll::Start, with: { run: :roll }
     end
 
+    # The fill's own silence, said once. Each beat asks the `FillWatching` port whether no work item
+    # has started for fifteen minutes while planned work waits and the preview shows room; the answer
+    # names the dominant reason, the reading behind it, how long it has held and the setting that
+    # governs it. A stall already said is not said again, and a start clears it.
+    aggregate "FillWatch" do
+      description "The one watch over the fill of a store: whether it stands stalled, and why."
+
+      attribute :watch,        WatchKey
+      attribute :standing,     WatchStanding
+      attribute :reason,       WatchNote, optional: true
+      attribute :reading,      WatchNote, optional: true
+      attribute :held_minutes, HeldMinutes, optional: true
+      attribute :governed_by,  WatchNote, optional: true
+      attribute :since,        WatchNote, optional: true
+      attribute :detail,       WatchNote, optional: true
+      attribute :refusal,      WatchNote, optional: true
+      identified_by :watch
+
+      value_object "WatchKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One while a stall is said, zero while the fill flows.
+      value_object "WatchStanding" do
+        attribute :value, Integer, default: 0
+        invariant("a stall stands or it does not") { [0, 1].include?(value) }
+      end
+
+      value_object "WatchNote", String
+
+      value_object "HeldMinutes", Integer
+
+      command "Keep" do
+        role "System"
+        goal "Open the one watch record of a store, with no stall said"
+
+        attribute :watch, WatchKey, sets: true
+
+        emits FillWatchKept
+      end
+
+      command "Watch" do
+        role "System"
+        goal "Ask whether the fill has gone quiet, on a beat of the clock"
+
+        reference_to FillWatch
+        attribute :beat, WatchKey
+
+        emits FillWatchRequested
+      end
+
+      command "Stall" do
+        role "System"
+        goal "Say once that the fill has started nothing while work waits and there is room, and why"
+
+        reference_to FillWatch
+        attribute :reason,       WatchNote, sets: true
+        attribute :reading,      WatchNote, sets: true
+        attribute :held_minutes, HeldMinutes, sets: true
+        attribute :governed_by,  WatchNote, sets: true
+        attribute :since,        WatchNote, sets: true
+        attribute :detail,       WatchNote, sets: true
+
+        given("no stall is said yet") { standing.value == 0 }
+
+        sets :standing, to: { value: 1 }
+
+        emits FillStalled
+      end
+
+      command "Clear" do
+        role "System"
+        goal "Say that the fill started work again, so the stall is over"
+
+        reference_to FillWatch
+        attribute :refusal, WatchNote, sets: true
+
+        given("a stall is said") { standing.value == 1 }
+
+        sets :standing, to: { value: 0 }
+
+        emits FillCleared
+      end
+    end
+
+    policy "KeepTheFillWatchOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger FillWatch::Keep, with: { watch: "fill" }
+    end
+
+    policy "LookAtTheFillOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger FillWatch::Watch, with: { fill_watch: "fill", beat: :beat }
+    end
+
+    policy "AskWhetherTheFillIsQuiet" do
+      on      "FillWatch.FillWatchRequested"
+      ask     :look, with: { watch: :watch }
+    end
+
+    policy "SayTheFillStalled" do
+      on      "FillWatch.FillStallFound"
+      trigger FillWatch::Stall,
+              with: { reason: :reason, reading: :reading, held_minutes: :held_minutes, governed_by: :governed_by,
+                      since: :since, detail: :detail }
+    end
+
+    policy "ClearTheFillWhenItFlows" do
+      on      "FillWatch.FillFlowing"
+      trigger FillWatch::Clear, with: { refusal: :refusal }
+    end
+
     # The machine's load, heard instead of asked. Each beat of the clock takes one reading through the
     # `Sampling` port: the CPU idle percentage, swap used as a percentage of swap total, the compressor's
     # size in gigabytes and the load average (a third reading, which counts processes waiting on swap and

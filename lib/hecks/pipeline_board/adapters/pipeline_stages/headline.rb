@@ -18,7 +18,13 @@ module Hecks
         def sentence(sessions, fill)
           counts = counts(sessions)
           clauses = [running(counts[:running], fill), *rest(counts)].compact
-          "#{clauses.join(", ")}; #{load_note(fill)}; #{fill_note(fill)}"
+          "#{stalled_note(fill)}#{clauses.join(", ")}; #{load_note(fill)}; #{fill_note(fill)}"
+        end
+
+        # The first words of the line while the fill stands stalled, empty while it flows.
+        def stalled_note(fill)
+          stalled = readable?(fill) && fill[:stalled]
+          stalled ? "FILL STALLED for #{stalled}. " : ""
         end
 
         # @return [Hash{Symbol => Integer}] running, waiting (on a verdict or the coordinator), you
