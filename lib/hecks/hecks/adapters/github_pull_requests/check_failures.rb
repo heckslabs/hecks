@@ -22,6 +22,16 @@ module Hecks
         # What `gh` puts before each log line: the job, the step and a timestamp.
         PREFIX = /\A[^\t]*\t[^\t]*\t﻿?\S+Z ?/
 
+        # A failing example the runner's summary names, by line or by id: `spec/x_spec.rb:12` or
+        # `spec/x_spec.rb[1:2]`.
+        EXAMPLE = %r{rspec '?(?:\./)?(\S+?_spec\.rb(?::\d+|\[[\d:]+\]))}
+
+        # The spec file of an example.
+        SPEC_FILE = /\A\S+?_spec\.rb/
+
+        # The line that opens the runner's failures; the pending examples are printed before it.
+        FAILURES = /^Failures:\s*$/
+
         # What a refusal of `gh` opens with; the reader of the jobs says it again.
         REFUSED = /\Agh \S+ \S+ failed: /
 
@@ -54,12 +64,23 @@ module Hecks
 
         # Steps and examples are each joined with a comma and a space.
         def row(job, commits)
-          { job: job.name.to_s, steps: job.steps.join(", "), examples: job.examples.join(", "),
-            error: GitShallowCheck::Culprit.new(plain(job.log)).reason, culprit: commits.name(job.specs) }
+          log = plain(job.log)
+          examples = log.scan(EXAMPLE).flatten.uniq
+          { job: job.name.to_s, steps: job.steps.join(", "), examples: examples.join(", "),
+            error: GitShallowCheck::Culprit.new(failed(log)).reason, culprit: commits.name(spec_files(examples)) }
         end
+
+        def spec_files(examples) = examples.map { |example| example[SPEC_FILE] }.uniq
 
         # The log as the test runner printed it, without what `gh` puts before each line.
         def plain(log) = log.lines.map { |line| line.sub(PREFIX, "") }.join
+
+        # The log from the runner's failures on, so a pending example's error is not read as one;
+        # the whole log when the runner printed no failures.
+        def failed(log)
+          from = log.lines.index { |line| line.match?(FAILURES) }
+          from ? log.lines.drop(from).join : log
+        end
 
         # Runs `gh` as `CiRuns::FailedJobs` asks: `(argv, chdir:)`, answering `[ok, output]`.
         def run(argv, chdir: nil)

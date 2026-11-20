@@ -16,12 +16,16 @@ RSpec.describe Hecks::Adapters::GithubPullRequests, "#failures" do
   context "when a job's specs failed" do
     before { stage_spec_failure }
 
-    it "names the failed job, its steps and its failing examples", :aggregate_failures do
+    it "names the failed job and its steps", :aggregate_failures do
       expect(failures.size).to eq(1)
-      expect(failures.first).to include(job: "specs (1)", steps: "specs (1)/Run specs", examples: "spec/widget_spec.rb:12")
+      expect(failures.first).to include(job: "specs (1)", steps: "specs (1)/Run specs")
     end
 
-    it "answers the message of the first failure, without what gh puts before each line" do
+    it "names each failing example, by its line or by its id" do
+      expect(failures.first[:examples]).to eq("spec/widget_spec.rb:12, spec/widget_spec.rb[1:2]")
+    end
+
+    it "answers the message of the first failure, never a pending example's, without what gh puts before each line" do
       expect(failures.first[:error]).to eq("expected: 3 got: 2")
     end
 

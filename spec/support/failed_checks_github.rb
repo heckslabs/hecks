@@ -6,6 +6,35 @@ require "json"
 # stages for the pull request, its Actions runs, their failed logs and its commits' files. Nothing
 # shells out.
 module FailedChecksGithub
+  # What the test runner printed for a job with a pending example, then two failing ones: one
+  # named by its line and one by its id.
+  SPEC_RUN = <<~LOG
+    Pending: (Failures listed here are expected and do not affect your suite's status)
+
+      1) Widget drives the host
+         Failure/Error: raise NotImplementedError, "no seam"
+
+         NotImplementedError:
+           no seam
+
+    Failures:
+
+      1) Widget counts its parts
+         Failure/Error: expect(widget.parts).to eq(3)
+
+           expected: 3
+                got: 2
+
+         # ./spec/widget_spec.rb:12:in `block'
+
+    3 examples, 2 failures, 1 pending
+
+    Failed examples:
+
+    rspec ./spec/widget_spec.rb:12 # Widget counts its parts
+    rspec './spec/widget_spec.rb[1:2]' # Widget names its parts
+  LOG
+
   # @return [Array<Array<String>>] every `gh` argument list asked for, in order
   def calls = @calls ||= []
 
@@ -60,26 +89,8 @@ module FailedChecksGithub
     replies[["api", "repos/{owner}/{repo}/commits/#{oid}"]] = [JSON.generate("files" => files), "", true]
   end
 
-  # @return [String] the failed log of a job with one failing example
-  def spec_log
-    logged("specs (1)", <<~LOG)
-      Failures:
-
-        1) Widget counts its parts
-           Failure/Error: expect(widget.parts).to eq(3)
-
-             expected: 3
-                  got: 2
-
-           # ./spec/widget_spec.rb:12:in `block'
-
-      3 examples, 1 failure
-
-      Failed examples:
-
-      rspec ./spec/widget_spec.rb:12 # Widget counts its parts
-    LOG
-  end
+  # @return [String] the failed log of the job whose specs failed
+  def spec_log = logged("specs (1)", SPEC_RUN)
 
   # Stages a pull request of two commits whose one spec job failed; the older commit holds the spec.
   def stage_spec_failure
