@@ -4,6 +4,7 @@ Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/red_flagging"
 require "tmpdir"
 require "open3"
+require_relative "support/landing_holds_registry"
 
 # While main is red, a landing is refused by name unless it is the fix of a red Work item, and it
 # resumes when the flag is lowered. Every example builds its own throwaway repository.
@@ -40,7 +41,9 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
 
   def raise_flag = flagging.hoist(commit: "abcdef1234567", detail: "abc: run 7 failure; failed jobs: rspec")
 
-  def land(branch) = described_class.new.merge(checkout: repo, branch: branch)
+  def landing = described_class.new(registry: LandingHoldsRegistry.landing_holds_registry)
+
+  def land(branch) = landing.merge(checkout: repo, branch: branch)
 
   def landed? = git("branch", "--merged", "main")
 

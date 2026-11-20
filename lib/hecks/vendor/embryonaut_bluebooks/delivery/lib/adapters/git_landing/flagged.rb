@@ -1,16 +1,15 @@
 # frozen_string_literal: true
 
-require "hecks/hecks/adapters/red_flag_guard"
+require_relative "bound_holds"
 require_relative "gate_marker"
 
 module Hecks
   module Adapters
     class GitLanding
       # What landing on main asks beyond any other landing: a base that is not behind origin, and
-      # no standing red flag unless the branch is a red Work item's fix. A fix that lands records
-      # its tip
-      # on the flag so the push train may board it. The including class answers `common_git_dir`,
-      # `@git` and `refuse_stale_base`.
+      # no flag the project's `Holds` port raises for the branch. A landing on main is recorded
+      # with main's new commit, so what stands above delivery may act on it. The including class
+      # answers `common_git_dir`, `@git`, `@registry` and `refuse_stale_base`.
       module Flagged
         include GateMarker::Gating
 
@@ -22,9 +21,9 @@ module Hecks
 
           refuse_stale_base(branch)
           git_dir = common_git_dir
-          guard = RedFlagGuard.new(git_dir)
-          guard.landing!(branch)
-          yield.tap { guard.landed(branch, tip(git_dir)) }
+          holds = BoundHolds.new(@registry)
+          holds.flag(branch, git_dir)
+          yield.tap { holds.record_landing(branch, tip(git_dir), git_dir) }
         end
 
         # Main's commit, read against the git directory: the worktree a finish lands from is gone
