@@ -18,11 +18,25 @@ Hecks.bluebook "Adapter" do
     # Whether this adapter stays inside: it reaches no network, model or host beyond the process
     # and the checkout, so a behaviors suite may load it (ADR 0171). Absent means it reaches outside.
     attribute :stays_inside, Containment, optional: true
+    # What a component adapter may ask of the host beyond its declared secrets: the clock, and
+    # outbound requests to the hosts it names. Absent on every adapter that runs no component.
+    attribute :imports, list_of(AdapterImport)
+    attribute :hosts,   list_of(AdapterHost)
 
     # **A plugin answers named queries** — one that `runs` a wasm module says which queries it
     # answers, each qualified by bluebook and aggregate, and the runtime binds them to it.
     invariant("only a plugin answers queries") do
       answers.unset? || answers.size == 0 || !runs.unset?
+    end
+
+    # **Only a component imports** — an adapter that runs a module for a port is the only one
+    # the host grants a capability to; a plugin answers queries and imports nothing.
+    invariant("only a component imports") do
+      imports.unset? || imports.size == 0 || (!runs.unset? && !port.unset?)
+    end
+
+    invariant("only a component reaches a host") do
+      hosts.unset? || hosts.size == 0 || (!runs.unset? && !port.unset?)
     end
 
     value_object "AdapterName" do
@@ -60,6 +74,17 @@ Hecks.bluebook "Adapter" do
     # The wasm module a plugin runs: a file beside its `.adapter`, never a path out of it.
     value_object "PluginModule" do
       attribute :value, String, pattern: '^[a-z0-9_-]+\.wasm$'
+    end
+
+    # A capability a component imports from the host. Its secrets are the ones it declares with
+    # `secret`, so `secrets` is not one of these.
+    value_object "AdapterImport" do
+      attribute :value, String, one_of: ["clock", "http_out"]
+    end
+
+    # A host name a component's `http_out` import may reach: `api.resend.com`.
+    value_object "AdapterHost" do
+      attribute :value, String, pattern: '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
     end
 
     # The text of a field's declared default, such as `"data"` or `true`. A `{name}` in a string
@@ -138,6 +163,30 @@ Hecks.bluebook "Adapter" do
       emits "AdapterCapabilityProvided"
     end
 
+    command "Import" do
+      role "Deployment"
+      goal "Grant this component one capability of the host's"
+
+      reference_to Adapter
+      attribute :value, AdapterImport
+
+      sets :imports, append: { value: :value }
+
+      emits "AdapterImported"
+    end
+
+    command "Reach" do
+      role "Deployment"
+      goal "Name one host this component's outbound requests may reach"
+
+      reference_to Adapter
+      attribute :value, AdapterHost
+
+      sets :hosts, append: { value: :value }
+
+      emits "AdapterHostReached"
+    end
+
     # Grammar rows for the `adapter` keyword; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do
       attribute :word,          String
@@ -161,6 +210,7 @@ Hecks.bluebook "Adapter" do
 
       member word: "provides", context: "Adapter", body: "none", inner: "", opens: "", fills: "provides"
       member word: "stays_inside", context: "Adapter", body: "none", inner: "", opens: "", fills: "stays_inside"
+      member word: "imports", context: "Adapter", body: "none", inner: "", opens: "", fills: "imports"
     end
 
     value_object "ArgumentSeed" do
@@ -190,6 +240,8 @@ Hecks.bluebook "Adapter" do
 
 
       member keyword: "provides", context: "Adapter", at: "1", named: "", kind: "text", required: "true", fills: "provides"
+      member keyword: "imports", context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "imports", variadic: "true"
+      member keyword: "imports", context: "Adapter", at: "", named: "hosts", kind: "list", required: "false", fills: "hosts"
     end
   end
 end

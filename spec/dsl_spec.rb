@@ -3413,6 +3413,25 @@ RSpec.describe "the DSL surface" do
       expect(inside_clock_adapter).to be_stays_inside
       expect(build_adapter { port "clock" }).not_to be_stays_inside
     end
+
+    def mailing_component
+      build_adapter do
+        port "email"
+        runs "mailer.wasm"
+        imports :clock
+        imports :http_out, hosts: ["api.example.com"]
+      end
+    end
+
+    it "imports grants a component the host's capabilities and the hosts it may reach", :aggregate_failures do
+      expect(mailing_component.granted_imports).to eq(%w[clock http_out])
+      expect(mailing_component.granted_hosts).to eq(["api.example.com"])
+    end
+
+    it "is a component, not a plugin, when it runs a module for a port", :aggregate_failures do
+      expect(mailing_component).to be_component
+      expect(mailing_component).not_to be_plugin
+    end
   end
 
   describe "a domain port" do

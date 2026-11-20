@@ -6,10 +6,11 @@ require_relative "../rust_build"
 
 module Hecks
   module RustBuild
-    # Builds an adapter crate under `rust/adapters/` to a `wasm32-wasip2` component, the file the
-    # Rust host embeds, and records its sha256 beside it (docs/plans/wasm-adapters.md, slice 3).
+    # Builds an adapter crate under `rust/adapters/` to a `wasm32-wasip2` component and writes it,
+    # with its sha256, beside the `.adapter` file that runs it, under `lib/hecks/adapters/driven/`
+    # (docs/plans/wasm-adapters.md, slice 4). The IR carries that file to the host by its digest.
     #
-    #   Component.call(["resend"])             # writes rust/adapters/resend/resend.wasm{,.sha256}
+    #   Component.call(["resend"])             # writes resend.wasm and resend.wasm.sha256 there
     #   Component.call(["resend", "--check"])  # compares the committed pair, compiles nothing
     #
     # The check proves the committed component is the one its digest names; it does not rebuild,
@@ -28,8 +29,8 @@ module Hecks
       # @raise [Failure] when the crate, the target or the build is missing, or the check fails
       def call(argv)
         name = argv.find { |arg| !arg.start_with?("--") } or raise Failure, "usage: build_component <crate>"
-        dir = crate_dir(name)
-        argv.include?("--check") ? check(dir, name) : build(dir, name)
+        crate = crate_dir(name)
+        argv.include?("--check") ? check(output_dir(name), name) : build(crate, name)
         0
       end
 
@@ -43,17 +44,28 @@ module Hecks
         dir
       end
 
-      # Compiles the crate and writes the component and its digest file beside it.
-      def build(dir, name)
+      # @param name [String] the crate's name
+      # @return [String] where its component and digest are committed: beside the `.adapter` file
+      #   that runs it, in the checkout that holds the Rust workspace
+      def output_dir(name) = File.join(File.dirname(RustBuild.rust_dir), "lib", "hecks", "adapters", "driven", name)
+
+      # Compiles the crate and writes the component and its digest file into its output directory.
+      def build(crate, name)
         raise Failure, "the #{TARGET} target is not installed: rustup target add #{TARGET}" unless
           RustBuild.target_installed?(TARGET)
 
-        target = File.join(dir, "target")
-        cargo = ["cargo", "build", "--release", "--target", TARGET]
-        RustBuild.command!(*cargo, chdir: dir, env: { "CARGO_TARGET_DIR" => target })
-        FileUtils.cp(File.join(target, TARGET, "release", "#{name}.wasm"), File.join(dir, "#{name}.wasm"))
+        dir = FileUtils.mkdir_p(output_dir(name)).first
+        FileUtils.cp(compile(crate, name), File.join(dir, "#{name}.wasm"))
         File.write(digest_file(dir, name), digest_text(dir, name))
         puts "#{name}.wasm #{digest_of(dir, name)}"
+      end
+
+      # @return [String] the component cargo built for the crate, under its own target directory
+      def compile(crate, name)
+        target = File.join(crate, "target")
+        cargo = ["cargo", "build", "--release", "--target", TARGET]
+        RustBuild.command!(*cargo, chdir: crate, env: { "CARGO_TARGET_DIR" => target })
+        File.join(target, TARGET, "release", "#{name}.wasm")
       end
 
       # Refuses when the committed component does not match its digest file.

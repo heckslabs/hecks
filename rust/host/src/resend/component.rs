@@ -1,64 +1,61 @@
-//! The Resend delivery run by the Wasm component built from `rust/adapters/resend`. The host keeps
-//! the key and the network: the component's grant is the one key it reads and the one host it
-//! posts to, answered here.
+//! The Resend delivery run by the Wasm component built from `rust/adapters/resend`, for a deploy
+//! whose hecksagon wires it to the `email` port (`mailed_by "Resend"`). The IR carries the module
+//! by its digest and the grant the adapter declared; the host keeps the key and the network and
+//! answers only what that grant names.
 
 use super::{Account, Delivery, Email};
 use crate::grants::Grants;
 use rust_host_core::component_email::{self, Message, Sender};
-use rust_host_core::component_imports::{Call, Imports, Refusal, Reply};
-use sha2::{Digest, Sha256};
+use rust_host_core::component_imports::Imports;
+use rust_host_core::components;
+use serde_json::Value;
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
-/// The component, embedded so a deploy carries exactly the build its digest names.
-const MODULE: &[u8] = include_bytes!("../../../adapters/resend/resend.wasm");
-/// `resend.wasm.sha256` as committed beside it: a banner line, then `<hex>  resend.wasm`.
-const DIGEST_FILE: &str = include_str!("../../../adapters/resend/resend.wasm.sha256");
-/// The one secret the component reads.
-const API_KEY: &str = "RESEND_API_KEY";
+/// The port a component answers to deliver email.
+const PORT: &str = "email";
 
-/// What the component may reach: its account's key under `RESEND_API_KEY`, and requests to the
-/// account's base URL host and no other.
-struct ResendGrant {
-    api_key: String,
-    hosts: Grants,
+/// A wired component: the module the runner loads and the grant its imports are answered by.
+#[derive(Clone)]
+pub struct Wiring {
+    pub(super) module: PathBuf,
+    pub(super) grant: Arc<dyn Imports>,
 }
 
-impl Imports for ResendGrant {
-    fn secret(&self, name: &str) -> Result<Option<String>, Refusal> {
-        if name == API_KEY {
-            return Ok(Some(self.api_key.clone()));
+impl Wiring {
+    /// The grant as the IR declares it, copied: the secret names and the hosts, nothing more.
+    fn granted(wired: components::Wired) -> Self {
+        Self {
+            module: wired.module,
+            grant: Arc::new(Grants::new(wired.secrets, wired.hosts)),
         }
-        Err(Refusal::Undeclared(name.to_string()))
     }
+}
 
-    fn request(&self, call: Call) -> Result<Reply, Refusal> {
-        self.hosts.request(call)
-    }
+/// The component `domain_ir` wires to the `email` port: `Ok(None)` when it wires none, so mail
+/// goes out natively as before, and `Err` when it names one the host cannot load.
+pub(super) fn wired(domain_ir: Option<&Value>) -> Result<Option<Wiring>, String> {
+    components::wired(domain_ir, PORT)
+        .transpose()
+        .map(|wired| wired.map(Wiring::granted))
 }
 
 /// Hands `email` to the component on a thread of its own, so its host calls (the request, the
 /// wait between retries) block that thread and never an async worker. Not `spawn_blocking`: a
 /// blocking task still carries a task id, and `Grants` refuses to block inside any task. A run
 /// that fails outright (no component, a trap, a passed cap) is a failed delivery naming why.
-pub(super) async fn deliver(account: &Account, email: &Email<'_>) -> Delivery {
-    deliver_as(account, sender(account), email).await
+pub(super) async fn deliver(account: &Account, wiring: &Wiring, email: &Email<'_>) -> Delivery {
+    deliver_as(wiring, sender(account), email).await
 }
 
-/// `deliver` with the sender the component is handed given apart from the account its grant is
-/// cut from, so a test can ask the component to post where the grant does not reach.
-pub(super) async fn deliver_as(account: &Account, sender: Sender, email: &Email<'_>) -> Delivery {
-    let grant = Arc::new(ResendGrant {
-        api_key: account.api_key.clone(),
-        hosts: Grants::new(Vec::<String>::new(), host_of(&account.base_url)),
-    });
+/// `deliver` with the sender the component is handed given apart from the account, so a test can
+/// ask the component to post where the grant does not reach.
+pub(super) async fn deliver_as(wiring: &Wiring, sender: Sender, email: &Email<'_>) -> Delivery {
+    let Wiring { module, grant } = wiring.clone();
     let message = message(email);
     let (answer, answered) = tokio::sync::oneshot::channel();
     std::thread::spawn(move || {
-        let ran = module_path()
-            .map_err(anyhow::Error::msg)
-            .and_then(|path| component_email::deliver(&path, grant, &sender, &message));
-        let _ = answer.send(ran);
+        let _ = answer.send(component_email::deliver(&module, grant, &sender, &message));
     });
     match answered.await {
         Ok(Ok(delivery)) => Delivery {
@@ -69,14 +66,6 @@ pub(super) async fn deliver_as(account: &Account, sender: Sender, email: &Email<
         Ok(Err(err)) => Delivery::failed(format!("resend component failed: {err}")),
         Err(_) => Delivery::failed("resend component failed: its thread ended without an answer"),
     }
-}
-
-fn host_of(base_url: &str) -> Vec<String> {
-    reqwest::Url::parse(base_url)
-        .ok()
-        .and_then(|url| url.host_str().map(String::from))
-        .into_iter()
-        .collect()
 }
 
 pub(super) fn sender(account: &Account) -> Sender {
@@ -96,47 +85,85 @@ fn message(email: &Email<'_>) -> Message {
     }
 }
 
-/// The digest `resend.wasm.sha256` records.
-pub(super) fn committed_digest() -> &'static str {
-    DIGEST_FILE
-        .lines()
-        .find(|line| !line.starts_with('#') && !line.trim().is_empty())
-        .and_then(|line| line.split_whitespace().next())
-        .unwrap_or_default()
-}
+/// The committed component and a grant cut from a test account, so the shared cases run the
+/// component against a local fake: the account's key under `RESEND_API_KEY`, and requests to the
+/// account's base URL host and no other.
+#[cfg(test)]
+pub(super) mod committed {
+    use super::{Account, Wiring};
+    use crate::grants::Grants;
+    use rust_host_core::component_imports::{Call, Imports, Refusal, Reply};
+    use rust_host_core::module_cache;
+    use sha2::{Digest, Sha256};
+    use std::sync::Arc;
 
-/// The digest of the embedded component.
-pub(super) fn embedded_digest() -> String {
-    use std::fmt::Write as _;
-    Sha256::digest(MODULE)
-        .iter()
-        .fold(String::new(), |mut out, byte| {
-            let _ = write!(out, "{byte:02x}");
-            out
-        })
-}
+    /// The component as committed beside `resend.adapter`.
+    pub const MODULE: &[u8] =
+        include_bytes!("../../../../lib/hecks/adapters/driven/resend/resend.wasm");
+    /// `resend.wasm.sha256` as committed beside it: a banner line, then `<hex>  resend.wasm`.
+    const DIGEST_FILE: &str =
+        include_str!("../../../../lib/hecks/adapters/driven/resend/resend.wasm.sha256");
+    /// The one secret the component reads.
+    const API_KEY: &str = "RESEND_API_KEY";
 
-/// The embedded component written once to a file named by its digest, after checking the digest
-/// is the committed one; the runner compiles that path once per process.
-fn module_path() -> Result<PathBuf, String> {
-    static PATH: OnceLock<Result<PathBuf, String>> = OnceLock::new();
-    PATH.get_or_init(write_module).clone()
-}
-
-fn write_module() -> Result<PathBuf, String> {
-    let digest = embedded_digest();
-    if digest != committed_digest() {
-        return Err("the embedded resend.wasm does not match resend.wasm.sha256".to_string());
+    struct AccountGrant {
+        api_key: String,
+        hosts: Grants,
     }
-    let dir = std::env::temp_dir().join("hecks-components");
-    let path = dir.join(format!("{digest}.wasm"));
-    if path.exists() {
-        return Ok(path);
+
+    impl Imports for AccountGrant {
+        fn secret(&self, name: &str) -> Result<Option<String>, Refusal> {
+            if name == API_KEY {
+                return Ok(Some(self.api_key.clone()));
+            }
+            Err(Refusal::Undeclared(name.to_string()))
+        }
+
+        fn request(&self, call: Call) -> Result<Reply, Refusal> {
+            self.hosts.request(call)
+        }
     }
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    // Written beside and renamed, so a concurrent process never compiles a partial file.
-    let partial = path.with_extension(format!("{}.partial", std::process::id()));
-    std::fs::write(&partial, MODULE).map_err(|e| e.to_string())?;
-    std::fs::rename(&partial, &path).map_err(|e| e.to_string())?;
-    Ok(path)
+
+    /// The committed component, granted `account`'s key and its base URL's host.
+    #[allow(clippy::expect_used)] // reason: a test fixture; the digest is checked by its own test
+    pub fn wiring(account: &Account) -> Wiring {
+        let encoded = base64_of(MODULE);
+        let module =
+            module_cache::cached("Resend", &digest(), &encoded).expect("committed resend.wasm");
+        let grant = AccountGrant {
+            api_key: account.api_key.clone(),
+            hosts: Grants::new(Vec::<String>::new(), host_of(&account.base_url)),
+        };
+        Wiring {
+            module,
+            grant: Arc::new(grant),
+        }
+    }
+
+    /// The digest `resend.wasm.sha256` records.
+    pub fn committed_digest() -> &'static str {
+        DIGEST_FILE
+            .lines()
+            .find(|line| !line.starts_with('#') && !line.trim().is_empty())
+            .and_then(|line| line.split_whitespace().next())
+            .unwrap_or_default()
+    }
+
+    /// The digest of the committed module's bytes.
+    pub fn digest() -> String {
+        module_cache::hex(&Sha256::digest(MODULE))
+    }
+
+    pub fn base64_of(bytes: &[u8]) -> String {
+        use base64::Engine as _;
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    }
+
+    fn host_of(base_url: &str) -> Vec<String> {
+        reqwest::Url::parse(base_url)
+            .ok()
+            .and_then(|url| url.host_str().map(String::from))
+            .into_iter()
+            .collect()
+    }
 }
