@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "time"
+require_relative "../rules"
+require_relative "../../../check_conclusion"
 
 module Hecks
   module Adapters
@@ -8,9 +10,10 @@ module Hecks
       # What every tile builder shares: the tile's shape, its trend against the earlier half of a
       # window, and the small statistics.
       module TileKit
-        # @return [Hash] a tile with its number, unit, state word, trend and detail line
+        # @return [Hash] a tile with its number, unit, state word, trend and detail line; a tile
+        #   given no state of its own takes the one the `Read` rows give its value
         def tile(id, label, value, unit, extra = {})
-          state = value.nil? ? "unknown" : "ok"
+          state = extra.fetch(:state) { Rules.verdict("Read", { value: value }) }
           { id: id, label: label, value: value, unit: unit, state: state, detail: "", trend: nil }.merge(extra)
         end
 
@@ -46,7 +49,7 @@ module Hecks
         def success_rate(list)
           return nil if list.empty?
 
-          (100.0 * list.count { |run| run[:conclusion] == "success" } / list.size).round
+          (100.0 * list.count { |run| Hecks::CheckConclusion.evidence?(run[:conclusion]) } / list.size).round
         end
 
         # @return [Time] when a run ended: its start plus its wall time

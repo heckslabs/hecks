@@ -1651,7 +1651,7 @@ Hecks.bluebook "Hecks" do
     # already stands in its range, or no merge turned its specs red. `already_reverted` is read from
     # the repository's own history, so a new process reads it too.
     aggregate "RedEpisode" do
-      description "The decision a red main's search made: revert its first bad merge, park the episode, or acquit every merge."
+      description "One stretch of red main: the decision its search made (revert the first bad merge, park, acquit or unfound), when it began and ended in epoch seconds (ended 0 while it stands), and how it ended: declined (acquitted, so it ends as it begins), parked or unfound (left to the owner, standing), reverted (its revert was made and the flag lowered) or fixed (the flag was lowered with no revert of its own)."
 
       attribute :run,      RunKey
       attribute :base,     Report, optional: true
@@ -1666,6 +1666,10 @@ Hecks.bluebook "Hecks" do
       attribute :local,    Switch, optional: true
       attribute :work,     Report, optional: true
       attribute :finding,  Report, optional: true
+      attribute :began_at, Instant, optional: true
+      attribute :ended_at, Instant, optional: true
+      attribute :ending,   Report, optional: true
+      attribute :revert,   Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -1675,6 +1679,13 @@ Hecks.bluebook "Hecks" do
       value_object "Report", String
 
       value_object "Switch", Boolean
+
+      # Seconds since the epoch, 0 when the moment has not come: an episode that still stands reads
+      # `ended_at` 0. A number, not a timestamp type: a rule compares only numbers.
+      value_object "Instant" do
+        attribute :value, Integer, default: 0
+        invariant("an instant is not before the epoch") { !value.negative? }
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "parked", "unfound"
@@ -1700,6 +1711,12 @@ Hecks.bluebook "Hecks" do
         attribute :local,    Switch, optional: true, sets: true
         attribute :work,     Report, optional: true, sets: true
         attribute :finding,  Report, optional: true, sets: true
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now,      Instant
+        needs :now
+
+        sets :began_at, to: :now
+        sets :ended_at, to: 0
 
         emits EpisodeReverting
       end
@@ -1716,6 +1733,13 @@ Hecks.bluebook "Hecks" do
         attribute :spec,    Report, optional: true, sets: true
         attribute :example, Report, optional: true, sets: true
         attribute :checkout, Report, optional: true, sets: true
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now,      Instant
+        needs :now
+
+        sets :began_at, to: :now
+        sets :ended_at, to: 0
+        sets :ending, to: "parked"
 
         emits EpisodeParked
       end
@@ -1729,6 +1753,13 @@ Hecks.bluebook "Hecks" do
         attribute :culprit, Report, optional: true, sets: true
         attribute :reason,  Report, optional: true, sets: true
         attribute :spec,    Report, optional: true, sets: true
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now,      Instant
+        needs :now
+
+        sets :began_at, to: :now
+        sets :ended_at, to: :now
+        sets :ending, to: "declined"
 
         emits EpisodeAcquitted
       end
@@ -1742,8 +1773,89 @@ Hecks.bluebook "Hecks" do
         attribute :base,     Report, optional: true, sets: true
         attribute :reason,   Report, optional: true, sets: true
         attribute :checkout, Report, optional: true, sets: true
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now,      Instant
+        needs :now
+
+        sets :began_at, to: :now
+        sets :ended_at, to: 0
+        sets :ending, to: "unfound"
 
         emits EpisodeUnfound
+      end
+
+      # The three below record how a standing episode goes on and ends. None is a transition:
+      # `status` keeps the decision the search made.
+      command "Undo" do
+        role "System"
+        goal "Record the commit that reverted the episode's first bad merge"
+
+        reference_to RedEpisode
+        attribute :revert, Report, sets: true
+
+        given("the episode still stands") { ended_at == nil || ended_at.value == 0 }
+
+        emits EpisodeRevertMade
+      end
+
+      command "Restore" do
+        role "System"
+        goal "End a standing episode as reverted, when the red flag is lowered after its revert was made"
+
+        reference_to RedEpisode
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now, Instant
+        needs :now
+
+        given("the episode still stands") { ended_at == nil || ended_at.value == 0 }
+        given("its revert was made") { revert != nil && !revert.to_s.empty? }
+
+        sets :ended_at, to: :now
+        sets :ending, to: "reverted"
+
+        emits EpisodeReverted
+      end
+
+      # Every standing episode with no revert of its own ends here when the flag is lowered, by a
+      # green run of a later landing or by hand: `fixed` says main stopped being red while the
+      # episode stood, not that a named landing was shown to fix it.
+      command "Mend" do
+        role "System"
+        goal "End a standing episode as fixed, when the red flag is lowered with no revert of its own: main is no longer red, by a later landing or by hand, and no fix is proven"
+
+        reference_to RedEpisode
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now, Instant
+        needs :now
+
+        given("the episode still stands") { ended_at == nil || ended_at.value == 0 }
+        given("no revert of its own was made") { revert == nil || revert.to_s.empty? }
+
+        sets :ended_at, to: :now
+        sets :ending, to: "fixed"
+
+        emits EpisodeFixed
+      end
+
+      query "Recent" do
+        description "The last episodes of red main, as many as the limit given, newest first: each with when it began and ended (0 while it stands), its culprit commit, branch and Work item, the decision and how it ended."
+        attribute :limit, Integer
+        order_by :began_at, :desc
+        limit :limit
+      end
+
+      query "Standing" do
+        description "Every episode of red main that has not ended, newest first: the red that stands now."
+        where("ended_at.value": 0)
+        order_by :began_at, :desc
+      end
+
+      # `run` is the key of the push train's revert, which is the episode's own.
+      query "Reverting" do
+        description "The standing episode whose first bad merge is being reverted, by its run."
+        attribute :run, RunKey
+        where(run: :run, status: "reverting", "ended_at.value": 0)
+        order_by :run
       end
     end
 
@@ -1780,6 +1892,15 @@ Hecks.bluebook "Hecks" do
       trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local }
     end
 
+    # Declared before the policies that verify or admit the revert, so the episode holds its revert
+    # before any of them can lower the flag. The revert's key is the episode's run (`Unland`).
+    policy "RecordTheRevertOnTheEpisode" do
+      on       "SendTrain.LandingReverted"
+      root
+      for_each "RedEpisode.Reverting"
+      trigger  RedEpisode::Undo, with: { run: :run, revert: :reverted }
+    end
+
     policy "AdmitTheRevertOfAPushedMerge" do
       on      "SendTrain.LandingReverted"
       root
@@ -1798,6 +1919,23 @@ Hecks.bluebook "Hecks" do
       on      "Integration.VerifyAnswered"
       where   { outcome.value == "verified" && revert.value == true }
       trigger RedFlag::Clear, with: { run: :landed, commit: :landed, checkout: :checkout }
+    end
+
+    # The flag's key is the landed commit, not the episode's run, so a lowered flag ends every
+    # standing episode: each command's own given takes the ones it names and refuses the rest.
+    # `:id` is the row's own key; `:run` here would read the flag's.
+    policy "EndTheRevertedEpisodeWhenTheFlagIsLowered" do
+      on       "RedFlag.RedFlagCleared"
+      root
+      for_each "RedEpisode.Standing"
+      trigger  RedEpisode::Restore, with: { run: :id }
+    end
+
+    policy "EndTheUnrevertedEpisodeWhenTheFlagIsLowered" do
+      on       "RedFlag.RedFlagCleared"
+      root
+      for_each "RedEpisode.Standing"
+      trigger  RedEpisode::Mend, with: { run: :id }
     end
 
     # One failed attempt of a train pull request's CI, recorded once under its key

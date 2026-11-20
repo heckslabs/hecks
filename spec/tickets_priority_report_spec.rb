@@ -32,4 +32,10 @@ RSpec.describe Hecks::Adapters::PriorityReport do
     held = record("held-w", priority: "now").tap { |entry| entry.waits_on = [RollForwardFixtures::Word.new("run-1")] }
     expect(report(seeded + [held]).grep(/held-w/).first).to include("waits on run-1")
   end
+
+  it "says a planned item would start when the work item it waits on is done, though no landing names it" do
+    held = record("held-w", priority: "now").tap { |entry| entry.waits_on = [RollForwardFixtures::Word.new("old-1")] }
+    lines = report(seeded + [held, record("old-1", status: "done")], cap: 9)
+    expect(lines.grep(/held-w/).first).to include("would start")
+  end
 end

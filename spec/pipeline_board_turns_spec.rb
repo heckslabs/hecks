@@ -17,18 +17,18 @@ RSpec.describe "the board's cards and Stuck list from TurnFinished" do
 
   it "gives each run one card whose last word is its newest verdict" do
     journal = journal_over(turn_line("r1", "t1", "blocked"), turn_line("r1", "t2", "routed"))
-    expect(JSON.parse(journal.run_cards[:text]).map { |c| [c["run"], c["last_word"]] }).to eq([%w[r1 routed]])
+    expect(journal.run_cards.map { |c| [c[:run], c[:last_word]] }).to eq([%w[r1 routed]])
   end
 
   it "lists the stuck rows of every run's newest turn only" do
     journal = journal_over(turn_line("r1", "t1", "blocked", stuck: [stuck_item]), turn_line("r1", "t2", "routed"))
-    expect(JSON.parse(journal.stuck[:text])).to eq([])
+    expect(journal.stuck).to eq([])
   end
 
   it "lists a stuck row once however many runs report it" do
     journal = journal_over(turn_line("r1", "t1", "blocked", stuck: [stuck_item]),
                            turn_line("r2", "t2", "blocked", stuck: [stuck_item]))
-    expect(JSON.parse(journal.stuck[:text]).size).to eq(1)
+    expect(journal.stuck.size).to eq(1)
   end
 
   it "ignores a TurnFinished that carries no payload" do

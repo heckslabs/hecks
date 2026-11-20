@@ -1,5 +1,6 @@
 # Site routes: one route table, one `routes.ts`
 
+<!-- prose anchor="Site routes: one route table, one `routes.ts`" purpose="concept" mentions="aggregate:Route aggregate:SiteProjection" supports="code_file:lib/hecks/site/bluebook/site.bluebook code_file:lib/hecks/projections/site" -->
 A website decides which pages exist in many places: the middleware that hides a switched-off page, the
 navigation, the footer, the sitemap, the robots file, the CMS that previews a page. The Site bluebook holds
 that decision once, as a table the project declares, and projects it into a single TypeScript module every
@@ -7,6 +8,7 @@ one of those places imports.
 
 ## Declaring the table
 
+<!-- prose anchor="Declaring the table" purpose="tutorial" mentions="aggregate:Route" supports="code_file:lib/hecks/site/bluebook/site.bluebook" -->
 A project writes its routes as `member` rows of a `value_object "Route"` in one of its own bluebooks, and
 its hecksagon attaches the Site bluebook:
 
@@ -39,16 +41,16 @@ end
 
 The rows are plain data, not commands: a route table is not an event history, and a row that reads wrongly is
 fixed by editing the line. The fields a row may carry, and the closed sets their values come from, are the
-`Route` aggregate of the Site bluebook (`lib/hecks/site/bluebook/site.bluebook`); the sets are in no other
-place.
+`Route` aggregate of the Site bluebook (`lib/hecks/site/bluebook/site.bluebook`); the sets are declared in no
+other place, and the table of them below is written from it.
 
 | field | meaning |
 |---|---|
 | `path` | `/blog/:slug.html` names a parameter, a trailing `/*` a prefix. Left out when `source` is a command or query. |
-| `kind` | `page` (default), `endpoint`, `redirect`, `rewrite` or `proxy`. |
-| `render`, `auth`, `origin`, `preview` | closed sets: `prerender` or `ssr`; `public`, `admin` or `signed`; `website`, `cms`, `domain` or `assets`; `public` or `draft`. |
-| `cache` | `page`, `home`, `static`, `media`, `immutable` or `no_store`. Defaults to `no_store` for an admin or signed route and an endpoint, `immutable` from `assets`, `page` otherwise. |
-| `methods` | the verbs the route answers, comma separated, `GET` by default, `POST` for a command. |
+| `kind` | a `Kind`: `page` by default. |
+| `render`, `auth`, `origin`, `preview` | a `Render`, an `Auth`, an `Origin` and a `Preview`. |
+| `cache` | a `CacheClass`. Defaults to `no_store` for an admin or signed route and an endpoint, `immutable` from `assets`, `page` otherwise. |
+| `methods` | the verbs the route answers, each an `HttpMethod`, comma separated, `GET` by default, `POST` for a command. |
 | `edge_methods` | the verbs the edge lets through for the route, when more than `methods` (below). Defaults to `methods`. |
 | `source` | `none`, `global:<slug>`, `collection:<name>`, `command:<Bluebook>.<Aggregate>.<Command>` or `query:...`. |
 | `indexable` | whether the sitemap lists it; true for a public page that is on. |
@@ -57,6 +59,22 @@ place.
 | `label`, `seo`, `seo_title` | the text a navigation shows, an id for the page's search metadata, and the title search engines show for it. |
 | `redirect_to`, `aliases` | the target of a redirect or rewrite, and extra paths that redirect to a page. |
 | `nav_group`, `nav_order`, `mobile_order`, `mobile_heading`, `footer_column`, `footer_order`, `admin_key`, `admin_order` | where the page sits in the desktop, mobile, footer and admin navigation, and the heading that opens a section of the mobile menu. |
+
+The closed sets, as the `Route` aggregate declares them; a row that names a value outside its set is refused
+with the members listed. `EdgeFunctionKind` is the kind of an `EdgeFunction` row (below).
+
+<!-- generated:begin id=route-vocabulary -->
+| closed set | members |
+|---|---|
+| `Kind` | `page`, `endpoint`, `redirect`, `rewrite`, `proxy` |
+| `Render` | `prerender`, `ssr` |
+| `Auth` | `public`, `admin`, `signed` |
+| `CacheClass` | `page`, `home`, `static`, `media`, `immutable`, `no_store` |
+| `Origin` | `website`, `cms`, `domain`, `assets` |
+| `Preview` | `public`, `draft` |
+| `EdgeFunctionKind` | `redirect_host` |
+| `HttpMethod` | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
+<!-- generated:end -->
 
 ### Navigation
 
@@ -110,6 +128,7 @@ by default. With the same edge verbs and cache class as the prefix the row rides
 
 ## Admin sign-in: `admin.ts`
 
+<!-- prose anchor="Admin sign-in: `admin.ts`" purpose="tutorial" supports="code_file:lib/hecks/projections/site" -->
 A project that serves admin pages from a domain host declares one `member` row of a `value_object "Admin"` in the bluebook that
 holds its route table, and the tool writes `admin.ts` (or `admin.mts`, as `extension` says) beside `routes.ts`. A project with no
 `Admin` row gets no `admin.ts`, and the other output is unchanged.
@@ -158,6 +177,7 @@ slash, when `roles` names none, or when `sso_target` is not under `<cms_base>/ap
 
 ## Files at the project root: `root=<dir>`
 
+<!-- prose anchor="Files at the project root: `root=<dir>`" purpose="tutorial" supports="code_file:lib/hecks/tools/site_routes/root_files.rb" -->
 `--root=<dir>` (`root=<dir>` on the verb) writes the files that sit at a project's root, each only when its rows are
 declared beside the route table. They are wiring, not domain: the rows say where things are, never what the domain does.
 
@@ -196,6 +216,7 @@ the editor's name differs, `label` (`Singular|Plural`) for a list, `description`
 
 ## The content editor: `editor=<dir>`
 
+<!-- prose anchor="The content editor: `editor=<dir>`" purpose="tutorial" supports="code_file:lib/hecks/tools/site_routes/editor_files.rb" -->
 A project that edits its own content, without a third-party CMS, declares one `member` row of a `value_object "Editor"` beside
 the route table and runs `--editor=<dir>` (`editor=<dir>` on the verb). The projection reads the row and the domain bluebook it
 names, and writes a small Node/TypeScript package under `<dir>`: a server (node's own `http`, no framework) whose pages and
@@ -320,6 +341,7 @@ is refused. `--check` covers the files like the others.
 
 ## Projecting it
 
+<!-- prose anchor="Projecting it" purpose="tutorial" mentions="aggregate:SiteProjection command:SiteProjection.project_site!" supports="code_file:lib/hecks/site/bluebook/site.bluebook" -->
 ```
 hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [cms=<dir>] [root=<dir>] [editor=<dir>] [extension=ts|mts] [--check]
 ```
@@ -348,6 +370,7 @@ name is what lets Node import it (`import * as site from "./routes.mts"`) from a
 
 ## Routes from the domain
 
+<!-- prose anchor="Routes from the domain" purpose="concept" mentions="aggregate:Route" supports="code_file:lib/hecks/site/bluebook/site.bluebook" -->
 A row whose source is `command:Studio.Inquiry.Submit` takes its path from the forms scheme, so the site and the
 `hecks server.present` forms agree on one URL for it: `/Studio/Inquiry/Submit`. The command or query must exist in a
 bluebook the project attaches. The scheme covers a command or query of an aggregate; it does not name an entity's
@@ -356,6 +379,7 @@ bluebook rather than a command.
 
 ## The edge: CloudFront behaviours and listener rules
 
+<!-- prose anchor="The edge: CloudFront behaviours and listener rules" purpose="concept" supports="code_file:lib/hecks/site/bluebook/site.bluebook" -->
 The same table decides how the CDN and the load balancer treat each path, so a path is not named a second time
 in the infrastructure template. A project adds `member` rows of more value objects of its route bluebook,
 for the facts only its template knows, and marks two regions in the template it owns (a third when it uses an edge

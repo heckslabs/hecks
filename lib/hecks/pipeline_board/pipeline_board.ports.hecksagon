@@ -42,10 +42,13 @@ Hecks.hecksagon "PipelineBoard" do
   # the MainIntegration saga keeps, which are read and never moved.
   PipelineBoard::PipelineBoard.port "Pipeline" do
     answers_query "Stages"
+    answers_query "Board"
+    answers_query "Readings"
     answers_query "Snapshot"
     answers_query "Cycles"
     answers_query "DailyHealth"
     answers_query "IntegrationRuns"
+    answers_query "CycleStats"
   end
 
   # The page. The adapter opens a server on 127.0.0.1 and answers `GET /` and `GET /api/state`;

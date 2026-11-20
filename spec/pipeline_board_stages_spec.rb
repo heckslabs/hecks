@@ -32,7 +32,8 @@ RSpec.describe Hecks::Adapters::PipelineStages do
       tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       jobs:    jobs_reader,
       journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {},
-                                                                   cycle_events: [], stopped_times: {}, health_events: []),
+                                                                   cycle_events: [], stopped_times: {}, health_events: [],
+                                                                   turns: []),
       fill:    fill_reader }.merge(overrides)
   end
 
@@ -55,7 +56,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
 
   it "answers a row for every stage of the pipeline", :aggregate_failures do
     names = board.state[:stages].map { |row| row[:name] }
-    expect(names).to eq(["Work items", "Sessions", "Local main", "Integration", "Train", "CI", "Promote", "Release"])
+    expect(names.join(", ")).to eq("Work items, Sessions, Signal, Fill, Local main, Integration, Train, CI, Promote, Release")
   end
 
   def findings_reader(*findings)

@@ -4,6 +4,7 @@ require "hecks/runtime/event_feed"
 require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
 require_relative "stall_watching/impediments"
+require_relative "stall_watching/relieved"
 require_relative "stall_watching/slot_evidence"
 require_relative "machine_sampling/process_classes"
 
@@ -60,6 +61,18 @@ module Hecks
         return [] unless path
 
         Impediments.new(sightings.open_lines(lines(path), plain(run).to_s)).rows
+      end
+
+      # @param run [Hash, String] the look that asks, as its key or the key's value
+      # @return [Array<Hash>] one `Relieved` row per open call for help whose impediment the look
+      #   does not hold; none when the world declares no tap
+      def relieved(run:)
+        path = tap_path
+        return [] unless path
+
+        read = lines(path)
+        look = plain(run).to_s
+        Relieved.new(read, Impediments.new(sightings.open_lines(read, look)).rows).rows(look)
       end
 
       private

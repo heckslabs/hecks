@@ -728,6 +728,24 @@
             [
               [
                 "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "RedEpisode"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a red episode is decided by one process and read back by later ones, across a restart"
+              ]
+            ],
+            [
+              [
+                "domain",
                 "Delivery"
               ],
               [
