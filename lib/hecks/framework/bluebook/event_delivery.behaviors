@@ -1,7 +1,7 @@
 Hecks.behaviors "EventDelivery" do
   vision "A delivery is claimed before it is answered, redriven only when it failed, and a cursor never moves back."
 
-  loads "event_delivery.bluebook", "governance.bluebook",
+  loads "event_delivery.bluebook", "governance.bluebook", "event_delivery.ports.hecksagon",
         "../../../../spec/fixtures/event_delivery/event_delivery.hecksagon",
         "../../../../spec/fixtures/change/governance.hecksagon"
 

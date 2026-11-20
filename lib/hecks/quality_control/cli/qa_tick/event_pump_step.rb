@@ -26,7 +26,7 @@ module Hecks
 
         # @return [Array(String, Integer)] the pump's output and its exit status
         def run_event_pump
-          banner "hecks quality_control event_pump.pump!"
+          banner "event pump (EventDelivery Pump.Run)"
           output, exit_code = run_step(->(argv) { QaEventPump.call(argv, root: @root) })
           puts output
           [output, exit_code]

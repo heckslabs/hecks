@@ -169,7 +169,6 @@ publisher at rubygems.org > hecks > Trusted publishers > GitHub Actions (organiz
 | launcher | replaces |
 |---|---|
 | `hecks quality_control sweep.tick` | `bin/qa_tick` |
-| `hecks quality_control event_pump.pump! <run>` | `bin/qa_event_pump` |
 | `hecks quality_control sweep.run [<target>] [arguments="--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"]`; `hecks quality_control target.release! <to> now= next_streak= capabilities= yield_score=` | `bin/qa_sweep` |
 | `hecks quality_control clearance.check_pull_requests` | `bin/qa_pr_check` |
 | `hecks quality_control patch.open! <bug> number= url= branch= commit= title= now=`; `hecks quality_control improvement.open! [<angle>] number= url= branch= title= now=` | `bin/qa_open_pr` |
