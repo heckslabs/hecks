@@ -370,7 +370,7 @@ Hecks.bluebook "Agents" do
              tools: "Read, Grep, Glob, Bash, Agent(reviewer)",
              model: "sonnet",
              purpose: "You judge a submission against its work item; you do not repair it. You are given a branch; its tip is the commit you were started for and your run key. Your tier, and the domains and bluebooks the commit touches, are the review's: read them with `exe/hecks SubmissionReview.of_submission submission.value=<your run key>`.",
-             steps: "1. **Find what is left to review.** Your brief is the branch and your working directory is its worktree; the primary checkout is that path up to `/.claude/worktrees/`, and it outlives the worktree, so run git there (`git -C <primary> ...`). If your working directory is gone, the branch no longer exists, or its tip is on main (`git -C <primary> merge-base --is-ancestor <branch> main`), the branch has landed and the landing ran the quick gate and the impacted specs: stop and close with `landed`.\n2. **Read the change and its brief, nothing else.** Check out nothing. Read `git -C <primary> diff main...<branch>` and the work item's brief (`exe/hecks tickets Work.show work=<branch>`). Never read the coder's report or its transcript: you judge the change, not what was said about it.\n3. **Run the behaviors and the model check.** For each domain the review lists in `domains` run `exe/hecks Operation.run_behaviors! run.value=<run key>-behaviors-<n> subject.value=<the domain> --wait`, and for each in `bluebooks` `exe/hecks ModelCheckRun.model_check! run.value=<run key>-model-check-<n> domains.value=<the domain> --wait`; each run key names your run key, so it is of this commit. Cite every run, `exe/hecks SubmissionReview.cite! to=<run key> kind.value=behaviors run.value=<its key> --wait` (`kind.value=model_check` for a model check): the kept record, not your words, says how it ended. Both must come back clean. A touched domain with no `.behaviors` scenario that covers the change is `missing_behavior`: name the scenario to write (its domain, the command and the outcome it shows).\n4. **Run the affected specs through the launcher** in your working directory: `exe/hecks test_suite_run.run_impacted_specs! --wait`. For each failure decide: a **real bug** is a failure the change caused (the code is wrong and the spec is right); a **stale expectation** is a spec that encodes behaviour the change deliberately replaced. Read both the spec and the code, and quote the line that settles it.\n5. **Run only through the launcher; edit nothing.** Every check is an `exe/hecks` command. You never edit a file, never fix a bug and never run the whole suite (it runs only in CI). A push, a promotion, a release or a plan's confirmation is the owner's: name it in your report and never take it.\n6. **Say nothing you did not check.** If you could not run a check, or cannot tell which judgment a failure is, say so; do not guess.",
+             steps: "1. **Find what is left to review.** Your brief is the branch and your working directory is its worktree; the primary checkout is that path up to `/.claude/worktrees/`, and it outlives the worktree, so run git there (`git -C <primary> ...`). If your working directory is gone, the branch no longer exists, or its tip is on main (`git -C <primary> merge-base --is-ancestor <branch> main`), the branch has landed and the landing ran the quick gate and the impacted specs: stop and close with `landed`.\n2. **Read the change and its brief, nothing else.** Check out nothing. Read `git -C <primary> diff main...<branch>` and the work item's brief (`exe/hecks tickets Work.show work=<branch>`). Never read the coder's report or its transcript: you judge the change, not what was said about it.\n3. **Run the behaviors and the model check.** For each domain the review lists in `domains` run `exe/hecks Operation.run_behaviors! run.value=<run key>-behaviors-<n> subject.value=<the domain> --wait`, and for each in `bluebooks` `exe/hecks ModelCheckRun.model_check! run.value=<run key>-model-check-<n> domains.value=<the domain> --wait`; each run key names your run key, so it is of this commit. Cite every run, `exe/hecks SubmissionReview.cite! to=<run key> kind.value=behaviors run.value=<its key> --wait` (`kind.value=model_check` for a model check): the kept record, not your words, says how it ended. Both must come back clean. A touched domain with no `.behaviors` scenario that covers the change is `missing_behavior`: name the scenario to write (its domain, the command and the outcome it shows).\n4. **Run exactly the work item's acceptance references.** When the review lists `acceptance` (a work item with a Story), run each reference, `<path>.behaviors#<scenario>`, on its own file: `exe/hecks Operation.run_behaviors! run.value=<run key>-acceptance-<n> subject.value=<its .behaviors file> --wait`, and cite it for that reference, `exe/hecks SubmissionReview.cite_acceptance! to=<run key> ref.value=<the reference> run.value=<its key> --wait`. Only these count as acceptance; no other scenario does. A clean needs every reference passed. A reference whose scenario the run does not hold is `missing_behavior` naming the reference; a failed one is `real_bug`. The behaviors and model checks of step 3 still run, as regression, and are listed apart. With no `acceptance`, skip this step.\n5. **Run the affected specs through the launcher** in your working directory: `exe/hecks test_suite_run.run_impacted_specs! --wait`. For each failure decide: a **real bug** is a failure the change caused (the code is wrong and the spec is right); a **stale expectation** is a spec that encodes behaviour the change deliberately replaced. Read both the spec and the code, and quote the line that settles it.\n6. **Run only through the launcher; edit nothing.** Every check is an `exe/hecks` command. You never edit a file, never fix a bug and never run the whole suite (it runs only in CI). A push, a promotion, a release or a plan's confirmation is the owner's: name it in your report and never take it.\n7. **Say nothing you did not check.** If you could not run a check, or cannot tell which judgment a failure is, say so; do not guess.",
              rules: "## Fan-out\n\nFan out as much as possible. Split the independent checks of a branch (the behaviors run and the model check of each domain it touches, the impacted specs) across subagents side by side, at most three at once (the **bounded-fan-out** rule). Your subagents are reviewers, so they keep your tools, and they only read and run checks, never edit. Run a check after another only when it reads the other's result.",
              handback: "List your evidence first: each run key of `Operation.run_behaviors!` and `ModelCheckRun.model_check!` with its domain and result, each failing spec with its line and your reason, and each missing scenario. Then end your report with exactly one of these words alone on the last line, so the board can read it: `landed` if the branch has landed, `real_bug` if any failure is a real bug, `missing_behavior` if a touched domain lacks a covering scenario, `stale_expectation` if every failure is a stale expectation, otherwise `clean` when every run you cited passed. A word anywhere else in the report is not read. `landed` ends the review and routes nothing. A real bug goes to a coder on the same branch; you never fix it."
       member role: "architect",
@@ -1842,6 +1842,8 @@ Hecks.bluebook "Agents" do
     attribute :evidence,   list_of(EvidenceRun), optional: true
     attribute :findings,   FindingsText, optional: true
     attribute :reason,     ReasonText, optional: true
+    attribute :acceptance, AcceptanceList, optional: true
+    attribute :acceptance_evidence, list_of(AcceptanceResult), optional: true
 
     # The commit the coder submitted: the review's key, and the key of the reviewer's run.
     value_object "SubmissionRef" do
@@ -1900,6 +1902,28 @@ Hecks.bluebook "Agents" do
     # The reviewer's findings: for missing_behavior, the scenario that is missing.
     value_object "FindingsText", String
 
+    # The work item's acceptance references, each `<path>.behaviors#<scenario>` between bars
+    # (`|lib/hecks/agents/agents.behaviors#Judge refuses|`). Absent or `||` on a work item with no
+    # Story, whose review is unchanged.
+    value_object "AcceptanceList", String
+
+    # One acceptance reference: a `.behaviors` file and the scenario in it, joined by `#`.
+    value_object "AcceptanceRef" do
+      attribute :value, String, matches: :present
+    end
+
+    # How a reference's scenario ended in the run cited for it: `passed`, `failed`, or `unresolved`
+    # when the run holds no scenario of that name.
+    value_object "AcceptanceOutcome", String
+
+    # One reference the reviewer ran, read from the kept run it cited: the reference, the run's key
+    # and how that scenario ended. Kept apart from `evidence`, the touched domains' regression.
+    value_object "AcceptanceResult" do
+      attribute :ref,    String
+      attribute :run,    String
+      attribute :result, String
+    end
+
     # Why the scope or a cited run could not be read, as the port refused.
     value_object "ReasonText" do
       attribute :value, String, matches: :present
@@ -1915,6 +1939,7 @@ Hecks.bluebook "Agents" do
       attribute :role, RoleRef
       attribute :repo, RepoPath, sets: true
       attribute :brief, BriefText
+      attribute :acceptance, AcceptanceList, optional: true, sets: true
 
       given("the request is under the hop limit") { hops.value < 3 }
 
@@ -1987,6 +2012,47 @@ Hecks.bluebook "Agents" do
       emits "EvidenceCounted"
     end
 
+    # The reviewer names the run it made of one acceptance reference; the kept record, not the
+    # reviewer, says how the scenario ended. Only these runs count as acceptance.
+    command "CiteAcceptance" do
+      role "System"
+      goal "Name the behaviors run the reviewer made of one of the work item's acceptance references"
+
+      reference_to SubmissionReview
+      attribute :ref, AcceptanceRef
+      attribute :run, EvidenceRunKey
+
+      given("an acceptance citation names one of the work item's references") do
+        acceptance.to_s.split("|").include?(ref.value)
+      end
+      given("the run is of the submitted commit: its key names the commit") do
+        run.value.include?(submission.value)
+      end
+
+      emits "AcceptanceCited"
+    end
+
+    command "Attest" do
+      role "System"
+      goal "Count how an acceptance reference's scenario ended in its cited run"
+
+      reference_to SubmissionReview
+      attribute :ref,    AcceptanceRef
+      attribute :run,    EvidenceRunKey
+      attribute :result, AcceptanceOutcome
+
+      given("the attested reference is one of the work item's references") do
+        acceptance.to_s.split("|").include?(ref.value)
+      end
+      given("the result is passed, failed or unresolved") do
+        result.value == "passed" || result.value == "failed" || result.value == "unresolved"
+      end
+
+      sets :acceptance_evidence, append: { ref: :ref, run: :run, result: :result }
+
+      emits "AcceptanceAttested"
+    end
+
     command "Decline" do
       role "System"
       goal "Record that a cited run has no kept record that ended, with the reason"
@@ -2022,6 +2088,9 @@ Hecks.bluebook "Agents" do
       end
       given("a clean verdict has no failed evidence") do
         judgment.value != "clean" || evidence.all? { |run| run.status == "succeeded" || run.status == "clean" }
+      end
+      given("a clean verdict on a story work item has a passing run of every acceptance reference") do
+        judgment.value != "clean" || acceptance.to_s.split("|").all? { |ref| ref == "" || acceptance_evidence.any? { |run| run.ref == ref && run.result == "passed" } }
       end
       given("a missing behavior names the scenario that is missing") do
         judgment.value != "missing_behavior" || findings.to_s != ""
@@ -2090,6 +2159,17 @@ Hecks.bluebook "Agents" do
       where    { judgment.value == "real_bug" || judgment.value == "missing_behavior" || judgment.value == "stale_expectation" }
       for_each "SubmissionReview.OfSubmission"
       trigger  SubmissionReview::Raise, with: { submission: :submission, work: :work, repo: :repo, judgment: :judgment }
+    end
+
+    # How an acceptance reference's scenario ended is a fact of the cited run's kept record.
+    policy "ReadTheAcceptanceRun" do
+      on      "SubmissionReview.AcceptanceCited"
+      ask     :read_acceptance, with: { submission: :submission, ref: :ref, run: :run }
+    end
+
+    policy "AttestTheAcceptanceRun" do
+      on      "SubmissionReview.AcceptanceRead"
+      trigger SubmissionReview::Attest, with: { submission: :submission, ref: :ref, run: :run, result: :result }
     end
 
     policy "DeclineTheUnkeptRun" do
