@@ -2,7 +2,7 @@
 
 require "fileutils"
 require "json"
-require "hecks/tools/shard_planner"
+require "hecks/ci_speed/adapters/shard_planner"
 
 module Hecks
   module Adapters
@@ -27,7 +27,7 @@ module Hecks
         raise ArgumentError, "no files to split in #{plan[:items_from]}" if items.empty?
 
         prices = prices_of(items, plan)
-        groups = Tools::ShardPlanner.partition(items, plan.fetch(:shards), prices)
+        groups = ShardPlanner.partition(items, plan.fetch(:shards), prices)
         write(plan.fetch(:out_dir), groups, prices, plan.fetch(:source))
         answer(groups, prices)
       end
@@ -42,8 +42,8 @@ module Hecks
       end
 
       def prices_of(items, plan)
-        table = plan[:source] == "timings" ? Tools::ShardPlanner.parse(plan[:timings]) : {}
-        Tools::ShardPlanner.prices(items, table, ->(item) { File.size?(File.join(@root, item)) || 1 })
+        table = plan[:source] == "timings" ? ShardPlanner.parse(plan[:timings]) : {}
+        ShardPlanner.prices(items, table, ->(item) { File.size?(File.join(@root, item)) || 1 })
       end
 
       def write(dir, groups, prices, source)
