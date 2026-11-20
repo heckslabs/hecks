@@ -1785,14 +1785,16 @@ Hecks.bluebook "Tickets" do
     trigger Work::Close, with: { work: :spec, no_change: "a spec run no longer fails the file" }
   end
 
-  # A filed stall is one work item for its fixer, keyed as the stall is (`stall-<kind>-<subject>`), so a
-  # stall filed again after a restart plans nothing twice: the key is already taken.
+  # A stall is a signal, not work: one for the orchestrator wakes a run of it (Agents
+  # `WakeWhenAStallIsFiled`) and is settled in place. Only a stall for another role (the pruner's disk)
+  # is a work item for it, keyed as the stall is (`stall-<kind>-<subject>`), so a refiling plans nothing twice.
   policy "PlanWorkWhenStallFiled" do
     on      "Stall.StallFiled"
+    where   { fixer.value != "orchestrator" }
     trigger Work::Plan, with: { work: :stall, title: :title, detail: :detail }
   end
 
-  # A stall whose run ended can never close, so its work item is set aside with the reason.
+  # A stall whose run ended can never close, so its work item, when it planned one, is set aside with the reason.
   policy "DropWorkWhenStallAbandoned" do
     on      "Stall.StallAbandoned"
     trigger Work::Drop, with: { work: :stall, reason: :reason }

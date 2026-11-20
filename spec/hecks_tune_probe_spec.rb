@@ -20,6 +20,11 @@ RSpec.describe "a probe of a turned setting" do
     expect(turning.restored).to eq([{ setting: { value: "admission.signalbox" }, before: { value: "false" } }])
   end
 
+  it "turns a setting back once starts fell to one in the window while landings held" do
+    landings = (1..2).map { |n| logged("BranchLanded", "b#{n + 8}", turned_at + (n * 600)) }
+    expect(status(probed(landings + [logged("WorkStarted", "s1", turned_at + 300)]))).to eq("reverted")
+  end
+
   it "keeps a turn the pipeline held through" do
     starts = (1..3).map { |n| logged("WorkStarted", "s#{n}", turned_at + (n * 300)) }
     expect(status(probed(starts + [logged("BranchLanded", "b9", turned_at + 900)]))).to eq("kept")

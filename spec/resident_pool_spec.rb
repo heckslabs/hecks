@@ -155,9 +155,11 @@ RSpec.describe "the resident's concurrency" do
       expect(client.ready_wait).to eq(0.4)
     end
 
-    it "ends a launcher's wait for a resident that never answers in about that time" do
+    it "ends a launcher's wait for a resident that never answers in about that time", :aggregate_failures,
+       :wall_clock do
       answer, waited = asked_of_a_silent_resident
-      expect([answer, waited.between?(0.3, 1.5)]).to eq([[nil, "busy"], true])
+      expect([answer, waited >= 0.3]).to eq([[nil, "busy"], true])
+      expect_wall_clock(waited, under: 1.5)
     end
   end
 

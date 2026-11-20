@@ -372,11 +372,12 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
       with_owner_db { |db| empty_status_cache!(db) }
     end
 
-    it "lets a concurrent plain write through while a backfill is mid-scan", :aggregate_failures do
+    it "lets a concurrent plain write through while a backfill is mid-scan", :aggregate_failures, :wall_clock do
       status, elapsed = write_during_backfill
 
       expect(status).to be(false) # finished, not still running / not dead-from-error
-      expect(elapsed).to be < 1.0 # nowhere near the ~3s the full slow backfill takes end to end
+      # Nowhere near the ~3s the full slow backfill takes, so the bound is never stretched.
+      expect_wall_clock(elapsed, under: 1.0, stretched: false)
     end
   end
 end
