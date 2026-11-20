@@ -34,6 +34,11 @@ end
 attribute :checkout, Switch, optional: true
 attribute :report,   Report, optional: true
 attribute :refusal,  Report, optional: true
+# Where the run ran, as the examine answers it: a linked worktree, its branch, and the name of the
+# check (`conformance-<operation>`) a filed failure is keyed by. Only filed operations answer them.
+attribute :linked,   Switch, optional: true
+attribute :branch,   Report, optional: true
+attribute :check_name, Report, optional: true
 identified_by :run
 
 lifecycle :status, default: "requested" do
@@ -52,6 +57,9 @@ command "Accept" do
 
   reference_to {Name}
   attribute :checkout, Switch, sets: true
+  attribute :linked,   Switch, optional: true, sets: true
+  attribute :branch,   Report, optional: true, sets: true
+  attribute :check_name, Report, optional: true, sets: true
 
   given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
@@ -76,6 +84,9 @@ command "Fault" do
 
   reference_to {Name}
   attribute :refusal, Report, sets: true
+  attribute :linked,  Switch, optional: true, sets: true
+  attribute :branch,  Report, optional: true, sets: true
+  attribute :check_name, Report, optional: true, sets: true
 
 
   emits {Stem}Faulted
@@ -96,18 +107,18 @@ end
 
 policy "Accept{Stem}WhenExamined" do
   on      "{Name}.{Stem}Examined"
-  trigger {Name}::Accept, with: { checkout: :checkout }
+  trigger {Name}::Accept, with: { checkout: :checkout, linked: :linked, branch: :branch, check_name: :check_name }
 end
 
 policy "Fault{Stem}WhenNotAccepted" do
   on      "{Name}.{Stem}Examined"
   where   { !checkout.value }
-  trigger {Name}::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  trigger {Name}::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/", linked: :linked, branch: :branch, check_name: :check_name }
 end
 
 policy "Perform{Stem}WhenAccepted" do
   on      "{Name}.{Stem}Accepted"
-  ask     :perform, with: { run: :run }
+  ask     :perform, with: { run: :run, linked: :linked, branch: :branch, check_name: :check_name }
 end
 
 policy "Record{Stem}Outcome" do
@@ -120,18 +131,18 @@ end
 policy "Fault{Stem}WhenAnsweredBlank" do
   on      "{Name}.{Stem}Answered"
   where   { report.value.to_s.strip.empty? }
-  trigger {Name}::Fault, with: { refusal: "{Stem} answered with no report: it said nothing about what it did" }
+  trigger {Name}::Fault, with: { refusal: "{Stem} answered with no report: it said nothing about what it did", linked: :linked, branch: :branch, check_name: :check_name }
 end
 
 policy "Record{Stem}Fault" do
   on      "{Name}.{Stem}Refused"
   where   { !refusal.value.to_s.strip.empty? }
-  trigger {Name}::Fault, with: { refusal: :refusal }
+  trigger {Name}::Fault, with: { refusal: :refusal, linked: :linked, branch: :branch, check_name: :check_name }
 end
 
 # A refusal that gives no reason still ends the run faulted, saying that no reason was given.
 policy "Fault{Stem}WhenRefusedBlank" do
   on      "{Name}.{Stem}Refused"
   where   { refusal.value.to_s.strip.empty? }
-  trigger {Name}::Fault, with: { refusal: "{Stem} was refused and gave no reason" }
+  trigger {Name}::Fault, with: { refusal: "{Stem} was refused and gave no reason", linked: :linked, branch: :branch, check_name: :check_name }
 end
