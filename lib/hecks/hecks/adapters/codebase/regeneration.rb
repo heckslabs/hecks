@@ -144,8 +144,9 @@ module Hecks
           child.answer("project_lanes", *("--check" if check))
         end
 
-        # Projects the `RetiredScript` rows into docs/tools.md, or the `RoleFile` rows into
-        # `.claude/agents`: tools that write files and with `check` only compare them.
+        # Projects the `RetiredScript` rows into docs/tools.md and the module layout into the CLI
+        # guides' command sections, or the `RoleFile` rows into `.claude/agents`: tools that write
+        # files and with `check` only compare them.
         #
         # @param operation [String] `project_tools_doc` or `project_agent_roles`
         # @param child [RubyChild] the checkout's tool runner
