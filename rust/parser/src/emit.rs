@@ -96,12 +96,7 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
         ),
         (
             "sagas".to_string(),
-            JsonValue::Array(
-                bb.sagas
-                    .iter()
-                    .map(saga_json)
-                    .collect(),
-            ),
+            JsonValue::Array(bb.sagas.iter().map(saga_json).collect()),
         ),
         (
             "attaches_to".to_string(),
@@ -838,12 +833,7 @@ fn saga_json(pm: &ir::Saga) -> JsonValue {
         ("states".to_string(), JsonValue::strings(&pm.states)),
         (
             "handlers".to_string(),
-            JsonValue::Array(
-                pm.handlers
-                    .iter()
-                    .map(saga_handler_json)
-                    .collect(),
-            ),
+            JsonValue::Array(pm.handlers.iter().map(saga_handler_json).collect()),
         ),
     ])
 }

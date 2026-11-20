@@ -989,7 +989,11 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 Json::obj(fields)
             };
 
-            let Some(state) = self.saga_instances.get(&key).map(|instance| instance.state.clone()) else {
+            let Some(state) = self
+                .saga_instances
+                .get(&key)
+                .map(|instance| instance.state.clone())
+            else {
                 self.saga_log.push(record(vec![
                     ("advanced", Json::Bool(false)),
                     (
@@ -1218,7 +1222,10 @@ impl<S: AggregateScan> Cascade<'_, S> {
     fn compensate(&mut self, leg: &SagaLeg, event: &Event, memory: &Json, depth: usize) {
         let (pm, correlation, domain_name) = (leg.pm, leg.correlation, leg.domain_name);
         let key = leg.key();
-        let Some(current_state) = self.saga_instances.get(&key).map(|instance| instance.state.clone())
+        let Some(current_state) = self
+            .saga_instances
+            .get(&key)
+            .map(|instance| instance.state.clone())
         else {
             return;
         };
