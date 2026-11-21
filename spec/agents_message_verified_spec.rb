@@ -10,7 +10,7 @@ RSpec.describe "the Agents message sender" do
 
   def recipients = { "run-a" => live_run, "orchestrator" => live_run, "run-done" => { status: "finished", session: "" } }
 
-  def sending_session = @sending_session
+  attr_reader :sending_session
 
   def verified_for(session, sender: "orchestrator")
     @sending_session = session

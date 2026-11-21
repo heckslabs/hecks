@@ -30,18 +30,21 @@ module AgentsMessageHelpers
   # registers through `HandRun.register!` reads the booted rows by leaving this nil.
   def hand_runs = nil
 
-  # The session id the sending shell holds, `$CLAUDE_CODE_SESSION_ID`; none unless an example names one.
+  # The session id the sending shell holds; none unless an example names one.
   def sending_session = nil
 
   def send_message(key: "m1", to: "run-a", sender: "orchestrator", **said)
-    check = Hecks::Adapters::RecipientCheck.new(registry: @agents_runtime&.registry, runs: -> { recipients },
-                                                listed: ->(id) { listed_sessions.include?(id) },
-                                                hand_runs: hand_runs && -> { hand_runs },
-                                                session: -> { sending_session })
+    check = recipient_check
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { check }) do
       Hecks::Agents::Message.send!(**message_words(key, to, sender, said))
     end
     Hecks::Agents::Message.find(key)
+  end
+
+  def recipient_check
+    Hecks::Adapters::RecipientCheck.new(registry: @agents_runtime&.registry, runs: -> { recipients },
+                                        listed: ->(id) { listed_sessions.include?(id) },
+                                        hand_runs: hand_runs && -> { hand_runs }, session: -> { sending_session })
   end
 
   def inbox(run) = Hecks::Agents::Message.inbox(recipient: { value: run }).map { |row| row[:message].value }
