@@ -61,6 +61,15 @@ Hecks.behaviors "Coach" do
     expect refused: "touches a vow"
   end
 
+  test "Advise carries the declared row she would add" do
+    tests "Advise", on: "Coaching"
+    setup "Coach::Coaching.Notice", coaching: { value: "c-7" }, role: { value: "coder" }, kind: { value: "stumble" },
+          pattern: { value: "Stops short." }, evidence: [{ value: "obs-1" }]
+    input coaching: "c-7", change: { value: "Name the step." }, touches: { value: "none" },
+          proposed_row: { value: "member role: coder, rule: land before ending" }
+    expect emits: ["Advised"], status: "advised"
+  end
+
   test "Ask puts a question to Miette and stands asked" do
     tests "Ask", on: "Relay"
     input relay: { value: "r-1" }, question: { value: "What did you see in the landings?" }
@@ -71,7 +80,7 @@ Hecks.behaviors "Coach" do
     tests "Forward", on: "Relay"
     setup "Coach::Relay.Ask", relay: { value: "r-2" }, question: { value: "What did you see?" }
     input relay: "r-2", words: { value: "Three runs stopped before landing." }, author: { value: "miette" }
-    expect emits: ["Forwarded"], status: "forwarded"
+    expect emits: ["Answered"], status: "answered"
   end
 
   test "Forward refuses words under any name but hers" do
@@ -81,10 +90,10 @@ Hecks.behaviors "Coach" do
     expect refused: "Author admits"
   end
 
-  test "Unreached answers nothing in her place" do
-    tests "Unreached", on: "Relay"
+  test "Decline answers nothing in her place" do
+    tests "Decline", on: "Relay"
     setup "Coach::Relay.Ask", relay: { value: "r-4" }, question: { value: "What did you see?" }
     input relay: "r-4"
-    expect emits: ["WasUnreached"], status: "unreached"
+    expect emits: ["Declined"], status: "declined"
   end
 end

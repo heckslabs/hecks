@@ -59,6 +59,7 @@ Hecks.bluebook "Coach" do
     attribute :evidence, list_of(Ref)
     attribute :change,   Pattern, optional: true
     attribute :touches,  Touches, optional: true
+    attribute :proposed_row, Pattern, optional: true
 
     value_object "Ref" do
       attribute :value, String, matches: :present
@@ -113,6 +114,7 @@ Hecks.bluebook "Coach" do
       reference_to Coaching
       attribute :change,  Pattern, sets: true
       attribute :touches, Touches, sets: true
+      attribute :proposed_row, Pattern, optional: true, sets: true
 
       given("a change touching a vow is the owner's to decide, not the crew's") { touches.value != "vow" }
 
@@ -142,6 +144,7 @@ Hecks.bluebook "Coach" do
 
     attribute :relay,    Ref
     attribute :question, Words
+    attribute :run,      Ref, optional: true
     attribute :words,    Words, optional: true
     attribute :author,   Author, optional: true
 
@@ -159,10 +162,10 @@ Hecks.bluebook "Coach" do
     end
 
     lifecycle :status, default: "asked" do
-      mark :terminal, "forwarded", "unreached"
+      mark :terminal, "answered", "declined"
       mark :rests, "asked"
-      transition "Forward"   => "forwarded", from: "asked"
-      transition "Unreached" => "unreached", from: "asked"
+      transition "Forward"   => "answered", from: "asked"
+      transition "Decline"   => "declined", from: "asked"
     end
 
     command "Ask" do
@@ -171,6 +174,7 @@ Hecks.bluebook "Coach" do
 
       attribute :relay,    Ref, sets: true
       attribute :question, Words, sets: true
+      attribute :run,      Ref, optional: true, sets: true
 
       emits Asked
     end
@@ -183,17 +187,17 @@ Hecks.bluebook "Coach" do
       attribute :words,  Words, sets: true
       attribute :author, Author, sets: true
 
-      emits Forwarded
+      emits Answered
     end
 
     # Carries no words: nothing is said for her when she was not reached.
-    command "Unreached" do
+    command "Decline" do
       role "System"
-      goal "Record that Miette was not reached, and answer nothing in her place"
+      goal "Record that Miette was not reached or declined, and answer nothing in her place"
 
       reference_to Relay
 
-      emits WasUnreached
+      emits Declined
     end
   end
 end
