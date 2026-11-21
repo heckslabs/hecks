@@ -1,0 +1,256 @@
+Hecks.behaviors "LiveDiscovery" do
+  vision "A discovery call starts only with the client's consent, keeps its turns and no audio, and shows the client only what the owner sends."
+
+  # The hecksagon declares the ports the asks name; no adapter binds them yet, so each ask comes back
+  # refused and the run lists that refusal beside the event that raised the ask.
+  loads "live_discovery.hecksagon", "live_discovery.bluebook"
+
+  consent = "The audio is never recorded; it is transcribed on my computer. An AI assistant reads " \
+    "the transcript to help me take notes and suggest questions, and its replies may be spoken by " \
+    "a voice service. Nothing is used to train AI models."
+
+  # ---- Consent before capture ----
+
+  test "a session opens under the owner with its interview and setup" do
+    tests "Open", on: "Session"
+    input reference: { value: "LD-1" }, interview: { value: "INT-1" }, setup: { value: "call" }
+    expect emits: ["SessionOpened"], status: "invited"
+  end
+
+  test "capture never starts before the client consents" do
+    tests "StartCapture", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-2" }, interview: { value: "INT-2" },
+          setup: { value: "call" }
+    input reference: { value: "LD-2" }, setup: { value: "call" }
+    expect refused: "capture starts only after the client has consented"
+  end
+
+  test "consent to a line other than the agreed wording is refused" do
+    tests "Consent", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-3" }, interview: { value: "INT-3" },
+          setup: { value: "call" }
+    input reference: { value: "LD-3" }, interview: { value: "INT-3" }, subject: { value: "tools" },
+          keeping: { value: "local" }, line: { value: "Please record me." }, answer: { value: "Yes." },
+          at: { value: 100 }
+    expect refused: "capture never starts without consent to the line as worded"
+  end
+
+  test "the client's consent opens capture and the interview's first exchange" do
+    tests "Consent", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-4" }, interview: { value: "INT-4" },
+          setup: { value: "call" }
+    input reference: { value: "LD-4" }, interview: { value: "INT-4" }, subject: { value: "tools" },
+          keeping: { value: "local" }, line: { value: consent }, answer: { value: "Yes, go ahead." },
+          at: { value: 100 }
+    expect emits: ["SessionConsented", "OpenInterviewRefused"], status: "consented"
+  end
+
+  test "capture starts once the client has consented" do
+    tests "StartCapture", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-5" }, interview: { value: "INT-5" },
+          setup: { value: "call" }
+    setup "LiveDiscovery::Session.Consent", reference: { value: "LD-5" }, interview: { value: "INT-5" },
+          subject: { value: "tools" }, keeping: { value: "local" }, line: { value: consent },
+          answer: { value: "Yes, go ahead." }, at: { value: 100 }
+    input reference: { value: "LD-5" }, setup: { value: "call" }
+    expect emits: ["CaptureStarted", "CaptureStartRefused"], status: "capturing"
+  end
+
+  test "a decline during capture stops it" do
+    tests "Decline", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-6" }, interview: { value: "INT-6" },
+          setup: { value: "call" }
+    setup "LiveDiscovery::Session.Consent", reference: { value: "LD-6" }, interview: { value: "INT-6" },
+          subject: { value: "tools" }, keeping: { value: "local" }, line: { value: consent },
+          answer: { value: "Yes." }, at: { value: 100 }
+    setup "LiveDiscovery::Session.StartCapture", reference: { value: "LD-6" }, setup: { value: "call" }
+    input reference: { value: "LD-6" }
+    expect emits: ["SessionDeclined", "CaptureStopRefused"], status: "declined"
+  end
+
+  test "no turn is kept after a decline" do
+    tests "Hear", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-7" }, interview: { value: "INT-7" },
+          setup: { value: "call" }
+    setup "LiveDiscovery::Session.Consent", reference: { value: "LD-7" }, interview: { value: "INT-7" },
+          subject: { value: "tools" }, keeping: { value: "local" }, line: { value: consent },
+          answer: { value: "Yes." }, at: { value: 100 }
+    setup "LiveDiscovery::Session.Decline", reference: { value: "LD-7" }
+    input reference: { value: "LD-7" }, interview: { value: "INT-7" }, speaker: { value: "client" },
+          text: { value: "Keep going." }, at: { value: 110 }
+    expect refused: "turns are kept only while capture runs"
+  end
+
+  # ---- No audio is kept ----
+
+  test "ending capture leaves the turns and no recording" do
+    tests "EndCapture", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-8" }, interview: { value: "INT-8" },
+          setup: { value: "call" }
+    setup "LiveDiscovery::Session.Consent", reference: { value: "LD-8" }, interview: { value: "INT-8" },
+          subject: { value: "tools" }, keeping: { value: "local" }, line: { value: consent },
+          answer: { value: "Yes." }, at: { value: 100 }
+    setup "LiveDiscovery::Session.StartCapture", reference: { value: "LD-8" }, setup: { value: "call" }
+    input reference: { value: "LD-8" }
+    expect emits: ["CaptureEnded", "CaptureStopRefused"], status: "ended"
+  end
+
+  # ---- Prep before the call ----
+
+  test "prep reads only a source the owner named" do
+    tests "Prepare", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-9" }, interview: { value: "INT-9" },
+          setup: { value: "call" }
+    input reference: { value: "LD-9" }, source_name: { value: "" }
+    expect refused: "the prep reads only a source the owner named"
+  end
+
+  test "prep names a source before consent" do
+    tests "Prepare", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-10" }, interview: { value: "INT-10" },
+          setup: { value: "call" }
+    input reference: { value: "LD-10" }, source_name: { value: "client website" }
+    expect emits: ["SessionPrepared", "ReadSourceRefused"], status: "invited"
+  end
+
+  # ---- Room setup ----
+
+  test "a call names no speakers" do
+    tests "NameSpeaker", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-11" }, interview: { value: "INT-11" },
+          setup: { value: "call" }
+    input reference: { value: "LD-11" }, label: "voice-1", speaker: { value: "owner" }
+    expect refused: "only a room names its speakers"
+  end
+
+  # ---- Desk: prep with no client present ----
+
+  test "a desk takes no consent" do
+    tests "Consent", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-16" }, interview: { value: "INT-16" },
+          setup: { value: "desk" }
+    input reference: { value: "LD-16" }, interview: { value: "INT-16" }, subject: { value: "tools" },
+          keeping: { value: "local" }, line: { value: consent }, answer: { value: "Yes." },
+          at: { value: 100 }
+    expect refused: "a desk takes no consent: no client is present"
+  end
+
+  test "a desk takes no capture" do
+    tests "StartCapture", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-17" }, interview: { value: "INT-17" },
+          setup: { value: "desk" }
+    input reference: { value: "LD-17" }, setup: { value: "desk" }
+    expect refused: "capture starts only after the client has consented"
+  end
+
+  test "a typed prompt from the owner is a source that yields proposed points" do
+    tests "Prepare", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-18" }, interview: { value: "INT-18" },
+          setup: { value: "desk" }
+    input reference: { value: "LD-18" }, source_name: { value: "owner's typed prompt" }
+    expect emits: ["SessionPrepared", "ReadSourceRefused"], status: "invited"
+  end
+
+  test "a desk follow-up question is never sent to the panel" do
+    tests "Send", on: "Suggestion"
+    setup "LiveDiscovery::Suggestion.Propose", reference: { value: "SG-7" }, session: { value: "LD-18" },
+          origin: { value: "followup" }, kind: { value: "question" }, question: { value: "Who packs it?" }
+    input reference: { value: "SG-7" }
+    expect refused: "a follow-up question is kept or dismissed, not sent or spoken"
+  end
+
+  # ---- Suggestions: private until the owner sends them ----
+
+  test "a proposed suggestion is private and shows nothing on the panel" do
+    tests "Propose", on: "Suggestion"
+    input reference: { value: "SG-1" }, session: { value: "LD-1" }, origin: { value: "pause" },
+          kind: { value: "question" }, question: { value: "Who orders the stock?" }
+    expect emits: ["SuggestionProposed"], status: "proposed"
+  end
+
+  test "a contradiction raises a clarifying suggestion and never changes the panel" do
+    tests "Propose", on: "Suggestion"
+    input reference: { value: "SG-2" }, session: { value: "LD-1" }, origin: { value: "pause" },
+          kind: { value: "clarify" }, question: { value: "Do you still stock the old range?" },
+          earlier_turn: { value: 2 }, later_turn: { value: 9 }
+    expect emits: ["SuggestionProposed"], status: "proposed"
+  end
+
+  test "a clarifying suggestion that cites no turns is refused" do
+    tests "Propose", on: "Suggestion"
+    input reference: { value: "SG-3" }, session: { value: "LD-1" }, origin: { value: "pause" },
+          kind: { value: "clarify" }, question: { value: "Do you still stock the old range?" }
+    expect refused: "a clarify suggestion cites the two turns it compares"
+  end
+
+  test "the owner's send puts a suggestion on the panel" do
+    tests "Send", on: "Suggestion"
+    setup "LiveDiscovery::Suggestion.Propose", reference: { value: "SG-4" }, session: { value: "LD-1" },
+          origin: { value: "asked" }, kind: { value: "question" }, question: { value: "Who packs it?" }
+    input reference: { value: "SG-4" }
+    expect emits: ["SuggestionSent"], status: "sent"
+  end
+
+  test "speaking a suggestion requires the owner's invite" do
+    tests "Speak", on: "Suggestion"
+    setup "LiveDiscovery::Suggestion.Propose", reference: { value: "SG-5" }, session: { value: "LD-1" },
+          origin: { value: "asked" }, kind: { value: "question" }, question: { value: "Who packs it?" }
+    input reference: { value: "SG-5" }, invite: { value: "none" }, question: { value: "Who packs it?" }
+    expect refused: "speech happens only on the owner's invite"
+  end
+
+  test "an invited suggestion is spoken" do
+    tests "Speak", on: "Suggestion"
+    setup "LiveDiscovery::Suggestion.Propose", reference: { value: "SG-6" }, session: { value: "LD-1" },
+          origin: { value: "asked" }, kind: { value: "question" }, question: { value: "Who packs it?" }
+    input reference: { value: "SG-6" }, invite: { value: "owner" }, question: { value: "Who packs it?" }
+    expect emits: ["SuggestionSpoken", "VoicedRefused"], status: "spoken"
+  end
+
+  # ---- Demo on the owner's request only ----
+
+  test "a demo is not built before the call captures" do
+    tests "RequestDemo", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-14" }, interview: { value: "INT-14" },
+          setup: { value: "call" }
+    input reference: { value: "LD-14" }, interview: { value: "INT-14" }
+    expect refused: "a demo is built only while the call runs or after it ends"
+  end
+
+  test "the owner's request builds the demo during capture" do
+    tests "RequestDemo", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-15" }, interview: { value: "INT-15" },
+          setup: { value: "call" }
+    setup "LiveDiscovery::Session.Consent", reference: { value: "LD-15" }, interview: { value: "INT-15" },
+          subject: { value: "tools" }, keeping: { value: "local" }, line: { value: consent },
+          answer: { value: "Yes." }, at: { value: 100 }
+    setup "LiveDiscovery::Session.StartCapture", reference: { value: "LD-15" }, setup: { value: "call" }
+    input reference: { value: "LD-15" }, interview: { value: "INT-15" }
+    expect emits: ["DemoRequested", "BuildDemoRefused"], status: "capturing"
+  end
+
+  # ---- Summary confirmation concludes ----
+
+  test "the client cannot confirm a summary that was never made" do
+    tests "ConfirmSummary", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-12" }, interview: { value: "INT-12" },
+          setup: { value: "call" }
+    input reference: { value: "LD-12" }, interview: { value: "INT-12" }
+    expect refused: "the client confirms only a summary that was made"
+  end
+
+  test "the client's confirmation concludes the session" do
+    tests "ConfirmSummary", on: "Session"
+    setup "LiveDiscovery::Session.Open", reference: { value: "LD-13" }, interview: { value: "INT-13" },
+          setup: { value: "call" }
+    setup "LiveDiscovery::Session.Consent", reference: { value: "LD-13" }, interview: { value: "INT-13" },
+          subject: { value: "tools" }, keeping: { value: "local" }, line: { value: consent },
+          answer: { value: "Yes." }, at: { value: 100 }
+    setup "LiveDiscovery::Session.StartCapture", reference: { value: "LD-13" }, setup: { value: "call" }
+    setup "LiveDiscovery::Session.EndCapture", reference: { value: "LD-13" }
+    setup "LiveDiscovery::Session.Summarise", reference: { value: "LD-13" },
+          summary_link: { value: "https://example.invalid/summary/LD-13" }
+    input reference: { value: "LD-13" }, interview: { value: "INT-13" }
+    expect emits: ["SummaryConfirmed", "ConcludeInterviewRefused"], status: "confirmed"
+  end
+end
