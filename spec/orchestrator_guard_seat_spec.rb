@@ -25,7 +25,7 @@ RSpec.describe "the guard hook for a seated hand-started session" do
 
   after { [dir, seats, elsewhere].each { |path| FileUtils.remove_entry(path) } }
 
-  # @return [Array(String, Integer)] stderr and exit status of the hook, started outside any checkout
+  # @return [Array(String, Integer)] stderr and exit status, started outside a checkout
   def seated(command, session: "hand1")
     input = JSON.generate(session_id: session, tool_input: { command: command })
     env = { "CLAUDE_PROJECT_DIR" => elsewhere, "HECKS_SEATS_DIR" => seats }
