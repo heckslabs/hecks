@@ -38,6 +38,6 @@ Hecks.behaviors "PipelineBoard" do
   test "Draw refuses no directory" do
     tests "Draw", on: "PipelineBoard"
     input run: { value: "board-1" }, state: { value: "bad_day" }, into: { value: "" }
-    expect refused: "value must be present"
+    expect refused: "PictureDirectory.value must match"
   end
 end
