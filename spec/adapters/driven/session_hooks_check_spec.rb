@@ -14,6 +14,7 @@ RSpec.describe Hecks::Adapters::SessionHooks do
   let(:hooks) do
     described_class.new(launcher: launcher, jobs: "#{scratch}/jobs", seen: "#{scratch}/seen", settle: 0)
   end
+  let(:status) { 0 }
 
   before do
     FileUtils.mkdir_p("#{scratch}/jobs/abc")
@@ -23,8 +24,6 @@ RSpec.describe Hecks::Adapters::SessionHooks do
   end
 
   after { FileUtils.rm_rf(scratch) }
-
-  let(:status) { 0 }
 
   def write_state(state) = File.write("#{scratch}/jobs/abc/state.json", JSON.generate("state" => state))
 

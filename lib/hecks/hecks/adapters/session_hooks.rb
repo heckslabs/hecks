@@ -27,7 +27,7 @@ module Hecks
       #   for none
       # @param inbox [SessionInbox] where an answer for the session waits
       # @param jobs [String, nil] the jobs directory (default {ClaudeJobs::DIRECTORY})
-      # @param seen [String, nil] where each run's last checked state is kept (default {SEEN})
+      # @param seen [String, nil] where each run's last checked state is kept (default {SessionHooks::SEEN})
       # @param settle [Numeric] seconds the check waits before it reads the job's state
       def initialize(launcher:, inbox: SessionInbox.new, jobs: nil, seen: nil, settle: SETTLE)
         @launcher = launcher
