@@ -86,10 +86,9 @@ Hecks.world "Tickets" do
   # group to one coder (`only=group:<path>`), so one session stays reviewable; the rest of the group
   # waits for the next batch. The batch is one session, so it takes one place under `work_limit`.
   work_group_cap "Dispatch", cap: 6
-  # The fill holds on two boot signals, not on the day's total. `boot_storm`: a caller booting more
-  # than `boots` times in `minutes` has its own run held, naming it, while other work starts.
-  # `boot_share`: the boots' share of the machine's CPU over `minutes` holds every start only when it
-  # is over `percent` and the load is over its high mark. `cpu_budget` is the day's hours, a reading.
+  # `boot_storm`: a caller over `boots` boots in `minutes` has its own run held. `boot_share`: boots
+  # over `percent` of the CPU in `minutes`, at a load over its high mark, hold every start.
+  # `cpu_budget` is the day's hours, a reading only.
   boot_storm "Dispatch", boots: 30, minutes: 5
   boot_share "Dispatch", percent: 25.0, minutes: 15
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
