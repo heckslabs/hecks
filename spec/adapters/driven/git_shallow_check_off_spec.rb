@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::GitShallowCheck, "#shallow_check while off" do
     Class.new do
       define_method(:hold) do |*_args, &block|
         seen << :claim
-        [block.call, ""]
+        block.call
       end
     end.new
   end
@@ -46,7 +46,7 @@ RSpec.describe Hecks::Adapters::GitShallowCheck, "#shallow_check while off" do
 
   it "says the check is off" do
     switch("off")
-    expect(checked[:report][:value]).to eq("shallow check is off")
+    expect(checked[:report][:value]).to start_with("shallow check is off; strays: ")
   end
 
   it "takes no claim" do

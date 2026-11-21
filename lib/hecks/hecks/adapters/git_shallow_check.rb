@@ -7,6 +7,7 @@ require_relative "git_shallow_check/clone_run"
 require_relative "git_shallow_check/on_main"
 require_relative "git_shallow_check/impacted_run"
 require_relative "git_shallow_check/ci_skip_scan"
+require_relative "git_shallow_check/strays"
 require_relative "codebase/heavy_slots"
 require_relative "landing_claim"
 
@@ -30,7 +31,8 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      # @param registry [Runtime::Registry, nil] unused
+      # @param registry [Runtime::Registry, nil] where the started Work items that a branch is
+      #   judged against are read from
       # @param run [Hash] what a spec changes in the clone run: `specs:` and `command:`;
       #   `impacted:` stands in for the impacted-spec run, given the changed paths and the ref
       #   they were read against, and answers an {ImpactedRun::Outcome}; `slots:` stands in for
@@ -38,6 +40,7 @@ module Hecks
       #   {LandingClaim} a check holds
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **run)
         @git = Git.new
+        @registry = registry
         @impacted = run.delete(:impacted)
         @slots = run.delete(:slots) || Codebase::HeavySlots.method(:held)
         @claim = run.delete(:claim) || LandingClaim.new
@@ -57,10 +60,12 @@ module Hecks
       #   landing that holds the checkout's claim
       def shallow_check(**held)
         settle(held)
-        return { report: { value: "shallow check is off" } } unless switch.on?
+        strays = refuse_strays(held)
+        return { report: { value: "shallow check is off; #{strays}" } } unless switch.on?
 
         answer, note = @claim.hold(@checkout) { @slots.call(@checkout, JOB) { checked(held) } }
-        note.empty? ? answer : answer.merge(report: { value: "#{note}; #{answer[:report][:value]}" })
+        said = [note, answer[:report][:value], strays].reject(&:empty?).join("; ")
+        answer.merge(report: { value: said })
       end
 
       # Turns the check on or off for the whole repository.
@@ -76,6 +81,18 @@ module Hecks
       end
 
       private
+
+      # Judged whether the check is on or off: a branch that deletes other work is never landed.
+      #
+      # @return [String] what the judgment found, for the report
+      def refuse_strays(held)
+        branch = plain(held[:branch]) || current_branch
+        judge = Strays.new(@git, @checkout, @registry)
+        stray = judge.refusal(branch, ref(plain(held[:onto]) || "main"))
+        raise ConsoleCapture::Failure, stray if stray
+
+        judge.verdict(branch)
+      end
 
       def checked(held)
         branch = plain(held[:branch]) || current_branch
