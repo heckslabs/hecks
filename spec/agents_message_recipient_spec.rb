@@ -17,7 +17,7 @@ RSpec.describe "the Agents message recipient" do
   it "refuses a session that has no run, naming it", :aggregate_failures do
     refused = send_message(to: "134d89bd")
     expect(refused.status).to eq("refused")
-    expect(refused.refusal.value).to end_with("no run has that id; the session 134d89bd has no AgentRun")
+    expect(refused.refusal.value).to end_with("no run has that id; the session 134d89bd has no AgentRun; no hand run is registered")
   end
 
   it "keeps a refused message out of every inbox" do
@@ -26,7 +26,7 @@ RSpec.describe "the Agents message recipient" do
   end
 
   it "refuses a run whose session has ended" do
-    expect(refusal_for("run-done")).to eq("the run run-done has no live session (finished)")
+    expect(refusal_for("run-done")).to eq("the run run-done has no live session (finished); no hand run is registered")
   end
 
   it "points a run's own session at its run" do
@@ -36,7 +36,7 @@ RSpec.describe "the Agents message recipient" do
   def recorded = @agents_runtime.events.map { |event| event.respond_to?(:name) ? event.name : event[:name] }.map(&:to_s)
 
   it "refuses an id that is no run and no session" do
-    expect(refusal_for("nobody")).to eq("no run has that id: nobody, and no session has it either")
+    expect(refusal_for("nobody")).to eq("no run has that id: nobody, and no session has it either; no hand run is registered")
   end
 
   it "records no MessageSent for a recipient that is no known run", :aggregate_failures do
