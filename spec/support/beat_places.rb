@@ -28,8 +28,14 @@ module BeatPlaces
   def beat_names(dir, beat)
     registry = boot_hecks_in_memory(File.expand_path("../../lib/hecks/hecks", __dir__)).registry
     BeatPlaceDefault.dir = dir
+    # A thread of its own: a launcher runs the spec inside its own reactions, and only the
+    # outermost dispatch of a thread settles a beat's timings.
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) {}) do
-      Hecks::Runtime::Dispatcher.new(registry).dispatch_flat("Hecks::Heartbeat.Beat", beat: { value: beat })
+      Thread.new do
+        Hecks::Runtime::Asking.with(registry) do
+          Hecks::Runtime::Dispatcher.new(registry).dispatch_flat("Hecks::Heartbeat.Beat", beat: { value: beat })
+        end
+      end.value
     end
     registry.event_log.map(&:name)
   end
@@ -50,6 +56,26 @@ module BeatPlaces
   def beat_after_holder_killed(dir)
     kill(hold_place(dir))
     beat_names(dir, "beat-free")
+  end
+
+  # The place over a registry, with a measure that only notes what it was told.
+  #
+  # @return [Hash] `place:` the place, `recorded:` the `[beat, steps]` pairs its measure was
+  #   called with
+  def measuring_place(dir)
+    recorded = []
+    measure = ->(beat, steps) { recorded << [beat, steps] }
+    { place: Beating.new(registry: Object.new, settings: { dir: dir, measure: measure }), recorded: recorded }
+  end
+
+  # @param place [Hecks::Adapters::Beating] a place over a registry
+  # @return [Array<#call>] the listeners a beat taken at the place asked to have called when its
+  #   reactions end (asked of a thread of its own, as a beat's are)
+  def listeners_after_taking(place)
+    Thread.new do
+      place.take(beat: { value: "beat-1" })
+      Hecks::Runtime::PolicyInterpreter::Timing.take_listeners
+    end.value
   end
 
   def refusal_of(dir)

@@ -12,10 +12,11 @@ module BeatPlaceDefault
     # @return [String] the directory the place is kept in: one per process unless a spec names it
     def dir = @dir ||= Dir.mktmpdir("beat-place")
 
-    # @return [Hecks::Adapters::Beating] the place, over the current directory
+    # @return [Hecks::Adapters::Beating] the place, over the current directory and the asking
+    #   registry, so a beat taken in a spec is measured as a real one is
     def place
       require "hecks/hecks/adapters/beating"
-      Hecks::Adapters::Beating.new(settings: { dir: dir })
+      Hecks::Adapters::Beating.new(registry: Hecks::Runtime::Asking.registry, settings: { dir: dir })
     end
   end
 

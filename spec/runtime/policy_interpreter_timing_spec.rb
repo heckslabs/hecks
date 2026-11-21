@@ -44,29 +44,40 @@ RSpec.describe Hecks::Runtime::PolicyInterpreter::Timing do
     Hecks::Runtime::PolicyInterpreter.new(registry, dispatcher: refusing_dispatcher, clock: clock)
   end
 
+  # Runs on a thread of its own: spans are kept per thread, and a launcher runs the spec inside its
+  # own reactions.
   def timed_run
-    subject = interpreter(clock_reading(0.0, 0.01, 1.0, 1.25))
-    subject.react(event, "Reflex")
-    subject.drain_timings
+    Thread.new do
+      subject = interpreter(clock_reading(0.0, 0.01, 1.0, 1.25))
+      subject.react(event, "Reflex")
+      subject.drain_timings
+    end.value
+  end
+
+  def timings_left_after_draining
+    Thread.new do
+      subject = interpreter(clock_reading(0.0, 0.01, 1.0, 1.25))
+      subject.react(event, "Reflex")
+      subject.drain_timings
+      subject.drain_timings.size
+    end.value
   end
 
   it "times each policy a reaction runs, refused or not", :aggregate_failures do
-    expect(timed_run).to eq([{ policy: "Quick", ms: 10.0 }, { policy: "Slow", ms: 250.0 }])
+    expect(timed_run.map { |timing| timing.slice(:policy, :ms) })
+      .to eq([{ policy: "Quick", ms: 10.0 }, { policy: "Slow", ms: 250.0 }])
   end
 
   it "names the slowest policy" do
-    expect(described_class.slowest(timed_run)).to eq(policy: "Slow", ms: 250.0)
+    expect(described_class.slowest(timed_run)).to include(policy: "Slow", ms: 250.0)
   end
 
   it "names nothing when nothing was timed" do
     expect(described_class.slowest([])).to be_nil
   end
 
-  it "forgets the timings once they are drained", :aggregate_failures do
-    subject = interpreter(clock_reading(0.0, 0.01, 1.0, 1.25))
-    subject.react(event, "Reflex")
-    subject.drain_timings
-    expect(subject.drain_timings).to eq([])
+  it "forgets the timings once they are drained" do
+    expect(timings_left_after_draining).to eq(0)
   end
 
   it "leaves the reaction record without a time", :aggregate_failures do
