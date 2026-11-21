@@ -440,6 +440,7 @@ queries (nothing here changes anything):
     unclosed
     impediments
     relieved
+    unraised
     abandoned
   TestSuiteRun:
     …
