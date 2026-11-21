@@ -47,7 +47,8 @@ module Hecks
       end
 
       def oldest_since_main(checkout)
-        git(checkout, "rev-list", "--reverse", "main..HEAD").lines.first.to_s.strip
+        commits = git(checkout, "rev-list", "--reverse", "main..HEAD").lines
+        commits.first.to_s.strip
       end
 
       def changed(checkout, sha)
