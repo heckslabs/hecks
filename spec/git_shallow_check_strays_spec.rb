@@ -3,11 +3,10 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
-require "hecks/hecks/adapters/dispatching/held_ground"
-require_relative "support/landing_claims_registry"
+require "hecks/hecks/adapters/git_shallow_check"
 
 # A landing is refused when its branch takes lines out of files its item's area does not hold.
-RSpec.describe Hecks::Adapters::GitLanding::Strays do
+RSpec.describe Hecks::Adapters::GitShallowCheck::Strays do
   let(:shell) { Hecks::Adapters::Shell.new }
   let(:repo) { Dir.mktmpdir("strays") }
   let(:own) { "lib/mine" }
@@ -42,7 +41,7 @@ RSpec.describe Hecks::Adapters::GitLanding::Strays do
     git_stand_in = Object.new.tap do |stand|
       stand.define_singleton_method(:capture) { |*argv, **opts| Hecks::Adapters::Shell.new.capture("git", *argv, **opts) }
     end
-    described_class.new(git_stand_in, repo, LandingClaimsRegistry.landing_claims_registry).refusal("work", "main")
+    described_class.new(git_stand_in, repo, nil).refusal("work", "main")
   end
 
   it "refuses lines deleted from a file outside the area, naming it and the count" do

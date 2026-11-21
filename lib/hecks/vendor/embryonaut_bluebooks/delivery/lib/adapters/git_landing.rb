@@ -7,7 +7,6 @@ require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
 require_relative "git_landing/scratching"
 require_relative "git_landing/rivals"
-require_relative "git_landing/strays"
 require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
 require_relative "git_landing/swapping"
@@ -165,7 +164,6 @@ module Hecks
       def land_alone(branch, onto, **how)
         refuse_unsaved(branch)
         refuse_rival(branch, onto)
-        refuse_stray(branch, onto)
         on_main(branch, onto) { tidy(Merger.new(@git, @checkout, branch: branch, onto: onto, **how).land, branch, onto) }
       end
 
@@ -180,11 +178,6 @@ module Hecks
       def refuse_rival(branch, onto)
         clash = Rivals.new(@git, @checkout, @registry).refusal(branch, onto)
         raise ConsoleCapture::Failure, clash if clash
-      end
-
-      def refuse_stray(branch, onto)
-        stray = Strays.new(@git, @checkout, @registry).refusal(branch, onto)
-        raise ConsoleCapture::Failure, stray if stray
       end
 
       def tidy(landed, branch, onto)
