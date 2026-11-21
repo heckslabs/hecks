@@ -2,14 +2,15 @@
 
 require_relative "price_table"
 require_relative "session_role"
+require_relative "turn_counts"
 
 module Hecks
   module Adapters
     class Metering
       # Rolls the usage rows up: tokens used per session, role, Work item and day, each with its
-      # input, output and cache split and its dollars from {PriceTable}, and the tokens saved, each
-      # line labelled with how it is counted. The saving the outside gives no record of is named
-      # `not measured`, never guessed.
+      # input, output and cache split, turns, context per turn and dollars from {PriceTable}, the
+      # turns by what set them going, and the tokens saved, each line labelled with how it is
+      # counted. The saving the outside gives no record of is named `not measured`, never guessed.
       class TokenReport
         SPLIT = %i[input output cache_creation cache_read].freeze
 
@@ -31,10 +32,12 @@ module Hecks
         end
 
         # @return [Hash] `by_session`, `by_role`, `by_item` and `by_day` (arrays of rollups),
-        #   `total`, `saved` (each line's `label`, `tokens` and `dollars`) and `not_measured`
+        #   `total`, `by_trigger`, `saved` (each line's `label`, `tokens` and `dollars`) and
+        #   `not_measured`
         def facts
           { by_session: roll(:session), by_role: roll(:role), by_item: roll(:item), by_day: roll(:day),
-            total: total(@rows), saved: saved(@rows), not_measured: NOT_MEASURED.values }
+            total: total(@rows), by_trigger: TurnCounts.by_trigger(@rows), saved: saved(@rows),
+            not_measured: NOT_MEASURED.values }
         end
 
         private
@@ -51,7 +54,8 @@ module Hecks
 
         def total(rows)
           counts = SPLIT.to_h { |name| [name, rows.sum { |row| row[name] }] }
-          { **counts, tokens: counts.values.sum, dollars: rows.sum { |row| PriceTable.dollars(row[:model], row) }.round(4) }
+          dollars = rows.sum { |row| PriceTable.dollars(row[:model], row) }.round(4)
+          { **counts, **TurnCounts.of(rows), tokens: counts.values.sum, dollars: dollars }
         end
 
         def saved(rows)

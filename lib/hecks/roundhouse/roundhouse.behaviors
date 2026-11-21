@@ -176,6 +176,20 @@ Hecks.behaviors "Roundhouse" do
     expect refused: "productive sessions are no more than all sessions"
   end
 
+  # ---- What set a turn going ----
+
+  test "a trigger kind is declared with its pattern and label" do
+    tests "Declare", on: "TriggerKind"
+    input kind: { value: "task-notification" }, pattern: { value: "<task-notification>" }, label: { value: "task notification" }
+    expect emits: ["TriggerKindDeclared"]
+  end
+
+  test "a trigger kind with no pattern is never declared" do
+    tests "Declare", on: "TriggerKind"
+    input kind: { value: "blank" }, pattern: { value: "" }, label: { value: "blank" }
+    expect refused: "a trigger kind names the pattern it matches"
+  end
+
   # ---- One bus: Signalbox decides and Roundhouse carries it out ----
 
   # Roundhouse attaches Signalbox, so an admission reaches StartWhatSignalboxAdmitted. The session
