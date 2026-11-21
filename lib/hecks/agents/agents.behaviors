@@ -331,7 +331,8 @@ Hecks.behaviors "Agents" do
     tests "Stamp", on: "Message"
     setup  "Agents::Message.Send", message: { value: "m3" }, recipient: { value: "run-a" }, sender: { value: "miette" },
            kind: { value: "question" }, body: { value: "how is it going" }
-    input  message: { value: "m3" }, verified: { value: "true" }, recipient: { value: "run-a" }
+    input  message: { value: "m3" }, verified: { value: "true" }, recipient: { value: "run-a" },
+           kind: { value: "question" }
     expect refused: "Stamp refused — status is \"refused\", and Stamp moves it only from \"addressed\""
   end
 
