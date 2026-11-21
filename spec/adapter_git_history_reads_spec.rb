@@ -31,6 +31,7 @@ module GitHistoryReads
     "git_train.rb"                            => "commits a boarding carries beyond the remote: the push has not happened",
     "git_train/carriage.rb"                   => "what the remote carries after a push and what waits behind it",
     "git_train/landings.rb"                   => "merges a boarding carries beyond the remote main, read before BranchPushed",
+    "git_shallow_check/strays.rb"             => "lines a branch's tree removes against main: content is git",
     "git_train/pull_request_boarding.rb"      => "commits waiting behind a boarded commit on main: ancestry",
     "git_train/reverting.rb"                  => "parent count of a merge decides how it is reverted: commit shape",
     "git_train/survey.rb"                     => "newest commit and ahead counts of each branch: ancestry",
