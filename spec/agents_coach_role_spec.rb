@@ -1,7 +1,7 @@
 require "spec_helper"
 require_relative "support/role_file_slices"
 
-# The coach is a role that relays Miette and nothing more: it may ask, forward, decline and message,
+# The coach is a role that relays Miette and nothing more: it may send, list and read messages,
 # and is given no way to land, push, stop a run or write her coaching for her.
 RSpec.describe "the coach role" do
   include RoleFileSlices
@@ -18,10 +18,10 @@ RSpec.describe "the coach role" do
   end
 
   it "may relay a question and her answer", :aggregate_failures do
-    expect(allowed).to include("Relay.ask!", "Relay.forward!", "Relay.decline!", "Message.send!", "Message.inbox")
+    expect(allowed).to include("Message.send!", "Message.inbox", "Message.read!")
   end
 
   it "may not land, push, stop a run or write her coaching", :aggregate_failures do
-    expect(allowed).not_to include("Landing.land!", "SendTrain.board!", "AgentRun.retire!", "Coaching.advise!")
+    expect(allowed).not_to include("Landing.land!", "SendTrain.board!", "AgentRun.retire!", "Coaching.advise!", "Relay.forward!")
   end
 end
