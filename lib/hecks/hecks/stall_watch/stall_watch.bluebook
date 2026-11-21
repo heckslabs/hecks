@@ -295,6 +295,21 @@ Hecks.bluebook "Hecks" do
                move: "The report names the failed jobs: read them (gh run view --log-failed). A flaky job is rerun " \
                      "once (gh run rerun --failed); a real failure is Work.plan! as a red-* work item with the " \
                      "failed jobs as its detail."
+        # The pipeline patterns the scrum master wakes on, each cleared by a call for help. A beat
+        # declined ("already running") with no beat taken since for ten minutes is a stuck tick;
+        # any later `Beaten` closes it.
+        member kind: "beat-declined", aggregate: "Hecks::Heartbeat", opens: "BeatDeclined", closes: "Beaten",
+               closed_by: "any", folds: "kind", minutes: 10, forgets: 1440, fixer: "orchestrator", cleared_by: "help",
+               move: "The beat has been declined for ten minutes with none taken since: a tick is stuck. Read the beat log " \
+                     "(~/.claude/hecks-dev/train-beat.log) and the process that holds the beat; report it, and never " \
+                     "signal a process group or a pid of 1 or less."
+        # Every landing refused and none landed for thirty minutes: one refusal gate (main's quick
+        # gate red) or a stalled seat holds them all. Any later `BranchLanded` closes it.
+        member kind: "landings-refused", aggregate: "Delivery::Landing", opens: "LandingRefused", closes: "BranchLanded",
+               closed_by: "any", folds: "kind", minutes: 30, forgets: 1440, fixer: "orchestrator", cleared_by: "help",
+               move: "Landings were refused and none landed since. Read each refusal's gate subject " \
+                     "(.git/hecks-landings/<branch>.log) and RedFlag.status: refusals that share one subject " \
+                     "mean main is red, whose fix is a red-* work item and not the landing coder's."
       end
 
       # An impediment `Impediments` computes at look time and never files, one row each. `read` is
