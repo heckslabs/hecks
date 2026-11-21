@@ -157,21 +157,20 @@ module Hecks
       # Copies a project's schemas into RDS with its generated `restore-to-rds.sh`, through
       # `hecks deploy data_copy.restore`.
       #
-      # The script overwrites the target database's schemas, so the adapter refuses unless the
-      # record says `confirm`, naming what would be overwritten. A `dry_run` answers the plan and
-      # runs nothing (confirmed or not). The script runs with `VERIFY_BY_COMMAND=1`: the record's
-      # policy requests the comparison, unless `skip_verify` or a dry run.
+      # The script overwrites the target database's schemas; the `Restore` command's given refuses
+      # it unless `confirm` or `dry_run` is set. A `dry_run` answers the plan, naming what would be
+      # overwritten, and runs nothing (confirmed or not). The script runs with
+      # `VERIFY_BY_COMMAND=1`: the record's policy requests the comparison, unless `skip_verify` or
+      # a dry run.
       #
       # @param held [Hash] the `DataCopy` record
       # @return [Hash{Symbol => Hash}] `report:`, `planned:` and what the policies carry on
-      # @raise [ConsoleCapture::Failure] when no script is found, the copy is not confirmed, or the
-      #   script ends non-zero
+      # @raise [ConsoleCapture::Failure] when no script is found or the script ends non-zero
       def copy_data(**held)
         script = script_for(RESTORE_SCRIPT, plain(held[:project]), plain(held[:script]))
         plan = copy_plan(script, held)
         return copy_answer(held, "#{plan}\ndry run: nothing was run", planned: true) if plain(held[:dry_run]) == true
 
-        require_confirm(held, "restore", plan)
         restore(held)
       end
 
@@ -210,13 +209,13 @@ module Hecks
       # Runs a project's `preview.sh` with one verb, through `hecks deploy preview_run.<verb>`.
       #
       # `name`, `url` and `list` read. `deploy`, `destroy` and `login` write to AWS or read its
-      # secrets, so they refuse unless the record says `confirm`, naming the plan; `dry_run` answers
-      # that plan and runs nothing. The branch travels in `BRANCH`, as the script reads it.
+      # secrets; their commands' givens refuse them unless `confirm` or `dry_run` is set, and
+      # `dry_run` answers the plan and runs nothing. The branch travels in `BRANCH`, as the script
+      # reads it.
       #
       # @param held [Hash] the `PreviewRun` record
       # @return [Hash{Symbol => Hash}] `outcome:`, `report:` and `planned:`
-      # @raise [ConsoleCapture::Failure] when no script is found, a write is not confirmed, or the
-      #   script ends non-zero
+      # @raise [ConsoleCapture::Failure] when no script is found or the script ends non-zero
       def run_preview(**held)
         action = plain(held[:action]).to_s
         planned = gate_preview(held, action)
@@ -231,20 +230,18 @@ module Hecks
       # through `hecks deploy companion_roll.run`.
       #
       # The script sends the project and its secret references to the box over SSM and starts it, so
-      # the adapter refuses unless the record says `confirm`, naming the plan; `dry_run` answers the
-      # plan and runs nothing. The task definition is the script's one argument.
+      # the `Run` command's given refuses it unless `confirm` or `dry_run` is set; `dry_run` answers
+      # the plan and runs nothing. The task definition is the script's one argument.
       #
       # @param held [Hash] the `CompanionRoll` record
       # @return [Hash{Symbol => Hash}] `report:` and `planned:`
-      # @raise [ConsoleCapture::Failure] when no script is found, the roll is not confirmed, or the
-      #   script ends non-zero
+      # @raise [ConsoleCapture::Failure] when no script is found or the script ends non-zero
       def roll_companion(**held)
         companion = plain(held[:companion]).to_s
         name = "deploy-#{companion}.sh"
         plan = companion_plan(held, name, companion)
         return planned_answer(plan) if plain(held[:dry_run]) == true
 
-        require_confirm(held, "roll #{companion}", plan)
         script = Script.new(name, "companion roll", COMPANION_STATUS, [plain(held[:taskdef])])
         run_script(script, held, {}).merge(planned: { value: false })
       end

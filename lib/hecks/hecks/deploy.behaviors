@@ -72,6 +72,28 @@ Hecks.behaviors "Deploy" do
     expect emits: %w[TenantReprovisionRequested ProvisioningRefused ProvisioningAbandoned]
   end
 
+  test "Restore is refused without confirm or dry_run, before any script is read" do
+    tests "Restore", on: "DataCopy"
+    input project: { value: "/tmp/hecks-behaviors-absent/project" }, run: { value: "copy" }, bastion: { value: "i-0abc123" },
+          source: { value: "old.db" }, source_secret: { value: "old-secret" }, target: { value: "new.db" },
+          target_secret: { value: "new-secret" }
+    expect refused: "pass confirm=true, or dry_run=true"
+  end
+
+  test "Run is refused without confirm or dry_run, before any script is read" do
+    tests "Run", on: "CompanionRoll"
+    input project: { value: "/tmp/hecks-behaviors-absent/project" }, run: { value: "roll" }, taskdef: { value: "umami:4" }
+    expect refused: "pass confirm=true, or dry_run=true"
+  end
+
+  %w[Deploy Destroy Login].each do |verb|
+    test "#{verb} is refused without confirm or dry_run, before any script is read" do
+      tests verb, on: "PreviewRun"
+      input project: { value: "/tmp/hecks-behaviors-absent/project" }, run: { value: "preview" }
+      expect refused: "pass confirm=true, or dry_run=true"
+    end
+  end
+
   test "Request holds a service whose auto-roll switch is off, reading nothing" do
     tests "Request", on: "StableRoll"
     input run: { value: "cms-at-4f1c2d3" }, service: { value: "cms" }, project: { value: "/tmp/hecks-behaviors-absent/project" },
