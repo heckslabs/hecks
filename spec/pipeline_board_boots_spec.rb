@@ -1,8 +1,8 @@
 require "spec_helper"
 require_relative "support/pipeline_board_world"
 
-# The Boot hours metric: the reader's reading of the usage record against the Tickets world's
-# budget, and the tile's state at each mark. The reader is handed canned usage entries and a
+# The Boot hours metric: the reader's reading of the usage record, the day's hours as a reading
+# beside the boot signals, and the tile's state for each. The reader is handed canned usage entries and a
 # canned load, so the live record and the machine are never read.
 RSpec.describe "the Boot hours metric" do
   include PipelineBoardWorld
@@ -26,17 +26,26 @@ RSpec.describe "the Boot hours metric" do
     expect(today[:budget]).to be_nil
   end
 
-  it "is ok under the attention share of the budget", :aggregate_failures do
-    expect(tiles.boots(reading(0.5))).to include(state: "ok", value: 0.5, unit: "h")
+  it "is ok however many hours the day holds, which are a reading", :aggregate_failures do
+    expect(tiles.boots(reading(5.0))).to include(state: "ok", value: 5.0, unit: "h")
     expect(tiles.boots(reading(0.5))[:detail]).to eq("budget 1.0 h; 10 boots; last hour: a 4; load 3.2 of 8.0")
   end
 
-  it "asks for attention at eighty percent of the budget" do
-    expect(tiles.boots(reading(0.8))).to include(state: "attention")
+  it "fails on a boot storm, naming the caller", :aggregate_failures do
+    tile = tiles.boots(reading(0.5).merge(storms: { "coder:w" => 31 }))
+
+    expect(tile).to include(state: "failed")
+    expect(tile[:detail]).to include("storm coder:w 31")
   end
 
-  it "fails once the budget is spent" do
-    expect(tiles.boots(reading(1.0))).to include(state: "failed")
+  it "asks for attention while the boot share is over its mark at a load over the limit" do
+    over = reading(0.5).merge(share: 40.0, share_mark: 25.0, load: 9.0)
+
+    expect(tiles.boots(over)).to include(state: "attention")
+  end
+
+  it "stays ok when the boot share is over its mark at a load under the limit" do
+    expect(tiles.boots(reading(0.5).merge(share: 40.0, share_mark: 25.0))).to include(state: "ok")
   end
 
   it "is ok, and says no budget is set, when the world sets none" do

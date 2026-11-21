@@ -22,7 +22,7 @@ RSpec.describe "the helper share on Roundhouse's meter" do
 
   it "reads three started coders and two helpers as helpers 2 of 3" do
     door = Hecks::Adapters::Dispatching::SignalboxDoor.new
-    protecting = Hecks::Adapters::Dispatching::Protecting.new(budget: nil, boots: nil, legacy: -> {},
+    protecting = Hecks::Adapters::Dispatching::Protecting.new(share: -> {},
                                                               sessions: -> { metering.rows }, door: door)
     expect(protecting.clause).to include("helpers 2 of 3 helpers")
   end
