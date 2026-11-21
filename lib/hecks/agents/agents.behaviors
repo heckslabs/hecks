@@ -331,8 +331,17 @@ Hecks.behaviors "Agents" do
     tests "Stamp", on: "Message"
     setup  "Agents::Message.Send", message: { value: "m3" }, recipient: { value: "run-a" }, sender: { value: "miette" },
            kind: { value: "question" }, body: { value: "how is it going" }
-    input  message: { value: "m3" }, verified: { value: "true" }, recipient: { value: "run-a" }
+    input  message: { value: "m3" }, verified: { value: "true" }, recipient: { value: "run-a" },
+           kind: { value: "question" }
     expect refused: "Stamp refused — status is \"refused\", and Stamp moves it only from \"addressed\""
+  end
+
+  test "Queue refuses a message that is not addressed" do
+    tests "Queue", on: "Message"
+    setup  "Agents::Message.Send", message: { value: "m4" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "ack" }, body: { value: "got it" }
+    input  message: { value: "m4" }
+    expect refused: "Queue refused — status is \"refused\", and Queue moves it only from \"addressed\""
   end
 
   test "End refuses a hand run that is not registered" do

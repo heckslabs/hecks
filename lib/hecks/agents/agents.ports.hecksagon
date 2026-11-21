@@ -36,6 +36,7 @@ Hecks.hecksagon "Agents" do
     asks "Recipient", to: Message do
       attribute :message,   MessageKey
       attribute :recipient, RunKey
+      attribute :kind,      MessageKind
       answers "RecipientFound"
       refuses "RecipientMissing"
     end
@@ -45,6 +46,7 @@ Hecks.hecksagon "Agents" do
       attribute :message, MessageKey
       attribute :sender,  SenderName
       attribute :recipient, RunKey
+      attribute :kind,      MessageKind
       answers "SenderChecked"
       refuses "SenderUnchecked"
     end
