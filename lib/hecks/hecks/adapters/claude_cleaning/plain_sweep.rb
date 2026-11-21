@@ -33,7 +33,9 @@ module Hecks
         # @param now [#call] answers the time
         # @param transcript [ClaudeTranscript] says where a session worked and when it last wrote
         # @param remove [#call] takes a session's short id and returns nil, or why it was refused
-        def initialize(window:, now:, transcript:, remove:)
+        # @param hold [HandRunHold, nil] names the hand run that holds a session, which is kept
+        def initialize(window:, now:, transcript:, remove:, hold: nil)
+          @hold = hold
           @window = window
           @now = now
           @transcript = transcript
@@ -64,7 +66,12 @@ module Hecks
         def reason(entry)
           return "working or blocked on the owner" unless ENDED.include?(entry["state"].to_s)
 
-          @window.pin(entry) || held(entry)
+          @window.pin(entry) || handheld(entry) || held(entry)
+        end
+
+        def handheld(entry)
+          run = @hold&.session(entry["sessionId"].to_s) || @hold&.session(entry["id"].to_s)
+          "held by hand run #{run}" if run
         end
 
         def held(entry)

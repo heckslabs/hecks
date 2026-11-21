@@ -48,6 +48,7 @@ Hecks.bluebook "Agents" do
       # The standing seat's first step, so a message to `orchestrator` reaches it; the row is
       # verb-wide, and the seat registers only `run=orchestrator`.
       member role: "orchestrator", pattern: "HandRun.register!"
+      member role: "orchestrator", pattern: "HandRun.end!"
       member role: "orchestrator", pattern: "Message.read!"
       member role: "orchestrator", pattern: "Message.inbox"
       member role: "orchestrator", pattern: "Message.undelivered"
@@ -2081,6 +2082,11 @@ Hecks.bluebook "Agents" do
     attribute :run, RunKey
     attribute :session, SessionId
     attribute :role, RunRole
+    attribute :checkout, HandCheckout, optional: true
+
+    # The checkout the session works in, when it has one; the orchestrator has none, so only its
+    # session is held.
+    value_object "HandCheckout", String
 
     # The key messages are addressed to, as `Message.send! to=<run>` names it.
     value_object "RunKey" do
@@ -2097,12 +2103,12 @@ Hecks.bluebook "Agents" do
       attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
     end
 
-    # A recorded registration is a finished fact that frees its key: registering again replaces
-    # it, the earlier one kept as `<run>~<n>`, so a message reaches the newest session.
+    # A registration is held until `HandRun.end!`; a replaced one, `<run>~<n>`, never is.
     lifecycle :status, default: "registering" do
       transition "Record" => "registered", from: "registering"
-      mark :terminal, "registered"
-      mark :reusable, "registered"
+      transition "End" => "ended", from: "registered"
+      mark :terminal, "ended"
+      mark :reusable, "registered", "ended"
     end
 
     command "Register" do
@@ -2112,6 +2118,7 @@ Hecks.bluebook "Agents" do
       attribute :run,     RunKey, sets: true
       attribute :session, SessionId, sets: true
       attribute :role,    RunRole, sets: true
+      attribute :checkout, HandCheckout, sets: true, optional: true
 
       emits "HandRunRequested"
     end
@@ -2128,6 +2135,15 @@ Hecks.bluebook "Agents" do
     policy "RecordTheRegistration" do
       on      "HandRun.HandRunRequested"
       trigger HandRun::Record, with: { run: :run }
+    end
+
+    command "End", from: "registered" do
+      role "Operator"
+      goal "End a hand-started session's registration (to=<run>), which releases its session and checkout to the reapers"
+
+      reference_to HandRun
+
+      emits "HandRunEnded"
     end
 
     query "Registered" do

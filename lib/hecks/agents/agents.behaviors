@@ -319,4 +319,18 @@ Hecks.behaviors "Agents" do
     input  message: { value: "m2" }, reader: { value: "run-a" }
     expect refused: "Receive refused — status is \"refused\", and Receive moves it only from \"sent\""
   end
+
+  test "End refuses a hand run that is not registered" do
+    tests "End", on: "HandRun"
+    input  run: { value: "owner-orchestrator" }
+    expect refused: "no HandRun with run.value \"owner-orchestrator\""
+  end
+
+  test "End ends a registered hand run, releasing its session and checkout" do
+    tests "End", on: "HandRun"
+    setup  "Agents::HandRun.Register", run: { value: "standing-coder" }, session: { value: "5e55-full" },
+           role: { value: "coder" }, checkout: { value: "/work/standing-coder" }
+    input  run: { value: "standing-coder" }
+    expect emits: ["HandRunEnded"]
+  end
 end

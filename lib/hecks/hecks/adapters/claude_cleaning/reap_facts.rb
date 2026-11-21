@@ -10,7 +10,7 @@ module Hecks
       # meter (its pin, its run, the work its worktree holds, whether a person spoke in it) and
       # the keep window the Signalbox world gives it. It decides nothing.
       class ReapFacts
-        # What Delegate reads beside the meter.
+        # What Delegate reads beside the meter, and `hold`, the hand run holding a session or copy.
         #
         # @!attribute [r] window
         #   @return [KeepWindow] says whether a pin keeps a session
@@ -22,12 +22,12 @@ module Hecks
         #   @return [WorktreeCheck] counts a worktree's unsaved files and commits
         # @!attribute [r] runs
         #   @return [Dispatching::WorkItems] the started work items and runs
-        Sources = Struct.new(:window, :jobs, :transcript, :worktrees, :runs, keyword_init: true)
+        Sources = Struct.new(:window, :jobs, :transcript, :worktrees, :runs, :hold, keyword_init: true)
 
         # @param sources [Sources] what Delegate reads beside the meter
         # @param keeps [Hash] the Signalbox world's `reaping` line and its `fuses:` line
         def initialize(sources, keeps)
-          @window, @jobs, @transcript, @worktrees, @runs = sources.to_a
+          @window, @jobs, @transcript, @worktrees, @runs, @hold = sources.to_a
           @keeps = keeps
         end
 
@@ -64,7 +64,7 @@ module Hecks
 
         def held(row)
           { unsaved: unsaved(row[:session].to_s), pinned: answer(@window.pin({ "id" => row[:id], "name" => row[:name] })),
-            open: answer(row[:run_status].to_s == "started") }
+            open: answer(row[:run_status].to_s == "started" || handheld?(row)) }
         end
 
         # A finished session is kept the ended window, the owner's own the owner window; a stale one
@@ -97,8 +97,18 @@ module Hecks
 
         def copy_open?(row)
           branch = row[:branch].to_s
-          row[:held] == "yes" || @runs.started.any? { |item| item.key == branch } ||
+          row[:held] == "yes" || !@hold&.checkout(row[:path]).nil? || started?(branch)
+        end
+
+        def started?(branch)
+          @runs.started.any? { |item| item.key == branch } ||
             @runs.runs.any? { |key, run| key == branch && run[:status] == "started" }
+        end
+
+        # Whether a registered hand run holds the session, whose own worktree it may work in.
+        def handheld?(row)
+          path = @transcript.worktree(row[:session].to_s).to_s
+          !(@hold&.session(row[:session].to_s) || @hold&.session(row[:id].to_s) || @hold&.checkout(path)).nil?
         end
 
         def answer(yes) = yes ? "yes" : "no"
