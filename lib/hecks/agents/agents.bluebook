@@ -50,6 +50,8 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "HandRun.register!"
       member role: "orchestrator", pattern: "Message.read!"
       member role: "orchestrator", pattern: "Message.inbox"
+      member role: "orchestrator", pattern: "Message.undelivered"
+      member role: "orchestrator", pattern: "Message.receive!"
       # Reads of the sessions; Fleet.stop! and Fleet.resume! stay the operator's.
       member role: "orchestrator", pattern: "Fleet.sessions"
       member role: "orchestrator", pattern: "Fleet.topic"
@@ -134,6 +136,8 @@ Hecks.bluebook "Agents" do
       # waits for the transport that binds the Coach domain to the launcher.
       member role: "coach", pattern: "Message.send!"
       member role: "coach", pattern: "Message.inbox"
+      member role: "coach", pattern: "Message.undelivered"
+      member role: "coach", pattern: "Message.receive!"
       member role: "coach", pattern: "Message.read!"
       # The planner drafts and reads: the open Work items, the epics and reviews, git history; its one
       # write is the Work item it is told to create.
@@ -224,7 +228,7 @@ Hecks.bluebook "Agents" do
       member role: "scrum-master", shape: "exe/hecks",
              use: "StallWatch.impediments, HelpWanted.open, HelpWanted.raise!, AgentRun.running or PipelineBoard.snapshot"
       member role: "coach", shape: "exe/hecks",
-             use: "Message.send!, Message.inbox or Message.read!; landing, pushing and stopping are not the coach's"
+             use: "Message.send!, Message.inbox, Message.undelivered, Message.receive! or Message.read!; landing, pushing and stopping are not the coach's"
       # Every role: a script held once because no hecks command ran since the last one (`Script`).
       member role: "*", shape: "script",
              use: "Try hecks first: exe/hecks --all; run it again if no command fits"
@@ -1842,7 +1846,7 @@ Hecks.bluebook "Agents" do
   # word and proves nothing. A session hears its messages with `Operation.follow` on this aggregate;
   # one that is not following is still answered with `AgentRun.answer!`.
   aggregate "Message" do
-    description "One message from a session to a run: addressed, sent as an event the run's session hears once the recipient is a run with a live session, then read; refused by name when it is not. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
+    description "One message from a session to a run: addressed, sent as an event the run's session hears once the recipient is a run with a live session, delivered when its session has heard it, then read; refused by name when it is not. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
 
     identified_by :message
 
@@ -1894,9 +1898,13 @@ Hecks.bluebook "Agents" do
       mark :failure, "refused"
       transition "Deliver" => "sent", from: "addressed"
       transition "Decline" => "refused", from: "addressed"
-      transition "Read" => "read", from: "sent"
-      # A sent message waits for its session to read it, which may never come; nothing times it.
-      mark :rests, "sent"
+      transition "Hold" => "held", from: "addressed"
+      transition "Release" => "sent", from: "held"
+      transition "Receive" => "delivered", from: "sent"
+      transition "Read" => "read", from: %w[sent delivered]
+      # A sent message waits for its session to hear it, a delivered one for it to read it; nothing
+      # times either.
+      mark :rests, "sent", "delivered", "held"
       mark :terminal, "read", "refused"
     end
 
@@ -1935,7 +1943,35 @@ Hecks.bluebook "Agents" do
       emits "MessageRefused"
     end
 
-    command "Read", from: "sent" do
+    command "Hold", from: "addressed" do
+      role "System"
+      goal "Keep a message for a standing seat that has not registered yet, until its registration releases it"
+
+      reference_to Message
+
+      emits "MessageHeld"
+    end
+
+    command "Release", from: "held" do
+      role "System"
+      goal "Send a held message once its standing seat has registered"
+
+      reference_to Message
+
+      emits "MessageSent"
+    end
+
+    command "Receive", from: "sent" do
+      role "Operator"
+      goal "Record that a run's session heard a message (to=<message>), so its hook hands it over once"
+
+      reference_to Message
+      attribute :reader, ReaderName, sets: true
+
+      emits "MessageDelivered"
+    end
+
+    command "Read", from: %w[sent delivered] do
       role "Operator"
       goal "Record that a session read a message (to=<message>), so it leaves the run's inbox"
 
@@ -1946,7 +1982,21 @@ Hecks.bluebook "Agents" do
     end
 
     query "Inbox" do
-      description "The unread messages for one run, each with its sender, kind, body and the message it answers."
+      description "The unread messages for one run, sent or delivered, each with its sender, kind, body and the message it answers."
+      attribute :recipient, RunKey
+      where(status: { in: %w[sent delivered] }, recipient: :recipient)
+      order_by :message
+    end
+
+    query "HeldFor" do
+      description "The messages held for one run's registration, read when the registration is recorded."
+      attribute :run, RunKey
+      where(status: "held", recipient: :run)
+      order_by :message
+    end
+
+    query "Undelivered" do
+      description "The messages for one run its session has not heard yet: what a hook hands over, once, before it records them delivered."
       attribute :recipient, RunKey
       where(status: "sent", recipient: :recipient)
       order_by :message
@@ -1964,8 +2014,22 @@ Hecks.bluebook "Agents" do
       trigger Message::Deliver, with: { message: :message }
     end
 
+    # The seats a hand starts and registers by name: a message to one before it registers waits.
+    policy "HoldForTheStandingSeat" do
+      on      "Message.RecipientMissing"
+      where   { recipient.value == "miette" || recipient.value == "orchestrator" || recipient.value == "orchestrator-owner" || recipient.value == "coach" || recipient.value == "scrum-master" }
+      trigger Message::Hold, with: { message: :message }
+    end
+
+    policy "ReleaseOnRegistration" do
+      on       "HandRun.HandRunRegistered"
+      for_each "Message.HeldFor"
+      trigger  Message::Release, with: { message: :message }
+    end
+
     policy "RefuseTheRecipient" do
       on      "Message.RecipientMissing"
+      where   { !(recipient.value == "miette" || recipient.value == "orchestrator" || recipient.value == "orchestrator-owner" || recipient.value == "coach" || recipient.value == "scrum-master") }
       trigger Message::Decline, with: { message: :message, refusal: :refusal }
     end
   end
