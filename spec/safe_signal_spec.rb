@@ -9,16 +9,16 @@ RSpec.describe Hecks::Adapters::SafeSignal do
 
   # Each file outside this work item's area that still calls Process.kill, with the reason it waits.
   OUT_OF_AREA = {
-    "tools/regeneration_run/pool.rb"                      => "regeneration tooling",
-    "pipeline_board/adapters/board_supervisor.rb"         => "board supervision",
-    "pipeline_board/adapters/pipeline_journal/watch.rb"   => "board journal watch",
-    "pipeline_board/adapters/sentinel/standing.rb"        => "board sentinel liveness probe",
-    "pipeline_board/adapters/sentinel/host.rb"            => "board sentinel host",
-    "pipeline_board/adapters/probe/child.rb"              => "board probe group kill",
-    "pipeline_board/adapters/pipeline_web/browser.rb"     => "board browser",
-    "agents/adapters/sweeping.rb"                         => "agent sweeping",
-    "quality_control/adapters/agent.rb"                   => "quality control group kill",
-    "ci_speed/adapters/local_runner/launcher.rb"          => "ci speed group kill"
+    "tools/regeneration_run/pool.rb"                    => "regeneration tooling",
+    "pipeline_board/adapters/board_supervisor.rb"       => "board supervision",
+    "pipeline_board/adapters/pipeline_journal/watch.rb" => "board journal watch",
+    "pipeline_board/adapters/sentinel/standing.rb"      => "board sentinel liveness probe",
+    "pipeline_board/adapters/sentinel/host.rb"          => "board sentinel host",
+    "pipeline_board/adapters/probe/child.rb"            => "board probe group kill",
+    "pipeline_board/adapters/pipeline_web/browser.rb"   => "board browser",
+    "agents/adapters/sweeping.rb"                       => "agent sweeping",
+    "quality_control/adapters/agent.rb"                 => "quality control group kill",
+    "ci_speed/adapters/local_runner/launcher.rb"        => "ci speed group kill"
   }.freeze
 
   describe "a signal to a group" do

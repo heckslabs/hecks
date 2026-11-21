@@ -1,3 +1,4 @@
+require "hecks/hecks/adapters/safe_signal"
 require "hecks/adapters/driving/resident/wire"
 
 module Hecks
@@ -38,12 +39,7 @@ module Hecks
           def alive?(pid)
             return true unless pid
 
-            Process.kill(0, pid)
-            true
-          rescue Errno::ESRCH
-            false
-          rescue SystemCallError
-            true
+            Hecks::Adapters::SafeSignal.standing?(pid)
           end
         end
       end
