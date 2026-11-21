@@ -38,6 +38,22 @@ module Hecks
         { branch: { value: found } }
       end
 
+      # Finds the open work item a landed branch's worktree is named for, when the branch itself
+      # names none: a coder that cut its branch under another name still works in a worktree named
+      # for its item. A branch that names an open item is left to {#find_landed_work}.
+      #
+      # @param held [Hash] the landing's `branch` and `checkout`
+      # @return [Hash{Symbol => Hash}] `branch:` the key of the open work item the checkout names
+      # @raise [ConsoleCapture::Failure] when the branch names an open item, or the checkout none
+      def find_landed_work_by_checkout(**held)
+        branch = plain(held[:branch]).to_s
+        key = File.basename(plain(held[:checkout]).to_s)
+        raise ConsoleCapture::Failure, "no open work item is named #{key}" unless open_keys.include?(key)
+        raise ConsoleCapture::Failure, "#{branch} names an open work item" if candidates(branch).intersect?(open_keys)
+
+        { branch: { value: key } }
+      end
+
       # Finds the started work item a refused landing job's branch names (a submission does not
       # finish it; only a landing does). It judges nothing:
       # whether the item is planned again is the Tickets bluebook's, from the count answered here.
