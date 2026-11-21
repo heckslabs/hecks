@@ -5,13 +5,14 @@ require "hecks/pipeline_board/adapters/rules"
 
 # Each kind of thing that can stand too long has a mark declared as a board `Setting`, and a
 # `Verdict` stage that compares the age with it. Past its mark the kind reads `too long`.
+# A kind that waits on a person at once, such as a red main given up, has no mark.
 RSpec.describe "the marks past which a stuck item has stood too long" do
   let(:rules) { Hecks::Adapters::PipelineBoard::Rules }
   let(:kinds) { rules.rows("StuckKind") }
 
   it "names a Setting for every kind's mark", :aggregate_failures do
     names = rules.rows("Setting").map { |row| row[:name] }
-    expect(kinds.map { |kind| kind[:mark] }).to all(satisfy { |mark| names.include?(mark) })
+    expect(kinds.map { |kind| kind[:mark] }.reject(&:empty?)).to all(satisfy { |mark| names.include?(mark) })
     expect(kinds.map { |kind| kind[:kind] }).to include("red_main", "epic_held", "planned_idle")
   end
 

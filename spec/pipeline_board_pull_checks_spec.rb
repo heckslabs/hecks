@@ -10,7 +10,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PullChecks do
   it "counts a check run's conclusion and a status context's state" do
     checks = [{ "conclusion" => "SUCCESS" }, { "conclusion" => "SKIPPED" }, { "conclusion" => "TIMED_OUT" },
               { "status" => "IN_PROGRESS", "conclusion" => "" }, { "state" => "PENDING" }, { "state" => "ERROR" }]
-    counted = { number: 1, branch: "train/x", total: 6, passed: 2, failed: 2, pending: 2 }
+    counted = { number: 1, branch: "train/x", created: "", total: 6, passed: 2, failed: 2, pending: 2 }
     expect(described_class.train([pull(*checks)])).to eq([counted])
   end
 

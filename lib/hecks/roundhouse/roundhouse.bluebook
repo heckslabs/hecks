@@ -25,6 +25,9 @@ Hecks.bluebook "Roundhouse" do
     attribute :fuse_minutes, Minutes
     attribute :drawn,        Megabytes, optional: true
     attribute :minutes,      Minutes, optional: true
+    attribute :item,         Item, optional: true
+    attribute :cpu,          CoreHundredths, optional: true
+    attribute :idle,         Minutes, optional: true
 
     value_object "SessionKey" do
       attribute :value, String, matches: :present
@@ -58,6 +61,15 @@ Hecks.bluebook "Roundhouse" do
     value_object "Count" do
       attribute :value, Integer, default: 0
       invariant("a count is not negative") { !value.negative? }
+    end
+
+    # The Work item a session works, which a helper may not have: it carries no emptiness rule.
+    value_object "Item", String
+
+    # The processor a session draws, in hundredths of a core.
+    value_object "CoreHundredths" do
+      attribute :value, Integer, default: 0
+      invariant("a processor draw is not negative") { !value.negative? }
     end
 
     query "Live" do
@@ -105,6 +117,9 @@ Hecks.bluebook "Roundhouse" do
       attribute :minutes,       Minutes, sets: true
       attribute :rated,         Megabytes
       attribute :rated_minutes, Minutes
+      attribute :item,          Item, sets: true, optional: true
+      attribute :cpu,           CoreHundredths, sets: true, optional: true
+      attribute :idle,          Minutes, sets: true, optional: true
 
       given("a meter reading names the session's own fuse") do
         rated.value == fuse.value && rated_minutes.value == fuse_minutes.value
