@@ -313,6 +313,29 @@ Hecks.behaviors "Tickets" do
     expect title: { value: "Plain words" }, outcome: { value: "Something is true" }, status: "open"
   end
 
+  test "Revise replaces the outcome and keeps the title and status" do
+    tests "Revise", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    input epic: "e1", outcome: { value: "Something else is true" }
+    expect outcome: { value: "Something else is true" }, title: { value: "Old" }, status: "open"
+  end
+
+  test "Revise refuses a blank outcome" do
+    tests "Revise", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    input epic: "e1", outcome: { value: " " }
+    expect refused: "an epic states its outcome"
+  end
+
+  test "Revise refuses a complete epic" do
+    tests "Revise", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    setup "Tickets::Epic.Complete", epic: "e1", members: { value: 1 }, open_members: { value: 0 }, reading: { value: 2 },
+                                    at_least: { value: 2 }, at_most: { value: 9 }, evidence: { value: "read 2" }
+    input epic: "e1", outcome: { value: "Something else is true" }
+    expect refused: "a complete epic is not revised"
+  end
+
   test "Rank sets the tier and keeps the title" do
     tests "Rank", on: "Epic"
     setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }

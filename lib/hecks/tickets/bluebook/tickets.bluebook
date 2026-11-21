@@ -702,6 +702,22 @@ Hecks.bluebook "Tickets" do
       emits "EpicRetitled"
     end
 
+    # Replaces the outcome only (the outcome counterpart of `Retitle`); the key, title, tier, decision,
+    # measure and members stay. Unlike `Retitle` it refuses a complete epic: that epic was measured
+    # against its old outcome, and `Complete` is the only way to `complete`.
+    command "Revise" do
+      role "Maintainer"
+      goal "Replace an open epic's outcome, and nothing else"
+
+      reference_to Epic
+      attribute :outcome, EpicOutcome, sets: true
+
+      given("an epic states its outcome") { !outcome.value.to_s.strip.empty? }
+      given("a complete epic is not revised") { status != "complete" }
+
+      emits "EpicRevised"
+    end
+
     # The owner's hand: sets the tier and stamps when, so `Rerank` leaves it alone for `hold`
     # seconds. The title, outcome, decision and status stay as they were. `now` is filled from the
     # clock port; an explicit value wins.
