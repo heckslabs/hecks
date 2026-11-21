@@ -9,7 +9,7 @@ require "hecks/hecks/adapters/main_integration"
 RSpec.describe Hecks::Adapters::MainIntegration::LocalCopy do
   include_context "with a train copy"
 
-  def run_step(dir = copy) = Open3.capture3("zsh", "-c", described_class.step, chdir: dir)
+  def run_step(dir = copy) = Open3.capture3("sh", "-c", described_class.step, chdir: dir)
 
   it "copies a missing local file, so the view counts none" do
     run_step
