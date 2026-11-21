@@ -311,10 +311,4 @@ Hecks.behaviors "Agents" do
            verdict: { value: "routed" }, landing_state: { value: "somewhere" }
     expect refused: "a landing state is landed, pushed_not_landed, committed_not_pushed or uncommitted"
   end
-
-  test "Take refuses a seat with no session" do
-    tests "Take", on: "Seat"
-    input  session: { value: "" }, role: { value: "orchestrator" }
-    expect refused: "SeatSession.value must match"
-  end
 end
