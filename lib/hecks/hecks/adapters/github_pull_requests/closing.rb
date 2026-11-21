@@ -22,6 +22,16 @@ module Hecks
           gh!("pr", "close", number, "--comment", comment)
           { report: { value: "closed ##{number}: #{comment}" } }
         end
+
+        private
+
+        # Refuses a pull request that is not open, so a merged or closed one is never changed.
+        def ensure_open!(number)
+          state = JSON.parse(gh!("pr", "view", number, "--json", "state"))["state"]
+          return if state == "OPEN"
+
+          raise ConsoleCapture::Failure, "pull request ##{number} is not open (#{state}); only an open one is changed"
+        end
       end
     end
   end
