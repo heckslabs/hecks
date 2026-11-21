@@ -1048,21 +1048,21 @@ Hecks.behaviors "Signalbox" do
   test "the beat: a quiet machine's look from main is cleared, published and ruled on" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-quiet" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead
                      PressureEased PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
   test "the beat: the helper storm's look puts the machine in the short band" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-storm" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead PressureFellShort StandingFellShort
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead PressureFellShort StandingFellShort
                      PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
   test "the beat: a look from a copy behind main is not cleared, so nothing is published" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-worktree" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded]
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded]
   end
 
   test "the beat: a machine that cannot be read faults the beat" do
@@ -1097,6 +1097,27 @@ Hecks.behaviors "Signalbox" do
     input beat: { value: "beat-quiet" }
     expect coder_draw: 1536, metered_draw: 0
   end
+  test "the beat: the disk the look read and a day's writes by process are recorded beside the look" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-quiet" }
+    expect disk_free: 78_397, disk_total: 471_480
+  end
+
+  test "the beat: a disk with under a tenth of it free is said to run low" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-full-disk" }
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskRanLow DiskWritesRecorded ClearanceGranted
+                     BeatPublished PressureOpened StandingOpened PressureRead PressureEased PressurePosted DelegateHeard RulingRecorded
+                     RulingRecorded]
+  end
+
+  test "an allowance: a process's budget is decided for a cause until a date" do
+    tests "Set", on: "Allowance"
+    input allowance: { value: "ruby:1" }, process: { value: "ruby" }, megabytes: { value: 300_000 },
+          cause: { value: "cold boots until the resident lands" }, ends_at: { value: 2_000 }
+    expect emits: %w[AllowanceSet]
+  end
+
   # ---- What a reader asks: the standing pressure, the holds, the answers and the breakers ----
 
   test "Latest is the newest reading, with the load and the marks it was judged against" do
