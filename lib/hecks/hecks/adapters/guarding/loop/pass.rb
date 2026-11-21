@@ -17,7 +17,7 @@ module Hecks
         # if it is gone, then resumes each pinned session `claude agents` lists as gone, then checks
         # the loops of the sessions it resumed. It starts and reads; it never ends a process.
         class Pass
-          # @param roster [Hash] `sessions` (name, cwd, loops) and `settings`, as the roster file holds them
+          # @param roster [Hash] `sessions` (name, cwd, loops) and `settings`, from the roster file
           # @param shell [#capture, #detach] runs `claude`; a stand-in in specs
           # @param clock [#call] seconds since the epoch
           # @param home [String] the loop's directory
