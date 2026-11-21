@@ -30,7 +30,8 @@ module Hecks
 
         # @param kind [String] a `StuckKind`
         # @param said [String] who the item itself says it waits on, used where the row names none
-        # @return [Hash] the `group` the kind's row gives, who it `waits_on` and whether that is a role or a person
+        # @return [Hash] the `group` the kind's row gives, who it `waits_on` and whether that is a
+        #   role or a person
         def sorted(kind, said = "")
           found = Rules.rows("StuckKind").find { |held| held[:kind] == kind } || {}
           { group: found[:group].to_s, waits_on: found[:waits_on].to_s.empty? ? said.to_s : found[:waits_on],

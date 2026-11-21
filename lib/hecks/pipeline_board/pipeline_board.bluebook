@@ -145,10 +145,8 @@ Hecks.bluebook "PipelineBoard" do
       attribute :title, String, default: ""
     end
 
-    # Whether work is flowing: `admission` is `open`, `closed` or `unknown` by the `Admission` rows
-    # and `admission_why` the reason an Overload or the load guard gave; `next_start` is what the
-    # fill would start; `train_state` is the `Train glance` rows' word for the open train pull
-    # requests and `train_why` names the red ones.
+    # Whether work is flowing: `admission` by the `Admission` rows with its reason, what the fill
+    # would start, and the `Train glance` rows' word for the open train pull requests.
     value_object "Flow" do
       attribute :admission,     String
       attribute :admission_why, String, default: ""
