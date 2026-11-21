@@ -190,6 +190,14 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
+  Hecks::BisectLog.port "Logging" do
+    asks "Record", to: BisectLog do
+      attribute :run, RunKey
+      answers "LogAnswered"
+      refuses "LogRefused"
+    end
+  end
+
   Hecks::BoardingRelease.port "Releasing" do
     asks "Clear", to: BoardingRelease do
       attribute :run, RunKey

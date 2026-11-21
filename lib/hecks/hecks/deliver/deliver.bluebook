@@ -2854,6 +2854,100 @@ Hecks.bluebook "Hecks" do
       trigger BoardingRelease::Decline, with: { refusal: :refusal }
     end
 
+    # A red fix lands only once its bisect is logged, or an obvious finding quoting the failure line.
+    # The marker file is the `Logging` port's adapter; Landing refuses a fix with no entry by name.
+    aggregate "BisectLog" do
+      description "One entry of a red Work item's bisect log: a search that ran, or an obvious-from-the-failure finding with its quote."
+      created_by "BisectLog.log!"
+
+      attribute :run,      RunKey
+      attribute :work,     Word,   optional: true
+      attribute :kind,     Word,   optional: true
+      attribute :finding,  Report, optional: true
+      attribute :quote,    Report, optional: true
+      attribute :checkout, Word,   optional: true
+      attribute :output,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "settled", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "settled", "refused"
+      end
+
+      command "Log" do
+        role "Operator"
+        goal "Log how a red train's or a red main's Work item was searched: a bisect, or a finding that the failure makes the fix obvious, with the failure line quoted"
+
+        attribute :run,      RunKey, sets: true
+        attribute :work,     Word, sets: true
+        attribute :kind,     Word, sets: true
+        attribute :finding,  Report, optional: true, sets: true
+        attribute :quote,    Report, optional: true, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        given("the kind is a bisect or an obvious finding") { kind.value == "bisect" || kind.value == "obvious" }
+        given("an obvious finding quotes the failure line") { kind.value != "obvious" || !quote.value.to_s.strip.empty? }
+
+        emits BisectLogRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record what the log entry did"
+
+        reference_to BisectLog
+        attribute :output, Report, sets: true
+
+        emits BisectLogSettled
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a log entry was refused"
+
+        reference_to BisectLog
+        attribute :refusal, Report, sets: true
+
+        emits BisectLogDeclined
+      end
+    end
+
+    policy "RecordTheLogWhenRequested" do
+      on      "BisectLog.BisectLogRequested"
+      ask     :record, with: { run: :run }
+    end
+
+    policy "SettleTheLog" do
+      on      "BisectLog.LogAnswered"
+      trigger BisectLog::Settle, with: { output: :output }
+    end
+
+    policy "DeclineTheLog" do
+      on      "BisectLog.LogRefused"
+      trigger BisectLog::Decline, with: { refusal: :refusal }
+    end
+
+    # A train's search that ran to an answer is its red's bisect log; one that could not run is none.
+    policy "LogTheBisectOfARedTrain" do
+      on      "Integration.BisectAnswered"
+      root
+      where   { searched.value == true && examples.value != "" && work_key.value != "" && !reason.value.include?("could not run") }
+      trigger BisectLog::Log, with: { run: :run, work: :work_key, kind: "bisect", finding: :reason, checkout: :checkout }
+    end
+
     # Keyed by the tip: a verdict for another commit finds no review, and a second wait for the same
     # tip is refused, since main moving does not by itself ask for a new review.
     aggregate "LandingReview" do

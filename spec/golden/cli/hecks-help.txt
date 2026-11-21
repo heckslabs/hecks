@@ -156,6 +156,9 @@ commands:
   BoardingRelease:
     …
     release!
+  BisectLog:
+    …
+    log!
   Relief:
     …
     plan!

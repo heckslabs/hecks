@@ -50,6 +50,9 @@ commands:
   BoardingRelease:
     …
     release!
+  BisectLog:
+    …
+    log!
 
 queries (nothing here changes anything):
   Workspace:
