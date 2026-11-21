@@ -2,11 +2,11 @@
 
 module Hecks
   module Adapters
-    # The `BehaviorsCounting` port's adapter for `BehaviorsCoverage`: pairs each `*.bluebook` under a
-    # root with the `.behaviors` file of the same name beside it, and answers the names of those
-    # without one and the counts. It decides nothing about them.
+    # The `BehaviorsCounting` port's adapter for `BehaviorsCoverage`: pairs each `*.bluebook`
+    # under a root with the `.behaviors` file of the same name beside it, and answers the
+    # names of those without one and the counts. It decides nothing about them.
     class BehaviorsCounting
-      # Directories whose bluebooks are copies, fixtures or other checkouts, not the repository's own.
+      # Directories whose bluebooks are copies, fixtures or other checkouts, not its own.
       SKIPPED = %r{(\A|/)(\.claude|\.git|node_modules|tmp|vendor|fixtures)/}
 
       # The end of a bluebook's file name, which a `.behaviors` file replaces.
