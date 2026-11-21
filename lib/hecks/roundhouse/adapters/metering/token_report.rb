@@ -15,7 +15,7 @@ module Hecks
         SPLIT = %i[input output cache_creation cache_read].freeze
 
         LABELS = {
-          prompt_cache:  "prompt cache: cache reads billed at a tenth of fresh input; saved = cache_read x (1 - 0.1)",
+          prompt_cache:  "prompt cache: cache reads billed at each model's read rate; saved = cache_read x (1 - read/input)",
           model_routing: "model routing: Sonnet and Haiku tokens priced at Opus, less what they cost"
         }.freeze
 
@@ -63,14 +63,9 @@ module Hecks
         end
 
         def cache_line(rows)
-          read = rows.sum { |row| row[:cache_read] }
-          fresh = rows.sum { |row| fresh_cost(row) }
-          { label: LABELS[:prompt_cache], tokens: (read * (1 - PriceTable::CACHE_READ_RATIO)).round,
-            dollars: (fresh * (1 - PriceTable::CACHE_READ_RATIO)).round(4) }
-        end
-
-        def fresh_cost(row)
-          PriceTable.dollars(row[:model], { **blank, input: row[:cache_read] })
+          { label:   LABELS[:prompt_cache],
+            tokens:  rows.sum { |row| PriceTable.read_saving_tokens(row[:model], row) }.round,
+            dollars: rows.sum { |row| PriceTable.read_saving(row[:model], row) }.round(4) }
         end
 
         def routing_line(rows)
@@ -79,8 +74,6 @@ module Hecks
           own = routed.sum { |row| PriceTable.dollars(row[:model], row) }
           { label: LABELS[:model_routing], tokens: total(routed)[:tokens], dollars: (dearer - own).round(4) }
         end
-
-        def blank = SPLIT.to_h { |name| [name, 0] }
 
         def role(row)
           run = @runs[row[:session]]
