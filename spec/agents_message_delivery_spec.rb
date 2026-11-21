@@ -2,7 +2,8 @@ require "spec_helper"
 require_relative "support/agents_message_helpers"
 
 # A sent message is handed to its run's session once: the hook reads `Undelivered`, records each
-# message with `Receive`, which marks it read, and the run answers the sender with a message of its own.
+# message with `Receive`, which marks it read, and the run answers the sender with a message
+# of its own.
 RSpec.describe "the Agents message delivery" do
   include AgentsMessageHelpers
 
