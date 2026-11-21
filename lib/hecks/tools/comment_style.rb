@@ -34,6 +34,9 @@ module Hecks
       # The files that declare, by name.
       DECLARATION_FILES = "*.{bluebook,hecksagon,world,adapter,behaviors}"
 
+      # The name part that marks a copy's own settings, which are gitignored and never committed.
+      LOCAL_SETTINGS = ".local."
+
       # A path segment that marks another project's vendored files.
       VENDORED = "/vendor/"
 
