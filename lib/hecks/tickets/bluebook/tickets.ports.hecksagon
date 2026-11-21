@@ -69,6 +69,16 @@ end
     end
   end
 
+  # The other work items that hold the priority lane, read as facts: the port compares nothing
+  # (`Work.Unexpedite` judges), and refuses only when it cannot read them.
+  Tickets::Work.port "ExpediteLimits" do
+    asks "CheckExpedite", to: Work do
+      attribute :work, WorkKey
+      answers "ExpediteRead"
+      refuses "ExpediteUnread"
+    end
+  end
+
   # Whether an epic has a member and none planned or started, which reads the Work items as a
   # bluebook rule cannot. The answer completes the epic.
   Tickets::Epic.port "EpicMembers" do

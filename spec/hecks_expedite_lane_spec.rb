@@ -151,8 +151,8 @@ RSpec.describe "the expedite lane" do
   it "accepts every priority the dispatcher ranks", :aggregate_failures do
     plan("p")
     items::TIERS.each do |tier|
-      out = tier == "expedite" ? cli("work.expedite!", "to=p") : cli("work.prioritize!", "to=p", "priority.value=#{tier}")
-      expect(out).not_to include("refused")
+      tier == "expedite" ? cli("work.expedite!", "to=p") : cli("work.prioritize!", "to=p", "priority.value=#{tier}")
+      expect(JSON.parse(cli("work.undone")).find { |work| work["work"] == "p" }["priority"]).to eq(tier)
     end
   end
 end
