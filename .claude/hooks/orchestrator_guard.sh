@@ -9,7 +9,8 @@
 # `seats/<session_id>` that `HandRun.register!` writes (the `Seat` aggregate), found under
 # $HECKS_SEATS_DIR or ~/.claude/hecks-dev/seats. No seat means no role. A seated session is judged
 # against the checkout this script lives in (or $HECKS_CHECKOUT), whatever directory it started in,
-# so a user-level hook entry pointing here binds it everywhere; a role with no routing rows, such as
+# so a user-level hook entry pointing here binds it everywhere; an `agent_type` that is not a listed
+# role (`claude`) is no role, so an unseated session there runs normally; a role with no routing rows, such as
 # `orchestrator-owner`, is allowed by `Role.guard` itself.
 #
 # It forwards the session too, for the bluebook's `Script` rule: a role's session that runs a script
@@ -34,6 +35,14 @@ session="$(printf '%s' "$input" | jq -r '.session_id // empty')"
 
 here="$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")")/../.." 2>/dev/null && pwd)"
 dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+# An `agent_type` is a role only when this checkout's guarded_roles lists it (`claude`, the owner's
+# default type, never counts, and neither does a type the list omits); anything else is looked up
+# by seat, and no seat means the owner's session, which is never blocked.
+roles_list="$here/.claude/hooks/guarded_roles"
+if [ -n "$role" ]; then
+  if [ "$role" = "claude" ]; then role=""
+  elif [ -r "$roles_list" ] && ! grep -qxF -- "$role" "$roles_list"; then role=""; fi
+fi
 if [ -z "$role" ]; then
   seat="${HECKS_SEATS_DIR:-$HOME/.claude/hecks-dev/seats}/$session"
   [ -n "$session" ] && [ -r "$seat" ] && role="$(head -n1 "$seat" | tr -d '[:space:]')"

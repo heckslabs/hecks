@@ -17,6 +17,7 @@ RSpec.describe "the guard hook for a seated hand-started session" do
   before do
     FileUtils.mkdir_p([File.join(dir, ".claude/hooks"), File.join(dir, "exe")])
     FileUtils.cp(File.join(root, ".claude/hooks/orchestrator_guard.sh"), File.join(dir, ".claude/hooks"))
+    File.write(File.join(dir, ".claude/hooks/guarded_roles"), "# Generated\norchestrator\n")
     stand_in = File.join(dir, "exe/hecks")
     File.write(stand_in, ["#!/bin/sh", "printf '%s\\n' \"$@\" > \"#{dir}/argv\"",
                           "echo 'orchestrator routes only: use Fleet.topic'", "exit 1", ""].join("\n"))
@@ -26,8 +27,8 @@ RSpec.describe "the guard hook for a seated hand-started session" do
   after { [dir, seats, elsewhere].each { |path| FileUtils.remove_entry(path) } }
 
   # @return [Array(String, Integer)] stderr and exit status, started outside a checkout
-  def seated(command, session: "hand1")
-    input = JSON.generate(session_id: session, tool_input: { command: command })
+  def seated(command, session: "hand1", type: nil)
+    input = JSON.generate({ agent_type: type, session_id: session, tool_input: { command: command } }.compact)
     env = { "CLAUDE_PROJECT_DIR" => elsewhere, "HECKS_SEATS_DIR" => seats }
     hook = File.join(dir, ".claude/hooks/orchestrator_guard.sh")
     _out, err, status = Open3.capture3(env, hook, stdin_data: input)
@@ -51,5 +52,21 @@ RSpec.describe "the guard hook for a seated hand-started session" do
 
   it "leaves a session with no seat unguarded" do
     expect(seated("sqlite3 x.db .tables", session: "owner1").last).to eq(0)
+  end
+
+  it "runs a claude session with no seat normally, without asking the guard", :aggregate_failures do
+    expect(seated("sqlite3 x.db .tables", type: "claude").last).to eq(0)
+    expect(File.exist?(File.join(dir, "argv"))).to be(false)
+  end
+
+  it "refuses a claude session holding the orchestrator seat, from any directory", :aggregate_failures do
+    seat("orchestrator")
+    err, status = seated("ruby x.rb", type: "claude")
+    expect([status, err]).to match([2, include("use Fleet.topic")])
+  end
+
+  it "lets a claude session run in a checkout whose list is missing" do
+    FileUtils.rm(File.join(dir, ".claude/hooks/guarded_roles"))
+    expect(seated("ls", type: "claude").last).to eq(0)
   end
 end
