@@ -13,5 +13,7 @@ Hecks.hecksagon "Roundhouse" do
     answers_query "Load"
     # The ended sessions and the copies a reap is ruled on, once `reaping.signalbox` is on.
     answers_query "Ended"
+    # The tokens the sessions used and saved, read from the transcripts' usage records.
+    answers_query "Tokens"
   end
 end
