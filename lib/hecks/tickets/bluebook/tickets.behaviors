@@ -166,6 +166,21 @@ Hecks.behaviors "Tickets" do
     expect status: "planned", title: { value: "New" }
   end
 
+  test "Note asks for a dated line to be appended to an open work item's detail" do
+    tests "Note", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w12n" }, title: { value: "Old" }
+    input  work: { value: "w12n" }, note: { value: "blocked on a review" }, dated: { value: "2026-11-20" }
+    expect status: "planned", emits: ["WorkNoteRequested", "NoteComposed", "WorkNoted"]
+  end
+
+  test "Note refuses a done work item" do
+    tests "Note", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w13n" }, title: { value: "Finished" }
+    setup  "Tickets::Work.Close", work: { value: "w13n" }, no_change: { value: "a verify" }
+    input  work: { value: "w13n" }, note: { value: "late" }, dated: { value: "2026-11-20" }
+    expect refused: "done"
+  end
+
   test "Revise refuses a done work item" do
     tests "Revise", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w13" }, title: { value: "Finished" }

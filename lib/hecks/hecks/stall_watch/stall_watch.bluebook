@@ -325,6 +325,15 @@ Hecks.bluebook "Hecks" do
         attribute :move,      String
         # How it is cleared, as `StallKind.cleared_by` says it: "help", since no look files it.
         attribute :cleared_by, String
+        # The age a read must reach, in minutes, or the window of a rate.
+        attribute :minutes,        Integer
+        # The count a leftover may reach, or the percent of the three-hour rate a landing rate may fall to.
+        attribute :limit,          Integer
+        # The text a held start's reason holds, or the leftover it counts.
+        attribute :pattern,        String
+        # The lines that end a run, or restart a count.
+        attribute :ends_aggregate, String
+        attribute :ends,           String
 
         member kind: "branches-share-files", read: "shared-files", aggregate: "Tickets::Work", opens: "WorkStarted",
                closes: "WorkFinished,WorkYielded,WorkReleased,WorkRefused,WorkDropped,WorkLapsed", fixer: "orchestrator",
@@ -332,6 +341,50 @@ Hecks.bluebook "Hecks" do
                move: "Two started work items edit the same files, so the later landing meets a conflict. " \
                      "AgentRun.answer! each run naming the other work item and the shared files, so the two agree " \
                      "who lands first and the other rebases; when one must wait, Work.wait_on! it on the other."
+
+        # Starts held while the machine could take them: `FillStalled` stands (no `FillStallCleared`
+        # since), its reason names the hold, and the 1-minute load is under the low mark, counted from
+        # the later of the stall and the load's last fall. The reason is the tap's `reason` link.
+        member kind: "starts-held-by-load", read: "held-starts", aggregate: "Hecks::FillStall", opens: "FillStalled",
+               closes: "FillStallCleared", pattern: "load pause", minutes: 10, ends_aggregate: "Hecks::Machine",
+               ends: "LoadFellBelow", fixer: "orchestrator", cleared_by: "help",
+               move: "The load pause holds starts although the load is under its low mark. Read Machine.busiest and " \
+                     "the machine_marks line of the Tickets world; the pause lifts at Machine.LoadFellBelow, so a " \
+                     "fall that never reached the fill means a stuck beat: Work.plan! a work item naming the cause."
+        member kind: "starts-held-by-breaker", read: "held-starts", aggregate: "Hecks::FillStall", opens: "FillStalled",
+               closes: "FillStallCleared", pattern: "breaker", minutes: 30, ends_aggregate: "Hecks::Machine",
+               ends: "LoadFellBelow", fixer: "orchestrator", cleared_by: "help",
+               move: "A tripped breaker holds starts although the load is under its low mark. Read Breaker.tripped; " \
+                     "a breaker resets once its load is under its rating by the gap, so a breaker that stays open " \
+                     "needs its load read again: Work.plan! a work item naming the breaker and its rating."
+        # What a clean-up has not removed, each over a count: finished sessions the tap shows no
+        # `AgentRunTidied` for, worktrees beside the main checkout, and local branches merged into main.
+        member kind: "finished-sessions-standing", read: "leftovers", pattern: "finished-sessions", limit: 15,
+               fixer: "orchestrator", cleared_by: "help",
+               move: "Finished sessions stand untidied. AgentRun.tidyable names them; AgentRun.tidy! each whose " \
+                     "commits are on origin, and report the refusals."
+        member kind: "worktrees-standing", read: "leftovers", pattern: "worktrees", limit: 20,
+               fixer: "orchestrator", cleared_by: "help",
+               move: "Worktrees stand beside the main checkout. git worktree list names them; Landing.retire! each " \
+                     "whose work is on main, and report the dirty ones by path."
+        member kind: "merged-branches-standing", read: "leftovers", pattern: "merged-branches", limit: 20,
+               fixer: "orchestrator", cleared_by: "help",
+               move: "Local branches stand merged into main. git branch --merged main names them; Landing.retire! " \
+                     "each, and report the ones a worktree holds."
+        # A plan review whose architect run finished with no verdict: the coder that asked waits for ever.
+        # The plan-review stall row drops such a review (its run ended), so this view row carries it.
+        member kind: "plan-review-unrecorded", read: "run-finished", aggregate: "Agents::PlanReview",
+               opens: "PlanReviewRequested", closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted",
+               ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
+               minutes: 5, fixer: "orchestrator", cleared_by: "help",
+               move: "The architect's run finished and no verdict was recorded. Read its closing report, record the " \
+                     "verdict with PlanReview.answer! (PlanReview.record! when no request row exists), then " \
+                     "AgentRun.answer! the waiting coder."
+        # Landings in the last hour under `limit` percent of the three-hour hourly rate.
+        member kind: "landing-rate-low", read: "landing-rate", aggregate: "Delivery::Landing", opens: "BranchLanded",
+               minutes: 60, limit: 50, fixer: "orchestrator", cleared_by: "help",
+               move: "Landings slowed to under half the three-hour rate. Read Landing.refused, Dispatch.preview and " \
+                     "the pipeline board for what holds the work: refusals, held starts, waiting reviews."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
@@ -404,6 +457,15 @@ Hecks.bluebook "Hecks" do
         description "The calls for help the tap shows raised and not closed since, whose impediment is no longer among the impediments or is one its stall item clears, each with that as its reason. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Relieved)
+      end
+
+      # The impediments a call for help clears that nobody has met: no call for help stands for
+      # one and no run of the scrum master was ever started for it, so a wake that failed is not
+      # repeated on every beat. The scrum master's wake reads it.
+      query "Unraised" do
+        description "The impediments cleared by a call for help whose call is not open and for which no run was ever started under its key, oldest first, each as the view holds it. Read-only: it reads the tap and boots nothing."
+        attribute :run, String
+        returns list_of(Sighting)
       end
 
       query "Abandoned" do
@@ -501,6 +563,39 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # One call to the scrum master for one impediment, keyed by the impediment: the evidence its run
+    # is briefed with. Nothing else is kept; the call for help is the scrum master's to raise.
+    aggregate "ScrumWake" do
+      description "One call to the scrum master for one impediment a call for help clears, keyed by the impediment, with the evidence its run is briefed with."
+      created_by "ScrumWake.call!"
+
+      attribute :wake,   WakeKey
+      attribute :detail, Line
+      reference_to StallWatch, as: :watch
+      identified_by :wake
+
+      value_object "WakeKey" do
+        attribute :value, String, pattern: '\Astall-[a-z0-9-]+-[A-Za-z0-9._-]+\z'
+      end
+
+      value_object "Line" do
+        attribute :value, String, matches: :present
+      end
+
+      command "Call" do
+        role "System"
+        goal "Call the scrum master for one impediment, once"
+
+        reference_to StallWatch, as: :watch
+        attribute :wake,   WakeKey, sets: true
+        attribute :detail, Line, sets: true
+
+        sets :watch
+
+        emits ScrumMasterCalled
+      end
+    end
+
     # Its key is the bound of ADR 0219, decision 10: one call per impediment, and a closed one
     # frees its key. No command records a helper's report, so a finished helper leaves it aging.
     aggregate "HelpWanted" do
@@ -555,10 +650,12 @@ Hecks.bluebook "Hecks" do
                needs: "An answer only the owner can give: it is asked on the board, never assigned."
         member kind: "release-dead-holder", role: "orchestrator",
                needs: "Release what the holder holds, once the holder is confirmed dead."
+        member kind: "settle-block", role: "orchestrator",
+               needs: "Read the evidence the call carries and settle the block, or plan the work item that does."
       end
 
       value_object "HelpKindName" do
-        attribute :value, String, one_of: %w[rebase owner-answer release-dead-holder]
+        attribute :value, String, one_of: %w[rebase owner-answer release-dead-holder settle-block]
       end
 
       # The role that fits the help: one of the pipeline's agent roles, or the owner.
@@ -697,6 +794,22 @@ Hecks.bluebook "Hecks" do
       root
       where   { how.value == "dispatch" }
       trigger AgentRun::Dispatch, with: { run: :help, agent: :role, brief: :needs }
+    end
+
+    # A new impediment is called to the scrum master once, keyed by the impediment (a second call for
+    # it is refused by name), and the call starts one run of the scrum master under that key. The
+    # run raises the call for help with its evidence.
+    policy "CallTheScrumMasterForEveryNewImpediment" do
+      on       "StallWatch.StallDetectRequested"
+      for_each "StallWatch.Unraised"
+      trigger  ScrumWake::Call, with: { watch: :id, wake: :impediment, detail: :detail }
+    end
+
+    # A root, as the helper's dispatch is: starting a session is a chain of its own.
+    policy "WakeTheScrumMasterWhenCalled" do
+      on      "ScrumWake.ScrumMasterCalled"
+      root
+      trigger AgentRun::Dispatch, with: { run: :wake, agent: "scrum-master", brief: :detail }
     end
 
     # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
