@@ -19,6 +19,12 @@ RSpec.describe Hecks::Adapters::SessionLine do
     expect(disabled("coder")).to match_array(McpSelectionCheckout::PROJECT)
   end
 
+  it "disables both project servers for a fill-started coder that names no agent" do
+    run = { run: "r1", works_as: "coder", brief: "b", repo: checkout }
+    words = described_class.new(command: "claude", nice: []).arguments(run)
+    expect(JSON.parse(words[words.index("--settings") + 1])["disabledMcpjsonServers"]).to match_array(McpSelectionCheckout::PROJECT)
+  end
+
   it "starts the architect as its role, whose file brings the Hecks door, with no project server", :aggregate_failures do
     expect(words_for("architect").each_cons(2)).to include(["--agent", "architect"])
     expect(disabled("architect")).to match_array(McpSelectionCheckout::PROJECT)
