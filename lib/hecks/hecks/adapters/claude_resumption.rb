@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "console_capture"
+require_relative "safe_signal"
 require_relative "claude_transcript"
 require_relative "mcp_selection"
 
@@ -105,12 +106,7 @@ module Hecks
       end
 
       def alive?(pid)
-        Process.kill(0, pid)
-        true
-      rescue Errno::ESRCH
-        false
-      rescue Errno::EPERM
-        true
+        SafeSignal.standing?(pid)
       end
 
       # Waits until the listing shows the session stopped: a resume sent while it runs is answered

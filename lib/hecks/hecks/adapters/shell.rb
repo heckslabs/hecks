@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "safe_signal"
+
 require "open3"
 
 module Hecks
@@ -91,7 +93,7 @@ module Hecks
       end
 
       def signal(name, pid)
-        Process.kill(name, pid)
+        SafeSignal.to_process(name, pid)
       rescue Errno::ESRCH, Errno::EPERM
         nil
       end
