@@ -1,0 +1,25 @@
+# The ports ContextBudget declares, for every hecksagon that attaches the bluebook. Each names the
+# question it asks of the outside and never says how it is answered; an adapter binds each, in a
+# later slice.
+Hecks.hecksagon "ContextBudget" do
+  attaches "Governance"
+
+  # The session that went over its ceiling, asked to write its HANDOFF note and restart small.
+  # The answer is the note it wrote.
+  ContextBudget::ContextBudget.port "Handoff" do
+    asks "Handoff", to: ContextBudget do
+      attribute :session, Session
+      answers "HandoffWritten"
+      refuses "HandoffUnwritten"
+    end
+  end
+
+  # The lead, asked to continue, hand off or split an item or day that went past its budget.
+  ContextBudget::SpendBudget.port "Lead" do
+    asks "LeadChoice", to: SpendBudget do
+      attribute :budget, Key
+      answers "LeadChose"
+      refuses "LeadUnreached"
+    end
+  end
+end

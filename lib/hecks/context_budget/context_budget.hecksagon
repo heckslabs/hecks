@@ -1,0 +1,12 @@
+# The ContextBudget bluebook, bound so it boots alone, persisted in Memory. The ports are
+# declared in context_budget.ports.hecksagon; the adapters that read a session's transcript and
+# deliver the asks wait for a later slice.
+Hecks.hecksagon "ContextBudget" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

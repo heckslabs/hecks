@@ -1,0 +1,246 @@
+# ContextBudget: what a turn re-reads is what a session costs (owner, 2026-11-21), so a session's
+# context is held under a ceiling and its spend under a budget. Past the ceiling the session is asked
+# to write its HANDOFF note and restart small; past a budget it asks the lead to continue, hand off or
+# split. The ceilings and budgets are declared rows. Reading a transcript and delivering an ask are
+# adapters behind the ports in context_budget.ports.hecksagon.
+
+Hecks.bluebook "ContextBudget" do
+  vision "A session hands off and restarts small when its context passes a ceiling, and asks the lead before it runs past its budget."
+
+  supporting
+
+  # The ceiling for one kind of session, declared once and superseded by `Revise`. `hand` is a
+  # session the owner started by hand, which the ceiling covers like any other.
+  aggregate "Ceiling" do
+    description "The context size, in tokens, past which a session of one kind hands off."
+    created_by "Ceiling.declare!"
+
+    identified_by :kind
+
+    attribute :kind,   Kind
+    attribute :tokens, Tokens
+
+    value_object "Kind" do
+      attribute :value, String, one_of: %w[lead role helper coder hand]
+    end
+
+    value_object "Tokens" do
+      attribute :value, Integer, default: 0
+      invariant("a count of tokens is not negative") { !value.negative? }
+    end
+
+    command "Declare" do
+      role "Operator"
+      goal "Declare the ceiling for a kind of session"
+
+      attribute :kind,   Kind, sets: true
+      attribute :tokens, Tokens, sets: true
+
+      emits CeilingDeclared
+    end
+
+    command "Revise" do
+      role "Operator"
+      goal "Supersede the ceiling of a kind of session"
+
+      reference_to Ceiling
+      attribute :tokens, Tokens, sets: true
+
+      emits CeilingRevised
+    end
+
+    # The caller reads this and passes the answer to `ContextBudget.Open`.
+    query "ForKind" do
+      description "The ceiling declared for a kind of session."
+      attribute :kind, Kind
+      where(:"kind.value" => :kind)
+    end
+  end
+
+  # One session's context against its ceiling. `Measure` records a turn's context size; a size past
+  # the ceiling asks for the handoff, once, and `HandOff` records the restart.
+  aggregate "ContextBudget" do
+    description "A session's context size against its ceiling, and the handoff it is asked for."
+    created_by "ContextBudget.open!"
+
+    identified_by :session
+
+    attribute :session, Session
+    attribute :kind,    Ceiling::Kind
+    attribute :ceiling, Ceiling::Tokens
+    attribute :tokens,  Ceiling::Tokens, default: { value: 0 }
+    attribute :note,    Note, optional: true
+
+    value_object "Session" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    lifecycle :status, default: "within" do
+      mark :terminal, "handed_off"
+      mark :rests, "within"
+      transition "AskHandoff" => "handoff_asked", from: "within"
+      transition "HandOff"    => "handed_off",    from: "handoff_asked"
+    end
+
+    command "Open" do
+      role "System"
+      goal "Start watching a session against the ceiling the caller read for its kind"
+
+      attribute :session, Session, sets: true
+      attribute :kind,    Ceiling::Kind, sets: true
+      attribute :ceiling, Ceiling::Tokens, sets: true
+
+      emits BudgetOpened
+    end
+
+    command "Measure" do
+      role "System"
+      goal "Record the context size one turn read, against the ceiling the caller read for the kind"
+
+      reference_to ContextBudget
+      attribute :tokens,  Ceiling::Tokens, sets: true
+      attribute :ceiling, Ceiling::Tokens, sets: true
+
+      emits ContextMeasured
+    end
+
+    command "AskHandoff" do
+      role "System"
+      goal "Ask a session over its ceiling to write its HANDOFF note and restart small"
+
+      reference_to ContextBudget
+
+      emits HandoffAsked
+    end
+
+    command "HandOff" do
+      role "System"
+      goal "Record the handoff note the session wrote before it restarted"
+
+      reference_to ContextBudget
+      attribute :note, Note, sets: true
+
+      emits HandedOff
+    end
+  end
+
+  # A budget for one item or one day, in cents, and the stop rule: past it the session does not run
+  # on, the lead decides.
+  aggregate "SpendBudget" do
+    description "What an item or a day may spend, what it has spent, and what the lead chose once it was past."
+    created_by "SpendBudget.declare!"
+
+    identified_by :budget
+
+    attribute :budget,      Key
+    attribute :scope,       Scope
+    attribute :limit_cents, Cents
+    attribute :spent_cents, Cents, default: { value: 0 }
+    attribute :choice,      Choice, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Scope" do
+      attribute :value, String, one_of: %w[item day]
+    end
+
+    value_object "Cents" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of cents is not negative") { !value.negative? }
+    end
+
+    # What the lead may choose once an item or a day is past its budget.
+    value_object "Choice" do
+      attribute :value, String, one_of: %w[continue hand_off split]
+    end
+
+    lifecycle :status, default: "within" do
+      mark :terminal, "decided"
+      mark :rests, "within"
+      transition "Stop"   => "past",    from: "within"
+      transition "Decide" => "decided", from: "past"
+    end
+
+    command "Declare" do
+      role "Operator"
+      goal "Declare the budget of an item or a day"
+
+      attribute :budget,      Key, sets: true
+      attribute :scope,       Scope, sets: true
+      attribute :limit_cents, Cents, sets: true
+
+      emits SpendBudgetDeclared
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record the total an item or day has spent, against the limit the caller read"
+
+      reference_to SpendBudget
+      attribute :spent_cents, Cents, sets: true
+      attribute :limit_cents, Cents, sets: true
+
+      emits SpendRecorded
+    end
+
+    command "Stop" do
+      role "System"
+      goal "Stop an item or day past its budget and ask the lead to continue, hand off or split"
+
+      reference_to SpendBudget
+
+      emits SpendPastBudget
+    end
+
+    command "Decide" do
+      role "Operator"
+      goal "Record the lead's choice for an item or day past its budget"
+
+      reference_to SpendBudget
+      attribute :choice, Choice, sets: true
+
+      emits SpendDecided
+    end
+  end
+
+  # Only a measure past the ceiling asks, and only once: a second ask is refused by the lifecycle.
+  policy "AskHandoffWhenOverCeiling" do
+    on      "ContextBudget.ContextMeasured"
+    where   { tokens.value > ceiling.value }
+    trigger ContextBudget::AskHandoff, with: { context_budget: :session }
+  end
+
+  policy "StopWhenPastBudget" do
+    on      "SpendBudget.SpendRecorded"
+    where   { spent_cents.value > limit_cents.value }
+    trigger SpendBudget::Stop, with: { spend_budget: :budget }
+  end
+
+  # The session that was asked is the outside: the port delivers the ask and answers with the note
+  # the session wrote, and the lead is asked the same way when a budget is past.
+  policy "AskTheSessionForItsHandoff" do
+    on      "ContextBudget.HandoffAsked"
+    ask     :handoff, with: { session: :session }
+  end
+
+  policy "RecordTheHandoff" do
+    on      "ContextBudget.HandoffWritten"
+    trigger ContextBudget::HandOff, with: { context_budget: :session, note: :note }
+  end
+
+  policy "AskTheLeadWhenPastBudget" do
+    on      "SpendBudget.SpendPastBudget"
+    ask     :lead_choice, with: { budget: :budget }
+  end
+
+  policy "RecordTheLeadsChoice" do
+    on      "SpendBudget.LeadChose"
+    trigger SpendBudget::Decide, with: { spend_budget: :budget, choice: :choice }
+  end
+end
