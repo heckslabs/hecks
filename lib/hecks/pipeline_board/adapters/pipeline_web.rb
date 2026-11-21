@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
+require "tmpdir"
 require_relative "pipeline_stages"
 require_relative "pipeline_wiring"
 require_relative "pipeline_web/actions"
 require_relative "pipeline_web/ended_run"
 require_relative "pipeline_web/stamped_stream"
 require_relative "pipeline_web/server"
+require_relative "pipeline_web/drawing"
 require_relative "pipeline_web/stream"
 require_relative "pipeline_web/pushed"
 require_relative "pipeline_web/plan_page"
@@ -25,6 +27,7 @@ module Hecks
     # the launcher and nothing else.
     class PipelineWeb
       include PipelineBoard::PanelServing
+      include PipelineBoard::Drawing
 
       PAGE = File.expand_path("pipeline_web/page.html", __dir__)
       WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
@@ -50,7 +53,7 @@ module Hecks
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
         @launcher = settings[:launcher] || PipelineBoard::Actions.launcher(@root, 120)
         @snapshot = PipelineBoard::Snapshot.kept_small(source: @stages.method(:state), registry: registry, settings: settings)
-        @outside = { registry: registry, sentinel: settings.fetch(:sentinel) { PipelineBoard::Sentinel.method(:stand) } }
+        @outside = outside(registry, settings)
         @pushed = PipelineBoard::Pushed.new(stages: @stages, settings: settings.merge(registry: registry))
       end
 
