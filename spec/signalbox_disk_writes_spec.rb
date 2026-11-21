@@ -4,13 +4,13 @@ require "spec_helper"
 require "support/signalbox_asks"
 
 # What a day of disk writes costs, by process: the pressure beat's look reads macOS's daily report
-# and the free space of the disk, Signalbox records them, and a raised budget is a decision with an end.
+# and the free space of the disk, Signalbox records them, and a raised budget has an end.
 RSpec.describe "Signalbox's disk writes" do
   include SignalboxAsks
 
   def allow_writes(process, megabytes, cause, ends_at)
     facts = { allowance: "#{process}:#{ends_at}", process: process, megabytes: megabytes, cause: cause,
-              ends_at: ends_at, now: 1_000 }
+              ends_at: ends_at, now: ends_at - 900 }
     signalbox.dispatch("Signalbox::Allowance.Set", with: facts.transform_values { |fact| { value: fact } })
   end
 
