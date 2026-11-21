@@ -18,6 +18,8 @@ Hecks.bluebook "Coach" do
     attribute :observation, Mark
     attribute :source,      Source
     attribute :saw,         Saw
+    attribute :came,        Came
+    attribute :basis,       Basis
 
     value_object "Mark" do
       attribute :value, String, matches: :present
@@ -32,6 +34,18 @@ Hecks.bluebook "Coach" do
       attribute :value, String, matches: :not_empty
     end
 
+    # Whether she saw it herself or was told it.
+    value_object "Came" do
+      attribute :value, String, one_of: %w[seen told]
+    end
+
+    # How far the fact stands: `written` is read in a record, `lead_account` is what the lead said,
+    # `inferred` is drawn from what she read, `could_not_determine` is left open. A told fact is
+    # never `written`.
+    value_object "Basis" do
+      attribute :value, String, one_of: %w[written lead_account inferred could_not_determine]
+    end
+
     command "Observe" do
       role "Operator"
       goal "Record what Miette saw, and where she saw it"
@@ -39,6 +53,10 @@ Hecks.bluebook "Coach" do
       attribute :observation, Mark, sets: true
       attribute :source,      Source, sets: true
       attribute :saw,         Saw, sets: true
+      attribute :came,        Came, sets: true
+      attribute :basis,       Basis, sets: true
+
+      given("a told fact is never marked written") { came.value == "seen" || basis.value != "written" }
 
       emits Observed
     end
