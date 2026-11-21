@@ -1,4 +1,5 @@
 require "hecks/adapters/driving/resident/paths"
+require "hecks/adapters/driving/resident/world_cap"
 
 module Hecks
   module Adapters
@@ -75,8 +76,14 @@ module Hecks
           end
 
           # @param root [String] the checkout asking
+          # @return [Integer] how many residents may stand: what the checkout's world declares now
+          #   ({WorldCap}), else {cap}, so a raised cap works with no resident standing to
+          #   remember it
+          def cap_for(root) = WorldCap.for(root) || cap
+
+          # @param root [String] the checkout asking
           # @return [Boolean] whether other residents already fill the cap
-          def crowded?(root) = standing(Paths.lock(root)) >= cap
+          def crowded?(root) = standing(Paths.lock(root)) >= cap_for(root)
         end
       end
     end
