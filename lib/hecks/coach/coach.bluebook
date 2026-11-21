@@ -1,0 +1,203 @@
+# Coach: Miette, the crew's coach (owner, 2026-11-20). She is her own system, reached by message; the
+# domain keeps what she saw, the coaching drawn from it, and her words relayed unchanged as hers.
+# Modeled on Triage. The coach role that relays is registered in Agents, held by another item.
+
+Hecks.bluebook "Coach" do
+  vision "Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide."
+
+  supporting
+
+  # One thing Miette watched or read: where it came from and what she saw. It is her sight, not
+  # the orchestrator's account of it.
+  aggregate "Observation" do
+    description "Something Miette read or watched in the crew's work, with its source and what she saw."
+    created_by "Observation.observe!"
+
+    identified_by :observation
+
+    attribute :observation, Mark
+    attribute :source,      Source
+    attribute :saw,         Saw
+
+    value_object "Mark" do
+      attribute :value, String, matches: :present
+    end
+
+    # The four places she reads from.
+    value_object "Source" do
+      attribute :value, String, one_of: %w[operation_follow stall_item landing_log red_flag]
+    end
+
+    value_object "Saw" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    command "Observe" do
+      role "Operator"
+      goal "Record what Miette saw, and where she saw it"
+
+      attribute :observation, Mark, sets: true
+      attribute :source,      Source, sets: true
+      attribute :saw,         Saw, sets: true
+
+      emits Observed
+    end
+  end
+
+  # What Miette advises one role (a stumble it repeats) or the whole crew (a value, a drift),
+  # drawn from observations. Advice names its evidence; advice touching a vow goes to the owner.
+  aggregate "Coaching" do
+    description "A coaching: the role, what repeats, the observations it rests on, and the change she suggests."
+    created_by "Coaching.notice!"
+
+    identified_by :coaching
+
+    attribute :coaching, Ref
+    attribute :role,     Role
+    attribute :kind,     Kind
+    attribute :pattern,  Pattern
+    attribute :evidence, list_of(Ref)
+    attribute :change,   Pattern, optional: true
+    attribute :touches,  Touches, optional: true
+    attribute :proposed_row, Pattern, optional: true
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    # A role name, or `crew` for a value or a drift that is about all of them.
+    value_object "Role" do
+      attribute :value, String, matches: :present
+    end
+
+    # A stumble a role repeats; a value of the owner's the crew drifted from; a short drift note
+    # to the owner (at a retro, or on demand).
+    value_object "Kind" do
+      attribute :value, String, one_of: %w[stumble value drift]
+    end
+
+    value_object "Pattern" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # `vow` when the advice touches one of Miette's vows: that is the owner's to decide.
+    value_object "Touches" do
+      attribute :value, String, one_of: %w[none vow]
+    end
+
+    lifecycle :status, default: "noticed" do
+      mark :terminal, "advised", "referred"
+      mark :rests, "noticed"
+      transition "Advise" => "advised",   from: "noticed"
+      transition "Refer"  => "referred",  from: "noticed"
+    end
+
+    command "Notice" do
+      role "Operator"
+      goal "Record what repeats, citing the observations it rests on; advice follows only evidence"
+
+      attribute :coaching, Ref, sets: true
+      attribute :role,     Role, sets: true
+      attribute :kind,     Kind, sets: true
+      attribute :pattern,  Pattern, sets: true
+      attribute :evidence, list_of(Ref), sets: true
+
+      given("a coaching cites at least one observation") { evidence.size.positive? }
+
+      emits Noticed
+    end
+
+    command "Advise" do
+      role "Operator"
+      goal "State the change Miette suggests to the brief, guard or habit"
+
+      reference_to Coaching
+      attribute :change,  Pattern, sets: true
+      attribute :touches, Touches, sets: true
+      attribute :proposed_row, Pattern, optional: true, sets: true
+
+      given("a change touching a vow is the owner's to decide, not the crew's") { touches.value != "vow" }
+
+      emits Advised
+    end
+
+    command "Refer" do
+      role "Operator"
+      goal "Send to the owner what touches one of Miette's vows"
+
+      reference_to Coaching
+      attribute :touches, Touches, sets: true
+
+      given("only what touches a vow is referred to the owner") { touches.value == "vow" }
+
+      emits Referred
+    end
+  end
+
+  # A question put to Miette through the coach role and her answer. The words are hers, stored as
+  # she said them and labelled with her name; when she has not been reached nothing is said for her.
+  aggregate "Relay" do
+    description "A question to Miette, and her words forwarded unchanged and labelled as hers, or the fact that she was not reached."
+    created_by "Relay.ask!"
+
+    identified_by :relay
+
+    attribute :relay,    Ref
+    attribute :question, Words
+    attribute :run,      Ref, optional: true
+    attribute :words,    Words, optional: true
+    attribute :author,   Author, optional: true
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Words" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # The only author a relayed answer may carry.
+    value_object "Author" do
+      attribute :value, String, one_of: %w[miette]
+    end
+
+    lifecycle :status, default: "asked" do
+      mark :terminal, "answered", "declined"
+      mark :rests, "asked"
+      transition "Forward"   => "answered", from: "asked"
+      transition "Decline"   => "declined", from: "asked"
+    end
+
+    command "Ask" do
+      role "Operator"
+      goal "Put a question to Miette through the coach role"
+
+      attribute :relay,    Ref, sets: true
+      attribute :question, Words, sets: true
+      attribute :run,      Ref, optional: true, sets: true
+
+      emits Asked
+    end
+
+    command "Forward" do
+      role "Operator"
+      goal "Relay Miette's words as she said them, labelled as hers"
+
+      reference_to Relay
+      attribute :words,  Words, sets: true
+      attribute :author, Author, sets: true
+
+      emits Answered
+    end
+
+    # Carries no words: nothing is said for her when she was not reached.
+    command "Decline" do
+      role "System"
+      goal "Record that Miette was not reached or declined, and answer nothing in her place"
+
+      reference_to Relay
+
+      emits Declined
+    end
+  end
+end

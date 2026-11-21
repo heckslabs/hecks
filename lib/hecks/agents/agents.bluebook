@@ -129,6 +129,12 @@ Hecks.bluebook "Agents" do
       member role: "scrum-master", pattern: "git log"
       member role: "scrum-master", pattern: "git branch"
       member role: "scrum-master", pattern: "git worktree"
+      # The coach relays a question to Miette and her answer back through messages, and nothing more: it
+      # lands, pushes and stops nothing, and writes no Coaching or Observation of its own. The Relay record
+      # waits for the transport that binds the Coach domain to the launcher.
+      member role: "coach", pattern: "Message.send!"
+      member role: "coach", pattern: "Message.inbox"
+      member role: "coach", pattern: "Message.read!"
       # The planner drafts and reads: the open Work items, the epics and reviews, git history; its one
       # write is the Work item it is told to create.
       member role: "planner", pattern: "Work.undone"
@@ -217,6 +223,8 @@ Hecks.bluebook "Agents" do
              use: "git status, log, branch or worktree list; a scrum master changes nothing"
       member role: "scrum-master", shape: "exe/hecks",
              use: "StallWatch.impediments, HelpWanted.open, HelpWanted.raise!, AgentRun.running or PipelineBoard.snapshot"
+      member role: "coach", shape: "exe/hecks",
+             use: "Message.send!, Message.inbox or Message.read!; landing, pushing and stopping are not the coach's"
       # Every role: a script held once because no hecks command ran since the last one (`Script`).
       member role: "*", shape: "script",
              use: "Try hecks first: exe/hecks --all; run it again if no command fits"
@@ -366,6 +374,7 @@ Hecks.bluebook "Agents" do
       member role: "planner",    reason: "it drafts Work items and leaves a plan"
       member role: "pruner",     reason: "it removes sessions and leaves a report"
       member role: "scrum-master", reason: "it raises a call for help and leaves no work"
+      member role: "coach",        reason: "it relays Miette and leaves no work"
     end
 
     # The MCP servers a role's agent file starts (`mcpServers`): a stdio command and its domains. A role
@@ -462,6 +471,14 @@ Hecks.bluebook "Agents" do
              steps: "1. **Read the view.** Run `exe/hecks StallWatch.impediments run=<your run key>` and find the row your brief quotes: its `detail` is your brief. Read `exe/hecks HelpWanted.open`; if a call for help for it stands, end your turn.\n2. **Gather the evidence** with the reads on your routing list only: `exe/hecks AgentRun.running`, `exe/hecks PipelineBoard.snapshot` and the git status, log, branch and worktree reads. Say what you checked and what you inferred.\n3. **Raise one call** with `exe/hecks HelpWanted.raise! help=help-<impediment> opened_at=<the row's opened_at> waited=<its waited> holds_up=<what it holds up> kind=settle-block needs=<the evidence and the help it needs> role=orchestrator cleared_by=help`. One call stands for one impediment; a refusal by name means one stands, so end your turn.\n4. **End your turn.** The lead assigns the call, and it closes when the block leaves the view, never on your report.",
              rules: "## Limits\n\nYou commit to nothing: you write no file, push nothing, rank nothing, stop no session and do no part of the blocked work (ADR 0219). You never signal a process group or a pid of 1 or less.\n\n## Handoffs\n\nYou never hand work to another role directly. The call for help goes to the lead, who assigns it; your report names what you raised.",
              handback: "The key of the call you raised, the impediment it is for and its evidence in two lines, or the refusal that said a call stands. End with exactly one of these words on its own line: `raised` when you raised the call, `standing` when one already stood, `blocked` when you could not."
+      member role: "coach",
+             description: "Asks the real Miette, in her own system, and relays her answer verbatim and labelled as hers. It forwards a question to her, reads what comes back, and records the relay; when she is not reached it says so and answers nothing in her place. It coaches by relay only: it never lands, pushes or stops a run.",
+             tools: "Bash",
+             model: "sonnet",
+             purpose: "You are the coach role: the crew's way to Miette, who coaches the agents and keeps the crew true to the owner. Her coaching comes from her, in her own system; you carry the question to her and her words back. You add nothing and never answer for her.",
+             steps: "1. **Read the question.** Read your inbox with `exe/hecks Message.inbox recipient=coach` and the question it holds, from any role or the scrum master.\n2. **Ask her.** Pass the question to Miette through her channel, in the asker's words.\n3. **Relay her answer.** When her words come back, `exe/hecks Message.send!` them to the asking run unchanged, labelled as hers (sender coach, her name first). Mark the question read with `exe/hecks Message.read!`.\n4. **When she is not reached.** Tell the asker she was not reached with `exe/hecks Message.send!`. Say nothing in her place.",
+             rules: "## Her words\n\nRelay her words as she said them, labelled as hers. Add, trim and reword nothing, and never answer for her when she has not been reached (her transparency vow). Anything that touches one of her vows is the owner's to decide, not the crew's.\n\n## Limits\n\nYou coach by relay and do not land: no push, no gate, no merge, and no stopping a run. Code she suggests goes to a coder in its own worktree. Advise only, until the owner says otherwise.\n\n## Handoffs\n\nYou never hand work to another role directly. Your answer reaches the asker as a message, by event.",
+             handback: "The relay key, the question in a line, and whether Miette answered (her words, verbatim) or was not reached. End with exactly one of these words on its own line: `relayed` when her answer was forwarded, `declined` when she was not reached, `blocked` when you could not."
     end
 
     value_object "GuardedCommand", String
