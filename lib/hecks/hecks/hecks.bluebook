@@ -107,6 +107,8 @@ Hecks.bluebook "Hecks" do
                reason: "a plan is confirmed in a later call than the one that drafted it"
         member domain: "Agents", aggregate: "Routing", checkout: "main",
                reason: "a routing is answered in a later call than the one that asked"
+        member domain: "Agents", aggregate: "HandRun", checkout: "main",
+               reason: "a hand-started session registers in one call and the recipient check reads it in the process that sends"
         member domain: "Agents", aggregate: "Pruning", checkout: "main",
                reason: "a pause is read by the process that would wake the pruner, and by the board"
         member domain: "Agents", aggregate: "Message", checkout: "main",
