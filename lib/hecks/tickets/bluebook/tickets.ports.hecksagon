@@ -48,6 +48,17 @@ Tickets::Work.port "WorkLandings" do
   end
 end
 
+  # The detail of a work item with a dated note appended, which joins text as a bluebook rule cannot.
+  Tickets::Work.port "WorkNotes" do
+    asks "ComposeNote", to: Work do
+      attribute :work, WorkKey
+      attribute :note, WorkText
+      attribute :dated, WorkText
+      answers "NoteComposed"
+      refuses "NoteRefused"
+    end
+  end
+
   # The cap on started work items, which reads the other work items, as a bluebook rule cannot. The
   # cap is the world's `work_limit` setting.
   Tickets::Work.port "WorkLimits" do
