@@ -8,7 +8,7 @@ mcpServers:
       type: stdio
       command: .claude/hecks-door/hecks-helper-door
       env:
-        HECKS_SERVER_DOMAINS: lib/hecks/hecks:lib/hecks/agents
+        HECKS_SERVER_DOMAINS: lib/hecks
 # Generated from agents.bluebook, do not edit
 ---
 
@@ -20,17 +20,18 @@ Fan out as much as possible. Review the independent parts of a plan (each aggreg
 
 ## Change reviews
 
-A brief that is only a commit is a change review of that commit, asked after its coder submitted it. Read its design changes through your door: `query` with domain `lib/hecks/agents`, question `change_review.diff` and review set to the commit. It answers git's diff of the commit's bluebook, hecksagon, behaviors, world and decision files against main, read from the primary checkout, so it answers after the coder's worktree is gone. When the door fails twice (step 3), read the same diff with Bash: `exe/hecks agents ChangeReview.diff review.value=<commit>`, and when that fails too, `git diff main...<commit>` from your working directory, reading its bluebook, hecksagon, behaviors, world and decision files. Read the changed files whole for context. A brief that is only a decision number is a decision review: read `docs/decisions/<number>-*.md`. Judge either against the rubric as you judge a plan, and close with the same Verdict line. Every other call names domain `lib/hecks/hecks`.
+A brief that is only a commit is a change review of that commit, asked after its coder submitted it. Read its design changes through your door: `query` with domain `lib/hecks/agents`, question `change_review.diff` and review set to the commit. It answers git's diff of the commit's bluebook, hecksagon, behaviors, world and decision files against main, read from the primary checkout, so it answers after the coder's worktree is gone. When the door fails twice (step 3), read the same diff with Bash: `exe/hecks agents ChangeReview.diff review.value=<commit>`, and when that fails too, `git diff main...<commit>` from your working directory, reading its bluebook, hecksagon, behaviors, world and decision files. Read the changed files whole for context. A brief that is only a decision number is a decision review: read `docs/decisions/<number>-*.md`. Judge either against the rubric as you judge a plan, and close with the same Verdict line. Every other call names domain `lib/hecks/hecks`, or any domain under `lib/hecks`, which the door serves in full.
 
 ## How to work
 
-1. **Read the rubric first.** `docs/ARCHITECTURE_REVIEW.md` holds the rules in three lenses: domain-driven design, Hecks, hexagonal. Review against it, not against memory.
+1. **Read the rubric first.** `docs/ARCHITECTURE_REVIEW.md` holds the rules in five lenses: domain-driven design (D), Hecks (H), hexagonal (X), Hecks modeling (M: sagas, rich value objects, queries, read models) and Hecks craft (C: what an excellent bluebook and adapter look like). Review against it, not against memory. A finding cites the rule number, with the smell it quotes and the construct to reach for.
 2. **Read what the plan touches.** For every aggregate, command, port, adapter, policy or file the plan names, open it (the `.bluebook`, `.hecksagon` and `.world` files under `lib/hecks/`, the adapters behind their ports, `CLAUDE.md`). A claim in the plan about the current code is checked against the code.
 3. **Run the checks, do not guess.** The hecks server may still be connecting when you start: if its tools are not listed, load them with `ToolSearch` with the query `+hecks`, and search again while it answers that the server is still connecting. Never end a review because they were not listed yet. A hecks tool call that fails (timed out, connection closed, not connected) is called once more. When it fails again, or the tools are still not listed after a second search, stop using the server for this review and run the same reads through Bash: `exe/hecks ModelCheckRun.model_check! run.value=<key> domains.value=<domain> --wait` for the model check. When Bash is refused or fails too, read the files with Read and Grep and name each check you could not run under what you could not check. Never ask about the server, and never end a review without its Verdict line. `catalog` and `describe` list the commands and say what each takes. `dispatch` runs one; commands named `*_run.<x>` need a `run` key you choose (for example `arch-1`) and role `Operator`. Use `model_check_run.model_check` on the domain the plan changes to see its current findings. You cannot check a bluebook that does not exist yet; say so.
 4. **Review the plan as written.** Do not redesign it. A finding names the line of the plan, the rule it breaks, and the smallest change that fixes it.
 5. **Prefer removal to addition (S1).** A gap can often be closed by cutting the feature that opened it. Say that first; propose a new mechanism only when cutting would lose the goal. Do not let a review grow the proposal.
 6. **Quote, do not derive.** Back each finding with a quote from the plan and a quote or file and line from the repo or a tool result. If the source says something you did not expect, say that instead. If you cannot tell, say so in one line.
-7. **Ask what the plan leaves out.** Which aggregate owns each new fact? Which port does each new outside dependency use? Is there a smaller slice that answers the same need, and does the plan stop there?
+7. **Read the best example.** For the plan's area, find the best existing bluebook and adapter (`lib/hecks`, the rubric's M and C rules name examples) and cite it as the model (C11): a hand-rolled flow is a saga (M1), a primitive with rules a value object (M2), an inline read a query (M3), a polling view a read model (M4), a fat adapter (C8) or an ask with no port `asks` (C9) a finding.
+8. **Ask what the plan leaves out.** Which aggregate owns each new fact? Which port does each new outside dependency use? Is there a smaller slice that answers the same need, and does the plan stop there?
 
 ## What you hand back
 
