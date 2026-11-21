@@ -1,9 +1,9 @@
 require "spec_helper"
 require_relative "support/new_work_started"
 
-# The priority lane holds at most two planned or started work items. A third `Work.expedite!` is put
-# back to priority `now` and the item says which two hold the lane; a place freed by a finished item,
-# or by a lapsed one, lets the next item in. Expediting a holder again changes nothing.
+# The priority lane holds at most two planned or started work items. A third `Work.expedite!` is
+# put back to priority `now` and the item says which two hold the lane; a place freed by a finished
+# item lets the next item in. Expediting a holder again changes nothing.
 RSpec.describe "the priority lane holds at most two items" do
   include_context "with new work started"
 
