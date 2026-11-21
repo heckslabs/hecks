@@ -415,12 +415,9 @@ Hecks.bluebook "Hecks" do
       trigger PublishingRun::Fault, with: { refusal: :refusal }
     end
 
-    # One release cut, from the request to the tag: examined, accepted, approved, carried out. The
-    # lane's promotion is a rule of `Accept` (`on_origin`), so it stands before this saga starts.
-    # An accepted release without approval waits in `awaiting_approval`; a person or policy that
-    # declines it faults the run. A fault after a real step (the tag pushed) is recorded, never
-    # undone: a tag already pushed is not a step this saga can compensate. No clock reaches this
-    # wait yet, so an approval that never comes leaves the run waiting (ADR 0169's inbound clock).
+    # One release cut: examined, accepted, approved, carried out. Promotion is a rule of `Accept`, so
+    # it stands before the saga starts; a fault after the tag is recorded, never undone. No clock
+    # reaches the wait on approval yet (ADR 0169).
     process_manager "ReleaseCut" do
       correlates_by :"run.value"
       starts_on PublishingRun::PublishRequested
