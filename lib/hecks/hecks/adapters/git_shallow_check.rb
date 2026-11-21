@@ -31,8 +31,8 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      # @param registry [Runtime::Registry, nil] where the started Work items a branch is judged against
-      #   are read from
+      # @param registry [Runtime::Registry, nil] where the started Work items that a branch is
+      #   judged against are read from
       # @param run [Hash] what a spec changes in the clone run: `specs:` and `command:`;
       #   `impacted:` stands in for the impacted-spec run, given the changed paths and the ref
       #   they were read against, and answers an {ImpactedRun::Outcome}; `slots:` stands in for
