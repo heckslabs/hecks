@@ -10,7 +10,10 @@ RSpec.describe "a submission while an answer to the coder is unread" do
 
   before { allow(Hecks::Adapters::TurnFacts).to receive(:new).and_return(port) }
 
-  def measuring(**facts) = allow(port).to receive(:measure_submitter).and_return({ inbox: false, resuming: false }.merge(facts))
+  def measuring(**facts)
+    first = { first_paths: "spec/a_spec.rb", first_spec: "failed", first_example: "a fails" }
+    allow(port).to receive(:measure_submitter).and_return({ inbox: false, resuming: false }.merge(first).merge(facts))
+  end
 
   def submit(branch = "w-unread")
     argv = ["coder", "Submission.submit!", "branch.value=#{branch}", "sha.value=abc1234", "checkout.value=/tmp/#{branch}",

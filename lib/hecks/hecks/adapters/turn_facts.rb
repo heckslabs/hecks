@@ -7,6 +7,7 @@ require_relative "claude_jobs"
 require_relative "dispatching/work_items"
 require_relative "dispatching/landed_since"
 require_relative "unread_answers"
+require_relative "first_commit_facts"
 
 module Hecks
   module Adapters
@@ -33,6 +34,7 @@ module Hecks
         @jobs = jobs
         @landed = landed || method(:landed_since)
         @unread = UnreadAnswers.new(registry: registry)
+        @first_commit = FirstCommitFacts.new
       end
 
       # @param held [Hash] the Turn: `run` the key of the run, and `again`
@@ -51,16 +53,19 @@ module Hecks
                              again: plain(held[:again]) == true)
       end
 
-      # @param held [Hash] the Submission: `branch`, the Work item's key a coder run serves
-      # @return [Hash{Symbol => Boolean}] `inbox:` and `resuming:` of the started coder run that
-      #   serves the branch's Work item, as {UnreadAnswers#of} reads them
-      # @raise [ConsoleCapture::Failure] when no started coder run serves that branch
+      # @param held [Hash] the Submission: `branch`, the Work item's key a coder run serves, and
+      #   `checkout`, where the branch is checked out
+      # @return [Hash{Symbol => Object}] `inbox:` and `resuming:` of the started coder run that
+      #   serves the branch's Work item, as {UnreadAnswers#of} reads them, and the branch's first
+      #   commit as {FirstCommitFacts#of} reads it
+      # @raise [ConsoleCapture::Failure] when no started coder run serves that branch, or git
+      #   cannot read it
       def measure_submitter(**held)
         branch = plain(held[:branch]).to_s
         run = rows("Hecks", "AgentRun").reverse.find { |entry| submitter?(entry, branch) }
         raise ConsoleCapture::Failure, "no started coder run serves #{branch}" unless run
 
-        @unread.of(run, branch).slice(:inbox, :resuming)
+        @unread.of(run, branch).slice(:inbox, :resuming).merge(@first_commit.of(plain(held[:checkout]).to_s))
       end
 
       private

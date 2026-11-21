@@ -61,7 +61,10 @@ RSpec.describe Hecks::Adapters::TurnFacts do
 
   it "measures the coder run a submitted branch is named for" do
     inbox.leave("fix-it", "changes")
-    expect(adapter.measure_submitter(branch: { value: "fix-it" })).to eq(inbox: true, resuming: false)
+    first = instance_double(Hecks::Adapters::FirstCommitFacts, of: { first_spec: "none" })
+    allow(Hecks::Adapters::FirstCommitFacts).to receive(:new).and_return(first)
+    measured = adapter.measure_submitter(branch: { value: "fix-it" }, checkout: "/tmp/x")
+    expect(measured).to eq(inbox: true, resuming: false, first_spec: "none")
   end
 
   it "refuses a submitted branch no started coder run serves" do
