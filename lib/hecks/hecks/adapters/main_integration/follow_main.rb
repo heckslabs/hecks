@@ -17,11 +17,20 @@ module Hecks
         # What the log line says when the copy is dirty.
         REFUSAL = "train copy has a tracked change, not following main"
 
+        # What the log line says when the move to main fails, an untracked file in the way for one.
+        STUCK = "train copy could not move to main (an untracked file in the way?)"
+
         # @return [String] the step, run from the copy's root; it always ends well
         def self.step
           "{ ! git symbolic-ref -q HEAD >/dev/null 2>&1 && [ \"$(git rev-parse HEAD)\" != \"$(git rev-parse main)\" ] && " \
-            "if git diff --quiet HEAD; then git checkout -q --detach main; " \
-            "else mkdir -p \"$(dirname #{LOG})\" && echo \"$(date -u +%FT%TZ) #{REFUSAL}\" >> #{LOG}; fi; } 2>/dev/null; true"
+            "if git diff --quiet HEAD; then git checkout -q --detach main || #{say(STUCK)}; " \
+            "else #{say(REFUSAL)}; fi; } 2>/dev/null; true"
+        end
+
+        # @param text [String] the line to append to the overrun log
+        # @return [String] shell that appends the line, stamped, to the log
+        def self.say(text)
+          "{ mkdir -p \"$(dirname #{LOG})\" && echo \"$(date -u +%FT%TZ) #{text}\" >> #{LOG}; }"
         end
       end
     end

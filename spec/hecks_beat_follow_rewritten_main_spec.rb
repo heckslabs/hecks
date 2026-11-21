@@ -60,4 +60,18 @@ RSpec.describe "the beat copy after local main is rewritten" do
     follow
     expect(copy_head).to eq(git("rev-parse", "main"))
   end
+
+  it "says so in the overrun log when an untracked file stands in the way of main", :aggregate_failures do
+    git("checkout", "-q", "--detach", "HEAD~1", dir: copy)
+    File.write(File.join(copy, "second"), "mine")
+    follow
+    expect(File.read(log)).to include(Hecks::Adapters::MainIntegration::FollowMain::STUCK)
+  end
+
+  it "leaves the copy alone when there is no main to follow", :aggregate_failures do
+    git("branch", "-m", "main", "trunk")
+    stayed = copy_head
+    follow
+    expect(copy_head).to eq(stayed)
+  end
 end
