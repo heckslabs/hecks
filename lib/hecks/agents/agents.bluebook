@@ -1896,6 +1896,7 @@ Hecks.bluebook "Agents" do
     attribute :in_reply_to, MessageRef, optional: true
     attribute :reader, ReaderName, optional: true
     attribute :refusal, RefusalText, optional: true
+    attribute :verified, VerifiedSender, optional: true
 
     value_object "MessageKey" do
       attribute :value, String, matches: :present
@@ -1925,6 +1926,12 @@ Hecks.bluebook "Agents" do
     # The session that read the message, so the sender can see who has it.
     value_object "ReaderName" do
       attribute :value, String, matches: :present
+    end
+
+    # Whether the sending session is the one registered under the sender the message names:
+    # stamped by the system, never set by the sender.
+    value_object "VerifiedSender" do
+      attribute :value, String, one_of: %w[true false]
     end
 
     # Why the message was not sent: the recipient is no run with a live session, said by name.
@@ -1960,6 +1967,17 @@ Hecks.bluebook "Agents" do
       given("the message says something") { !body.value.to_s.strip.empty? }
 
       emits "MessageAddressed"
+    end
+
+    command "Stamp", from: "addressed" do
+      role "System"
+      goal "Record whether the sending session is registered as the sender the message names"
+
+      reference_to Message
+      attribute :verified, VerifiedSender, sets: true
+      attribute :recipient, RunKey, sets: true
+
+      emits "MessageStamped"
     end
 
     command "Deliver", from: "addressed" do
@@ -2020,7 +2038,7 @@ Hecks.bluebook "Agents" do
     end
 
     query "Inbox" do
-      description "The unread messages for one run, sent or delivered, each with its sender, kind, body and the message it answers."
+      description "The unread messages for one run, sent or delivered, each with its sender, whether that sender is verified, kind, body and the message it answers."
       attribute :recipient, RunKey
       where(status: { in: %w[sent delivered] }, recipient: :recipient)
       order_by :message
@@ -2042,8 +2060,19 @@ Hecks.bluebook "Agents" do
 
     # Whether the recipient is a run with a live session is a fact of the AgentRun ledger, in
     # another domain, which a given cannot read; so the port is asked before a message is sent.
-    policy "CheckTheRecipient" do
+    policy "CheckTheSender" do
       on      "Message.MessageAddressed"
+      ask     :sender, with: { message: :message, sender: :sender, recipient: :recipient }
+    end
+
+    policy "StampTheSender" do
+      on      "Message.SenderChecked"
+      trigger Message::Stamp, with: { message: :message, verified: :verified, recipient: :recipient }
+    end
+
+    # The recipient is checked after the stamp lands, so a message is never heard unstamped.
+    policy "CheckTheRecipient" do
+      on      "Message.MessageStamped"
       ask     :recipient, with: { message: :message, recipient: :recipient }
     end
 
