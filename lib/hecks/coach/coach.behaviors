@@ -76,16 +76,41 @@ Hecks.behaviors "Coach" do
     expect emits: ["Asked"], status: "asked"
   end
 
-  test "Forward relays her words labelled as hers" do
-    tests "Forward", on: "Relay"
+  test "Receive records the body as it arrived" do
+    tests "Receive", on: "Relay"
     setup "Coach::Relay.Ask", relay: { value: "r-2" }, question: { value: "What did you see?" }
-    input relay: "r-2", words: { value: "Three runs stopped before landing." }, author: { value: "miette" }
+    input relay: "r-2", received: { value: "Three runs stopped before landing." }
+    expect emits: ["Received"], status: "received"
+  end
+
+  test "Forward relays the exact body she sent, labelled as hers" do
+    tests "Forward", on: "Relay"
+    setup "Coach::Relay.Ask", relay: { value: "r-5" }, question: { value: "What did you see?" }
+    setup "Coach::Relay.Receive", relay: { value: "r-5" }, received: { value: "Three runs stopped." }
+    input relay: "r-5", words: { value: "Three runs stopped." }, author: { value: "miette" }
     expect emits: ["Answered"], status: "answered"
+  end
+
+  test "Forward refuses a body that differs from the one received" do
+    tests "Forward", on: "Relay"
+    setup "Coach::Relay.Ask", relay: { value: "r-6" }, question: { value: "What did you see?" }
+    setup "Coach::Relay.Receive", relay: { value: "r-6" }, received: { value: "Three runs stopped." }
+    input relay: "r-6", words: { value: "Three runs stopped, mostly." }, author: { value: "miette" }
+    expect refused: "only the words she said"
+  end
+
+  test "Forward refuses the orchestrator as author" do
+    tests "Forward", on: "Relay"
+    setup "Coach::Relay.Ask", relay: { value: "r-7" }, question: { value: "What did you see?" }
+    setup "Coach::Relay.Receive", relay: { value: "r-7" }, received: { value: "Three runs stopped." }
+    input relay: "r-7", words: { value: "Three runs stopped." }, author: { value: "orchestrator" }
+    expect refused: "Author admits"
   end
 
   test "Forward refuses words under any name but hers" do
     tests "Forward", on: "Relay"
     setup "Coach::Relay.Ask", relay: { value: "r-3" }, question: { value: "What did you see?" }
+    setup "Coach::Relay.Receive", relay: { value: "r-3" }, received: { value: "She would say so." }
     input relay: "r-3", words: { value: "She would say so." }, author: { value: "coach" }
     expect refused: "Author admits"
   end

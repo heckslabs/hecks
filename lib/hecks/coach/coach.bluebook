@@ -145,6 +145,7 @@ Hecks.bluebook "Coach" do
     attribute :relay,    Ref
     attribute :question, Words
     attribute :run,      Ref, optional: true
+    attribute :received, Words, optional: true
     attribute :words,    Words, optional: true
     attribute :author,   Author, optional: true
 
@@ -163,9 +164,10 @@ Hecks.bluebook "Coach" do
 
     lifecycle :status, default: "asked" do
       mark :terminal, "answered", "declined"
-      mark :rests, "asked"
-      transition "Forward"   => "answered", from: "asked"
-      transition "Decline"   => "declined", from: "asked"
+      mark :rests, "asked", "received"
+      transition "Receive"   => "received", from: "asked"
+      transition "Forward"   => "answered", from: "received"
+      transition "Decline"   => "declined", from: ["asked", "received"]
     end
 
     command "Ask" do
@@ -179,6 +181,17 @@ Hecks.bluebook "Coach" do
       emits Asked
     end
 
+    # Records the body exactly as it arrived; Forward may carry only these words.
+    command "Receive" do
+      role "Operator"
+      goal "Record the answer's body as it arrived, before anything is forwarded"
+
+      reference_to Relay
+      attribute :received, Words, sets: true
+
+      emits Received
+    end
+
     command "Forward" do
       role "Operator"
       goal "Relay Miette's words as she said them, labelled as hers"
@@ -186,6 +199,8 @@ Hecks.bluebook "Coach" do
       reference_to Relay
       attribute :words,  Words, sets: true
       attribute :author, Author, sets: true
+
+      given("only the words she said are forwarded") { words.value == received.value }
 
       emits Answered
     end
