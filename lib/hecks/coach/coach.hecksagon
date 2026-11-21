@@ -1,0 +1,13 @@
+# The Coach bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
+# directory). It persists in Memory like every tooling domain. The read ports for tickets.db and
+# the event stream are not declared: Miette asks the owner for that access herself, and a port is
+# declared when an adapter stands behind it.
+Hecks.hecksagon "Coach" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
