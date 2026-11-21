@@ -10,7 +10,9 @@ RSpec.describe Hecks::Adapters::Sweeping, "#sweep proof" do
     expect(killed).to be_empty
   end
 
-  it "refuses a sweep that names no session id" do
-    expect { adapter.sweep(removed: "not-an-id") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure)
+  it "stops no spare when it names no session id" do
+    traced_log
+    adapter.sweep(removed: "not-an-id")
+    expect(killed).to be_empty
   end
 end
