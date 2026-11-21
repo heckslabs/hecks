@@ -3,6 +3,7 @@
 require "cgi"
 require "fileutils"
 require "open3"
+require_relative "follow_main"
 require_relative "local_copy"
 
 module Hecks
@@ -21,11 +22,8 @@ module Hecks
         # Seconds between two beats.
         INTERVAL = 60
 
-        # The step that keeps the copy at local main, as plain shell so it runs on a copy that
-        # predates any code of the domain: only a detached copy with no tracked change whose
-        # head is an ancestor of main moves, forward to main; a failed step never stops the beat.
-        FOLLOW_MAIN = "{ ! git symbolic-ref -q HEAD >/dev/null 2>&1 && git diff --quiet HEAD && " \
-                      "git merge-base --is-ancestor HEAD main && git checkout -q --detach main; } 2>/dev/null; true"
+        # The step that keeps the copy at local main, rewritten or not (see `FollowMain`).
+        FOLLOW_MAIN = FollowMain.step
 
         # @param root [String] the checkout whose launcher each beat dispatches through; the push
         #   train's copy by default, the one whose records a beat reads

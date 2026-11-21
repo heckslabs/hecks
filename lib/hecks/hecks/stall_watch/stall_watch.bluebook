@@ -242,7 +242,10 @@ Hecks.bluebook "Hecks" do
                closes: "BeatPublished,BeatFaulted", closed_by: "any", state: "looked", folds: "kind",
                minutes: 5, forgets: 1440, fixer: "orchestrator",
                move: "Read the beat log (~/.claude/hecks-dev/train-beat.log) for the refused given of Clearance.Grant: " \
-                     "a head behind main means the train copy did not follow (the beat job's follow step); " \
+                     "a head that is not main's means the train copy did not follow (the beat job's follow step, which " \
+                     "moves a clean detached copy to local main even after main is rewritten): check " \
+                     "`git -C ~/.claude/hecks-train status` for a tracked change (the follow step names it in " \
+                     "~/.claude/hecks-dev/train-beat.overrun.log) and compare its HEAD with local main; " \
                      "'every local file the main checkout has' means a *.local.world or *.local.hecksagon differs " \
                      "from the main checkout's (the beat job's copy step). Bring the copy to local main and copy the files, " \
                      "then the next beat clears; Work.plan! a work item when the beat job itself does not run them."
