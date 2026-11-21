@@ -55,6 +55,7 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "Snapshot"
     answers_query "Cycles"
     answers_query "DailyHealth"
+    answers_query "Rework"
     answers_query "IntegrationRuns"
     answers_query "CycleStats"
   end

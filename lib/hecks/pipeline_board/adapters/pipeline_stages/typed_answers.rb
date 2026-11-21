@@ -4,6 +4,7 @@ require_relative "../probe"
 require_relative "snapshot_rows"
 require_relative "typed_rows"
 require_relative "daily_health"
+require_relative "rework"
 require_relative "glance_rows"
 require_relative "glance_tap"
 require_relative "../pipeline_status"
@@ -77,6 +78,15 @@ module Hecks
           data = { health_events: guard { @journal.health_events }, sessions: plain_rows { @jobs.rows },
                    open_findings: guard { @tickets.open_findings } }
           TypedRows.health(DailyHealth.build(data, @now.call), @now.call.iso8601)
+        end
+
+        # How much landed work came back: the landed Work items against the reopens and reverts in
+        # the event log.
+        #
+        # @return [Array<Hash>] one `Reading` per `ReworkCheck` row and the rework rate
+        def rework
+          events = guard { @journal.health_events(Rework.event_names) }
+          Rework.build(@tickets.landed_items, events.is_a?(Array) ? events : nil, @now.call.iso8601)
         end
 
         # @return [Array<Hash>] one `IntegrationRun` row per run the saga remembers

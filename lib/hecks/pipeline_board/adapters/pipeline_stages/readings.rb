@@ -12,7 +12,8 @@ module Hecks
                     "promote" => "Git", "red_flag" => "Git", "ahead" => "Git", "ci" => "GitHub", "release" => "GitHub",
                     "success" => "GitHub", "wall" => "GitHub", "failed_head" => "GitHub", "red" => "GitHub",
                     "release_age" => "GitHub", "open_prs" => "GitHub", "working" => "Jobs", "throughput" => "Journal",
-                    "health" => "Journal", "stopped_runs" => "Tickets", "overdue_for_you" => "Tickets" }.freeze
+                    "health" => "Journal", "rework" => "Journal", "stopped_runs" => "Tickets",
+                    "overdue_for_you" => "Tickets" }.freeze
 
         # The tiles whose page id is taken by a stage: each gets a key of its own.
         RENAMED = { "release" => "release_age", "ci" => "ci_runs" }.freeze
