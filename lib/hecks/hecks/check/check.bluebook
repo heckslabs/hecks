@@ -303,11 +303,7 @@ Hecks.bluebook "Hecks" do
       trigger ModelCheckRun::Flag, with: { refusal: :refusal }
     end
 
-    # Behaviors coverage: which bluebooks have a `.behaviors` file beside them. Domain behaviour
-    # starts in that file, before the bluebook change, so the check names every bluebook without
-    # one. It reports and never faults for an existing bluebook. Refusing a new or changed
-    # aggregate in a bluebook with none waits for the Submission invariant
-    # a-branch-must-start-with-a-spec-that-fails-on-main; that guard belongs to Submission.
+    # Reports only; refusing a changed aggregate with no .behaviors file belongs to Submission.
     aggregate "BehaviorsCoverage" do
       description "One count of the bluebooks with and without a .behaviors file, and which lack one."
 
