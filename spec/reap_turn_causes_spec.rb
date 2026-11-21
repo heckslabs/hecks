@@ -20,7 +20,7 @@ RSpec.describe "The turn to reap, asked by a session's end" do
   it "sends no tidy for a finished run on a later beat inside the half hour", :aggregate_failures do
     done_run(user("one more thing"))
     expect { beat("b2") }.not_to(change { delivered("TidyEveryFinishedRun") })
-    expect(removed.size).to eq(1)
+    expect(removed).to be_empty
   end
 
   it "frees the turn when the port refuses the reap", :aggregate_failures do
