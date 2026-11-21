@@ -6,6 +6,7 @@ require_relative "typed_rows"
 require_relative "daily_health"
 require_relative "glance_rows"
 require_relative "glance_tap"
+require_relative "../pipeline_status"
 
 module Hecks
   module Adapters
@@ -24,6 +25,14 @@ module Hecks
         def glance
           GlanceTap.record(@registry, @now.call)
           state[:glance]
+        end
+
+        # @param since [Hash, String, nil] a time the throughput also counts from
+        # @return [Hash] the bluebook's one `Status` row: why nothing starts, throughput, each
+        #   started Work item and each blocked run
+        def now(since: nil)
+          state
+          PipelineStatus.build(@status_facts, @now.call, held(since))
         end
 
         # @return [Array<Hash>] one `Stage` row per node of the strip, left to right
@@ -58,6 +67,7 @@ module Hecks
 
         # The state with its typed `Snapshot` row under `board`.
         def with_board(held, data)
+          @status_facts = data.merge(held.slice(:load_guard))
           held.merge(board:  SnapshotRows.build(held, data.slice(:train_prs, :release, :turns)),
                      glance: GlanceRows.build(data.merge(held.slice(:load_guard)), @now.call))
         end
