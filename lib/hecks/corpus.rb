@@ -75,6 +75,8 @@ module Hecks
       ci_workflows: "lib/hecks/ci_workflows/*.bluebook",
       # The Interviews bluebook boots from its own directory beside its hecksagon (ADR 0194).
       interviews:   "lib/hecks/interviews/*.bluebook",
+      # The Protocols bluebook boots from its own directory beside its hecksagon.
+      protocols:    "lib/hecks/protocols/*.bluebook",
       fixture:      "spec/fixtures/**/*.bluebook"
     }.freeze
 
