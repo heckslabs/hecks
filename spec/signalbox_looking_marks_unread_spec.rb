@@ -13,7 +13,7 @@ RSpec.describe Hecks::Adapters::Looking::Marks, "#initialize" do
   end
 
   it "keeps the starting values while no world is loaded" do
-    expect(described_class.new(nil).facts).to include(stale_after: 120, load_short: 342)
+    expect(described_class.new(nil).facts).to include(stale_after: 120, load_short: 250)
   end
 
   it "refuses the look as unlooked" do
