@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/safe_signal"
 require "open3"
 require "shellwords"
 require_relative "../../text"
@@ -102,7 +103,7 @@ module Hecks
 
       def finish(waiter, reader, timeout)
         unless waiter.join(timeout)
-          Process.kill("KILL", -waiter.pid)
+          SafeSignal.to_group("KILL", waiter.pid)
           waiter.join
           reader.join
           raise Failed, "agent timed out after #{timeout}s"
