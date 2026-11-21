@@ -11,6 +11,7 @@ require_relative "pipeline_tickets/finished_times"
 require_relative "pipeline_tickets/closed_work"
 require_relative "pipeline_tickets/project_work"
 require_relative "pipeline_tickets/open_help"
+require_relative "pipeline_tickets/board_facts"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
@@ -27,6 +28,7 @@ module Hecks
       include PipelineBoard::FinishedTimes
       include PipelineBoard::ProjectWork
       include PipelineBoard::OpenHelp
+      include PipelineBoard::BoardFacts
 
       # The statuses a stand-in list of Work items is not open in; a store is asked `Work.Undone`.
       DONE = %w[done dropped].freeze

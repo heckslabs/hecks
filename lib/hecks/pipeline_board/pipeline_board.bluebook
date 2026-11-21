@@ -374,6 +374,67 @@ Hecks.bluebook "PipelineBoard" do
       attribute :train,         list_of(TrainCard)
       attribute :release,       ReleaseCard
       attribute :events,        list_of(EventLine)
+      attribute :signal,        Reading
+      attribute :deciding,      String, default: ""
+      attribute :fill_why,      list_of(FillWhy)
+      attribute :red_episodes,  list_of(RedEpisodeLine)
+      attribute :measures,      list_of(Reading)
+      attribute :epics,         list_of(Reading)
+      attribute :holds,         list_of(Reading)
+    end
+
+    # The words of Signalbox's one signal, a band each, and the state the strip draws it in. `load`
+    # is the 1-minute load, `mark` Signalbox's short mark as a load (never the Tickets
+    # dispatch_max_load), `since` when the band was entered.
+    value_object "SignalSays" do
+      attribute :band,  String
+      attribute :says,  String
+      attribute :state, String
+
+      member band: "normal", says: "Clear: admitting, load %{load} of %{mark}",                       state: "ok"
+      member band: "tight",  says: "Tight: admitting with care, load %{load} of %{mark}",             state: "attention"
+      member band: "short",  says: "Danger: not admitting since %{since}, load short (%{load} of %{mark})", state: "failed"
+      member band: "dark",   says: "Dark: no signal; the dispatch's own limit holds",                 state: "unknown"
+    end
+
+    # The state a measure or an epic's last reading is drawn in.
+    value_object "OutcomeState" do
+      attribute :outcome, String
+      attribute :state,   String
+
+      member outcome: "met",      state: "ok"
+      member outcome: "missed",   state: "attention"
+      member outcome: "unread",   state: "unknown"
+      member outcome: "unstated", state: "unknown"
+    end
+
+    # Which side is deciding the fill, in its own words: admission while `admission.signalbox` is on,
+    # the old dispatch (cap, load limit, reserve) while it is off. `%{why}` is the skip reason.
+    value_object "FillSide" do
+      attribute :side,        String
+      attribute :says,        String
+      attribute :governed_by, String
+
+      member side: "admission", says: "Admission (Signalbox) is deciding: %{why}",        governed_by: "admission.signalbox on; the Admission rows"
+      member side: "dispatch",  says: "The dispatch is deciding: %{why}",                 governed_by: "work_limit.cap, dispatch_max_load.limit, the red reserve"
+    end
+
+    # One Work item the fill did not start, and why, in the words of the side deciding.
+    value_object "FillWhy" do
+      attribute :work,   String
+      attribute :reason, String
+      attribute :side,   String, default: ""
+    end
+
+    # One stretch of red main, one line: when it began (UTC), how many minutes it lasted or has
+    # stood, the culprit commit, its Work item and how it ended (`standing` while it has not).
+    value_object "RedEpisodeLine" do
+      attribute :began,    String
+      attribute :minutes,  Integer, default: 0
+      attribute :culprit,  String, default: ""
+      attribute :work,     String, default: ""
+      attribute :ending,   String, default: "standing"
+      attribute :line,     String, default: ""
     end
 
     # How many columns a text panel is drawn in.
@@ -946,6 +1007,37 @@ Hecks.bluebook "PipelineBoard" do
       returns Glance
     end
 
+    query "Signal" do
+      description "Signalbox's one signal for the strip as one Reading in plain words (the SignalSays row of the band): its band, load and the load of Signalbox's short mark. A signal that could not be read is a Reading in state unknown with the reason as its note. It reads only."
+      returns Reading
+    end
+
+    query "FillWhy" do
+      description "Each Work item the fill did not start and why, in the words of the side deciding now (the FillSide rows): admission while admission.signalbox is on, else the old dispatch. It reads only."
+      returns list_of(FillWhy)
+    end
+
+    query "RedEpisodes" do
+      description "The red that stands and the last few episodes of red main, one RedEpisodeLine each, newest first, asked of RedEpisode.Recent. It reads only."
+      attribute :limit, Limit, optional: true
+      returns list_of(RedEpisodeLine)
+    end
+
+    query "Measures" do
+      description "The seven outcome measures with their present readings, one Reading each, asked of Epic.Measures; a measure that could not be read is one Reading in state unknown, said once. It reads only."
+      returns list_of(Reading)
+    end
+
+    query "Epics" do
+      description "The ranked epics, one Reading each: the measure, its state (met, missed, unread or unstated) and the members done of all, asked of Epic.Outcomes. It reads only."
+      returns list_of(Reading)
+    end
+
+    query "Holds" do
+      description "What holds boarding: the BoardingHold on local main, as one Reading. Exhausted and reopened train pull requests are one Reading each once TrainPr declares a query that lists them. It reads only."
+      returns list_of(Reading)
+    end
+
     query "Now" do
       description "The pipeline's status as one typed Status: why nothing is starting when nothing is (the first line, the reading behind it and the setting that governs it), landings in the last hour, today since noon and since a given time with their rates, each started Work item with its stage and minutes in it, and each blocked run with its question's first line and kind. It reads only."
       attribute :since, String, optional: true
@@ -1086,6 +1178,26 @@ Hecks.bluebook "PipelineBoard" do
 
       emits WatchRequested
     end
+
+    command "RecordRestart" do
+      role "System"
+      goal "Record that the board was restarted"
+
+      reference_to BoardWatch
+      attribute :port, PipelineBoard::Port, sets: true
+
+      emits RestartRecorded
+    end
+
+    command "RecordRestartRefusal" do
+      role "System"
+      goal "Record that the restart was refused, and why"
+
+      reference_to BoardWatch
+      attribute :last, PipelineBoard::Reason, sets: true
+
+      emits RestartRefusalRecorded
+    end
   end
 
   # The board answered; nothing else happens.
@@ -1105,6 +1217,16 @@ Hecks.bluebook "PipelineBoard" do
   policy "ServeWhenBoardRequested" do
     on      "Board.BoardServeRequested"
     trigger PipelineBoard::Serve, with: { run: :run, port: :port }
+  end
+
+  policy "RecordWhenBoardRestarted" do
+    on      "BoardWatch.BoardRestarted"
+    trigger BoardWatch::RecordRestart, with: { port: :port }
+  end
+
+  policy "RecordWhenRestartRefused" do
+    on      "BoardWatch.BoardRestartRefused"
+    trigger BoardWatch::RecordRestartRefusal, with: { last: :refusal }
   end
 
   policy "ListenWhenServed" do

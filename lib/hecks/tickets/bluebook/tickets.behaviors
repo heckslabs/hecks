@@ -9,6 +9,24 @@ Hecks.behaviors "Tickets" do
     expect status: "planned"
   end
 
+  test "Plan enters a work item with no pomodoros: tasking in pomodoros is optional" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1p" }, title: { value: "Written without a size" }
+    expect status: "planned"
+  end
+
+  test "Plan enters an unplanned work item sized in pomodoros" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1u" }, title: { value: "Fix the stuck deploy" }, pomodoros: { value: 2 }, unplanned: { value: true }
+    expect status: "planned"
+  end
+
+  test "Plan refuses a negative pomodoro size" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1n" }, title: { value: "Too few" }, pomodoros: { value: -1 }
+    expect refused: "a pomodoro count is not negative"
+  end
+
   test "Plan refuses a work item with no title" do
     tests "Plan", on: "Work"
     input work: { value: "w2" }, title: { value: "" }
@@ -148,6 +166,21 @@ Hecks.behaviors "Tickets" do
     expect status: "planned", title: { value: "New" }
   end
 
+  test "Note asks for a dated line to be appended to an open work item's detail" do
+    tests "Note", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w12n" }, title: { value: "Old" }
+    input  work: { value: "w12n" }, note: { value: "blocked on a review" }, dated: { value: "2026-11-20" }
+    expect status: "planned", emits: ["WorkNoteRequested", "NoteComposed", "WorkNoted"]
+  end
+
+  test "Note refuses a done work item" do
+    tests "Note", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w13n" }, title: { value: "Finished" }
+    setup  "Tickets::Work.Close", work: { value: "w13n" }, no_change: { value: "a verify" }
+    input  work: { value: "w13n" }, note: { value: "late" }, dated: { value: "2026-11-20" }
+    expect refused: "done"
+  end
+
   test "Revise refuses a done work item" do
     tests "Revise", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w13" }, title: { value: "Finished" }
@@ -248,6 +281,13 @@ Hecks.behaviors "Tickets" do
                                     at_least: { value: 2 }, at_most: { value: 9 }, evidence: { value: "read 2" }
     input epic: "e1", measure: { value: "two-branches-land" }
     expect measured: { value: "unread" }, evidence: { value: "" }, status: "complete"
+  end
+
+  test "MeasureBy names the board's glance read count as an epic's measure" do
+    tests "MeasureBy", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "board-revamp" }, title: { value: "Revamp the board" }, outcome: { value: "The board steers" }
+    input epic: "board-revamp", measure: { value: "the-board-glance-is-read" }
+    expect measure: { value: "the-board-glance-is-read" }, measured: { value: "unread" }
   end
 
   test "Retitle changes the title and keeps the outcome" do
