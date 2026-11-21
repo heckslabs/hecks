@@ -71,6 +71,7 @@ directories its files sit in, and the vision it declares, written from the files
 - **CiPipeline** (`lib/hecks/ci_pipeline/`): A workflow file is what its rows say: a job runs after what it needs, a skipped gate leaves its dependents runnable, a build passes only when every required job settled, and a corpus is regenerated once and shared.
 - **CiSpeed** (`lib/hecks/ci_speed/`): A main CI run is measured as it finished, and a change to the pipeline is kept only when a run of the same cache state proves it faster.
 - **CiWorkflows** (`lib/hecks/ci_workflows/`): Hecks's own GitHub Actions workflows, declared once as rows and projected into .github/workflows.
+- **Coach** (`lib/hecks/coach/`): Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide.
 - **Coder** (`lib/hecks/coder/`): Every bug QA logs is worked by one coder at a time, and a bug that cannot be fixed yet is still never hidden: it is stubbed, named, and retired once the fix lands.
 - **Composer** (`lib/hecks/composer/bluebook/`): Write a bluebook in an editor and watch the domain draw itself, with an agent that can change the draft when asked.
 - **Deploy** (`lib/hecks/deploy/bluebook/`): Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
