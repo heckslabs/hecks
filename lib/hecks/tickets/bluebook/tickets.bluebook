@@ -845,6 +845,8 @@ Hecks.bluebook "Tickets" do
     attribute :no_change, WorkText, optional: true
     # Why the last finish left the item open: no landing of it was on main. A close clears it.
     attribute :refusal,   WorkText, optional: true
+    # Why the last Expedite was put back: the work items that held the priority lane, named.
+    attribute :expedite_refusal, WorkText, optional: true
     # The commit on its batch's branch that holds a batched item, once its coder has committed it;
     # empty until then. A batch sent back to the plan keeps its committed members.
     attribute :batch_commit, WorkText, optional: true
@@ -1206,7 +1208,28 @@ Hecks.bluebook "Tickets" do
       given("a done or dropped work item is not expedited") { status != "done" && status != "dropped" }
       given("Work.expedite! sets expedite and no other priority") { priority.value == "expedite" }
 
+      sets :expedite_refusal, to: ""
       emits "WorkExpedited"
+    end
+
+    # Sent by UnexpediteWhenExpediteRead with the lane's holders the ExpediteLimits port read and the
+    # lane's limit: a `given` sees its own arguments, not the Work items, so they carry the rule. It puts
+    # a work item back to priority `now` only when the lane is full. A caller who dispatches it by
+    # hand vouches for the numbers.
+    command "Unexpedite" do
+      role "System"
+      goal "Put an expedited work item back to now when the priority lane already holds its limit, naming the holders"
+
+      reference_to Work
+      attribute :holders, WorkText
+      attribute :held,    MemberCount
+      attribute :limit,   MemberCount
+      attribute :priority, Priority, sets: true, default: { value: "now" }
+      attribute :expedite_refusal, WorkText, sets: true
+
+      given("a lane under its limit keeps the work item") { held.value >= limit.value }
+
+      emits "WorkUnexpedited"
     end
 
     # An open work item is given its place in the plan: within one priority Dispatch starts the lowest step
@@ -1747,6 +1770,19 @@ Hecks.bluebook "Tickets" do
   policy "YieldWhenCapReached" do
     on      "Work.CapRefused"
     trigger Work::Yield, with: { reason: :refusal }
+  end
+
+  # An expedited work item asks the ExpediteLimits port who else holds the priority lane; what the port
+  # read goes to Work.Unexpedite with the lane's limit, two, which puts the item back when the lane is full.
+  policy "CheckExpediteWhenExpedited" do
+    on  "Work.WorkExpedited"
+    ask :check_expedite, with: { work: :work }
+  end
+
+  policy "UnexpediteWhenExpediteRead" do
+    on      "Work.ExpediteRead"
+    trigger Work::Unexpedite, with: { work: :work, holders: :holders, held: :held, limit: 2,
+      expedite_refusal: :holders }
   end
 
   # A superseded decision takes its undone work items with it.
