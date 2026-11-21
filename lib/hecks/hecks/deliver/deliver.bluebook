@@ -2010,10 +2010,9 @@ Hecks.bluebook "Hecks" do
       trigger RedFlag::Clear, with: { run: :landed, commit: :landed, checkout: :checkout }
     end
 
-    # The good prefix ships in the beat the revert is verified: the flag is down, so the train
-    # boards main up to the culprit's parent and shipping resumes while the reopened item's fix
-    # lands later. Declared before the policies that end the episode, so its row still stands, and
-    # `root`, so a refused boarding never undoes the revert.
+    # The good prefix ships once the revert is verified and the flag is down: the train boards main
+    # up to the culprit's parent while the reopened item's fix lands later. `root`, so a refused
+    # boarding never undoes the revert; before the policies that end the episode, so its row stands.
     policy "BoardThePrefixWhenTheFlagIsLowered" do
       on       "RedFlag.RedFlagCleared"
       root
