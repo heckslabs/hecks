@@ -9,6 +9,7 @@ require_relative "pipeline_tickets/stopped_runs"
 require_relative "pipeline_tickets/standing_facts"
 require_relative "pipeline_tickets/finished_times"
 require_relative "pipeline_tickets/closed_work"
+require_relative "pipeline_tickets/landed_work"
 require_relative "pipeline_tickets/project_work"
 require_relative "pipeline_tickets/open_help"
 require_relative "pipeline_tickets/board_facts"
@@ -111,6 +112,9 @@ module Hecks
         landed = landings.select { |land| field(land, :status).to_s == "landed" }
         landed.map { |land| field(land, :branch).to_s.delete_prefix("qa/") }
       end
+
+      # @return [Array<Hash>] the landed Work items (done, with a landing): `slug`, `title`, `epic`
+      def landed_items = PipelineBoard::LandedWork.of(work_records, method(:field))
 
       private
 
