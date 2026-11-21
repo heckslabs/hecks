@@ -16,6 +16,9 @@ module Hecks
     class GhRest
       PAGE = 100
 
+      # How a pull request holding a commit ranks: open first, merged next, closed last.
+      RANK = { "OPEN" => 2, "MERGED" => 1, "CLOSED" => 0 }.freeze
+
       # The first line of a commit message, its headline.
       FIRST_LINE = /\A[^\n]*/
 
@@ -35,13 +38,14 @@ module Hecks
 
       # The pull request under `prefix` whose commits hold `sha`, found by the commit, not by its
       # branch: a commit rides a train named for a later commit when it was boarded beneath it.
-      # An open one comes first, then the newest merged one; one closed unmerged never counts.
+      # An open one comes first, then the newest merged one, then the newest closed unmerged: a run
+      # whose only train was closed is told so, not left reading a CI run that will never start.
       #
       # @param sha [String] the full commit
       # @param prefix [String] the head branch prefix of the pull requests that count
       # @return [Hash, nil] the pull request in the shape `pull` answers; nil when none holds it
       def carrying(sha, prefix)
-        found, row = holding(sha, prefix).max_by { |_, held| [held["state"] == "OPEN" ? 1 : 0, held["number"].to_i] }
+        found, row = holding(sha, prefix).max_by { |_, held| [RANK.fetch(held["state"], 0), held["number"].to_i] }
         found && row.merge(detail(found))
       end
 
@@ -79,10 +83,10 @@ module Hecks
         Array(pages).flat_map { |page| key ? page.fetch(key) : page }
       end
 
-      # Each pull request under `prefix`, open or merged, whose commits hold `sha`, with its shape.
+      # Each pull request under `prefix`, open, merged or closed, whose commits hold `sha`, with its shape.
       def holding(sha, prefix)
         rows = listed("repos/{owner}/{repo}/commits/#{sha}/pulls?per_page=#{PAGE}").map { |pull| [pull, shaped(pull)] }
-        rows.select { |_, row| row["headRefName"].to_s.start_with?(prefix) && row["state"] != "CLOSED" }
+        rows.select { |_, row| row["headRefName"].to_s.start_with?(prefix) }
       end
 
       def shaped(pull)
