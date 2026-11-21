@@ -20,6 +20,8 @@ module GitHistoryReads
     "desktop_alert.rb"                        => "subjects of the commits a push carried, shown in a notification",
     "dispatching/landed_since.rb"             => "commit time of a given sha; no event yet carries the landed time",
     "doctor_reading.rb"                       => "commits main is ahead of origin/main: the remote's state is git",
+    "first_commit_facts.rb"                   => "the branch's first commit since main and its files: ancestry",
+    "main_spec_run.rb"                        => "a commit's own spec file text, to try it on main's tree: content is git",
     "git_launcher.rb"                         => "whether the train's copy already holds a pushed commit: never move it back",
     "git_refs.rb"                             => "ancestry, first-parent order and commit times: the ledger has no parentage",
     "git_rehearsal/due.rb"                    => "how far main is ahead of its tracking branch and since when",
