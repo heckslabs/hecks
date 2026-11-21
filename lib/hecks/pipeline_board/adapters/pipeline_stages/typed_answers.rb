@@ -19,8 +19,8 @@ module Hecks
         # @return [Hash] the bluebook's one `Snapshot` row: the whole read model, typed
         def board = state[:board]
 
-        # @return [Hash] the bluebook's one `Glance` row: what needs a person or stands too long, and
-        #   whether work is flowing
+        # @return [Hash] the bluebook's one `Glance` row: what needs a person or stands too long,
+        #   and whether work is flowing
         def glance
           GlanceTap.record(@registry, @now.call)
           state[:glance]
