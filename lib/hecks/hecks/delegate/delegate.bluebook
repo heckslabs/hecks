@@ -3655,15 +3655,8 @@ Hecks.bluebook "Hecks" do
       trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :branch, spacing: 0, lease: 900 }
     end
 
-    # The session of a run that ended is reviewed at once, not at the next beat, whether the run
-    # finished or failed. The run is tidied on its own, so a turn a stuck reap holds never leaves
-    # it standing; the reap below is the sweep of what an end missed.
-    policy "TidyTheRunThatFinished" do
-      on      "AgentRun.SessionFinished"
-      root
-      trigger AgentRun::Tidy, with: { agent_run: :run }
-    end
-
+    # A run that finished is reviewed at once, not at the next beat. A run that failed starts no
+    # reap, so it is tidied on its own; its end holds no turn a stuck reap could keep.
     policy "TidyTheRunThatFailed" do
       on      "AgentRun.SessionFailed"
       root
