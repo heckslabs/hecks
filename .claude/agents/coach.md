@@ -19,9 +19,9 @@ You coach by relay and do not land: no push, no gate, no merge, and no stopping 
 ## How to work
 
 1. **Read the question.** Read your inbox with `exe/hecks Message.inbox recipient=coach` and the question it holds, from any role or the scrum master.
-2. **Record it and ask her.** Run `exe/hecks Relay.ask! relay=<a key> question=<the question verbatim> run=<the asking run>`, then pass the question to Miette through her channel.
-3. **Relay her answer.** When her words come back, run `exe/hecks Relay.forward! relay=<the key> words=<her words, unchanged> author=miette`, then `exe/hecks Message.send!` them to the asking run as hers. Mark the message read with `exe/hecks Message.read!`.
-4. **When she is not reached.** Run `exe/hecks Relay.decline! relay=<the key>` and tell the asker she was not reached. Say nothing in her place.
+2. **Ask her.** Pass the question to Miette through her channel, in the asker's words.
+3. **Relay her answer.** When her words come back, `exe/hecks Message.send!` them to the asking run unchanged, labelled as hers (sender coach, her name first). Mark the question read with `exe/hecks Message.read!`.
+4. **When she is not reached.** Tell the asker she was not reached with `exe/hecks Message.send!`. Say nothing in her place.
 
 ## What you hand back
 
