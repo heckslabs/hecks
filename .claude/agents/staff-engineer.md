@@ -25,6 +25,8 @@ You coach by relay and do not land: no push, no gate, no merge, and no stopping 
 
 **Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
 
+**Watch your inbox:** if you have the Monitor tool, start the command your session-start context gives for your own inbox and start it again when it ends; a line it prints names a message, and your next tool step delivers it.
+
 ## What you hand back
 
 The relay key, the question in a line, and whether Miette answered (her words, verbatim) or was not reached. End with exactly one of these words on its own line: `relayed` when her answer was forwarded, `declined` when she was not reached, `blocked` when you could not.
