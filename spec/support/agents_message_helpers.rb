@@ -28,12 +28,12 @@ module AgentsMessageHelpers
   # registers through `HandRun.register!` reads the booted rows by leaving this nil.
   def hand_runs = nil
 
-  def send_message(key: "m1", to: "run-a", kind: "answer", body: "use the smaller version", reply: "")
+  def send_message(key: "m1", to: "run-a", kind: "answer", body: "use the smaller version", reply: "", sender: "orchestrator")
     check = Hecks::Adapters::RecipientCheck.new(registry: @agents_runtime&.registry, runs: -> { recipients },
                                                 listed: ->(id) { listed_sessions.include?(id) },
                                                 hand_runs: hand_runs && -> { hand_runs })
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { check }) do
-      Hecks::Agents::Message.send!(message: { value: key }, recipient: { value: to }, sender: { value: "orchestrator" },
+      Hecks::Agents::Message.send!(message: { value: key }, recipient: { value: to }, sender: { value: sender },
                                    kind: { value: kind }, body: { value: body }, in_reply_to: { value: reply })
     end
     Hecks::Agents::Message.find(key)
