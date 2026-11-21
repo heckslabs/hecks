@@ -78,6 +78,12 @@ One reading of the machine, and the crossings of a mark that it heard.
 
 - `hecks Machine.busiest`: Which process classes use the CPU and whose child they are: each class's count, summed CPU percentage and the background session whose shell owns it, busiest first. Read-only: it stops no process and no session.
 
+### Overload
+
+The pipeline's own overload verdict, said by the readings alone.
+
+- `hecks Overload.standing`: The overload while it stands, with its reason and the calm and low runs that lift it: ten readings under the load limit (`calm_run`) with memory ok (`low_run` nought).
+
 ### PlainSession
 
 A Claude session started outside a dispatched run, which the operator may remove once it is finished.

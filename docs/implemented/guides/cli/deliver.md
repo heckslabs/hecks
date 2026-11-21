@@ -124,6 +124,7 @@ One pull request opened or merged on GitHub, and what GitHub answered.
 - `hecks ReviewRequest.edit! <number> [title=] [body=] [confirm=]`: Edit the title or body of an open pull request by its number; never its branch, merge or state
 - `hecks ReviewRequest.status <number>`: The state of one pull request on GitHub: its number, state, URL and checks, as text.
 - `hecks ReviewRequest.timeline <number>`: Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first. Nothing is changed.
+- `hecks ReviewRequest.failures <number>`: Why a pull request's checks failed, one line per failed job: the job, its failed steps, the failing spec examples, the first failure's message, and the newest commit touching the failing specs. Nothing is changed.
 
 ### BoardingHold
 
