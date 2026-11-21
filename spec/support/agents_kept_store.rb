@@ -5,6 +5,8 @@ require "hecks/hecks/adapters/main_integration/train"
 # as the checkout's overlay does: the hecksagon is the overlay's own text, so it names exactly the
 # `KeptAggregate` rows.
 module AgentsKeptStore
+  ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
+
   # @param root [String] the directory the store and its two files live in
   # @param rows [Array<Hash>] the `KeptAggregate` rows of the Hecks bluebook
   # @return [Array<String>] the world and the hecksagon files, to load after the bluebook
