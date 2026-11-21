@@ -64,6 +64,11 @@ Hecks.bluebook "Signalbox" do
       invariant("a duration is not negative") { !value.negative? }
     end
 
+    value_object "Answer" do
+      attribute :value, String, default: "yes"
+      invariant("an answer is yes or no") { value == "yes" || value == "no" }
+    end
+
     value_object "Hundredths" do
       attribute :value, Integer, default: 0
       invariant("a load is not negative") { !value.negative? }
@@ -128,6 +133,9 @@ Hecks.bluebook "Signalbox" do
       attribute :gates_fit,   Signed, default: { value: 0 }, sets: true
       attribute :age,         Seconds
       attribute :stale_after, Seconds, sets: true
+      # "no" judges the reading for the asker alone: it settles its band and is never posted, as a
+      # view that was refused Clearance may judge its own look but never post to shared state.
+      attribute :posts,       Answer, default: { value: "yes" }
       attribute :now,         Stamp
       needs :now
 
@@ -1513,8 +1521,9 @@ Hecks.bluebook "Signalbox" do
   # Law 2, published (phase 3b): once the band policies above have settled the reading, it is
   # posted as the machine's one signal. Declared after them, so it runs last of the reading's policies.
   policy "PostTheSettledPressure" do
-    on  "Pressure.PressureRead"
-    ask :post, with: { pressure: :pressure }
+    on    "Pressure.PressureRead"
+    where { posts.value == "yes" }
+    ask   :post, with: { pressure: :pressure }
   end
 
   # A turn asks which standing is in another band, so a reading that settles where the machine

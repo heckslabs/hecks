@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "etc"
 require "hecks/runtime/event_feed"
 require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
@@ -10,6 +9,7 @@ require_relative "stall_watching/unraised"
 require_relative "stall_watching/open_branches"
 require_relative "stall_watching/shared_files"
 require_relative "stall_watching/computed"
+require_relative "stall_watching/machine_load"
 require_relative "stall_watching/slot_evidence"
 require_relative "machine_sampling/process_classes"
 require_relative "machine_sampling/marks"
@@ -31,7 +31,7 @@ module Hecks
       #   evidence ({MachineSampling::ProcessClasses} when absent), `slots:` the `slots` evidence
       #   ({SlotEvidence}), `origin:` whether a commit is on origin/main ({SettledReads}, git),
       #   `branches:` the open branches' tips and changed files ({OpenBranches}, git), `load:` the
-      #   1-minute load (`Etc.getloadavg`), `leftovers:` a leftover's count by name
+      #   1-minute load ({MachineLoad}), `leftovers:` a leftover's count by name
       #   ({LeftoverReads})
       def initialize(registry: nil, aggregate: nil, tap: nil, **reads)
         @registry = registry
@@ -119,7 +119,7 @@ module Hecks
 
       # The computed impediments of the tap and the machine's cheap readings.
       def computed(read)
-        Computed.new(members("ComputedSignal"), SystemClock.now, load:     @load || -> { Etc.getloadavg.first },
+        Computed.new(members("ComputedSignal"), SystemClock.now, load:     @load || @machine_load ||= MachineLoad.new,
                                                                  low_mark: MachineSampling::Marks.of(@registry)[:load_low],
                                                                  counts:   @leftovers || LeftoverReads.new(read, Dir.pwd))
       end
