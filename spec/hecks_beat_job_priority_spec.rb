@@ -31,13 +31,12 @@ RSpec.describe "the beat job's priority" do
 
   it "falls back to the defaults when no registry or world declares the job", :aggregate_failures do
     expect(priority_class.from(nil).to_h).to eq(defaults)
-    expect(priority_class.from(Struct.new(:world).new(nil)).to_h).to eq(defaults)
+    expect(priority_class.from(instance_double(Hecks::Runtime::Registry, world: nil)).to_h).to eq(defaults)
   end
 
   it "reads the Hecks world's launchd_job setting" do
-    world = Struct.new(:for_verb).new({ nice: 4 })
-    registry = Struct.new(:world).new(nil)
-    allow(registry).to receive(:world).with("Hecks").and_return(world)
+    world = instance_double(Hecks::Runtime::World, for_verb: { nice: 4 })
+    registry = instance_double(Hecks::Runtime::Registry, world: world)
     expect(priority_class.from(registry).to_h[:nice]).to eq(4)
   end
 
