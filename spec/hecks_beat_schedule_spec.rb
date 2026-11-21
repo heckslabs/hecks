@@ -27,7 +27,15 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
 
     expect(lines[1]).to match(%r{\Amkdir -p ".*/hecks-dev" && : >> ".*/train-beat\.lock"\z})
     expect(lines[2]).to match(%r{\Azmodload zsh/system && zsystem flock -t 0 ".*/train-beat\.lock" 2>/dev/null \|\| \{.*\}\z})
-    expect(lines[3]).to start_with("exe/hecks Heartbeat.Beat!")
+    expect(lines[3]).to eq(described_class::FOLLOW_MAIN)
+    expect(lines[5]).to start_with("exe/hecks Heartbeat.Beat!")
+  end
+
+  # The copy's local files are made the main checkout's after it follows main, before the beat.
+  it "copies the main checkout's local files between the follow step and the beat" do
+    lines = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines.map(&:strip)
+
+    expect(lines[4]).to eq(Hecks::Adapters::MainIntegration::LocalCopy.step)
   end
 
   # A tick that finds the lock held writes why it was skipped, so a beat that outruns its interval

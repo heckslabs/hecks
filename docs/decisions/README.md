@@ -228,4 +228,5 @@ The table is the store as `DecisionFiles` reads it, by number, written by `hecks
 | [0230](0230-option-2-scoping.md) | Option 2 scoping — making `hecks-codegen` the sole Rust generator | draft |  |  |
 | [0231](0231-hydrate-entity-list-widened-to-value-object-lists-adr-0047-root-cause-fixed.md) | `Value::Coercion#hydrate_entity_list` widened to value-object lists — ADR 0047's root cause fixed; `remove:`'s own Rust port still deliberately not attempted | accepted |  |  |
 | [0232](0232-postgres-era-vendored-bluebook-source-text.md) | PostgresEra's era-1 self-mint now finds a vendored bluebook's own real source text | accepted |  |  |
+| [0233](0233-the-coders-work-is-a-process-manager.md) | The coder's work is a process manager: Specify, Implement, Verify, Land | draft |  |  |
 <!-- generated:end -->
