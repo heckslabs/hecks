@@ -30,7 +30,7 @@ module Hecks
           text = rolling_fill
           raise ConsoleCapture::Failure, "unchanged: #{header_of(text)}" if LastRoll.repeat?(text)
 
-          { report: { value: text }, held_back: { value: held_back } }
+          { report: { value: text }, held_back: { value: held_back }, answered_at: { value: Time.now.utc.iso8601(3) } }
         end
 
         # Says whether the clock alone has made something eligible to start: a retry time passed,

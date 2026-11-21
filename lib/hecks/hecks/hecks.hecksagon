@@ -284,6 +284,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Abandoned"
     answers_query "Impediments"
     answers_query "Relieved"
+    answers_query "Unraised"
   end
 
   Hecks::SendTrain.port "Alerts" do
@@ -320,6 +321,7 @@ Hecks.hecksagon "Hecks" do
   # `Landing` is kept in, opened read-only.
   Hecks::LandingPace.port "Pace" do
     answers_query "Pace"
+    answers_query "Throughput"
   end
 
   Hecks::Restoration.port "Restoring" do
@@ -1683,6 +1685,16 @@ Hecks.hecksagon "Delivery" do
       refuses "NoLandedWork"
     end
 
+    # The work item whose worktree the branch was landed from, for a branch its coder named
+    # otherwise than the item. Asked after the name, it finds nothing while the name's item is open.
+    asks "FindLandedWorkByCheckout", to: Landing do
+      attribute :branch, Word
+      attribute :checkout, Word, optional: true
+      attribute :landed, Word, optional: true
+      answers "LandedWorkFound"
+      refuses "NoLandedWork"
+    end
+
     asks "FindRefusedWork", to: Landing do
       attribute :run, RunKey
       attribute :refusal, Report
@@ -1703,6 +1715,13 @@ Hecks.hecksagon "Delivery" do
   translates "FindWorkWhenBranchLanded" do
     on      Landing::BranchLanded
     ask     :find_landed_work, with: { branch: :branch, landed: :landed }
+  end
+
+  # Declared after the one by name, so a branch that names an open item closes that item and this
+  # asks nothing more of it; a branch cut under another name closes the item its worktree is named for.
+  translates "FindWorkWhenBranchLandedFromAnItemsWorktree" do
+    on      Landing::BranchLanded
+    ask     :find_landed_work_by_checkout, with: { branch: :branch, checkout: :checkout, landed: :landed }
   end
 
   subscribe "Coder.WorkSubmitted"

@@ -16,7 +16,7 @@ module Hecks
         REQUESTS = %w[LandingSubmitted FinishRequested LandingRequested CarryRequested TrainRequested].freeze
 
         # One landing: `wait` is the seconds from ready to landed, nil when no request was found.
-        Landed = Struct.new(:branch, :at, :wait)
+        Landed = Struct.new(:branch, :at, :wait, :sha)
 
         # @return [Array<Landed>] the landings, oldest first
         attr_reader :landed
@@ -54,10 +54,12 @@ module Hecks
           at = Time.iso8601(event["occurred_at"])
           branch = branch_of(event)
           ready = [@by_branch.delete(branch), @by_run.delete(event["aggregate_id"])].compact.min
-          @landed << Landed.new(branch, at, ready && (at - ready))
+          @landed << Landed.new(branch, at, ready && (at - ready), sha_of(event))
         end
 
         def branch_of(event) = JSON.parse(event["payload"] || "{}").dig("branch", "value")
+
+        def sha_of(event) = JSON.parse(event["payload"] || "{}").dig("landed", "value")
       end
     end
   end
