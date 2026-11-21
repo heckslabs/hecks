@@ -6,8 +6,9 @@ module Hecks
     module MetaValidator
       module VerdictCache
         # How the verdict files are kept on disk: written under a lock that merges what another
-        # process added, marked as used when read, and pruned by use, never by when they were last
-        # rewritten (a file that is only ever read is not rewritten, and is still in use).
+        # process added (without it where the platform has no flock), marked as used when read, and
+        # pruned by use, never by when they were last rewritten (a file that is only ever read is
+        # not rewritten, and is still in use).
         module Keeping
           # How many times the lock is tried, a tenth of a second apart, before the file is written
           # without it; the rename is atomic, so the cost of skipping the merge is a lost entry.
@@ -47,8 +48,7 @@ module Hecks
             file = path
             FileUtils.mkdir_p(File.dirname(file), mode: 0o700)
             tmp = "#{file}.#{Process.pid}.tmp"
-            File.binwrite(tmp, text)
-            File.chmod(0o600, tmp)
+            File.write(tmp, text, mode: "wb", perm: 0o600)
             File.rename(tmp, file)
           end
 
@@ -82,6 +82,13 @@ module Hecks
               sleep 0.1
             end
             false
+          rescue SystemCallError, NotImplementedError
+            false
+          end
+
+          # Says on stderr that the verdicts were not saved; the cache is optional, nothing raises.
+          def report_unsaved(error)
+            warn "hecks: verdict cache not saved: #{error.class}: #{error.message}"
           end
 
           # The pairs the file holds now that this process does not, or none when it is not a file
