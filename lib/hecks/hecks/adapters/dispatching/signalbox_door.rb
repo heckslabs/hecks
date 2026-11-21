@@ -22,7 +22,8 @@ module Hecks
       # Its runtime is a registry of its own, so each dispatch into it begins its own cascade
       # ({OwnCascade}) whatever reaction the caller is in. A beat is cleared when it published a
       # `Pressure` record; one that was not (a beat from a linked worktree or the train copy)
-      # answers from the posted signal instead ({PostedBeat}).
+      # answers from the posted signal, else from its own current look judged without posting
+      # ({PostedBeat}).
       class SignalboxDoor
         include BreakerDoor
         include ReapDoor

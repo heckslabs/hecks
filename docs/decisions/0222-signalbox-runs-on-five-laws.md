@@ -94,7 +94,10 @@ And with them:
 - **Congestion.** While finished work is refused at landing in an area, no new coder starts there
   (an urgent fix excepted); generation upstream of a congested line is curtailed at the source.
 - **Anti-islanding.** A part acts on shared state only from a current view: the head of main, every
-  local file the main checkout has, and a reading younger than its staleness bound.
+  local file the main checkout has, and a reading younger than its staleness bound. A view refused
+  clearance (a worktree, the train copy) may judge its own current reading for admission, so the
+  signal is dark only when no current reading exists, but it never posts it: `Pressure.Read`
+  carries `posts`, and a reading read with `posts` no settles its band and is not posted.
 - **Black start.** When the meter is dark, only the repair seat is admitted, and it boots whatever the
   local files say, so a broken overlay can always be repaired.
 - **One standing orchestrator seat at most.** A second seat is refused while one is live, busy or

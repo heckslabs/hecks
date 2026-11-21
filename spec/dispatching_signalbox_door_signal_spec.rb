@@ -34,9 +34,19 @@ RSpec.describe Hecks::Adapters::Dispatching::SignalboxDoor do
     expect(wired { held.look }).to include(floor: 3072, gap: 2048, draw: 1536, stale_after: 120)
   end
 
-  it "is dark from a worktree's view when no signal is current" do
+  it "judges the worktree beat's own fresh look when no signal is current" do
     held = door(view: worktree)
+    expect(wired { held.look }).to include(band: "normal", headroom: 8209, age: 0)
+  end
+
+  it "is dark from a worktree's view when no look could be read and no signal is current" do
+    held = door(view: worktree, machine: { capacity_mb: 0 })
     expect(wired { held.look }[:band]).to eq("dark")
+  end
+
+  it "posts nothing from the judged look" do
+    held = door(view: worktree)
+    expect { wired { held.look } }.not_to(change { Hecks::Adapters::ReplayedPressurePosting.posted.size })
   end
 
   it "admits a coder from a worktree's view while the meter reads" do
@@ -51,8 +61,13 @@ RSpec.describe Hecks::Adapters::Dispatching::SignalboxDoor do
     expect(wired { limits.check_cap(work: { value: "tiles" }) }[:output][:value]).to include("is admitted by")
   end
 
-  it "holds every coder while no reading is current" do
+  it "admits a coder from a worktree's view on its own fresh look with the pressure file stale" do
     held = door(view: worktree)
+    expect(wired { admitting(held).reason(item) }).to be_nil
+  end
+
+  it "holds every coder while no reading is current" do
+    held = door(view: worktree, machine: { capacity_mb: 0 })
     expect(wired { admitting(held).reason(item) }).to include("only the repair seat")
   end
 
