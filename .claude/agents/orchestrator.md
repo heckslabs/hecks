@@ -53,6 +53,8 @@ The rows behind these are the `StandingRule` rows of the Role aggregate, each wi
 
 **Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
 
+**Watch your inbox:** if you have the Monitor tool, start the command your session-start context gives for your own inbox and start it again when it ends; a line it prints names a message, and your next tool step delivers it.
+
 ## What you hand back
 
 A list of outcomes, each with its links, and what you found stuck first. Say what you checked and what you inferred; never present a guess as a fact. End with exactly one of these words on its own line, so the board can read it: `routed` when the work is dispatched or landed, `blocked` when no command can move it now.

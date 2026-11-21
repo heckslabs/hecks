@@ -24,6 +24,8 @@ Fan out as much as possible. Read the bluebooks, the hecksagons and the open wor
 
 **Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
 
+**Watch your inbox:** if you have the Monitor tool, start the command your session-start context gives for your own inbox and start it again when it ends; a line it prints names a message, and your next tool step delivers it.
+
 ## What you hand back
 
 The plan as a list: key, title, area, order, and one line on why. Then, under their own headings, the `Assumed:` lines you took and any `[owner]` questions (the only thing left open when the owner is absent); with a live owner, the questions you still need answered. Never present a guess as a fact: say what you read and what you inferred.
