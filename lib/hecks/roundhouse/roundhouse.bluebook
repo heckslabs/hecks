@@ -241,6 +241,14 @@ Hecks.bluebook "Roundhouse" do
       returns Document
     end
 
+    # Not the machine's memory: the compute the sessions spent in tokens, which the board shows beside
+    # the memory they draw. It rides this aggregate's port because it is read the same way, off the
+    # sessions' own records, and no domain is booted to answer it.
+    query "Tokens" do
+      description "Tokens used per session, role, Work item and day (input, output and cache split, with dollars from the declared price table) and tokens saved by prompt cache and by model routing, each line labelled with how it is counted; the Hecks door and work not redone are named as not measured."
+      returns Document
+    end
+
     query "Latest" do
       description "The readings taken, the newest last, which the board and the pressure beat read."
       order_by :reading
