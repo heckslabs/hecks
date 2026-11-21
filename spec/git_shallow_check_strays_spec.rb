@@ -99,4 +99,41 @@ RSpec.describe Hecks::Adapters::GitShallowCheck::Strays do
 
     expect(refusal).to include("lib/other/b.rb (3 lines)")
   end
+
+  it "refuses lines rewritten in another domain's file" do
+    write("lib/other/b.rb" => "1\nX\nY\n")
+    commit
+
+    expect(refusal).to include("lib/other/b.rb (2 lines)")
+  end
+
+  describe "#verdict" do
+    def verdict(area)
+      allow(Hecks::Adapters::StartedWork).to receive(:items).and_return([{ key: "work", area: area }])
+      described_class.new(nil, repo, nil).verdict("work")
+    end
+
+    it "names the area the branch was held to" do
+      expect(verdict([own])).to eq("strays: none outside area (lib/mine)")
+    end
+
+    it "says when no area was declared" do
+      expect(verdict([])).to eq("strays: not judged, no area declared")
+    end
+  end
+
+  describe "a commit built on the moved main that carries the old tree" do
+    before do
+      git("checkout", "-q", "main")
+      write("lib/other/b.rb" => "1\n2\n3\n4\n5\n", "lib/other/new.rb" => "n\n")
+      commit
+      git("checkout", "-q", "work")
+      git("reset", "-q", "--soft", "main")
+      commit
+    end
+
+    it "is refused, naming each file the stale tree removes and its count" do
+      expect(refusal).to include("lib/other/b.rb (2 lines)", "lib/other/new.rb (1 lines)")
+    end
+  end
 end

@@ -60,11 +60,12 @@ module Hecks
       #   landing that holds the checkout's claim
       def shallow_check(**held)
         settle(held)
-        refuse_strays(held)
-        return { report: { value: "shallow check is off" } } unless switch.on?
+        strays = refuse_strays(held)
+        return { report: { value: "shallow check is off; #{strays}" } } unless switch.on?
 
         answer, note = @claim.hold(@checkout) { @slots.call(@checkout, JOB) { checked(held) } }
-        note.empty? ? answer : answer.merge(report: { value: "#{note}; #{answer[:report][:value]}" })
+        said = [note, answer[:report][:value], strays].reject(&:empty?).join("; ")
+        answer.merge(report: { value: said })
       end
 
       # Turns the check on or off for the whole repository.
@@ -82,10 +83,15 @@ module Hecks
       private
 
       # Judged whether the check is on or off: a branch that deletes other work is never landed.
+      #
+      # @return [String] what the judgment found, for the report
       def refuse_strays(held)
         branch = plain(held[:branch]) || current_branch
-        stray = Strays.new(@git, @checkout, @registry).refusal(branch, ref(plain(held[:onto]) || "main"))
+        judge = Strays.new(@git, @checkout, @registry)
+        stray = judge.refusal(branch, ref(plain(held[:onto]) || "main"))
         raise ConsoleCapture::Failure, stray if stray
+
+        judge.verdict(branch)
       end
 
       def checked(held)
