@@ -102,9 +102,7 @@ Hecks.bluebook "LiveDiscovery" do
     end
 
     # The name of a source the owner gave for the prep: a site, a document, an email or a note.
-    value_object "SourceName" do
-      attribute :value, String
-    end
+    value_object "SourceName", String
 
     # One turn as it was heard: who spoke, what was said, and when (epoch seconds). The audio is
     # never kept; only this text and its time are.
