@@ -377,7 +377,7 @@ Hecks.bluebook "Hecks" do
 
     policy "CountWhenCoverageRequested" do
       on      "BehaviorsCoverage.CoverageRequested"
-      ask     :count, with: { run: :run, root: :root }
+      ask     :count, with: { run: :run }
     end
 
     policy "RecordTheCoverage" do
