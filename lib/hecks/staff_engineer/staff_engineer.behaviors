@@ -1,18 +1,62 @@
-Hecks.behaviors "Coach" do
+Hecks.behaviors "StaffEngineer" do
   vision "Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide."
 
-  loads "coach.hecksagon", "coach.bluebook"
+  loads "staff_engineer.hecksagon", "staff_engineer.bluebook"
 
-  test "Observe records what Miette saw and where" do
+  test "Observe records what Miette saw, and where, marked written" do
     tests "Observe", on: "Observation"
-    input observation: { value: "obs-1" }, source: { value: "stall_item" }, saw: { value: "A coder stopped short of landing." }
+    input observation: { value: "obs-1" }, source: { value: "stall_item" }, saw: { value: "A coder stopped short of landing." },
+          came: { value: "seen" }, basis: { value: "written" }
     expect emits: ["Observed"]
   end
 
   test "Observe refuses a source she does not read from" do
     tests "Observe", on: "Observation"
-    input observation: { value: "obs-2" }, source: { value: "hearsay" }, saw: { value: "Someone said so." }
+    input observation: { value: "obs-2" }, source: { value: "hearsay" }, saw: { value: "Someone said so." },
+          came: { value: "seen" }, basis: { value: "written" }
     expect refused: "Source admits"
+  end
+
+  test "Observe records a seen fact marked inferred" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-3" }, source: { value: "landing_log" }, saw: { value: "Landings slow after noon." },
+          came: { value: "seen" }, basis: { value: "inferred" }
+    expect emits: ["Observed"]
+  end
+
+  test "Observe records a told fact marked as the lead's account" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-4" }, source: { value: "operation_follow" }, saw: { value: "The lead says the run stalled." },
+          came: { value: "told" }, basis: { value: "lead_account" }
+    expect emits: ["Observed"]
+  end
+
+  test "Observe records a told fact marked could_not_determine" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-5" }, source: { value: "red_flag" }, saw: { value: "A flag stood; the cause is unclear." },
+          came: { value: "told" }, basis: { value: "could_not_determine" }
+    expect emits: ["Observed"]
+  end
+
+  test "Observe refuses a told fact marked written" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-6" }, source: { value: "stall_item" }, saw: { value: "I was told the run stopped." },
+          came: { value: "told" }, basis: { value: "written" }
+    expect refused: "a told fact is never marked written"
+  end
+
+  test "Observe refuses a mark outside the four" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-7" }, source: { value: "stall_item" }, saw: { value: "A guess." },
+          came: { value: "seen" }, basis: { value: "certain" }
+    expect refused: "Basis admits"
+  end
+
+  test "Observe refuses a way it came but seen or told" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-8" }, source: { value: "stall_item" }, saw: { value: "Rumour." },
+          came: { value: "overheard" }, basis: { value: "inferred" }
+    expect refused: "Came admits"
   end
 
   test "Notice cites the observations a coaching rests on" do
@@ -31,7 +75,7 @@ Hecks.behaviors "Coach" do
 
   test "Advise states the change for a coaching that touches no vow" do
     tests "Advise", on: "Coaching"
-    setup "Coach::Coaching.Notice", coaching: { value: "c-3" }, role: { value: "coder" }, kind: { value: "stumble" },
+    setup "StaffEngineer::Coaching.Notice", coaching: { value: "c-3" }, role: { value: "coder" }, kind: { value: "stumble" },
           pattern: { value: "Stops short of landing." }, evidence: [{ value: "obs-1" }]
     input coaching: "c-3", change: { value: "Add the landing step to its brief." }, touches: { value: "none" }
     expect emits: ["Advised"], status: "advised"
@@ -39,7 +83,7 @@ Hecks.behaviors "Coach" do
 
   test "Advise refuses a change touching a vow, which is the owner's to decide" do
     tests "Advise", on: "Coaching"
-    setup "Coach::Coaching.Notice", coaching: { value: "c-4" }, role: { value: "crew" }, kind: { value: "value" },
+    setup "StaffEngineer::Coaching.Notice", coaching: { value: "c-4" }, role: { value: "crew" }, kind: { value: "value" },
           pattern: { value: "Direct dispatch past the cap." }, evidence: [{ value: "obs-1" }]
     input coaching: "c-4", change: { value: "Change a vow." }, touches: { value: "vow" }
     expect refused: "owner's to decide"
@@ -47,7 +91,7 @@ Hecks.behaviors "Coach" do
 
   test "Refer sends a vow to the owner" do
     tests "Refer", on: "Coaching"
-    setup "Coach::Coaching.Notice", coaching: { value: "c-5" }, role: { value: "crew" }, kind: { value: "value" },
+    setup "StaffEngineer::Coaching.Notice", coaching: { value: "c-5" }, role: { value: "crew" }, kind: { value: "value" },
           pattern: { value: "Direct dispatch past the cap." }, evidence: [{ value: "obs-1" }]
     input coaching: "c-5", touches: { value: "vow" }
     expect emits: ["Referred"], status: "referred"
@@ -55,7 +99,7 @@ Hecks.behaviors "Coach" do
 
   test "Refer refuses what touches no vow" do
     tests "Refer", on: "Coaching"
-    setup "Coach::Coaching.Notice", coaching: { value: "c-6" }, role: { value: "coder" }, kind: { value: "stumble" },
+    setup "StaffEngineer::Coaching.Notice", coaching: { value: "c-6" }, role: { value: "coder" }, kind: { value: "stumble" },
           pattern: { value: "Stops short." }, evidence: [{ value: "obs-1" }]
     input coaching: "c-6", touches: { value: "none" }
     expect refused: "touches a vow"
@@ -63,7 +107,7 @@ Hecks.behaviors "Coach" do
 
   test "Advise carries the declared row she would add" do
     tests "Advise", on: "Coaching"
-    setup "Coach::Coaching.Notice", coaching: { value: "c-7" }, role: { value: "coder" }, kind: { value: "stumble" },
+    setup "StaffEngineer::Coaching.Notice", coaching: { value: "c-7" }, role: { value: "coder" }, kind: { value: "stumble" },
           pattern: { value: "Stops short." }, evidence: [{ value: "obs-1" }]
     input coaching: "c-7", change: { value: "Name the step." }, touches: { value: "none" },
           proposed_row: { value: "member role: coder, rule: land before ending" }
@@ -78,46 +122,46 @@ Hecks.behaviors "Coach" do
 
   test "Receive records the body as it arrived" do
     tests "Receive", on: "Relay"
-    setup "Coach::Relay.Ask", relay: { value: "r-2" }, question: { value: "What did you see?" }
+    setup "StaffEngineer::Relay.Ask", relay: { value: "r-2" }, question: { value: "What did you see?" }
     input relay: "r-2", received: { value: "Three runs stopped before landing." }
     expect emits: ["Received"], status: "received"
   end
 
   test "Forward relays the exact body she sent, labelled as hers" do
     tests "Forward", on: "Relay"
-    setup "Coach::Relay.Ask", relay: { value: "r-5" }, question: { value: "What did you see?" }
-    setup "Coach::Relay.Receive", relay: { value: "r-5" }, received: { value: "Three runs stopped." }
+    setup "StaffEngineer::Relay.Ask", relay: { value: "r-5" }, question: { value: "What did you see?" }
+    setup "StaffEngineer::Relay.Receive", relay: { value: "r-5" }, received: { value: "Three runs stopped." }
     input relay: "r-5", words: { value: "Three runs stopped." }, author: { value: "miette" }
     expect emits: ["Answered"], status: "answered"
   end
 
   test "Forward refuses a body that differs from the one received" do
     tests "Forward", on: "Relay"
-    setup "Coach::Relay.Ask", relay: { value: "r-6" }, question: { value: "What did you see?" }
-    setup "Coach::Relay.Receive", relay: { value: "r-6" }, received: { value: "Three runs stopped." }
+    setup "StaffEngineer::Relay.Ask", relay: { value: "r-6" }, question: { value: "What did you see?" }
+    setup "StaffEngineer::Relay.Receive", relay: { value: "r-6" }, received: { value: "Three runs stopped." }
     input relay: "r-6", words: { value: "Three runs stopped, mostly." }, author: { value: "miette" }
     expect refused: "only the words she said"
   end
 
   test "Forward refuses the orchestrator as author" do
     tests "Forward", on: "Relay"
-    setup "Coach::Relay.Ask", relay: { value: "r-7" }, question: { value: "What did you see?" }
-    setup "Coach::Relay.Receive", relay: { value: "r-7" }, received: { value: "Three runs stopped." }
+    setup "StaffEngineer::Relay.Ask", relay: { value: "r-7" }, question: { value: "What did you see?" }
+    setup "StaffEngineer::Relay.Receive", relay: { value: "r-7" }, received: { value: "Three runs stopped." }
     input relay: "r-7", words: { value: "Three runs stopped." }, author: { value: "orchestrator" }
     expect refused: "Author admits"
   end
 
   test "Forward refuses words under any name but hers" do
     tests "Forward", on: "Relay"
-    setup "Coach::Relay.Ask", relay: { value: "r-3" }, question: { value: "What did you see?" }
-    setup "Coach::Relay.Receive", relay: { value: "r-3" }, received: { value: "She would say so." }
-    input relay: "r-3", words: { value: "She would say so." }, author: { value: "coach" }
+    setup "StaffEngineer::Relay.Ask", relay: { value: "r-3" }, question: { value: "What did you see?" }
+    setup "StaffEngineer::Relay.Receive", relay: { value: "r-3" }, received: { value: "She would say so." }
+    input relay: "r-3", words: { value: "She would say so." }, author: { value: "staff-engineer" }
     expect refused: "Author admits"
   end
 
   test "Decline answers nothing in her place" do
     tests "Decline", on: "Relay"
-    setup "Coach::Relay.Ask", relay: { value: "r-4" }, question: { value: "What did you see?" }
+    setup "StaffEngineer::Relay.Ask", relay: { value: "r-4" }, question: { value: "What did you see?" }
     input relay: "r-4"
     expect emits: ["Declined"], status: "declined"
   end
@@ -159,7 +203,7 @@ Hecks.behaviors "Coach" do
 
   test "Accept opens the meeting after the checkpoint" do
     tests "Accept", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-6" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-6" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
     input one_on_one: "m-6", checkpoint: { value: "done" }
     expect emits: ["Accepted"], status: "accepted"
@@ -167,7 +211,7 @@ Hecks.behaviors "Coach" do
 
   test "Accept is refused until the checkpoint is done" do
     tests "Accept", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-7" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-7" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
     input one_on_one: "m-7", checkpoint: { value: "pending" }
     expect refused: "checkpoint is done"
@@ -175,7 +219,7 @@ Hecks.behaviors "Coach" do
 
   test "Decline records the reason and the run goes back to work" do
     tests "Decline", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-8" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-8" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
     input one_on_one: "m-8", reason: { value: "Mid-review." }
     expect emits: ["InvitationDeclined"], status: "declined"
@@ -183,7 +227,7 @@ Hecks.behaviors "Coach" do
 
   test "Defer holds the invitation until a later time" do
     tests "Defer", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-9" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-9" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
     input one_on_one: "m-9", until: { value: "2026-11-21T10:00" }
     expect emits: ["Deferred"], status: "deferred"
@@ -191,16 +235,16 @@ Hecks.behaviors "Coach" do
 
   test "Reinvite returns a deferred invitation to invited" do
     tests "Reinvite", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-10" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-10" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
-    setup "Coach::OneOnOne.Defer", one_on_one: "m-10", until: { value: "2026-11-21T10:00" }
+    setup "StaffEngineer::OneOnOne.Defer", one_on_one: "m-10", until: { value: "2026-11-21T10:00" }
     input one_on_one: "m-10"
     expect emits: ["Reinvited"], status: "invited"
   end
 
   test "Lapse defers an invitation whose checkpoint ran past its limit" do
     tests "Lapse", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-11" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-11" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
     input one_on_one: "m-11"
     expect emits: ["Lapsed"], status: "deferred"
@@ -235,16 +279,16 @@ Hecks.behaviors "Coach" do
 
   test "Close ends a held meeting and carries the resume note" do
     tests "Close", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-16" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-16" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
-    setup "Coach::OneOnOne.Accept", one_on_one: "m-16", checkpoint: { value: "done" }
+    setup "StaffEngineer::OneOnOne.Accept", one_on_one: "m-16", checkpoint: { value: "done" }
     input one_on_one: "m-16", resume_note: { value: "Back to the landing step." }
     expect emits: ["OneOnOneHeld"], status: "closed"
   end
 
   test "Close is refused for a meeting never accepted" do
     tests "Close", on: "OneOnOne"
-    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-17" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+    setup "StaffEngineer::OneOnOne.Invite", one_on_one: { value: "m-17" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
           run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
     input one_on_one: "m-17", resume_note: { value: "Back to work." }
     expect refused: "Close"

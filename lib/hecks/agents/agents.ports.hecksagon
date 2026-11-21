@@ -39,6 +39,15 @@ Hecks.hecksagon "Agents" do
       answers "RecipientFound"
       refuses "RecipientMissing"
     end
+
+    # Whether the session sending a message is the one registered under the sender it names.
+    asks "Sender", to: Message do
+      attribute :message, MessageKey
+      attribute :sender,  SenderName
+      attribute :recipient, RunKey
+      answers "SenderChecked"
+      refuses "SenderUnchecked"
+    end
   end
 
   # Which paths a submitted branch changed against main, read in its checkout. Bound by

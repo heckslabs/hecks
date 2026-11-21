@@ -1,8 +1,8 @@
-# Coach: Miette, the crew's coach (owner, 2026-11-20). She is her own system, reached by message; the
-# domain keeps what she saw, the coaching drawn from it, and her words relayed unchanged as hers.
-# Modeled on Triage. The coach role that relays is registered in Agents, held by another item.
+# StaffEngineer: Miette, the crew's staff engineer (owner, 2026-11-21). She is her own system, reached
+# by message; the domain keeps what she saw, the coaching drawn from it, and her words relayed
+# unchanged as hers. Modeled on Triage. The staff-engineer role that relays is registered in Agents.
 
-Hecks.bluebook "Coach" do
+Hecks.bluebook "StaffEngineer" do
   vision "Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide."
 
   supporting
@@ -18,6 +18,8 @@ Hecks.bluebook "Coach" do
     attribute :observation, Mark
     attribute :source,      Source
     attribute :saw,         Saw
+    attribute :came,        Came
+    attribute :basis,       Basis
 
     value_object "Mark" do
       attribute :value, String, matches: :present
@@ -32,6 +34,18 @@ Hecks.bluebook "Coach" do
       attribute :value, String, matches: :not_empty
     end
 
+    # Whether she saw it herself or was told it.
+    value_object "Came" do
+      attribute :value, String, one_of: %w[seen told]
+    end
+
+    # How far the fact stands: `written` is read in a record, `lead_account` is what the lead said,
+    # `inferred` is drawn from what she read, `could_not_determine` is left open. A told fact is
+    # never `written`.
+    value_object "Basis" do
+      attribute :value, String, one_of: %w[written lead_account inferred could_not_determine]
+    end
+
     command "Observe" do
       role "Operator"
       goal "Record what Miette saw, and where she saw it"
@@ -39,6 +53,10 @@ Hecks.bluebook "Coach" do
       attribute :observation, Mark, sets: true
       attribute :source,      Source, sets: true
       attribute :saw,         Saw, sets: true
+      attribute :came,        Came, sets: true
+      attribute :basis,       Basis, sets: true
+
+      given("a told fact is never marked written") { came.value == "seen" || basis.value != "written" }
 
       emits Observed
     end
@@ -134,7 +152,7 @@ Hecks.bluebook "Coach" do
     end
   end
 
-  # A question put to Miette through the coach role and her answer. The words are hers, stored as
+  # A question put to Miette through the staff-engineer role and her answer. The words are hers, stored as
   # she said them and labelled with her name; when she has not been reached nothing is said for her.
   aggregate "Relay" do
     description "A question to Miette, and her words forwarded unchanged and labelled as hers, or the fact that she was not reached."
@@ -172,7 +190,7 @@ Hecks.bluebook "Coach" do
 
     command "Ask" do
       role "Operator"
-      goal "Put a question to Miette through the coach role"
+      goal "Put a question to Miette through the staff-engineer role"
 
       attribute :relay,    Ref, sets: true
       attribute :question, Words, sets: true
@@ -216,10 +234,10 @@ Hecks.bluebook "Coach" do
     end
   end
 
-  # The run may decline and the coach gives no orders. `Invite` takes the guards (red flag, the
+  # The run may decline and the staff engineer gives no orders. `Invite` takes the guards (red flag, the
   # run's work, the day's meetings) as inputs the caller reads, so they hold as far as it reports.
   aggregate "OneOnOne" do
-    description "One meeting between the coach and one live run: invited, then accepted, declined or deferred, held, closed."
+    description "One meeting between the staff engineer and one live run: invited, then accepted, declined or deferred, held, closed."
     created_by "OneOnOne.invite!"
 
     identified_by :one_on_one
@@ -299,7 +317,7 @@ Hecks.bluebook "Coach" do
       given("no invitation while a red flag stands") { red_flag.value == "clear" }
       given("no invitation to a run fixing a red item or in a landing") { run_state.value == "free" }
       given("at most one meeting open at a time") { meetings_open.value == "none" }
-      given("a role meets the coach once a day") { role_met_today.value == "no" }
+      given("a role meets the staff engineer once a day") { role_met_today.value == "no" }
 
       emits Invited
     end
@@ -413,7 +431,7 @@ Hecks.bluebook "Coach" do
     end
   end
 
-  # An ask a run makes in a meeting. It is recorded for the lead and changes nothing: the coach
+  # An ask a run makes in a meeting. It is recorded for the lead and changes nothing: the staff engineer
   # gives no orders and a proposal moves no run.
   aggregate "Proposal" do
     description "An ask a run made in a one-on-one, kept as a proposal for the lead."

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require "hecks/agents/adapters/hand_run_hold"
 require_relative "plain_sweep"
 require_relative "reap_report"
 require_relative "../claude_jobs"
@@ -43,8 +44,11 @@ module Hecks
         private
 
         def sweeper
-          PlainSweep.new(window: window, now: clock, transcript: @transcript, remove: method(:refusal_of))
+          PlainSweep.new(window: window, now: clock, transcript: @transcript, remove: method(:refusal_of),
+                         hold: hold)
         end
+
+        def hold = @tuning[:hold] || HandRunHold.new(registry: @registry)
 
         def window
           KeepWindow.new(owner_hours: keep_hours, helper_minutes: helper_minutes, jobs: ClaudeJobs.from(@tuning),

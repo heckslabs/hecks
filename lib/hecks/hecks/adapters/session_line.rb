@@ -5,12 +5,14 @@ require_relative "architect_verdict"
 require_relative "session_hooks"
 require_relative "credential_scrub"
 require_relative "mcp_selection"
+require_relative "run_role"
 
 module Hecks
   module Adapters
     # The command line that starts one background session: the `claude` command, the agent it runs
-    # as, and the brief after a `--` so it is never taken for a flag. An argument list, never a
-    # string for a shell. Its settings disable each project MCP server the role file's tools do not
+    # as (the run's {RunRole}, so a fill-started coder loads `coder.md` and its model), and the
+    # brief after a `--` so it is never taken for a flag. An argument list, never a string for a
+    # shell. Its settings disable each project MCP server the role file's tools do not
     # name ({McpSelection}), so a coder starts none; `--strict-mcp-config` is not used, since it
     # would drop the role's own frontmatter servers. A role's `hecks-mcp` server narrows itself from
     # the `CLAUDE_CODE_AGENT` variable Claude Code gives it (see `Driving::Mcp::Roles`); a resume
@@ -35,7 +37,7 @@ module Hecks
       # @param environment [Hash{String => String}] what the session's own commands should see
       # @return [Array<String>] the argument list
       def arguments(held, environment = {})
-        agent = plain(held[:agent])
+        agent = RunRole.of(held)
         [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment, held, agent), "--bg",
          "--", briefed(plain(held[:brief]), agent)]
       end
