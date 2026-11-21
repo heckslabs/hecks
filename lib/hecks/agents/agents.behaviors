@@ -323,7 +323,7 @@ Hecks.behaviors "Agents" do
   test "End refuses a hand run that is not registered" do
     tests "End", on: "HandRun"
     input  run: { value: "owner-orchestrator" }
-    expect refused: "End refused — no HandRun with id owner-orchestrator"
+    expect refused: "no HandRun with run.value \"owner-orchestrator\""
   end
 
   test "End ends a registered hand run, releasing its session and checkout" do
