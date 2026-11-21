@@ -25,7 +25,7 @@ RSpec.describe "StallWatch beat-uncleared" do
   include BeatUnclearedLooks
 
   STAYED = [["BeatRecorded", "launchd-1", 9]].freeze
-  CASES = {
+  UNCLEARED_CASES = {
     "a beat that stayed looked"        => [STAYED, ["stall-beat-uncleared-launchd-1"]],
     "a beat that looked 2 minutes ago" => [[["BeatRecorded", "launchd-1", 2]], []],
     "a beat that was published"        => [STAYED + [["BeatPublished", "launchd-1", 8]], []],
@@ -33,7 +33,7 @@ RSpec.describe "StallWatch beat-uncleared" do
     "a gate step's looked beat"        => [[["BeatRecorded", "abc123-quick", 9]], []]
   }.freeze
 
-  CASES.each do |name, (rows, filed)|
+  UNCLEARED_CASES.each do |name, (rows, filed)|
     it "files #{filed.empty? ? "nothing" : "one stall"} for #{name}" do
       write_beats(rows)
       detect("look-1")
