@@ -551,6 +551,9 @@ Hecks.bluebook "Tickets" do
       # No run was found still recorded started with its session gone: a retire closes exactly such a run.
       member measure: "no-ghost-run-is-retired", aggregate: "Hecks::AgentRun", events: "AgentRunRetired",
              minutes: 240, at_most: 0
+      # The board's glance was read four times in the hour: the orchestrator's turns steer by it.
+      member measure: "the-board-glance-is-read", aggregate: "PipelineBoard::PipelineBoard", events: "GlanceRead",
+             minutes: 60, at_least: 4
     end
 
     lifecycle :status, default: "open" do
