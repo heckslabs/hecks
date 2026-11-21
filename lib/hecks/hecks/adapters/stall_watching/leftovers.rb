@@ -5,8 +5,8 @@ require_relative "computed_row"
 module Hecks
   module Adapters
     class StallWatching
-      # The `leftovers` read: what a clean-up has not removed, one row per `ComputedSignal` row whose
-      # count (named by its `pattern`) is over its `limit`. It has no age, so it began now.
+      # The `leftovers` read: what a clean-up has not removed, one row per `ComputedSignal` row
+      # whose count (named by its `pattern`) is over its `limit`. It has no age, so it began now.
       class Leftovers
         # @param now [Integer] the clock's answer, in Unix epoch seconds
         # @param counts [#call] answers a leftover's count by its name ({LeftoverReads})
