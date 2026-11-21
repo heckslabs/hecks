@@ -14,26 +14,22 @@ module Hecks
       # new coders, is the bluebook's.
       #
       # Two breakers are read at a fill: the helper share (live helpers against the live coders
-      # times the share, from Roundhouse's meter) and the machine fuse (the boot minutes of the
-      # last day against `cpu_budget`). The session fuse is Roundhouse's, blown on its meter;
-      # shedding has Delegate's own `Shed`; the model fuse is unrated until ADR 0220's bound is set.
+      # times the share, from Roundhouse's meter) and the machine fuse (the boots' share of the
+      # CPU over the last minutes, read only while the load is over its high mark). The session
+      # fuse is Roundhouse's, blown on its meter; shedding has Delegate's own `Shed`; the model
+      # fuse is unrated until ADR 0220's bound is set.
       class Protecting
         # The helper share, in percent of the live coders, when the Signalbox world declares none.
         SHARE_PERCENT = 100
-        # Minutes in an hour.
-        MINUTES = 60
         # The units each breaker's amounts are said in.
-        UNITS = { "helpers" => "helpers", "machine" => "boot minutes" }.freeze
+        UNITS = { "helpers" => "helpers", "machine" => "percent of CPU in boots" }.freeze
 
-        # @param budget [Float, nil] the hours of boots a day the Tickets world allows
-        # @param boots [BootBudget] what the day's boots cost
-        # @param legacy [#call] the boot fuse's own hold, kept when the boots cannot be counted
+        # @param share [#call] answers the machine fuse's `load:` and `rating:`, nil when the load
+        #   is under its high mark
         # @param sessions [#call] the live sessions, each with its `role`; Roundhouse's meter's
         # @param door [SignalboxDoor] the handle on Signalbox
-        def initialize(budget:, boots:, legacy:, sessions:, door: SignalboxDoor.shared)
-          @budget = budget
-          @boots = boots
-          @legacy = legacy
+        def initialize(share:, sessions:, door: SignalboxDoor.shared)
+          @share = share
           @sessions = sessions
           @door = door
         end
@@ -46,17 +42,14 @@ module Hecks
           @acting = tripped.first
         end
 
-        # @return [String, nil] why no coder starts: the acting breaker holds new starts, or the
-        #   boot record was cut short and the boot fuse's own hold stands; nil otherwise
+        # @return [String, nil] why no coder starts: the acting breaker holds new starts; nil
+        #   otherwise
         def stop
-          return @legacy.call if boot_reading&.capped
-
           acting && acting[:holds] == "yes" ? "skipped: breaker #{acting[:level]} tripped: #{amounts(acting)}" : nil
         end
 
         # @return [String] the clause a fill's header says of protection
         def clause
-          return "protection: boot record cut short, the boot fuse holds as before" if boot_reading&.capped
           return "protection: no breaker trips (#{readings_line})" unless acting
 
           "protection: #{acting[:level]} acts first (#{amounts(acting)}); the larger breakers wait"
@@ -90,17 +83,7 @@ module Hecks
 
         def ended?(session) = ClaudeSessionListing::ENDED.include?(session[:state].to_s)
 
-        def machine_reading
-          return unless @budget && boot_reading && !boot_reading.capped
-
-          { load: (boot_reading.hours * MINUTES).round, rating: (@budget * MINUTES).round }
-        end
-
-        def boot_reading
-          return unless @budget
-
-          @boot_reading ||= @boots.today
-        end
+        def machine_reading = @share.call
 
         def amounts(reading) = "#{reading[:load]} of #{reading[:rating]} #{UNITS[reading[:level]]}".strip
 

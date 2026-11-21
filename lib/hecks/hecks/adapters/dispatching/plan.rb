@@ -61,10 +61,10 @@ module Hecks
         #   `urgent_reserve:` (red), `cpus:` (the load an expedited item may start under), `paused:`
         #   and `budget:` (String: why every work item waits), `rethinks:` (callable: why an item
         #   waits for a person), `waits:` (callable: the unlanded item it waits on), `admit:`
-        #   ({PlanAdmission}), `exempt:` (callable: whether an item starts despite it), `stall:`
-        #   (callable: whether a key is a filed stall's), `root:` (the repository's top level) and
-        #   `effective:` (callable: its area now, by {EffectiveArea}); all optional but `cap:`,
-        #   `load:`, `max_load:` and `frozen:`
+        #   ({PlanAdmission}), `exempt:` (callable: whether an item starts despite it), `storm:`
+        #   (callable: why an item's run is a boot storm), `stall:` (callable: whether a key is a
+        #   filed stall's), `root:` (the top level) and `effective:` (callable: its area now, by
+        #   {EffectiveArea}); all optional but `cap:`, `load:`, `max_load:` and `frozen:`
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
@@ -105,7 +105,7 @@ module Hecks
         end
 
         # What holds an item whatever room there is; such an item does not count against the cap.
-        def held_reason(item) = rethink_reason(item) || dependency_reason(item) || parked_reason(item)
+        def held_reason(item) = rethink_reason(item) || dependency_reason(item) || parked_reason(item) || storm_reason(item)
 
         # An item waits until each work item it names has landed, a red one included: it is never
         # chosen, so it is never started and yielded for a dependency.
@@ -114,10 +114,11 @@ module Hecks
         # A work item the architect said to rethink too often waits for a person.
         def rethink_reason(item) = @limits[:rethinks]&.call(item.key)
 
+        # An item whose own run is a boot storm waits; every other item starts.
+        def storm_reason(item) = @limits[:storm]&.call(item.key)
+
         # A yielded item waits out its backoff or its blocker, and does not count against the cap.
-        def parked_reason(item)
-          Parking.reason(item, runs: @limits[:runs] || -> { {} }, now: @limits[:now] || Time.now.utc)
-        end
+        def parked_reason(item) = Parking.reason(item, runs: @limits[:runs] || -> { {} }, now: @limits[:now] || Time.now.utc)
 
         def stop_reason(item)
           return expedite_stop(item) if WorkItems.expedited?(item)
