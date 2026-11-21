@@ -786,6 +786,12 @@ Hecks.bluebook "Tickets" do
     # The work items it waits on: Dispatch starts it only once each has landed.
     attribute :waits_on, list_of(WorkKey), optional: true
     attribute :budget_minutes, Minutes, optional: true
+    # The pomodoros (25-minute rounds) a task is sized at, and the rounds spent on it so far. Both are
+    # optional: tasking in pomodoros is a choice. What is spent past the size is overage, read from the two.
+    attribute :pomodoros,       Pomodoros, optional: true
+    attribute :pomodoros_spent, Pomodoros, optional: true
+    # Work planned outside the day's plan: it is sized like any other item, and finishing it is overage.
+    attribute :unplanned,       Unplanned, optional: true
     attribute :category, Category, optional: true
     # The batch work item a batched item waits in: a sweep batch, or the lead of a group one coder
     # builds on the lead's branch. Empty once it is returned.
@@ -899,6 +905,18 @@ Hecks.bluebook "Tickets" do
       member hours: 24, upcoming: 3
     end
 
+    # How many pomodoros, whole rounds of work: a size or a count spent.
+    value_object "Pomodoros" do
+      attribute :value, Integer
+
+      invariant("a pomodoro count is not negative") { !value.negative? }
+    end
+
+    # Whether a work item came in outside the plan; its finishing counts as overage.
+    value_object "Unplanned" do
+      attribute :value, Boolean
+    end
+
     # How many times a work item has been sent back to the plan; its backoff grows with it.
     value_object "YieldCount" do
       attribute :value, Integer
@@ -955,6 +973,8 @@ Hecks.bluebook "Tickets" do
       attribute :step,   Step, optional: true, sets: true
       attribute :area,   list_of(Word), optional: true, sets: true, default: []
       attribute :waits_on, list_of(WorkKey), optional: true, sets: true, default: []
+      attribute :pomodoros, Pomodoros, optional: true, sets: true
+      attribute :unplanned, Unplanned, optional: true, sets: true
       attribute :interview, InterviewCitation, optional: true, sets: true
       attribute :point,     PointCitation, optional: true, sets: true
       reference_to Adr, as: :decision, optional: true
@@ -1194,6 +1214,7 @@ Hecks.bluebook "Tickets" do
       attribute :yield_kind, WorkText, optional: true, sets: true
       attribute :retry_at, WorkText, optional: true, sets: true
       attribute :yield_count, YieldCount, optional: true, sets: true
+      attribute :pomodoros_spent, Pomodoros, optional: true, sets: true
 
       sets :claimed_by, to: ""
       sets :claimed_at, to: ""
@@ -1222,9 +1243,10 @@ Hecks.bluebook "Tickets" do
 
     # A claim gone stale returns its work item to the plan, so the next session can claim it.
     command "Release" do
-      goal "Return a started work item to planned, releasing its claim"
+      goal "Return a started work item to planned, releasing its claim and recording the pomodoros spent"
 
       reference_to Work
+      attribute :pomodoros_spent, Pomodoros, optional: true, sets: true
 
       sets :claimed_by, to: ""
       sets :claimed_at, to: ""
