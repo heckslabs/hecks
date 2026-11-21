@@ -13,21 +13,25 @@ RSpec.describe "the message inbox hook" do
   let(:dir) { Dir.mktmpdir("message_inbox") }
   let(:dev) { File.join(dir, "dev") }
 
-  RUNS = <<~SQL
-    create table agent_run (run TEXT, session TEXT, status TEXT);
-    insert into agent_run values ('{"value":"run-a"}', '{"value":"aedefaa0"}', 'started');
-  SQL
-  MESSAGES = <<~SQL
-    create table message (message TEXT, recipient TEXT, sender TEXT, kind TEXT, body TEXT, in_reply_to TEXT, status TEXT);
-    create table hand_run (run TEXT, session TEXT);
-  SQL
+  let(:runs_sql) do
+    <<~SQL
+      create table agent_run (run TEXT, session TEXT, status TEXT);
+      insert into agent_run values ('{"value":"run-a"}', '{"value":"aedefaa0"}', 'started');
+    SQL
+  end
+  let(:messages_sql) do
+    <<~SQL
+      create table message (message TEXT, recipient TEXT, sender TEXT, kind TEXT, body TEXT, in_reply_to TEXT, status TEXT);
+      create table hand_run (run TEXT, session TEXT);
+    SQL
+  end
 
   before do
     FileUtils.mkdir_p([File.join(dir, ".claude/hooks"), File.join(dir, "exe"), dev])
     FileUtils.cp(File.join(root, ".claude/hooks/message_inbox.sh"), File.join(dir, ".claude/hooks"))
     stand_in_launcher
-    sql(File.join(dev, "agent_run.db"), RUNS)
-    sql(File.join(dev, "agents.db"), MESSAGES)
+    sql(File.join(dev, "agent_run.db"), runs_sql)
+    sql(File.join(dev, "agents.db"), messages_sql)
   end
 
   after { FileUtils.remove_entry(dir) }
