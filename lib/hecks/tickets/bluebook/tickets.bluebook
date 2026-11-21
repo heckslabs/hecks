@@ -1065,7 +1065,7 @@ Hecks.bluebook "Tickets" do
 
     command "Plan" do
       role "Maintainer"
-      goal "Enter a work item into a plan, optionally under the decision it carries out and citing the interview and Point it came from"
+      goal "Enter a work item into a plan, optionally under the decision it carries out and citing the interview and Point it came from. An area is a directory or a file; a bare directory such as spec blocks every other edit under it, so name the files the item edits, or narrow with Rescope once planned"
 
       attribute :work,   WorkKey, sets: true
       attribute :title,  WorkTitle, sets: true
@@ -1133,7 +1133,7 @@ Hecks.bluebook "Tickets" do
 
     # An open work item takes a new area: the whole list is replaced.
     command "Rescope" do
-      goal "Replace the area an open work item claims with the given list"
+      goal "Replace the area an open work item claims with the given list: narrow a directory area to the files the item edits, so another item may edit the rest of the directory"
 
       reference_to Work
       attribute :area, list_of(Word), sets: true
