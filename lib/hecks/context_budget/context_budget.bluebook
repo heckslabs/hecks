@@ -72,8 +72,12 @@ Hecks.bluebook "ContextBudget" do
       attribute :value, String, matches: :present
     end
 
+    # The fixed handoff template; a field with nothing to say holds "none".
     value_object "Note" do
-      attribute :value, String, matches: :not_empty
+      attribute :open_runs,         String, matches: :not_empty
+      attribute :decisions_waiting, String, matches: :not_empty
+      attribute :files_touched,     String, matches: :not_empty
+      attribute :next_step,         String, matches: :not_empty
     end
 
     lifecycle :status, default: "within" do
