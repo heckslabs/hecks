@@ -31,7 +31,7 @@ module Hecks
         def build(state, extras = {})
           at = state[:generated_at].to_s
           { generated_at: at, stale_seconds: 0, events: events(listed(state[:events])) }
-            .merge(numbers(state, at), people(state, extras), shipping(extras))
+            .merge(numbers(state, at), people(state, extras), shipping(extras), extras.fetch(:reads, {}))
         end
 
         # @return [Hash] the stages, the readings and the roles: every number, one key each
