@@ -81,6 +81,13 @@ RSpec.describe "the architect's change review" do
     expect(verdict_for(sha).values_at("work", "role")).to eq(%w[w-change architect])
   end
 
+  it "holds a change whose review checked nothing, never clearing it", :aggregate_failures do
+    sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
+    architect_closes(sha, "Verdict: sound. Nothing was checked: the diff could not be read.")
+    expect(status(sha)).to eq("held")
+    expect(verdict_for(sha)["answer"]).to include("counts as no review")
+  end
+
   it "sends the architect's findings to the coder as written" do
     sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
     architect_closes(sha, "Verdict: rethink. Split the aggregate.")

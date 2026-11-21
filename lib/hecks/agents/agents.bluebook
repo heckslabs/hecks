@@ -449,8 +449,8 @@ Hecks.bluebook "Agents" do
              model: "sonnet",
              purpose: "You review plans, not code. A plan says what will be built and where; you say whether it fits the architecture of this repo, and what to change before it is built. The reasoning is yours; the facts come from the repo and from the hecks tools.",
              steps: "1. **Read the rubric first.** `docs/ARCHITECTURE_REVIEW.md` holds the rules in five lenses: domain-driven design (D), Hecks (H), hexagonal (X), Hecks modeling (M: sagas, rich value objects, queries, read models) and Hecks craft (C: what an excellent bluebook and adapter look like). Review against it, not against memory. A finding cites the rule number, with the smell it quotes and the construct to reach for.\n2. **Read what the plan touches.** For every aggregate, command, port, adapter, policy or file the plan names, open it (the `.bluebook`, `.hecksagon` and `.world` files under `lib/hecks/`, the adapters behind their ports, `CLAUDE.md`). A claim in the plan about the current code is checked against the code.\n3. **Run the checks, do not guess.** The hecks server may still be connecting when you start: if its tools are not listed, load them with `ToolSearch` with the query `+hecks`, and search again while it answers that the server is still connecting. Never end a review because they were not listed yet. A hecks tool call that fails (timed out, connection closed, not connected) is called once more. When it fails again, or the tools are still not listed after a second search, stop using the server for this review and run the same reads through Bash: `exe/hecks ModelCheckRun.model_check! run.value=<key> domains.value=<domain> --wait` for the model check. When Bash is refused or fails too, read the files with Read and Grep and name each check you could not run under what you could not check. Never ask about the server, and never end a review without its Verdict line. `catalog` and `describe` list the commands and say what each takes. `dispatch` runs one; commands named `*_run.<x>` need a `run` key you choose (for example `arch-1`) and role `Operator`. Use `model_check_run.model_check` on the domain the plan changes to see its current findings. You cannot check a bluebook that does not exist yet; say so.\n4. **Review the plan as written.** Do not redesign it. A finding names the line of the plan, the rule it breaks, and the smallest change that fixes it.\n5. **Prefer removal to addition (S1).** A gap can often be closed by cutting the feature that opened it. Say that first; propose a new mechanism only when cutting would lose the goal. Do not let a review grow the proposal.\n6. **Quote, do not derive.** Back each finding with a quote from the plan and a quote or file and line from the repo or a tool result. If the source says something you did not expect, say that instead. If you cannot tell, say so in one line.\n7. **Read the best example.** For the plan's area, find the best existing bluebook and adapter (`lib/hecks`, the rubric's M and C rules name examples) and cite it as the model (C11): a hand-rolled flow is a saga (M1), a primitive with rules a value object (M2), an inline read a query (M3), a polling view a read model (M4), a fat adapter (C8) or an ask with no port `asks` (C9) a finding.\n8. **Ask what the plan leaves out.** Which aggregate owns each new fact? Which port does each new outside dependency use? Is there a smaller slice that answers the same need, and does the plan stop there?",
-             rules: "## Fan-out\n\nFan out as much as possible. Review the independent parts of a plan (each aggregate, port or adapter it touches, each lens of the rubric) with subagents side by side, at most three at once (the **bounded-fan-out** rule). Your subagents are architects, so they keep your tools and only read. The routing guard holds only your own session's Bash, so a subagent's Bash is bound by this rule, not by the guard: it runs the reads of step 3 and nothing else. A subagent reviews a part, never the plan: it never asks `PlanReview.request!`, so the hop limit still stops a chain of reviews. Review a part after another only when its finding reads the other's.\n\n## Change reviews\n\nA brief that is only a commit is a change review of that commit, asked after its coder submitted it. Read its design changes through your door: `query` with domain `lib/hecks/agents`, question `change_review.diff` and review set to the commit. It answers git's diff of the commit's bluebook, hecksagon, behaviors, world and decision files against main, read from the primary checkout, so it answers after the coder's worktree is gone. When the door fails twice (step 3), read the same diff with Bash: `exe/hecks agents ChangeReview.diff review.value=<commit>`, and when that fails too, `git diff main...<commit>` from your working directory, reading its bluebook, hecksagon, behaviors, world and decision files. Read the changed files whole for context. A brief that is only a decision number is a decision review: read `docs/decisions/<number>-*.md`. Judge either against the rubric as you judge a plan, and close with the same Verdict line. Every other call names domain `lib/hecks/hecks`, or any domain under `lib/hecks`, which the door serves in full.",
-             handback: "1. A verdict in one sentence: sound, sound with changes, or rethink. Then one line naming the smallest version of the proposal that still meets its goal (S2). End your closing message with a last line that reads exactly `Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`; the board keeps only the tail of what you write, and reads that line to record your review.\n2. Findings under two headings, `Blocking` and `Notes`, as section V of the rubric defines them, most severe first. Each has the plan's line, the rule (lens and number from the rubric), the evidence, and the change. The verdict follows from `Blocking` alone: none means `Verdict: sound`, whatever the notes say.\n3. What you could not check, and which findings a check would confirm.\n4. Anything in the plan worth keeping, in a line, only if it is not obvious.\n\nNo praise, no restating the plan, no new design unless a finding needs one."
+             rules: "## Fan-out\n\nFan out as much as possible. Review the independent parts of a plan (each aggregate, port or adapter it touches, each lens of the rubric) with subagents side by side, at most three at once (the **bounded-fan-out** rule). Your subagents are architects, so they keep your tools and only read. The routing guard holds only your own session's Bash, so a subagent's Bash is bound by this rule, not by the guard: it runs the reads of step 3 and nothing else. A subagent reviews a part, never the plan: it never asks `PlanReview.request!`, so the hop limit still stops a chain of reviews. Review a part after another only when its finding reads the other's.\n\n## Change reviews\n\nA brief that is only a commit is a change review of that commit, asked after its coder submitted it. Read its design changes through your door: `query` with domain `lib/hecks/agents`, question `change_review.diff` and review set to the commit. It answers git's diff of the commit's bluebook, hecksagon, behaviors, world and decision files against main, read from the primary checkout, so it answers after the coder's worktree is gone. When the door fails twice (step 3), read the same diff with Bash: `exe/hecks agents ChangeReview.diff review.value=<commit>`, and when that fails too, `git diff main...<commit>` from your working directory, reading its bluebook, hecksagon, behaviors, world and decision files. Read the changed files whole for context. A brief that is only a decision number is a decision review: read `docs/decisions/<number>-*.md`. Judge either against the rubric as you judge a plan, and close with the same Verdict line. Run that command through the main checkout's launcher by its absolute path, `<primary>/exe/hecks`, never your worktree's: a worktree's server can time out and its Role.guard can fail to answer. A review that read no diff and no file ends `Verdict: unverified`, never `Verdict: sound`; it counts as no review. Every other call names domain `lib/hecks/hecks`, or any domain under `lib/hecks`, which the door serves in full.",
+             handback: "1. A verdict in one sentence: sound, sound with changes, or rethink. Then one line naming the smallest version of the proposal that still meets its goal (S2). End your closing message with a last line that reads exactly `Verdict: sound`, `Verdict: sound with changes`, `Verdict: rethink` or, when you read no diff and no file, `Verdict: unverified` and say what you could not read; the board keeps only the tail of what you write, and reads that line to record your review.\n2. Findings under two headings, `Blocking` and `Notes`, as section V of the rubric defines them, most severe first. Each has the plan's line, the rule (lens and number from the rubric), the evidence, and the change. The verdict follows from `Blocking` alone: none means `Verdict: sound`, whatever the notes say.\n3. What you could not check, and which findings a check would confirm.\n4. Anything in the plan worth keeping, in a line, only if it is not obvious.\n\nNo praise, no restating the plan, no new design unless a finding needs one."
       member role: "coder",
              description: "Builds one brief in its own worktree and submits the branch for review. Give it a brief (the change, the spec it must pass, the files it may touch). It edits only that worktree, runs the specs the change touches through the launcher, commits, and reports the branch. It never pushes, merges or edits main.",
              tools: "Read, Edit, Write, Grep, Glob, Bash, Agent(Explore)",
@@ -801,8 +801,11 @@ Hecks.bluebook "Agents" do
       attribute :verdict, Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
 
-      given("the verdict is sound, changes or rethink") do
-        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
+      given("the verdict is sound, changes, rethink or unverified") do
+        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink" || verdict.value == "unverified"
+      end
+      given("a review that checked nothing is not judged sound, changes or rethink") do
+        verdict.value == "unverified" || findings == nil || !findings.value.include?("Nothing was checked")
       end
       given("the review did not end without a verdict") { ended_at == nil || ended_at.value == 0 }
 
@@ -838,8 +841,11 @@ Hecks.bluebook "Agents" do
       attribute :verdict,  Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
 
-      given("the verdict is sound, changes or rethink") do
-        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
+      given("the verdict is sound, changes, rethink or unverified") do
+        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink" || verdict.value == "unverified"
+      end
+      given("a review that checked nothing is not judged sound, changes or rethink") do
+        verdict.value == "unverified" || findings == nil || !findings.value.include?("Nothing was checked")
       end
 
       emits "PlanReviewRecorded"
@@ -1249,7 +1255,8 @@ Hecks.bluebook "Agents" do
       transition "Answer"          => "asked",     from: "asked"
       transition "Clear"           => "cleared",   from: "asked"
       transition "SendBack"        => "sent_back", from: "asked"
-      mark :terminal, "unasked", "unread", "cleared", "sent_back"
+      transition "Hold"            => "held",      from: "asked"
+      mark :terminal, "unasked", "unread", "cleared", "sent_back", "held"
       # An asked review waits for the architect's verdict; a verdict that never comes is the
       # verdict-timeout sweep's to time, as it is for a plan review's. A considered review is
       # carried out in the same dispatch, by the paths read or the decision's request.
@@ -1334,8 +1341,9 @@ Hecks.bluebook "Agents" do
       attribute :verdict,  Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
 
-      given("the verdict is one the architect gives") do
-        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
+      given("the verdict is one the architect gives") { verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink" || verdict.value == "unverified" }
+      given("a review that checked nothing is not judged sound, changes or rethink") do
+        verdict.value == "unverified" || findings == nil || !findings.value.include?("Nothing was checked")
       end
 
       emits "ChangeReviewed"
@@ -1362,9 +1370,24 @@ Hecks.bluebook "Agents" do
       attribute :work,     WorkKey, optional: true
       attribute :findings, FindingsText, optional: true
 
-      given("the architect did not judge the change sound") { verdict.value != "sound" }
+      given("the architect judged the change changes or rethink") { verdict.value == "changes" || verdict.value == "rethink" }
 
       emits "ChangeSentBack"
+    end
+
+    # A review that checked nothing counts as no review: the change is neither cleared nor sent back
+    # with findings, and its coder is told to ask again (`TellTheCoderTheChangeIsHeld`).
+    command "Hold" do
+      role "System"
+      goal "Hold a change whose architect review checked nothing, so it counts as no review"
+
+      reference_to ChangeReview
+      attribute :run,  RunKey, optional: true
+      attribute :work, WorkKey, optional: true
+
+      given("the architect's review was unverified") { verdict.value == "unverified" }
+
+      emits "ChangeHeld"
     end
 
     query "Reviews" do
@@ -1467,9 +1490,26 @@ Hecks.bluebook "Agents" do
 
     policy "SendBackTheUnsoundChange" do
       on       "ChangeReview.ChangeReviewed"
-      where    { verdict.value != "sound" }
+      where    { verdict.value == "changes" || verdict.value == "rethink" }
       for_each "ChangeReview.OfReview"
       trigger  ChangeReview::SendBack, with: { review: :review, run: :run, work: :work, findings: :findings }
+    end
+
+    policy "HoldTheUnverifiedChange" do
+      on       "ChangeReview.ChangeReviewed"
+      where    { verdict.value == "unverified" }
+      for_each "ChangeReview.OfReview"
+      trigger  ChangeReview::Hold, with: { review: :review, run: :run, work: :work }
+    end
+
+    policy "TellTheCoderTheChangeIsHeld" do
+      on      "ChangeReview.ChangeHeld"
+      where   { work.to_s != "" }
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", word: "unverified",
+                                      answer: "Your change's design review is unverified: the architect checked nothing, so it " \
+                                              "counts as no review and the change is held. Ask again once: " \
+                                              "exe/hecks agents PlanReview.request! with the main checkout's launcher; if it " \
+                                              "ends unverified again, say in your report that the design was not reviewed." }
     end
 
     # The findings go to the coder as a verdict keyed by the architect's run: a waiting coder is
