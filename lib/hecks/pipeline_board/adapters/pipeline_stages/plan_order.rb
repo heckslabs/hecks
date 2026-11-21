@@ -29,8 +29,12 @@ module Hecks
         end
 
         # @param members [Array<Hash>] rows carrying a `lane`
-        # @return [Array<Hash>] the rows by lane, then by the step the plan gives them
-        def items(members) = members.sort_by { |row| [LANES.index(row[:lane]), row[:step].to_i, row[:slug].to_s] }
+        # @return [Array<Hash>] the rows by lane, then by the step the plan gives them, a row with
+        #   no step after those that have one
+        def items(members) = members.sort_by { |row| [LANES.index(row[:lane]), step_of(row), row[:slug].to_s] }
+
+        # @return [Numeric] the row's step, infinity when none was given
+        def step_of(row) = row[:step].to_s.empty? ? Float::INFINITY : row[:step].to_i
 
         # @param list [Array<Hash>] epics carrying `lane`, `done` and `open`
         # @return [Array<Hash>] the epics by lane, the nearest to finished first inside a lane
