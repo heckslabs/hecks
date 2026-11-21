@@ -1001,6 +1001,31 @@ Hecks.bluebook "Tickets" do
       emits "WorkRevised"
     end
 
+    # A dated line added to an open work item's detail, which `Revise` would overwrite. A rule
+    # cannot join text, so the WorkNotes port composes the detail and `Annotate` sets it.
+    command "Note" do
+      goal "Append a dated note to an open work item's detail, leaving its title and the rest of the detail as they were"
+
+      reference_to Work
+      attribute :note, WorkText
+      attribute :dated, WorkText
+
+      given("a done work item is not noted") { status != "done" }
+      given("a dropped work item is not noted") { status != "dropped" }
+
+      emits "WorkNoteRequested"
+    end
+
+    command "Annotate" do
+      role "System"
+      goal "Replace an open work item's detail with the one the WorkNotes port composed"
+
+      reference_to Work
+      attribute :detail, WorkText, sets: true
+
+      emits "WorkNoted"
+    end
+
     # An open work item takes a new area: the whole list is replaced.
     command "Rescope" do
       goal "Replace the area an open work item claims with the given list"
@@ -1707,6 +1732,16 @@ Hecks.bluebook "Tickets" do
     root
     where   { no_change.value != nil && !no_change.value.to_s.empty? }
     trigger Work::Close, with: { work: :work, no_change: :no_change }
+  end
+
+  policy "ComposeNoteWhenNoteRequested" do
+    on      "Work.WorkNoteRequested"
+    ask     :compose_note, with: { work: :work, note: :note, dated: :dated }
+  end
+
+  policy "AnnotateWorkWhenNoteComposed" do
+    on      "Work.NoteComposed"
+    trigger Work::Annotate, with: { work: :work, detail: :detail }
   end
 
   policy "CheckLandingWhenFinishRequested" do
