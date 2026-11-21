@@ -2022,12 +2022,8 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The seat a hand-started session takes when it registers: its role, kept where the Bash hook
-  # reads it without booting Hecks, so the hook can guard a session that has no `agent_type`.
-  # A role with no routing rows (the owner's `orchestrator-owner`) is allowed by `Role.guard`,
-  # so the owner's session is unguarded by data, and registering again replaces the seat.
   aggregate "Seat" do
-    description "The role a hand-started session sits in, recorded when it registers so the Bash guard binds it whatever directory it starts in."
+    description "The role a hand-started session sits in, recorded when it registers where the Bash guard hook reads it without booting Hecks, so the session is guarded whatever directory it starts in. A role with no routing rows (the owner's orchestrator-owner) is allowed by Role.guard, so the owner stays unguarded; registering again replaces the seat."
 
     identified_by :session
 

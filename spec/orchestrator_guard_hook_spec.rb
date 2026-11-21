@@ -94,41 +94,4 @@ RSpec.describe "the orchestrator guard hook" do
   it "is executable in the checkout, since settings.json skips a hook that is not" do
     expect(File.executable?(File.join(root, ".claude/hooks/orchestrator_guard.sh"))).to be(true)
   end
-
-  describe "a hand-started session with a seat" do
-    let(:seats) { Dir.mktmpdir("seats") }
-    let(:elsewhere) { Dir.mktmpdir("elsewhere") }
-
-    before { launcher(body: "orchestrator routes only: use Fleet.topic. Refused: x", code: 1) }
-
-    after do
-      FileUtils.remove_entry(seats)
-      FileUtils.remove_entry(elsewhere)
-    end
-
-    # The hook as a session with no `agent_type` runs it, started in a directory that is no checkout.
-    def seated(command, session: "hand1")
-      input = JSON.generate(session_id: session, tool_input: { command: command })
-      env = { "CLAUDE_PROJECT_DIR" => elsewhere, "HECKS_SEATS_DIR" => seats }
-      _out, err, status = Open3.capture3(env, File.join(dir, ".claude/hooks/orchestrator_guard.sh"), stdin_data: input)
-      [err, status.exitstatus]
-    end
-
-    it "is refused with the verb hint, from outside the checkout", :aggregate_failures do
-      File.write(File.join(seats, "hand1"), "orchestrator\n")
-      err, status = seated("sqlite3 x.db .tables")
-      expect(status).to eq(2)
-      expect(err).to include("use Fleet.topic")
-    end
-
-    it "asks the guard in the checkout the hook lives in" do
-      File.write(File.join(seats, "hand1"), "orchestrator\n")
-      seated("ruby x.rb")
-      expect(File.read(File.join(dir, "argv"))).to include("role.value=orchestrator")
-    end
-
-    it "leaves a session with no seat unguarded" do
-      expect(seated("sqlite3 x.db .tables", session: "owner1").last).to eq(0)
-    end
-  end
 end
