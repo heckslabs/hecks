@@ -4,8 +4,8 @@ require "spec_helper"
 require "support/reaping_fleet"
 require "support/reap_turn"
 
-# A run that ends is tidied on its own, so its session goes at once whether it finished or failed,
-# and a reap that holds the turn never leaves it standing.
+# A run that failed is tidied on its own, and a reap that died holding the turn stops holding it
+# once its lease has passed, so a finished run's session goes then.
 RSpec.describe "The session of a run that ended" do
   include_context "with a reaping fleet"
   include_context "with a first beat at noon"
@@ -19,10 +19,17 @@ RSpec.describe "The session of a run that ended" do
     launch("agent_run.check!", "to=r-end", "--wait")
   end
 
-  it "is removed when the run finished, though a stuck reap holds the turn", :aggregate_failures do
+  it "stays while a dead reap still holds the turn" do
     killed_reap(at: noon)
+    at(noon + 899)
     end_run("done")
-    expect(delivered("ReapWhenASessionEnds")).to eq(0)
+    expect(removed).to be_empty
+  end
+
+  it "is removed when the run finished after a dead reap's lease" do
+    killed_reap(at: noon)
+    at(noon + 900)
+    end_run("done")
     expect(removed).to eq(["stand-in-session tree=gone"])
   end
 
