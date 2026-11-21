@@ -6,6 +6,7 @@ require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
 require_relative "stall_watching/impediments"
 require_relative "stall_watching/relieved"
+require_relative "stall_watching/unraised"
 require_relative "stall_watching/open_branches"
 require_relative "stall_watching/shared_files"
 require_relative "stall_watching/computed"
@@ -84,6 +85,18 @@ module Hecks
         read = lines(path)
         look = plain(run).to_s
         Relieved.new(read, held(read, look)).rows(look)
+      end
+
+      # @param run [Hash, String] the look that asks, as its key or the key's value
+      # @return [Array<Hash>] one `Sighting` row per impediment a call for help clears that no call
+      #   and no scrum master run has met; none when the world declares no tap
+      def unraised(run:)
+        path = tap_path
+        return [] unless path
+
+        read = lines(path)
+        look = plain(run).to_s
+        Unraised.new(read, held(read, look)).rows(look)
       end
 
       private

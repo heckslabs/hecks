@@ -37,7 +37,7 @@ RSpec.describe "the scrum master" do
     expect(keys("Hecks", "AgentRun", :run)).to eq([HelpWantedLooks::HOLD])
   end
 
-  it "names the scrum master among the roles, with its file" do
+  it "names the scrum master among the roles, with its file", :aggregate_failures do
     expect(world_roles).to include("scrum-master")
     expect(File).to exist(File.join(RoleFileSlices::AGENTS, "scrum-master.md"))
   end
