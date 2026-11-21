@@ -44,6 +44,7 @@ commands:
     open!
     take!
     edit!
+    close!
   BoardingHold:
     …
     hold!
