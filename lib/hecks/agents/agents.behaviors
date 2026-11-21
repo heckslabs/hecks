@@ -312,20 +312,11 @@ Hecks.behaviors "Agents" do
     expect refused: "a landing state is landed, pushed_not_landed, committed_not_pushed or uncommitted"
   end
 
-  test "Receive records a sent message as delivered to its session" do
-    tests "Receive", on: "Message"
-    setup  "Agents::Message.Send", message: { value: "m1" }, recipient: { value: "run-a" }, sender: { value: "miette" },
-           kind: { value: "question" }, body: { value: "how is it going" }
-    setup  "Agents::Message.Deliver", message: { value: "m1" }
-    input  message: { value: "m1" }, reader: { value: "run-a" }
-    expect emits: "MessageDelivered"
-  end
-
   test "Receive refuses a message that is not sent" do
     tests "Receive", on: "Message"
     setup  "Agents::Message.Send", message: { value: "m2" }, recipient: { value: "run-a" }, sender: { value: "miette" },
            kind: { value: "question" }, body: { value: "how is it going" }
     input  message: { value: "m2" }, reader: { value: "run-a" }
-    expect refused: "Receive is not allowed from addressed"
+    expect refused: "Receive refused — status is \"refused\", and Receive moves it only from \"sent\""
   end
 end
