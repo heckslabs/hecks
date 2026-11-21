@@ -2,10 +2,9 @@ Hecks.bluebook "Hecks" do
   domain_module "Watchdog" do
     vision "The pinned sessions are kept alive from outside Hecks and Claude: a launchd job, armed on request, reads the roster declared here and resumes any session that died, with its loops."
 
-    # The roster, the loops and the numbers the loop judges by are all declared here as rows; the
-    # loop that runs apart from the domain (`Guarding`) only measures and compares, and boots none of
-    # this. It names no session id: a resumed session takes a new one, so the loop finds each
-    # session by its listed name.
+    # The roster, the loops and the loop's numbers are declared here as rows; the loop outside the
+    # domain only measures and compares. No session id is declared: a resumed session takes a new
+    # one, so the loop finds each session by its listed name.
     aggregate "Watchdog" do
       description "One request to arm or disarm the watchdog that resumes the pinned sessions: asked, guarding, released, or refused."
       created_by "Watchdog.arm!"
@@ -38,10 +37,9 @@ Hecks.bluebook "Hecks" do
         member name: "SCRUM MASTER",  cwd: "~/Projects/hecks", reason: "it takes every coder's call for help"
       end
 
-      # The loops a session re-creates on start, one row each: `cron` (a schedule and a prompt it
-      # runs), `monitor` (a command the Monitor tool runs; the schedule is empty) or `watch` (a
-      # standing watch). The SessionStart hook names them to the session; the watchdog checks the
-      # hook ran after a resume.
+      # The loops a session re-creates on start, one row each: `cron` (a schedule and a prompt),
+      # `monitor` (a command for the Monitor tool, no schedule) or `watch`. The SessionStart hook
+      # names them to the session.
       value_object "WatchedLoop" do
         attribute :session,  String
         attribute :kind,     String, pattern: '\A(cron|monitor|watch)\z'
@@ -62,11 +60,9 @@ Hecks.bluebook "Hecks" do
                prompt: "the inbox watch command the session start names"
       end
 
-      # What the loop compares against, one row each, so no threshold lives in the loop's code:
-      # the seconds between passes, the states `claude agents` lists for a session that is gone,
-      # the window and the count of vanishings that make a mass kill, the seconds a resumed session
-      # has to run its start hook, and the nice and priority that mean it is held on the
-      # efficiency cores.
+      # What the loop compares against, one row each: seconds between passes, the listed states of
+      # a gone session, the mass-vanishing window and count, the seconds a resumed session has to
+      # run its start hook, and the nice and priority that mean it is held on the efficiency cores.
       value_object "Setting" do
         attribute :key,   String
         attribute :value, String

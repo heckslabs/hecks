@@ -17,7 +17,7 @@ module Hecks
         # The job's label, and the stem of its file.
         LABEL = "dev.hecks.watchdog"
 
-        # The loop's code, copied into the job's home so it keeps running when a checkout is removed.
+        # The loop's code, copied into the job's home so a removed checkout does not stop it.
         LOOP_DIR = File.expand_path("loop", __dir__)
 
         # The property list: kept alive by launchd, started at load, at normal priority and not
@@ -47,8 +47,8 @@ module Hecks
           </plist>
         XML
 
-        # @param home [String] the home directory whose launch agents and watchdog directory are used
-        # @param runner [#call, nil] runs `launchctl` from its argument list and answers `[output, success]`
+        # @param home [String] the home directory whose launch agents and loop directory are used
+        # @param runner [#call, nil] runs `launchctl` from its arguments: `[output, success]`
         def initialize(home: Dir.home, runner: nil)
           @home = home
           @runner = runner || method(:launchctl)

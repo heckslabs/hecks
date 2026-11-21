@@ -4,8 +4,8 @@ module Hecks
   module Adapters
     class Guarding
       module Loop
-        # Resumes one pinned session by the name it is listed under, from its own directory, with the
-        # command `Fleet.resume!` runs: `claude --bg --resume <id> -n <name>`.
+        # Resumes one pinned session by the name it is listed under, from its own directory, as the
+        # `Fleet.resume!` command does: `claude --bg --resume <id> -n <name>`.
         class Resuming
           # @param shell [#capture] runs `claude` and `ps`
           # @param journal [Journal] where what it did is recorded

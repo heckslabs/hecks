@@ -1,7 +1,7 @@
 require "spec_helper"
 require_relative "support/watchdog_stand_ins"
 
-# One pass of the watchdog's loop over the declared pinned sessions: a session claude no longer
+# One pass of the watchdog's loop over the declared pinned sessions: a session claude does not
 # works is resumed under its name with its loops re-armed, a working one is left alone, and
 # the loop only ever starts things. The shell and the clock are stand-ins, so nothing is resumed.
 RSpec.describe "the watchdog resumes the pinned sessions that died" do

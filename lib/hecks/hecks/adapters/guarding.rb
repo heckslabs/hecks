@@ -7,8 +7,8 @@ module Hecks
   module Adapters
     # The `Guarding` port's adapter for `Watchdog`: puts the launchd job that keeps the pinned
     # sessions working in place, or takes it away. The job's loop (`Guarding::Loop`) runs apart
-    # from Hecks and Claude and boots none of the domain; the roster it reads is the bluebook's rows,
-    # written once here when the job is armed. Unconfirmed, each ask answers what it would do.
+    # from Hecks and Claude and boots none of the domain; the roster it reads is the bluebook's
+    # rows, written once here when the job is armed. Unconfirmed, each ask answers what it would do.
     class Guarding
       # @param registry [Runtime::Registry, nil] the booted registry whose roster rows are read
       # @param aggregate [Object, nil] unused
