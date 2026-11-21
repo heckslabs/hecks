@@ -1773,6 +1773,9 @@ Hecks.bluebook "Tickets" do
 
   # An expedited work item asks the ExpediteLimits port who else holds the priority lane; what the port
   # read goes to Work.Unexpedite with the lane's limit, two, which puts the item back when the lane is full.
+  # The two is a placeholder for a world setting, so the number has one home later. The check follows the
+  # event: items expedited at once each read the others and all go back to now (safe, over-refusing). A lane
+  # the port cannot read (ExpediteUnread) leaves the item expedited: failing open is deliberate.
   policy "CheckExpediteWhenExpedited" do
     on  "Work.WorkExpedited"
     ask :check_expedite, with: { work: :work }
