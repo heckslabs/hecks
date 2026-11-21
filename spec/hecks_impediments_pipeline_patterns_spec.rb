@@ -5,7 +5,7 @@ require_relative "support/impediment_looks"
 
 # The impediment view names the pipeline patterns the scrum master wakes on: a beat declined
 # with no beat since, and landings refused with no landing since. Each is one impediment, however
-# many lines it stands for, and gone once the beat or the landing comes.
+# many refusals follow, and gone once the beat or the landing comes.
 RSpec.describe "StallWatch impediments: the pipeline patterns" do
   include_context "with a stall watch tap"
   include ImpedimentLooks
@@ -30,10 +30,11 @@ RSpec.describe "StallWatch impediments: the pipeline patterns" do
     expect(kinds).not_to include("beat-declined")
   end
 
-  it "folds every refused landing since the last landing into one impediment", :aggregate_failures do
+  it "is one impediment from the first refusal since the last landing", :aggregate_failures do
     write_sources([refused, ["LandingRefused", "land-2", 20, "Delivery::Landing"]])
 
-    expect(row_of("landings-refused")).to include(subject: "land-1", waited: 35, count: 2)
+    expect(kinds.count("landings-refused")).to eq(1)
+    expect(row_of("landings-refused")).to include(subject: "land-1", waited: 35)
   end
 
   it "leaves the refused landings once a branch lands" do
