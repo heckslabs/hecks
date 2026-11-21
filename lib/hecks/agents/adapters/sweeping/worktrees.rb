@@ -23,8 +23,10 @@ module Hecks
         # @param repo [String] any checkout of the repository
         # @param keepers [Array<String>] path fragments of worktrees that are always kept
         # @param temp [TempKind, nil] says which branchless worktrees are idle temp ones
-        def initialize(shell:, repo:, keepers: [], temp: nil)
+        # @param hold [HandRunHold, nil] names the hand run holding a worktree, which is kept
+        def initialize(shell:, repo:, keepers: [], temp: nil, hold: nil)
           @temp = temp
+          @hold = hold
           @shell = shell
           @check = ClaudeCleaning::WorktreeCheck.new(shell: shell)
           @listing = Listing.new(shell: shell, repo: repo)
@@ -43,12 +45,21 @@ module Hecks
         private
 
         def line(entry, all, held)
-          return "keeper  #{entry.path}" if @keepers.any? { |fragment| entry.path.include?(fragment) }
+          kept = kept(entry)
+          return kept if kept
 
           inner = all.count { |other| other != entry && other.path.start_with?("#{entry.path}/") }
           return "nested  #{entry.path}  holds #{inner} inner worktree(s)" if inner.positive?
 
           judged(entry, held)
+        end
+
+        # A keeper's path, or the checkout a registered hand run holds, is kept.
+        def kept(entry)
+          return "keeper  #{entry.path}" if @keepers.any? { |fragment| entry.path.include?(fragment) }
+
+          run = @hold&.checkout(entry.path)
+          "keeper  #{entry.path}  held by hand run #{run}" if run
         end
 
         def judged(entry, held)

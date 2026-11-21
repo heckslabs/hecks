@@ -11,6 +11,7 @@ require_relative "sweeping/footprint"
 require_relative "sweeping/residue"
 require_relative "sweeping/worktrees"
 require_relative "sweeping/orphans"
+require_relative "hand_run_hold"
 
 module Hecks
   module Adapters
@@ -33,16 +34,18 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `shell:`, `log:` (the daemon log), `tmp:`, `repo:` (a checkout of
       #   the repository, the working directory by default), `keepers:` (path fragments of
-      #   worktrees always kept) and `killer:` (called with a pid)
+      #   worktrees always kept), `hold:` (the {HandRunHold} naming a held worktree) and
+      #   `killer:` (called with a pid)
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil)
+      # @param registry [Runtime::Registry, nil] whose Agents bluebook holds the `HandRun` rows
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @shell = settings[:shell] || Shell.new
         @log = settings[:log] || File.join(Dir.home, ".claude", "daemon.log")
         @killer = settings[:killer] || ->(pid) { Process.kill("TERM", pid) }
         @repo = settings[:repo] || Dir.pwd
         @tmps = tmps_for(settings)
         @residue = Residue.new(tmp: settings[:tmp] || "/tmp")
-        @worktrees = worktrees_for(settings)
+        @worktrees = worktrees_for(settings, registry)
       end
 
       # @param removed [Hash, String] the short ids of the removed sessions, possibly none
@@ -70,9 +73,10 @@ module Hecks
 
       def tmps_for(settings) = settings[:tmp] ? [settings[:tmp]] : ["/tmp", Dir.tmpdir].uniq
 
-      def worktrees_for(settings)
+      def worktrees_for(settings, registry)
         temp = Worktrees::TempKind.new(roots: @tmps, idle: settings[:idle] || TEMP_IDLE)
-        Worktrees.new(shell: @shell, repo: @repo, keepers: settings[:keepers] || KEEPERS, temp: temp)
+        hold = settings[:hold] || HandRunHold.new(registry: registry)
+        Worktrees.new(shell: @shell, repo: @repo, keepers: settings[:keepers] || KEEPERS, temp: temp, hold: hold)
       end
 
       def worktree_lines(held, remove:)
