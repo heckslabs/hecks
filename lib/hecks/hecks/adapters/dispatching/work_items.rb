@@ -63,7 +63,8 @@ module Hecks
         # @return [Array<Plan::Item>] the planned work items: a red one first, then an expedited
         #   one, then one whose last
         #   yield a fill restarts first (a `load` yield, by priority alone), then one of priority
-        #   `now` that is not a filed stall, then a filed stall, then by the tier of the work item's
+        #   `now` that is not a filed stall (strictly by step, the epic's tier breaking only a tie
+        #   of equal step), then a filed stall, then by the tier of the work item's
         #   epic (1 to 9, lowest first, none last), then by priority (`now`, `next`, `later`,
         #   none), then in plan order (lowest step first, no step last, ties by key)
         def planned
