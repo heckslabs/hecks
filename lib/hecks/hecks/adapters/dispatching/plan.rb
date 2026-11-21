@@ -135,7 +135,8 @@ module Hecks
           held || overloaded(@limits.fetch(:cpus, @limits[:max_load])) || expedite_held(item)
         end
 
-        # The one place outside the cap is {WorkSlots}' rule; this names its holder.
+        # The place outside the cap and the regular seats are {WorkSlots}' rule; this names the
+        # holder of the place when no regular seat is free either.
         def expedite_held(item)
           return unless WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: 0)
 
@@ -172,12 +173,13 @@ module Hecks
         # A fill never starts more items than the cap has free places, a red one included; the red
         # reserve is spent only when no place is free. {WorkSlots} still holds the reserve itself.
         def no_free_place?
-          free = @limits[:cap] - in_cap(@started)
-          free.positive? && in_cap(@chosen) >= free
+          free = @limits[:cap] - WorkSlots.seats(@started)
+          free.positive? && chosen_seats >= free
         end
 
-        # The items that take a place under the cap: an expedited one takes the place outside it.
-        def in_cap(items) = items.count { |other| !WorkItems.expedited?(other) }
+        # The seats this fill's chosen items take under the cap: the first expedited item of all
+        # holds the place outside it, so it takes none.
+        def chosen_seats = WorkSlots.seats(holders) - WorkSlots.seats(@started)
 
         def frozen_reason(item)
           hit = @limits[:frozen].find { |name| item.area.any? { |word| squash(word).include?(squash(name)) } }

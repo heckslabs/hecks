@@ -4,7 +4,8 @@ require_relative "support/new_work_started"
 
 # The expedite lane (ADR 0224): a work item `Work.expedite!` marks starts first after a red fix, in
 # the one place outside the cap, past the boot budget and the epic limit, and is held by the load
-# only above the CPU count. The plan and the `WorkLimits` port apply the one rule in `WorkSlots`.
+# only above the CPU count. A further expedited item takes a regular seat under the cap. The plan and
+# the `WorkLimits` port apply the one rule in `WorkSlots`.
 RSpec.describe "the expedite lane" do
   include_context "with new work started"
 
@@ -68,6 +69,49 @@ RSpec.describe "the expedite lane" do
     plan = dispatch([item("hot-2", "expedite")], held + [item("hot-1", "expedite")])
 
     expect(plan.skipped.map(&:reason)).to eq(["skipped: held: hot-1 holds the one expedite place"])
+  end
+
+  def seat_plan(cap, normals, planned) = dispatch(planned, (1..normals).map { |n| item("n-#{n}") }, cap: cap)
+
+  def hot(count) = (1..count).map { |n| item("hot-#{n}", "expedite") }
+
+  it "gives a further expedited item a regular seat ahead of normal work", :aggregate_failures do
+    plan = seat_plan(5, 3, hot(3) + [item("x")])
+
+    expect(plan.chosen.map(&:key)).to eq(%w[hot-1 hot-2 hot-3])
+    expect(plan.skipped.map(&:key)).to eq(%w[x])
+  end
+
+  it "holds a further expedited item naming the holder when no regular seat is free" do
+    plan = seat_plan(5, 4, hot(3))
+
+    expect(plan.skipped.map(&:reason)).to eq(["skipped: held: hot-1 holds the one expedite place"])
+  end
+
+  it "counts a further expedited holder against a normal item's and a red item's cap", :aggregate_failures do
+    holders = held.first(5) + hot(2)
+
+    expect(slots.full?(item("x"), holders, cap: 6, reserve: 1)).to be(true)
+    expect(slots.full?(item("red-a"), holders, cap: 6, reserve: 1)).to be(false)
+  end
+
+  it "counts a seat for each expedited holder but the first" do
+    expect([hot(1), hot(3), held.first(2) + hot(2)].map { |items| slots.seats(items) }).to eq([0, 2, 3])
+  end
+
+  it "agrees in the WorkLimits port: a further expedited item starts on a free seat and waits without one" do
+    (1..(Hecks::Adapters::WorkLimits.cap(hecks.registry) - 1)).each { |n| plan("held-#{n}") && start("held-#{n}") }
+    statuses = %w[hot-1 hot-2 hot-3].map { |key| expedite(key) && start(key)["status"] }
+
+    expect(statuses).to eq(%w[started started planned])
+  end
+
+  it "tells Signalbox's admission the seats chosen, a further expedited item among them" do
+    seen = []
+    admit = Object.new.tap { |door| door.define_singleton_method(:reason) { |_item, chosen:, **| (seen << chosen) && nil } }
+    dispatch(hot(2) + [item("x")], [item("n-1")], cap: 5, admit: admit)
+
+    expect(seen).to eq([1])
   end
 
   it "starts an expedited item over the load limit and under the CPU count, and no other" do

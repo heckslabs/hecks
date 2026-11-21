@@ -15,7 +15,7 @@ module Hecks
 
         def admission_reason(item)
           waiting = @skipped.count { |skip| skip.reason.start_with?(ADMISSION) }
-          @limits[:admit].reason(item, chosen: in_cap(@chosen), outranked: waiting)
+          @limits[:admit].reason(item, chosen: chosen_seats, outranked: waiting)
         end
       end
     end

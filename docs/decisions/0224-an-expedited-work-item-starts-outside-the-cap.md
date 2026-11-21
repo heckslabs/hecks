@@ -22,8 +22,15 @@ and land while main is red.
    change on `main`; `stable` stays promoted only.
 2. **It takes one place outside `work_limit`.** `WorkSlots.full?` is the one rule, asked by the
    dispatch plan before a start and by the `WorkLimits` port after it: an expedited item waits only
-   while another expedited item is started, it does not spend the red reserve, and it counts against
-   no other item's cap. Of the guards, it passes the cap, the boot budget, the epic limit and a pause
+   while another expedited item is started and no regular seat is free, it does not spend the red
+   reserve, and the first expedited item counts against no other item's cap. Amended 2026-11-21 at
+   the owner's word (work item `expedited-work-takes-regular-seats-first`): the one place outside
+   the cap is for the first expedited item only. Each further one takes the next free regular seat
+   under `work_limit`, ahead of normal work by the plan's order, and counts against the cap like
+   any seat (`WorkSlots.seats`), so the total load stays bounded; the plan names the holder of the
+   place outside the cap ("holds the one expedite place") only when no regular seat is free.
+   Before the amendment a second expedited item waited for the first to finish while regular seats
+   went to lower work. Of the guards, it passes the cap, the boot budget, the epic limit and a pause
    by load. It is deliberately let past `dispatch_max_load` up to the CPU count, a second threshold
    chosen over a full exemption, so the machine keeps a stop. Memory low, a frozen area, an area
    overlap, a dependency and a parked yield hold it as they hold any item. Gates do not stack:
