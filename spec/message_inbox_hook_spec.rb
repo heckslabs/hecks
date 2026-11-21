@@ -13,14 +13,21 @@ RSpec.describe "the message inbox hook" do
   let(:dir) { Dir.mktmpdir("message_inbox") }
   let(:dev) { File.join(dir, "dev") }
 
+  RUNS = <<~SQL
+    create table agent_run (run TEXT, session TEXT, status TEXT);
+    insert into agent_run values ('{"value":"run-a"}', '{"value":"aedefaa0"}', 'started');
+  SQL
+  MESSAGES = <<~SQL
+    create table message (message TEXT, recipient TEXT, sender TEXT, kind TEXT, body TEXT, in_reply_to TEXT, status TEXT);
+    create table hand_run (run TEXT, session TEXT);
+  SQL
+
   before do
     FileUtils.mkdir_p([File.join(dir, ".claude/hooks"), File.join(dir, "exe"), dev])
     FileUtils.cp(File.join(root, ".claude/hooks/message_inbox.sh"), File.join(dir, ".claude/hooks"))
     stand_in_launcher
-    sql(File.join(dev, "agent_run.db"), "create table agent_run (run TEXT, session TEXT, status TEXT);" \
-        "insert into agent_run values ('{\"value\":\"run-a\"}', '{\"value\":\"aedefaa0\"}', 'started');")
-    sql(File.join(dev, "agents.db"), "create table message (message TEXT, recipient TEXT, sender TEXT, kind TEXT, " \
-        "body TEXT, in_reply_to TEXT, status TEXT); create table hand_run (run TEXT, session TEXT);")
+    sql(File.join(dev, "agent_run.db"), RUNS)
+    sql(File.join(dev, "agents.db"), MESSAGES)
   end
 
   after { FileUtils.remove_entry(dir) }
@@ -34,8 +41,8 @@ RSpec.describe "the message inbox hook" do
   def sql(db, statement) = Open3.capture2("sqlite3", db, stdin_data: statement)
 
   def say(to: "run-a", body: "use the smaller version", status: "sent")
-    sql(File.join(dev, "agents.db"), "insert into message values ('{\"value\":\"m1\"}', '{\"value\":\"#{to}\"}', " \
-        "'{\"value\":\"miette\"}', '{\"value\":\"answer\"}', '{\"value\":\"#{body}\"}', '{\"value\":\"\"}', '#{status}');")
+    cells = [to, "miette", "answer", body, ""].map { |value| "'{\"value\":\"#{value}\"}'" }
+    sql(File.join(dev, "agents.db"), "insert into message values ('{\"value\":\"m1\"}', #{cells.join(", ")}, '#{status}');")
   end
 
   def step(session: "aedefaa0-1111-2222-3333-444444444444")
