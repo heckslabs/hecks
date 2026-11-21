@@ -6,8 +6,8 @@ module Hecks
   module Adapters
     class RecipientCheck
       # The names that have sent a message, read from the Agents registry. A session started by
-      # hand (miette, the orchestrator, the coach) has no run, but it has a name once it speaks, so a
-      # reply to it is held for it. It only reads; a boot that holds no `Message` has none.
+      # hand (miette, the orchestrator, the coach) has no run, but it has a name once it speaks,
+      # so a reply to it is held for it. It only reads; a boot that holds no `Message` has none.
       class Senders
         # @param registry [Runtime::Registry, nil] whose Agents bluebook holds the `Message` rows
         def initialize(registry)
@@ -23,8 +23,13 @@ module Hecks
         def names = rows.map { |row| StartedWork.value(row, :sender).to_s }
 
         def rows
-          aggregate = @registry&.bluebook("Agents")&.aggregates&.find { |candidate| candidate.hecks_name == "Message" }
+          aggregate = message_aggregate
           aggregate ? @registry.repository("Agents", aggregate).all : []
+        end
+
+        def message_aggregate
+          bluebook = @registry&.bluebook("Agents")
+          bluebook&.aggregates&.find { |candidate| candidate.hecks_name == "Message" }
         end
       end
     end
