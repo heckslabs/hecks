@@ -67,4 +67,9 @@ RSpec.describe "the Role aggregate's RoleServer rows" do
   it "give the architect its hecks server" do
     expect(started("architect")).to include("hecks")
   end
+
+  it "let the architect's door see every domain under lib/hecks" do
+    row = role_table("RoleServer").find { |server| server[:role] == "architect" }
+    expect(row[:domains]).to eq("lib/hecks")
+  end
 end
