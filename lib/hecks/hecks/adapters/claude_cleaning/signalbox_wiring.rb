@@ -32,7 +32,7 @@ module Hecks
 
         def reap_facts
           sources = ReapFacts::Sources.new(window: window, jobs: ClaudeJobs.from(@tuning), transcript: @transcript,
-                                           worktrees: @worktrees, runs: @runs)
+                                           worktrees: @worktrees, runs: @runs, hold: hold)
           ReapFacts.new(sources, { **door.setting("reaping"), fuses: door.setting("fuses") })
         end
 

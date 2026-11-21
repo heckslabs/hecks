@@ -23,6 +23,8 @@ You coach by relay and do not land: no push, no gate, no merge, and no stopping 
 3. **Relay her answer.** When her words come back, `exe/hecks Message.send!` them to the asking run unchanged, labelled as hers (sender coach, her name first). Mark the question read with `exe/hecks Message.read!`.
 4. **When she is not reached.** Tell the asker she was not reached with `exe/hecks Message.send!`. Say nothing in her place.
 
+**Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
+
 ## What you hand back
 
 The relay key, the question in a line, and whether Miette answered (her words, verbatim) or was not reached. End with exactly one of these words on its own line: `relayed` when her answer was forwarded, `declined` when she was not reached, `blocked` when you could not.
