@@ -9,6 +9,24 @@ Hecks.behaviors "Tickets" do
     expect status: "planned"
   end
 
+  test "Plan enters a work item with no pomodoros: tasking in pomodoros is optional" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1p" }, title: { value: "Written without a size" }
+    expect status: "planned"
+  end
+
+  test "Plan enters an unplanned work item sized in pomodoros" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1u" }, title: { value: "Fix the stuck deploy" }, pomodoros: { value: 2 }, unplanned: { value: true }
+    expect status: "planned"
+  end
+
+  test "Plan refuses a negative pomodoro size" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1n" }, title: { value: "Too few" }, pomodoros: { value: -1 }
+    expect refused: "a pomodoro count is not negative"
+  end
+
   test "Plan refuses a work item with no title" do
     tests "Plan", on: "Work"
     input work: { value: "w2" }, title: { value: "" }
