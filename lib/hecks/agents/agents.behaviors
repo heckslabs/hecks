@@ -319,4 +319,18 @@ Hecks.behaviors "Agents" do
     input  message: { value: "m2" }, reader: { value: "run-a" }
     expect refused: "Receive refused — status is \"refused\", and Receive moves it only from \"sent\""
   end
+
+  test "Record refuses a sound verdict whose findings say nothing was checked" do
+    tests "Record", on: "PlanReview"
+    input  run: { value: "r-nc1" }, work: { value: "w-nc1" }, verdict: { value: "sound" },
+           findings: "Nothing was checked: the diff could not be read."
+    expect refused: "a review that checked nothing is not judged sound, changes or rethink"
+  end
+
+  test "Record keeps an unverified verdict for a review that checked nothing" do
+    tests "Record", on: "PlanReview"
+    input  run: { value: "r-nc2" }, work: { value: "w-nc2" }, verdict: { value: "unverified" },
+           findings: "Nothing was checked: the diff could not be read."
+    expect verdict: { value: "unverified" }
+  end
 end
