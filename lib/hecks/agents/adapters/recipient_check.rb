@@ -6,6 +6,7 @@ require "hecks/hecks/adapters/claude_resolving_shell"
 require "hecks/hecks/adapters/claude_session_listing"
 require "hecks/hecks/adapters/dispatching/work_items"
 require "hecks/agents/adapters/recipient_check/hand_runs"
+require "hecks/agents/adapters/recipient_check/senders"
 
 module Hecks
   module Adapters
@@ -44,6 +45,7 @@ module Hecks
         @read_runs = runs
         @listed = listed
         @hand_runs = HandRuns.new(registry, hand_runs)
+        @senders = Senders.new(registry)
       end
 
       # @param recipient [Hash, String] the run the message is for
@@ -54,7 +56,7 @@ module Hecks
 
         id = plain(recipient)
         run = runs[id]
-        return { recipient: { value: id } } if live?(run) || (run.nil? && hand_live?(id))
+        return { recipient: { value: id } } if live?(run) || (run.nil? && (hand_live?(id) || held?(id)))
 
         raise refusal(id, run)
       end
@@ -73,6 +75,9 @@ module Hecks
       end
 
       def live?(run) = run && run[:status] == "started" && !run[:session].to_s.empty?
+
+      # A name that has sent a message and is no run: its replies wait unread in its inbox.
+      def held?(id) = @senders.spoke?(id)
 
       def hand_live?(id)
         session = @hand_runs.session(id)
