@@ -598,12 +598,9 @@ Hecks.bluebook "Coder" do
                                               "then submit again." }
   end
 
-  # The test-first rule. `first_paths` is the `|`-joined files of the branch's first commit since
-  # main and `first_spec` is what the spec files it adds did on main: none (it adds no spec or
-  # `.behaviors` file), passed, failed, errored (the spec did not load) or unchecked (a
-  # `.behaviors` file, or a run that could not be taken). A commit whose every file is exempt
-  # needs no spec: docs (`docs/`, `*.md`) and ledgers (`/translations/`). The unread policy above
-  # wins, and the four policies on `SubmitterMeasured` partition its facts, so exactly one fires.
+  # Test first: `first_spec` is none, passed, failed, errored or unchecked for the first commit's
+  # `first_paths`; docs (`docs/`, `*.md`) and ledgers (`/translations/`) alone are exempt. These
+  # two and the accept policy below partition the facts with the unread policy, so one fires.
   policy "WithholdTheSubmissionWhoseFirstCommitAddsNoSpec" do
     on      "Submission.SubmitterMeasured"
     where do
