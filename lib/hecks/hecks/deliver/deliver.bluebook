@@ -64,12 +64,6 @@ Hecks.bluebook "Hecks" do
         attribute :days, Integer, optional: true
         returns Document
       end
-
-      query "Throughput" do
-        description "The branches landed in the last hours (24 unless given), one per BranchLanded, and how many of them shipped: their landed commit is on origin/main. The unshipped branches are named."
-        attribute :hours, Integer, optional: true
-        returns Document
-      end
     end
 
     # The changed files of a checkout that already match `origin/main`, put back so the checkout can take a pull:

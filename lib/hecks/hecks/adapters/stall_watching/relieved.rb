@@ -28,20 +28,9 @@ module Hecks
         # @return [Array<Hash>] one `Relieved` row per open call whose impediment is gone or is
         #   cleared by its stall item, with which as its reason
         def rows(run)
-          standing.sort.filter_map do |help|
+          open.sort.filter_map do |help|
             reason = reason(help)
             { id: run, help: help, reason: reason } if reason
-          end
-        end
-
-        # @return [Set<String>] the keys of the calls standing open: raised, and not closed since
-        #   their last raise
-        def standing
-          @lines.each_with_object(Set.new) do |line, open|
-            case line["event"]
-            when RAISED then open << line["id"].to_s
-            when CLOSED then open.delete(line["id"].to_s)
-            end
           end
         end
 
@@ -52,6 +41,16 @@ module Hecks
           return REASON unless @clearing.key?(help)
 
           ITEM_REASON unless @clearing[help] == Clearing::HELP
+        end
+
+        # The calls standing open: raised, and not closed since their last raise.
+        def open
+          @lines.each_with_object(Set.new) do |line, open|
+            case line["event"]
+            when RAISED then open << line["id"].to_s
+            when CLOSED then open.delete(line["id"].to_s)
+            end
+          end
         end
       end
     end
