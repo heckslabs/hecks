@@ -35,6 +35,14 @@
             "command": "d=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}\"; hook=\"$d/.claude/hooks/rubocop_post_edit.sh\"; [ -x \"$hook\" ] || exit 0; exec \"$hook\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}\"; hook=\"$d/.claude/hooks/message_inbox.sh\"; [ -x \"$hook\" ] || exit 0; exec \"$hook\""
+          }
+        ]
       }
     ]
   }
