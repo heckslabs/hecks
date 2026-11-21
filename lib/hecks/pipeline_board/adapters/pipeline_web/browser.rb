@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/safe_signal"
 require "timeout"
 
 module Hecks
@@ -47,7 +48,7 @@ module Hecks
           pid = Process.spawn(*argv, in: File::NULL, %i[out err] => log)
           Timeout.timeout(SECONDS) { Process.wait(pid) }
         rescue Timeout::Error
-          Process.kill("KILL", pid)
+          SafeSignal.to_process("KILL", pid)
           Process.wait(pid)
         end
 
