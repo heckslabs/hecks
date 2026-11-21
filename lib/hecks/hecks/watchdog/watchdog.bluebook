@@ -1,0 +1,173 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Watchdog" do
+    vision "The pinned sessions are kept alive from outside Hecks and Claude: a launchd job, armed on request, reads the roster declared here and resumes any session that died, with its loops."
+
+    # The roster, the loops and the numbers the loop judges by are all declared here as rows; the
+    # loop that runs apart from the domain (`Guarding`) only measures and compares, and boots none of
+    # this. It names no session id: a resumed session takes a new one, so the loop finds each
+    # session by its listed name.
+    aggregate "Watchdog" do
+      description "One request to arm or disarm the watchdog that resumes the pinned sessions: asked, guarding, released, or refused."
+      created_by "Watchdog.arm!"
+
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+      attribute :report,  Report, optional: true
+      attribute :refusal, Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch", Boolean
+
+      # The sessions that must always be working, one row each. `cwd` is where `claude --bg --resume`
+      # is run from (`~` is the home directory). The lead is the orchestrator's session.
+      value_object "PinnedSession" do
+        attribute :name,   String
+        attribute :cwd,    String
+        attribute :reason, String
+
+        member name: "ORCHESTRATOR",  cwd: "~/Projects/hecks", reason: "the lead: it coordinates every run and holds the pipeline's state"
+        member name: "miette",        cwd: "~/Projects/hecks", reason: "the owner's own session"
+        member name: "SCRUM MASTER",  cwd: "~/Projects/hecks", reason: "it takes every coder's call for help"
+      end
+
+      # The loops a session re-creates on start, one row each: `cron` (a schedule and a prompt it
+      # runs), `monitor` (a command the Monitor tool runs; the schedule is empty) or `watch` (a
+      # standing watch). The SessionStart hook names them to the session; the watchdog checks the
+      # hook ran after a resume.
+      value_object "WatchedLoop" do
+        attribute :session,  String
+        attribute :kind,     String, pattern: '\A(cron|monitor|watch)\z'
+        attribute :schedule, String
+        attribute :prompt,   String
+
+        member session: "ORCHESTRATOR", kind: "cron", schedule: "7,37 * * * *",
+               prompt: "Run one watch pass: read ~/.claude/hecks-dev/watch/watch-prompt.md and follow it."
+        member session: "ORCHESTRATOR", kind: "cron", schedule: "22,52 * * * *",
+               prompt: "Run the quick check of the pipeline's state."
+        member session: "ORCHESTRATOR", kind: "cron", schedule: "4,24,44 * * * *",
+               prompt: "Look for anything waiting on the owner's call and say it."
+        member session: "ORCHESTRATOR", kind: "monitor", schedule: "",
+               prompt: "bash ~/.claude/hecks-dev/watch/inbox-watch.sh lead orchestrator"
+        member session: "SCRUM MASTER", kind: "monitor", schedule: "",
+               prompt: "the inbox watch command the session start names"
+        member session: "miette", kind: "monitor", schedule: "",
+               prompt: "the inbox watch command the session start names"
+      end
+
+      # What the loop compares against, one row each, so no threshold lives in the loop's code:
+      # the seconds between passes, the states `claude agents` lists for a session that is gone,
+      # the window and the count of vanishings that make a mass kill, the seconds a resumed session
+      # has to run its start hook, and the nice and priority that mean it is held on the
+      # efficiency cores.
+      value_object "Setting" do
+        attribute :key,   String
+        attribute :value, String
+
+        member key: "pass_seconds",     value: "30"
+        member key: "dead_states",      value: "stopped,done,failed,exited"
+        member key: "mass_kill_window", value: "60"
+        member key: "mass_kill_count",  value: "2"
+        member key: "loops_grace",      value: "120"
+        member key: "held_nice",        value: "20"
+        member key: "held_priority",    value: "4"
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "RecordGuard"   => "guarding", from: "requested"
+        transition "RecordRelease" => "released", from: "requested"
+        transition "Decline"       => "refused",  from: "requested"
+        mark :terminal, "guarding", "released", "refused"
+        mark :reusable, "guarding", "released", "refused"
+      end
+
+      command "Arm" do
+        role "Operator"
+        goal "Ask for the launchd job that keeps the pinned sessions working to be written and loaded; unconfirmed, it says what it would write"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        emits ArmRequested
+      end
+
+      command "Disarm" do
+        role "Operator"
+        goal "Ask for the launchd job that keeps the pinned sessions working to be unloaded and removed; unconfirmed, it says what it would remove"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        emits DisarmRequested
+      end
+
+      command "RecordGuard" do
+        role "System"
+        goal "Record that the watchdog was put in place, and how"
+
+        reference_to Watchdog
+        attribute :report, Report, sets: true
+
+        emits WatchdogGuarded
+      end
+
+      command "RecordRelease" do
+        role "System"
+        goal "Record that the watchdog was taken away, and how"
+
+        reference_to Watchdog
+        attribute :report, Report, sets: true
+
+        emits WatchdogReleased
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the watchdog was not armed or disarmed"
+
+        reference_to Watchdog
+        attribute :refusal, Report, sets: true
+
+        emits WatchdogRefused
+      end
+    end
+
+    policy "GuardThePinnedSessionsWhenAsked" do
+      on      "Watchdog.ArmRequested"
+      ask     :guard, with: { run: :run, confirm: :confirm }
+    end
+
+    policy "ReleaseThePinnedSessionsWhenAsked" do
+      on      "Watchdog.DisarmRequested"
+      ask     :release, with: { run: :run, confirm: :confirm }
+    end
+
+    policy "RecordTheWatchdogGuard" do
+      on      "Watchdog.GuardAnswered"
+      trigger Watchdog::RecordGuard, with: { report: :report }
+    end
+
+    policy "RecordTheWatchdogRelease" do
+      on      "Watchdog.ReleaseAnswered"
+      trigger Watchdog::RecordRelease, with: { report: :report }
+    end
+
+    policy "RecordWhyTheWatchdogWasNotArmed" do
+      on      "Watchdog.GuardRefused"
+      trigger Watchdog::Decline, with: { refusal: :refusal }
+    end
+
+    policy "RecordWhyTheWatchdogWasNotDisarmed" do
+      on      "Watchdog.ReleaseRefused"
+      trigger Watchdog::Decline, with: { refusal: :refusal }
+    end
+  end
+end
