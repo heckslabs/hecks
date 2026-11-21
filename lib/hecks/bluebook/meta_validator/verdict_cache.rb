@@ -159,7 +159,7 @@ module Hecks
         def misses = [entries.size - @loaded.to_i, 0].max
 
         # Writes every known verdict when any was added since the last write.
-        # Failure of any kind leaves the cache as it was.
+        # Failure of any kind leaves the cache as it was and is reported on stderr, never raised.
         #
         # @return [void]
         def flush
@@ -171,8 +171,9 @@ module Hecks
 
           keep(pairs)
           prune
-        rescue StandardError
-          nil
+        rescue StandardError => e
+          @dirty = true
+          report_unsaved(e)
         end
 
         # Forgets the process's own bookkeeping (not the files).
