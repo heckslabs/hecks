@@ -32,7 +32,7 @@ RSpec.describe "a fill under the boot budget" do
   it "leaves the work item waiting, naming the spent budget, once the boots reach it", :aggregate_failures do
     text = preview(7.5)
 
-    expect(text).to include("w skipped: boot budget spent: 7.5 of 6.0 hours")
+    expect(text).to include("w skipped: boot budget spent: 7.5 of 0.25 hours in the last hour")
     expect(text).not_to include("would start w")
   end
 
