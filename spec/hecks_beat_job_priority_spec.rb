@@ -35,7 +35,7 @@ RSpec.describe "the beat job's priority" do
   end
 
   it "reads the Hecks world's launchd_job setting" do
-    world = instance_double(Hecks::Runtime::World, for_verb: { nice: 4 })
+    world = Struct.new(:settings) { def for_verb(_verb) = settings }.new({ nice: 4 })
     registry = instance_double(Hecks::Runtime::Registry, world: world)
     expect(priority_class.from(registry).to_h[:nice]).to eq(4)
   end
