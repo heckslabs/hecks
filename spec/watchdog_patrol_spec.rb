@@ -19,6 +19,17 @@ RSpec.describe "the watchdog resumes the pinned sessions that died" do
     Hecks::Adapters::Guarding::Loop::Pass.new(roster: roster, shell: shell, clock: -> { now.first }, home: home).run
   end
 
+  def stamp_start_hook(name, moment)
+    FileUtils.mkdir_p(File.join(home, "armed"))
+    FileUtils.touch(File.join(home, "armed", name), mtime: Time.at(moment))
+  end
+
+  def vanish_later(name)
+    shell.listed = shell.listed.map { |listed| listed["name"] == name ? entry(name, "stopped") : listed }
+    now[0] += 30
+    pass
+  end
+
   it "resumes the lead under its name from its own directory" do
     pass
     expect(shell.resumes.map { |call| [call[:argv], call[:chdir]] })
@@ -52,20 +63,17 @@ RSpec.describe "the watchdog resumes the pinned sessions that died" do
 
   it "records the loops armed once the session's start hook has run" do
     pass
-    FileUtils.mkdir_p(File.join(home, "armed"))
-    FileUtils.touch(File.join(home, "armed", "ORCHESTRATOR"), mtime: Time.at(1_050))
+    stamp_start_hook("ORCHESTRATOR", 1_050)
     now[0] += 60
     pass
     expect(journal.map { |line| line["kind"] }).to include("loops_armed")
   end
 
-  it "records a mass kill when pinned sessions vanish within a minute", :aggregate_failures do
-    pass(roster_of("ORCHESTRATOR", "miette"))
-    shell.listed = [entry("ORCHESTRATOR", "stopped"), entry("miette", "stopped")]
-    now[0] += 30
-    pass(roster_of("ORCHESTRATOR", "miette"))
-    expect(journal.map { |line| line["kind"] }).to include("mass_kill")
-    expect(journal.find { |line| line["kind"] == "mass_kill" }["detail"]).to include("sessions" => %w[miette])
+  it "records a mass kill when pinned sessions vanish within a minute" do
+    pass
+    vanish_later("miette")
+    mass = journal.find { |line| line["kind"] == "mass_kill" }
+    expect(mass["detail"]["sessions"]).to eq(%w[ORCHESTRATOR miette])
   end
 
   it "never signals a process", :aggregate_failures do
