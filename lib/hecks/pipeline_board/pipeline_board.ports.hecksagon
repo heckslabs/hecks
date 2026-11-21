@@ -59,13 +59,20 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "CycleStats"
   end
 
-  # The page. The adapter opens a server on 127.0.0.1 and answers `GET /` and `GET /api/state`;
+  # The page, and its pictures. The adapter opens a server on 127.0.0.1 and answers `GET /` and `GET /api/state`;
   # it is the only effect the board has.
   PipelineBoard::PipelineBoard.port "Web" do
     asks "Listen", to: PipelineBoard do
       attribute :port, Port
       answers "ServerEnded"
       refuses "ServerRefused"
+    end
+
+    asks "DrawPages", to: PipelineBoard do
+      attribute :state, PictureState
+      attribute :into, PictureDirectory
+      answers "PictureDrawn"
+      refuses "PictureRefused"
     end
   end
 
