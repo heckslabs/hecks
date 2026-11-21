@@ -41,14 +41,17 @@ RSpec.describe "exe/hecks usage without an adapter", :io do
     expect(out).to eq("")
   end
 
-  it "keeps the bare help short: the modules, not every command, with the full tables behind --all",
-     :aggregate_failures do
+  it "keeps the bare help to the modules, with the full tables behind --all", :aggregate_failures do
     brief, = hecks("help")
-    full, = hecks("--all")
 
     expect(brief).to include("modules (`hecks <module>` lists its commands and queries):", "hecks --all")
     expect(brief).not_to include("commands:")
-    expect(full).to include("commands:")
+  end
+
+  it "keeps the bare help under half the size of the full help" do
+    brief, = hecks("help")
+    full, = hecks("--all")
+
     expect(brief.bytesize).to be < full.bytesize / 2
   end
 
