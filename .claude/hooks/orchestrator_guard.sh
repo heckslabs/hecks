@@ -5,6 +5,13 @@
 # 2, which hands the reason (the verb or role to use instead) back to the agent. A session with no
 # role (the owner's) is never blocked.
 #
+# A hand-started session has no `agent_type`, so it takes its role from its seat: the one-line file
+# `seats/<session_id>` that `HandRun.register!` writes (the `Seat` aggregate), found under
+# $HECKS_SEATS_DIR or ~/.claude/hecks-dev/seats. No seat means no role. A seated session is judged
+# against the checkout this script lives in (or $HECKS_CHECKOUT), whatever directory it started in,
+# so a user-level hook entry pointing here binds it everywhere; a role with no routing rows, such as
+# `orchestrator-owner`, is allowed by `Role.guard` itself.
+#
 # It forwards the session too, for the bluebook's `Script` rule: a role's session that runs a script
 # before any hecks command since its last one is refused once with the `script` hint, and every
 # script it runs is recorded. The rule is the Agents bluebook's; this hook names no interpreter.
@@ -23,9 +30,16 @@ role="$(printf '%s' "$input" | jq -r '.agent_type // empty')"
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
 agent="$(printf '%s' "$input" | jq -r '.agent_id // empty')"
 session="$(printf '%s' "$input" | jq -r '.session_id // empty')"
-[ -n "$role" ] && [ -n "$command" ] || exit 0
+[ -n "$command" ] || exit 0
 
+here="$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")")/../.." 2>/dev/null && pwd)"
 dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+if [ -z "$role" ]; then
+  seat="${HECKS_SEATS_DIR:-$HOME/.claude/hecks-dev/seats}/$session"
+  [ -n "$session" ] && [ -r "$seat" ] && role="$(head -n1 "$seat" | tr -d '[:space:]')"
+  [ -n "$role" ] || exit 0
+  dir="${HECKS_CHECKOUT:-$here}"
+fi
 guarded="$dir/.claude/hooks/guarded_roles"
 limit="${HECKS_GUARD_LIMIT:-30}"
 

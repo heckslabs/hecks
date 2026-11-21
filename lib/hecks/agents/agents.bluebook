@@ -205,6 +205,10 @@ Hecks.bluebook "Agents" do
              use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
       member role: "orchestrator", shape: "settle",
              use: "Dispatch.settle!, which AgentRun.check_all! and every rolling fill already run"
+      member role: "orchestrator", shape: "sqlite3",
+             use: "AgentRun.running, Question.open, Message.inbox or Operation.follow for what the ledgers hold; raw sqlite on a ledger is never read by a role"
+      member role: "orchestrator", shape: "tail",
+             use: "Fleet.topic for what a session said, or Fleet.sessions for the listing; a transcript is never tailed"
       member role: "orchestrator", shape: "uptime",
              use: "Machine.sample! for the load, or Dispatch.preview for the cap, the started count and what a filling would start"
       member role: "orchestrator", shape: "exe/hecks",
@@ -2015,6 +2019,85 @@ Hecks.bluebook "Agents" do
     query "Registered" do
       description "Every hand-started session registration, with its run key, session and role; a replaced one is keyed `<run>~<n>`."
       order_by :run
+    end
+  end
+
+  aggregate "Seat" do
+    description "The role a hand-started session sits in, recorded when it registers where the Bash guard hook reads it without booting Hecks, so the session is guarded whatever directory it starts in. A role with no routing rows (the owner's orchestrator-owner) is allowed by Role.guard, so the owner stays unguarded; registering again replaces the seat."
+
+    identified_by :session
+
+    attribute :session, SeatSession
+    attribute :role, SeatRole
+    attribute :kept, SeatNote, optional: true
+    attribute :refusal, SeatNote, optional: true
+
+    value_object "SeatSession" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SeatRole" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SeatNote", String
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Record"  => "kept",    from: "requested"
+      transition "Decline" => "refused", from: "requested"
+      mark :terminal, "kept", "refused"
+      mark :reusable, "kept", "refused"
+    end
+
+    command "Take" do
+      role "System"
+      goal "Take the seat of a hand-started session that just registered, under the role it registered"
+
+      attribute :session, SeatSession, sets: true
+      attribute :role,    SeatRole, sets: true
+
+      emits "SeatRequested"
+    end
+
+    command "Record", from: "requested" do
+      role "System"
+      goal "Record that the seat is kept where the guard hook reads it"
+
+      reference_to Seat
+      attribute :kept, SeatNote, sets: true
+
+      emits "SeatRecorded"
+    end
+
+    command "Decline", from: "requested" do
+      role "System"
+      goal "Record why the seat could not be kept"
+
+      reference_to Seat
+      attribute :refusal, SeatNote, sets: true
+
+      emits "SeatDeclined"
+    end
+
+    policy "TakeTheSeat" do
+      on      "HandRun.HandRunRegistered"
+      trigger Seat::Take, with: { session: :session, role: :role }
+    end
+
+    policy "KeepTheSeat" do
+      on      "Seat.SeatRequested"
+      ask     :seat, with: { session: :session, role: :role }
+    end
+
+    policy "RecordTheSeat" do
+      on      "Seat.SeatKept"
+      trigger Seat::Record, with: { kept: :kept }
+    end
+
+    policy "RecordTheDeclinedSeat" do
+      on      "Seat.SeatRefused"
+      trigger Seat::Decline, with: { refusal: :refusal }
     end
   end
 
