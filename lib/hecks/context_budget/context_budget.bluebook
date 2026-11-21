@@ -1,8 +1,5 @@
-# ContextBudget: what a turn re-reads is what a session costs (owner, 2026-11-21), so a session's
-# context is held under a ceiling and its spend under a budget. Past the ceiling the session is asked
-# to write its HANDOFF note and restart small; past a budget it asks the lead to continue, hand off or
-# split. The ceilings and budgets are declared rows. Reading a transcript and delivering an ask are
-# adapters behind the ports in context_budget.ports.hecksagon.
+# ContextBudget holds a session's context under a ceiling and its spend under a budget.
+# Reading transcripts and delivering the asks are adapters behind the ports hecksagon.
 
 Hecks.bluebook "ContextBudget" do
   vision "A session hands off and restarts small when its context passes a ceiling, and asks the lead before it runs past its budget."
