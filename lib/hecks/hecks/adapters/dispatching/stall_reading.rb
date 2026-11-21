@@ -16,6 +16,7 @@ module Hecks
         # machine's holds apart, so each names its own reading and governor.
         KINDS = {
           /\Askipped: load/ => "load", /paused by load/ => "load pause", /memory low/ => "memory",
+          /breaker/ => "breaker",
           /boot/ => "boot budget", /\A#{Regexp.escape(PlanAdmission::ADMISSION)}/o => "signalbox admission"
         }.freeze
 
@@ -24,6 +25,7 @@ module Hecks
           "owner pause"         => "dispatch_roll_forward in the Tickets world, or the open merge window (MergeWindow.close!)",
           "load"                => "dispatch_max_load in the Tickets world",
           "load pause"          => "machine_marks load_high in the Tickets world; it lifts at Machine.LoadFellBelow",
+          "breaker"             => "the breakers' ratings in the Signalbox world; one resets once its load is under its rating",
           "memory"              => "machine_marks in the Tickets world; it lifts at Machine.MemoryRecovered",
           "boot budget"         => "cpu_budget boot_hours_per_day in the Tickets world",
           "signalbox admission" => "admission.signalbox in the Tickets world and the Signalbox world's marks",
