@@ -159,10 +159,10 @@ RSpec.describe "AgentRun through the Agents port" do
     expect(out.dig("state", "status")).to eq("started")
   end
 
-  it "records a session whose job died at once as failed, never as started", :aggregate_failures do
+  it "records a session whose job died at once as failed, tidied in the same check", :aggregate_failures do
     out = dispatch_dead
 
-    expect(out.dig("state", "status")).to eq("finished")
+    expect(out.dig("state", "status")).to eq("tidied")
     expect(out["events"]).to include("SessionFailed")
     expect(out.dig("state", "detail")).to eq("exit 1 before init")
   end
