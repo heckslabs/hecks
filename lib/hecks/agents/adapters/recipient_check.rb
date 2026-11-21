@@ -7,6 +7,7 @@ require "hecks/hecks/adapters/claude_session_listing"
 require "hecks/hecks/adapters/dispatching/work_items"
 require "hecks/agents/adapters/recipient_check/hand_runs"
 require "hecks/agents/adapters/recipient_check/senders"
+require "hecks/agents/adapters/recipient_check/sender_proof"
 
 module Hecks
   module Adapters
@@ -40,12 +41,23 @@ module Hecks
       # @param runs [#call, nil] stand-in: answers each run's key with its `status:` and `session:`
       # @param listed [#call, nil] stand-in: answers whether `claude agents` lists a session id
       # @param hand_runs [#call, nil] stand-in: answers each hand run's key with its `session:`
-      def initialize(registry: nil, runs: nil, listed: nil, hand_runs: nil)
+      # @param session [#call, nil] stand-in: answers the sending session id
+      def initialize(registry: nil, runs: nil, listed: nil, hand_runs: nil, session: nil)
         @registry = registry
         @read_runs = runs
         @listed = listed
         @hand_runs = HandRuns.new(registry, hand_runs)
         @senders = Senders.new(registry)
+        @proof = SenderProof.new(runs: method(:runs), hand_runs: @hand_runs, session: session)
+      end
+
+      # @param sender [Hash, String] the sender as the message names it
+      # @param recipient [Hash, nil] the run the message is for, passed back for the next step
+      # @return [Hash{Symbol => Hash}] `verified:` "true" when the sending session is registered
+      #   under that name, otherwise "false"; never raises
+      def sender(sender:, recipient: nil, **)
+        { sender: { value: plain(sender) }, recipient: recipient,
+          verified: { value: (ledger? && @proof.verified?(plain(sender))).to_s } }
       end
 
       # @param recipient [Hash, String] the run the message is for
