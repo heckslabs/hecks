@@ -19,7 +19,7 @@
 # and gate `stable`, not `main`. `hecks.fullGate` (git config) runs the whole `pre_push` stage,
 # suite included. A hook takes no arguments, so `hecks send_train.board! --confirm full_gate.value=true` is how a
 # person asks for it: the train pushes with `git -c hecks.fullGate=true` for that push only. A repository
-# can also keep it on with `git config hecks.fullGate true`. No commit hook runs anything: a commit is instant, and a push is where checks run.
+# can also keep it on with `git config hecks.fullGate true`. The commit-msg hook only strips attribution trailers; checks run at push.
 
 ROOT=$(git rev-parse --show-toplevel)
 WORKDIR=$(mktemp -d)
