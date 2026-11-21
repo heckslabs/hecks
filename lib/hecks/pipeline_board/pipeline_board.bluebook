@@ -291,6 +291,59 @@ Hecks.bluebook "PipelineBoard" do
       attribute :stages,  String, default: ""
     end
 
+    # Why nothing is starting, one row per state of the `Idle reason` verdict: the words that state
+    # says, and the setting or switch that governs it.
+    value_object "IdleReason" do
+      attribute :state,       String
+      attribute :says,        String
+      attribute :governed_by, String, default: ""
+
+      member state: "admission closed",   says: "nothing started for %{minutes} min: %{what} held by %{why}", governed_by: "the Admission rows; the load guard limit"
+      member state: "every item skipped", says: "nothing started for %{minutes} min: %{what} held by %{why}", governed_by: "the fill's skip reasons; session_cap"
+      member state: "nothing planned",    says: "nothing started for %{minutes} min: no planned Work item",     governed_by: "the Work queue"
+      member state: "unknown",            says: "nothing started for %{minutes} min: the fill was not read",    governed_by: "fill_stale_minutes"
+      member state: "starting",           says: "",                                                              governed_by: ""
+    end
+
+    # Landings in one window: how many and the rate per hour; `since` is when the window opens.
+    value_object "Throughput" do
+      attribute :window,   String
+      attribute :since,    String, default: ""
+      attribute :landings, Integer, default: 0
+      attribute :per_hour, String, default: ""
+    end
+
+    # One started Work item: its stage of the cycle, minutes in it, and its session's state.
+    value_object "StatusItem" do
+      attribute :work,          String
+      attribute :title,         String, default: ""
+      attribute :epic,          String, default: ""
+      attribute :tier,          String, default: ""
+      attribute :priority,      String, default: ""
+      attribute :stage,         String, default: ""
+      attribute :minutes,       Integer, default: 0
+      attribute :session_state, String, default: ""
+    end
+
+    # One blocked run: minutes blocked, the first line of its question and its kind (`owner`, `choose`, `review`).
+    value_object "StatusBlock" do
+      attribute :run,        String
+      attribute :minutes,    Integer, default: 0
+      attribute :first_line, String, default: ""
+      attribute :kind,       String, default: ""
+    end
+
+    # The pipeline's status as one read: why nothing starts (first line, its reading's source and the
+    # governing setting), the throughput windows, each started Work item and each blocked run.
+    value_object "Status" do
+      attribute :why_idle,    String, default: ""
+      attribute :why_source,  String, default: ""
+      attribute :governed_by, String, default: ""
+      attribute :throughput,  list_of(Throughput)
+      attribute :items,       list_of(StatusItem)
+      attribute :blocked,     list_of(StatusBlock)
+    end
+
     # One run the MainIntegration saga remembers: `parked` is `yes` for one that waits on a person.
     value_object "IntegrationRun" do
       attribute :landed,  String
@@ -537,6 +590,14 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Train glance", position: 4, measure: "open",    op: ">",      than: "0", scale: 1, state: "ok"
       member stage: "Train glance", position: 5, measure: "",        op: "always", than: "",  scale: 1, state: "idle"
 
+      # Why nothing is starting, by the first rule that holds: admission closed, every planned item skipped,
+      # nothing planned, else the fill is starting work. `standing` counts the overloads and the load guard.
+      member stage: "Idle reason", position: 1, measure: "standing", op: ">",       than: "0", scale: 1, state: "admission closed"
+      member stage: "Idle reason", position: 2, measure: "would",    op: ">",       than: "0", scale: 1, state: "starting"
+      member stage: "Idle reason", position: 3, measure: "skipped",  op: ">",       than: "0", scale: 1, state: "every item skipped"
+      member stage: "Idle reason", position: 4, measure: "planned",  op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "Idle reason", position: 5, measure: "",         op: "always",  than: "",  scale: 1, state: "nothing planned"
+
       member stage: "Session status", position: 1, measure: "waiting", op: ">",      than: "0", scale: 1, state: "blocked"
       member stage: "Session status", position: 1, measure: "needs",   op: ">",      than: "0", scale: 1, state: "blocked"
       member stage: "Session status", position: 2, measure: "waiting", op: ">",      than: "0", scale: 1, state: "busy"
@@ -643,6 +704,9 @@ Hecks.bluebook "PipelineBoard" do
       member name: "boot_attention_percent",  value: 80
       # Seconds a live session's job may write nothing before the session reads as stalled.
       member name: "session_idle_seconds",    value: 900
+      # The status read model's throughput windows: the last hour, and the hour of day (Arizona) "today since" counts from.
+      member name: "status_hour_minutes",     value: 60
+      member name: "status_day_start_hour",   value: 12
     end
 
     # A project that keeps a board: its name and its checkout beside Hecks, whose local world
@@ -880,6 +944,12 @@ Hecks.bluebook "PipelineBoard" do
     query "Glance" do
       description "The two questions asked first, as one typed Glance: what needs a person or stands too long (each entry with its group, one plain line, since when and who it waits on, a role or a person) and whether work is flowing (admission open or closed and why, what the fill would start next, the train's state). Which kinds are members is the StuckKind rows; each fact is asked of the aggregate that owns it. It reads only."
       returns Glance
+    end
+
+    query "Now" do
+      description "The pipeline's status as one typed Status: why nothing is starting when nothing is (the first line, the reading behind it and the setting that governs it), landings in the last hour, today since noon and since a given time with their rates, each started Work item with its stage and minutes in it, and each blocked run with its question's first line and kind. It reads only."
+      attribute :since, String, optional: true
+      returns Status
     end
 
     query "Stages" do
