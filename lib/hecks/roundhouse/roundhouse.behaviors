@@ -71,6 +71,26 @@ Hecks.behaviors "Roundhouse" do
     expect emits: ["SessionMetered"], status: "running"
   end
 
+  test "a meter reading records the session's item, processor draw and idle time" do
+    tests "Meter", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "coder-6" }, admission: { value: "coder-6" }, role: { value: "coder" },
+          owner: { value: "pipeline-board-tiles" }, purpose: { value: "add a tile" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 4096 }, fuse_minutes: { value: 240 }
+    input session: "coder-6", drawn: { value: 1500 }, minutes: { value: 40 }, rated: { value: 4096 }, rated_minutes: { value: 240 },
+          item: { value: "roundhouse-meters-every-session" }, cpu: { value: 85 }, idle: { value: 3 }
+    expect emits: ["SessionMetered"], status: "running"
+  end
+
+  test "a session without an item is still metered" do
+    tests "Meter", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "helper-9" }, admission: { value: "helper-9" }, role: { value: "helper" },
+          owner: { value: "orchestrator" }, purpose: { value: "check a coder" }, ends_when: { value: "the check reports" },
+          fuse: { value: 1024 }, fuse_minutes: { value: 30 }
+    input session: "helper-9", drawn: { value: 280 }, minutes: { value: 5 }, rated: { value: 1024 }, rated_minutes: { value: 30 },
+          item: { value: "" }, cpu: { value: 0 }, idle: { value: 0 }
+    expect emits: ["SessionMetered"], status: "running"
+  end
+
   test "a meter reading that names another fuse is refused" do
     tests "Meter", on: "Session"
     setup "Roundhouse::Session.Start", session: { value: "coder-4" }, admission: { value: "coder-4" }, role: { value: "coder" },
