@@ -10,7 +10,7 @@ module GlanceFacts
 
   OWNER_ASK = { id: "s1", run: "r1", status: "blocked", owner: true, detail: "[owner] push main?",
                 started: "2026-11-20T09:00:00Z" }.freeze
-  BLOCKED = { id: "s2", run: "r2", status: "blocked", owner: false, held: "other repo", detail: "needs an answer" }.freeze
+  BLOCKED = { id: "s2", run: "r2", status: "blocked", owner: false, detail: "needs an answer" }.freeze
   STALLED = { id: "s3", run: "r3", status: "busy", idle_seconds: 1200 }.freeze
   STOP = { finding: "abcdefghij", stage: "verify", commit: "c", body: "the verify failed" }.freeze
 
