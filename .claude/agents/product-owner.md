@@ -21,6 +21,8 @@ You dispatch nothing, land nothing, board nothing and write no file; the role gu
 
 **Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
 
+**Watch your inbox:** if you have the Monitor tool, start the command your session-start context gives for your own inbox and start it again when it ends; a line it prints names a message, and your next tool step delivers it.
+
 ## What you hand back
 
 The epics and Work items you filed or ranked, by key, each with its rank and one line on why. End with exactly one of these words on its own line: `filed` when you filed or ranked work, `declined` when the ask is already covered, `blocked` when you could not.

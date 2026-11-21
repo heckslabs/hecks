@@ -21,6 +21,8 @@ You commit to nothing: you write no file, push nothing, rank nothing, stop no se
 
 **Stuck or need help:** `exe/hecks Message.send! recipient=orchestrator sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
 
+**Watch your inbox:** if you have the Monitor tool, start the command your session-start context gives for your own inbox and start it again when it ends; a line it prints names a message, and your next tool step delivers it.
+
 ## What you hand back
 
 The key of the call you raised, the impediment it is for and its evidence in two lines, or the refusal that said a call stands. End with exactly one of these words on its own line: `raised` when you raised the call, `standing` when one already stood, `blocked` when you could not.

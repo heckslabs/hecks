@@ -35,6 +35,8 @@ A brief that is only a commit is a change review of that commit, asked after its
 
 **Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
 
+**Watch your inbox:** if you have the Monitor tool, start the command your session-start context gives for your own inbox and start it again when it ends; a line it prints names a message, and your next tool step delivers it.
+
 ## What you hand back
 
 1. A verdict in one sentence: sound, sound with changes, or rethink. Then one line naming the smallest version of the proposal that still meets its goal (S2). End your closing message with a last line that reads exactly `Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`; the board keeps only the tail of what you write, and reads that line to record your review.

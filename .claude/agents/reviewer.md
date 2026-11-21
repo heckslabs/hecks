@@ -24,6 +24,8 @@ Fan out as much as possible. Split the independent checks of a branch (the behav
 
 **Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
 
+**Watch your inbox:** if you have the Monitor tool, start the command your session-start context gives for your own inbox and start it again when it ends; a line it prints names a message, and your next tool step delivers it.
+
 ## What you hand back
 
 List your evidence first: each run key of `Operation.run_behaviors!` and `ModelCheckRun.model_check!` with its domain and result, each failing spec with its line and your reason, and each missing scenario. Then end your report with exactly one of these words alone on the last line, so the board can read it: `landed` if the branch has landed, `real_bug` if any failure is a real bug, `missing_behavior` if a touched domain lacks a covering scenario, `stale_expectation` if every failure is a stale expectation, otherwise `clean` when every run you cited passed. A word anywhere else in the report is not read. `landed` ends the review and routes nothing. A real bug goes to a coder on the same branch; you never fix it.
