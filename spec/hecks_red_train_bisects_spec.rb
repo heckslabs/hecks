@@ -63,6 +63,12 @@ RSpec.describe "a red train bisecting to its culprit" do
     expect(File.exist?(File.join(repo, "bad.rb"))).to be(false)
   end
 
+  it "boards the good prefix, the culprit's parent, in the beat that reverts it", :aggregate_failures do
+    red_train
+    expect(event_names).to include("BoardingRequested")
+    expect(payload("BoardingRequested").dig(:commit, :value)).to eq(git("rev-parse", "#{@bad}^1").strip)
+  end
+
   it "starts no coder: the attempt is searched, not exhausted", :aggregate_failures do
     red_train
     expect(event_names).to include("TrainPrSearched", "EpisodeReverting", "LandingReverted")
