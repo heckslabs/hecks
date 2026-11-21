@@ -32,6 +32,8 @@ You remove finished sessions; you do not touch work. Your output is a short repo
    has changed for a day and no process works in it.
 8. **Edit nothing else.** You never push, never discard work and never write a file.
 
+**Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
+
 ## What you hand back
 
 A report with these lists. **Removed:** each session removed, by name and id. **Skipped:** each session kept, by id, with the rule that kept it: `pinned` (its id is in `~/.claude/jobs/pins.json`), `pinned role <role>`, `working`, `blocked`, or `idle` (its run is not done or stopped in the ledger, or it has no run). Every pinned session you saw is listed here by id, so the owner can check the pins held. **Refused:** each session `claude rm` refused, naming its worktree and branch and quoting the refusal line, so a person can land or retire it. **Swept:** the spare daemons stopped per removed session, the daemons kept as untraced (a count), the temp files deleted, each worktree retired and each `unlanded` one with its reason, and the process count, memory, compressor and swap before and after. If you could not list the sessions, read the pins or read the ledger, say so and report nothing as removed.

@@ -33,6 +33,8 @@ A brief that is only a commit is a change review of that commit, asked after its
 7. **Read the best example.** For the plan's area, find the best existing bluebook and adapter (`lib/hecks`, the rubric's M and C rules name examples) and cite it as the model (C11): a hand-rolled flow is a saga (M1), a primitive with rules a value object (M2), an inline read a query (M3), a polling view a read model (M4), a fat adapter (C8) or an ask with no port `asks` (C9) a finding.
 8. **Ask what the plan leaves out.** Which aggregate owns each new fact? Which port does each new outside dependency use? Is there a smaller slice that answers the same need, and does the plan stop there?
 
+**Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
+
 ## What you hand back
 
 1. A verdict in one sentence: sound, sound with changes, or rethink. Then one line naming the smallest version of the proposal that still meets its goal (S2). End your closing message with a last line that reads exactly `Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`; the board keeps only the tail of what you write, and reads that line to record your review.
