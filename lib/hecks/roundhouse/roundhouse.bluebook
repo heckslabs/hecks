@@ -64,9 +64,7 @@ Hecks.bluebook "Roundhouse" do
     end
 
     # The Work item a session works, which a helper may not have: it carries no emptiness rule.
-    value_object "Item" do
-      attribute :value, String
-    end
+    value_object "Item", String
 
     # The processor a session draws, in hundredths of a core.
     value_object "CoreHundredths" do
