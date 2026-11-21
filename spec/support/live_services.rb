@@ -40,7 +40,7 @@ module LiveServices
   # @param env [#fetch] the environment
   # @param home [String] the home directory
   # @return [Boolean]
-  def aws_credentials?(env = ENV, home = Dir.home)
+  def aws_credentials?(env = ENV, home = RunSandbox.real_home)
     named = %w[AWS_ACCESS_KEY_ID AWS_PROFILE AWS_WEB_IDENTITY_TOKEN_FILE].any? { |name| !env.fetch(name, "").to_s.empty? }
     named || %w[credentials config].any? { |file| File.file?(File.join(home, ".aws", file)) }
   end

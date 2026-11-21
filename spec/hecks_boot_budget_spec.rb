@@ -94,60 +94,40 @@ RSpec.describe "the boot budget" do
     expect(reading.capped).to be(false)
   end
 
-  it "judges half the hour's allowance spent in a truncated read as probably spent", :aggregate_failures do
-    expect(truncated(row(2_160_000)).stop_reason(24.0)).to include("probably spent", "cut short")
-    expect(truncated(row(1_800_000)).today.capped).to be(true)
+  it "reads the share of the machine's CPU the last minutes' boots took", :aggregate_failures do
+    share = budget(row(1_800_000, "a", 5), row(900_000, "b", 10), row(5_000_000, "old", 30)).share(minutes: 15, cpus: 4)
+
+    expect(share.percent).to eq(75.0)
+    expect(share.capped).to be(false)
   end
 
-  it "stops nothing for a truncated read below half the hour's allowance" do
-    expect(truncated(row(1_000_000)).stop_reason(24.0)).to be_nil
+  it "leaves a run with no start time out of the share, which no window can place" do
+    early = { "boot_ms" => 9_000_000, "date" => "2026-11-09" }
+
+    expect(budget(early).share(minutes: 15, cpus: 4).percent).to eq(0.0)
   end
 
-  it "does not judge a truncated read short of the day cut short of the last hour", :aggregate_failures do
-    reader = truncated(row(2_160_000, nil, 90), row(100, nil, 120))
+  it "says a share cut short is a floor", :aggregate_failures do
+    share = truncated(row(1_800_000)).share(minutes: 15, cpus: 4)
 
-    expect(reader.today.recent_capped).to be(false)
-    expect(reader.stop_reason(24.0)).to be_nil
+    expect(share.capped).to be(true)
+    expect(share.percent).to eq(50.0)
   end
 
-  it "says the budget is spent once the last hour reaches its share of the day", :aggregate_failures do
-    spent = budget(row(3_600_000))
+  it "flags a caller that booted more than the rate in the window, and no one else" do
+    rows = Array.new(31) { row(1, "coder:loop", 2) } + Array.new(30) { row(1, "idler", 2) } + Array.new(40) { row(1, "old", 20) }
 
-    expect(spent.stop_reason(24.0)).to eq("skipped: boot budget spent: 1.0 of 1.0 hours in the last hour")
-    expect(spent.stop_reason(48.0)).to be_nil
+    expect(budget(*rows).storms(boots: 30, minutes: 5)).to eq("coder:loop" => 31)
   end
 
-  it "starts work after a day over the daily mark when the last hour is quiet", :aggregate_failures do
-    busy_morning = budget(row(3_600_000 * 3, nil, 300), row(3_600_000 * 3, nil, 240))
-
-    expect(busy_morning.today.hours).to eq(6.0)
-    expect(busy_morning.stop_reason(6.0)).to be_nil
+  it "never flags the runs that name no caller" do
+    expect(budget(*Array.new(50) { row(1) }).storms(boots: 30, minutes: 5)).to be_empty
   end
 
-  it "still stops work when a storm in the last hour passes the hour's share", :aggregate_failures do
-    storm = budget(row(1_000_000, nil, 10), row(1_000_000, nil, 20))
+  it "keeps the day's hours a reading, whatever they total", :aggregate_failures do
+    busy_morning = budget(row(3_600_000 * 30, nil, 300), row(3_600_000 * 30, nil, 240))
 
-    expect(storm.today.recent_hours).to eq(0.556)
-    expect(storm.stop_reason(6.0)).to include("spent", "of 0.25 hours in the last hour")
-  end
-
-  it "reads the short window's hours from stamped runs only", :aggregate_failures do
-    early = { "boot_ms" => 1_800_000, "date" => "2026-11-09" }
-    reading = budget(early, row(1_800_000), row(1_800_000, nil, 90)).today
-
-    expect(reading.hours).to eq(1.5)
-    expect(reading.recent_hours).to eq(0.5)
-  end
-
-  it "frees the budget when enough of the hour's runs have left it" do
-    storm = budget(row(1_000_000, nil, 10), row(1_000_000, nil, 20))
-
-    expect(storm.frees_at(6.0)).to eq(now - (10 * 60) + 3600)
-  end
-
-  it "takes a window of its own" do
-    short = Hecks::Adapters::BootBudget.new(entries: ->(_cutoff) { [row(1_000_000, nil, 20)] }, now: -> { now }, window: 600)
-
-    expect(short.today.recent_hours).to eq(0.0)
+    expect(busy_morning.today.hours).to eq(60.0)
+    expect(busy_morning.share(minutes: 15, cpus: 12).percent).to eq(0.0)
   end
 end

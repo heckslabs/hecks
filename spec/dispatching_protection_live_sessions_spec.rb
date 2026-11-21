@@ -11,7 +11,7 @@ require_relative "support/recorded_agents_listing"
 RSpec.describe "the helper share over a recorded agents listing" do
   def protecting
     Hecks::Adapters::Dispatching::Protecting.new(
-      budget: nil, boots: nil, legacy: -> {}, sessions: -> { RecordedAgentsListing.metering.rows },
+      share: -> {}, sessions: -> { RecordedAgentsListing.metering.rows },
       door: Hecks::Adapters::Dispatching::SignalboxDoor.new
     )
   end
