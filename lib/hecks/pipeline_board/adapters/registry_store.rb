@@ -2,6 +2,7 @@
 
 require "hecks"
 require_relative "probe"
+require_relative "registry_store/event_tail"
 
 module Hecks
   module Adapters
@@ -13,6 +14,8 @@ module Hecks
       # refresh share a single load of each aggregate. A reading the domain declares (a query, a
       # read model) is asked for by its name, so its rule stays in the bluebook that declares it.
       class RegistryStore
+        include EventTail
+
         # Seconds an aggregate's records are kept.
         CACHE_SECONDS = 5
         # How many times its own load time a slow aggregate's records are kept, so a load that
