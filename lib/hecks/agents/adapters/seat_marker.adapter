@@ -1,7 +1,0 @@
-# Binds the `Seats` port to `SeatMarker`, which keeps a hand-started session's role where the guard hook reads it.
-# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
-require "hecks/agents/adapters/seat_marker"
-
-Hecks.adapter "SeatMarker" do
-  port "Seats"
-end
