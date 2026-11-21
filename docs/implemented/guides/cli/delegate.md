@@ -48,7 +48,7 @@ One brief handed to a background Claude session: started and tracked, or refused
 - `hecks AgentRun.rebind! <to> session=`: Move a started run to a named live session that no other started run holds
 - `hecks AgentRun.retire! <to>`: Close a started run whose session is gone, so the ledger stops listing it as started
 - `hecks AgentRun.working`: Every started run whose session is not waiting on a person, oldest key first; its standing is working.
-- `hecks AgentRun.blocked`: Every started run whose session waits on a person, the longest waiting first, each with its question (`detail`) and when it began waiting (`blocked_at`).
+- `hecks AgentRun.blocked`: Every started run whose session waits on a person, oldest key first.
 - `hecks AgentRun.answering`: Every started run that answers a blocked run's question, its work the run that asks.
 
 ### SessionSweep
