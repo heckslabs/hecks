@@ -59,6 +59,12 @@ module Hecks
         raise refusal(id, run)
       end
 
+      # @return [String] the sentence's tail naming the hand runs a message can be sent to
+      def registered_note
+        keys = @hand_runs.keys
+        keys.empty? ? "; no hand run is registered" : "; registered hand runs: #{keys.join(", ")}"
+      end
+
       # The refusal of a boot that holds no AgentRun ledger: `exe/hecks agents` boots Agents alone.
       NO_LEDGER = "the AgentRun ledger is not booted here, so no recipient can be judged: " \
                   "send with exe/hecks Message.send!, which boots the Hecks domain"
@@ -80,14 +86,17 @@ module Hecks
       end
 
       def refusal(id, run)
-        return Unaddressable.new("ended", "the run #{id} has no live session (#{run[:status]})") if run
+        return Unaddressable.new("ended", "the run #{id} has no live session (#{run[:status]})#{registered_note}") if run
         return hand_unlisted(id) unless @hand_runs.session(id).empty?
 
         holder = holder_of(id)
         return Unaddressable.new("session-of-run", "#{id} is the session of run #{holder}; send to the run") if holder
-        return Unaddressable.new("no-run", "no run has that id; the session #{id} has no AgentRun") if listed?(id)
+        if listed?(id)
+          return Unaddressable.new("no-run",
+                                   "no run has that id; the session #{id} has no AgentRun#{registered_note}")
+        end
 
-        Unaddressable.new("unknown", "no run has that id: #{id}, and no session has it either")
+        Unaddressable.new("unknown", "no run has that id: #{id}, and no session has it either#{registered_note}")
       end
 
       def hand_unlisted(id)

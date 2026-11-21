@@ -111,6 +111,8 @@ Hecks.bluebook "Hecks" do
                reason: "a pause is read by the process that would wake the pruner, and by the board"
         member domain: "Agents", aggregate: "Message", checkout: "main",
                reason: "a message is sent by one call and read, then answered, by the run's session in a later one"
+        member domain: "Agents", aggregate: "HandRun", checkout: "main",
+               reason: "a hand-started session registers in one process and the recipient check of a message reads it in another"
         member domain: "Agents", aggregate: "Verdict", checkout: "main",
                reason: "a verdict is delivered, retried or marked undeliverable by calls later than the one that judged"
         member domain: "Agents", aggregate: "Escalation", checkout: "main",

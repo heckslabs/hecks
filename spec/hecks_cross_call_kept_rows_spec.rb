@@ -17,6 +17,7 @@ RSpec.describe "cross-call kept rows" do
     ["Hecks", "Probe"]       => "main",
     ["Hecks", "RedEpisode"]  => "main",
     ["Agents", "Message"]    => "main",
+    ["Agents", "HandRun"]    => "main",
     ["Agents", "Verdict"]    => "main",
     ["Agents", "Escalation"] => "main",
     ["Agents", "Turn"]       => "main"

@@ -43,4 +43,18 @@ RSpec.describe "a hand-started session registered as a run" do
   it "still refuses a run key nobody registered" do
     expect(send_message(to: "owner-orchestrator").status).to eq("refused")
   end
+
+  it "names the registered keys when it refuses an unknown run" do
+    register_hand
+    expect(send_message(to: "nobody").refusal.value).to end_with("registered hand runs: owner-orchestrator")
+  end
+
+  it "leaves an archived key out of the names it gives" do
+    2.times { register_hand }
+    expect(send_message(to: "nobody").refusal.value).not_to include("~")
+  end
+
+  it "says no hand run is registered when none is" do
+    expect(send_message(to: "nobody").refusal.value).to end_with("no hand run is registered")
+  end
 end
