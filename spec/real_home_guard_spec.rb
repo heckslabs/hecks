@@ -1,14 +1,20 @@
 require "spec_helper"
 
 RSpec.describe RealHomeGuard do
-  let(:state) { File.join(RunSandbox.real_home, ".claude") }
+  let(:owner) { Dir.mktmpdir("owner-home", RunSandbox.path("tmp")) }
+  let(:state) { File.join(owner, ".claude") }
+
+  before do
+    FileUtils.mkdir_p(File.join(state, "hecks-dev"))
+    allow(RunSandbox).to receive(:real_home).and_return(owner)
+  end
 
   it "refuses a read of the owner's live ledger" do
     expect { File.exist?(File.join(state, "hecks-dev", "tickets.db")) }.to raise_error(described_class::Violation, /real home/)
   end
 
   it "refuses a listing of the owner's session state" do
-    expect { Dir.glob(File.join(state, "jobs", "*")) }.to raise_error(described_class::Violation)
+    expect { Dir.glob(File.join(state, "hecks-dev", "*")) }.to raise_error(described_class::Violation)
   end
 
   it "refuses a path that reaches the real state through a symlink" do
@@ -22,6 +28,6 @@ RSpec.describe RealHomeGuard do
   end
 
   it "lets a run read an unrelated path in the real home" do
-    expect { File.exist?(File.join(RunSandbox.real_home, ".zshrc")) }.not_to raise_error
+    expect { File.exist?(File.join(owner, ".zshrc")) }.not_to raise_error
   end
 end
