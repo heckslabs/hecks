@@ -28,16 +28,21 @@ module AgentsMessageHelpers
   # registers through `HandRun.register!` reads the booted rows by leaving this nil.
   def hand_runs = nil
 
-  def send_message(key: "m1", to: "run-a", kind: "answer", body: "use the smaller version", reply: "", sender: "orchestrator")
+  def send_message(key: "m1", to: "run-a", sender: "orchestrator", **said)
     check = Hecks::Adapters::RecipientCheck.new(registry: @agents_runtime&.registry, runs: -> { recipients },
                                                 listed: ->(id) { listed_sessions.include?(id) },
                                                 hand_runs: hand_runs && -> { hand_runs })
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { check }) do
-      Hecks::Agents::Message.send!(message: { value: key }, recipient: { value: to }, sender: { value: sender },
-                                   kind: { value: kind }, body: { value: body }, in_reply_to: { value: reply })
+      Hecks::Agents::Message.send!(**message_words(key, to, sender, said))
     end
     Hecks::Agents::Message.find(key)
   end
 
   def inbox(run) = Hecks::Agents::Message.inbox(recipient: { value: run }).map { |row| row[:message].value }
+
+  def message_words(key, to, sender, said)
+    { message: key, recipient: to, sender: sender, kind: said.fetch(:kind, "answer"),
+      body: said.fetch(:body, "use the smaller version"), in_reply_to: said.fetch(:reply, "") }
+      .transform_values { |value| { value: value } }
+  end
 end
