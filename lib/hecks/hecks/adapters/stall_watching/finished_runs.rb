@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "openings"
+require_relative "standing"
 require_relative "computed_row"
 
 module Hecks
@@ -9,7 +10,10 @@ module Hecks
     class StallWatching
       # The `run-finished` read: an opening line no closing line followed whose run, the same id on
       # the row's `ends_aggregate`, ended since: the one waiting for the answer waits for ever. It
-      # counts from the run's end and is an impediment once it has lasted the row's minutes.
+      # counts from the run's end and is an impediment once it has lasted the row's minutes. A row
+      # that names `settled_aggregate` and `settled_by` also drops a line those lines settled
+      # ({Standing#settled}, the rule a `StallKind` row follows): a verdict recorded without the
+      # closing line the row names.
       class FinishedRuns
         # @param now [Integer] the clock's answer, in Unix epoch seconds
         def initialize(now)
@@ -22,8 +26,10 @@ module Hecks
         # @return [Array<Hash>] one `Sighting` row per open line whose run ended long enough ago
         def rows(signal, lines, run)
           openings = Openings.new(signal, lines)
+          standing = Standing.new(lines)
           openings.unclosed.filter_map do |subject, opened|
             ended = ended_at(signal, lines, subject, opened)
+            next if standing.settled(signal, subject, opened, nil)
             next unless ended && (@now - ended.to_i) / 60 >= signal[:minutes].to_i
 
             row(signal, run, subject, ended, openings.links(subject))
