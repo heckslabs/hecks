@@ -1735,8 +1735,8 @@ Hecks.bluebook "Deploy" do
     # target=<host> target_secret=<id> [source_db=] [target_db=] [force=true] [confirm=true]
     # [dry_run=true] [skip_verify=true] [script=<path>]`. Runs the project's generated
     # `restore-to-rds.sh`, which overwrites the target database's schemas, so it refuses unless
-    # `confirm=true` (the refusal names what would be overwritten); `dry_run=true` prints the plan
-    # and runs nothing. A policy then requests a `CopyVerification` under the same run key unless
+    # `confirm=true` (a given on the command); `dry_run=true` prints the plan, naming what would
+    # be overwritten, and runs nothing. A policy then requests a `CopyVerification` under the same run key unless
     # `skip_verify=true`. Exit 1 when flagged or drifted, with the script's status in the reason.
     command "Restore" do
       goal "Copy a project's schemas into RDS and record whether the copy matches (exit 1 when flagged or drifted: 60 old client, 61 target has the schema, 62 restore errors)"
@@ -1756,6 +1756,9 @@ Hecks.bluebook "Deploy" do
       attribute :dry_run,       Switch, optional: true, sets: true
       attribute :skip_verify,   Switch, optional: true, sets: true
 
+      given("a restore overwrites the target database's schemas: pass confirm=true, or dry_run=true to print the plan") do
+        confirm.value == true || dry_run.value == true
+      end
 
       emits "DataCopyRequested"
     end
@@ -2332,6 +2335,9 @@ Hecks.bluebook "Deploy" do
       attribute :confirm, Switch, optional: true, sets: true
       attribute :dry_run, Switch, optional: true, sets: true
 
+      given("a preview deploy writes a stack to AWS: pass confirm=true, or dry_run=true to print the plan") do
+        confirm.value == true || dry_run.value == true
+      end
 
       emits "PreviewDeployRequested"
     end
@@ -2347,6 +2353,9 @@ Hecks.bluebook "Deploy" do
       attribute :confirm, Switch, optional: true, sets: true
       attribute :dry_run, Switch, optional: true, sets: true
 
+      given("a preview destroy tears a stack down in AWS: pass confirm=true, or dry_run=true to print the plan") do
+        confirm.value == true || dry_run.value == true
+      end
 
       emits "PreviewDestroyRequested"
     end
@@ -2362,6 +2371,9 @@ Hecks.bluebook "Deploy" do
       attribute :confirm, Switch, optional: true, sets: true
       attribute :dry_run, Switch, optional: true, sets: true
 
+      given("a preview login reads the session secret: pass confirm=true, or dry_run=true to print the plan") do
+        confirm.value == true || dry_run.value == true
+      end
 
       emits "PreviewLoginRequested"
     end
@@ -2604,6 +2616,9 @@ Hecks.bluebook "Deploy" do
       attribute :confirm,   Switch, optional: true, sets: true
       attribute :dry_run,   Switch, optional: true, sets: true
 
+      given("a companion roll writes to the box: pass confirm=true, or dry_run=true to print the plan") do
+        confirm.value == true || dry_run.value == true
+      end
 
       emits "CompanionRollRequested"
     end

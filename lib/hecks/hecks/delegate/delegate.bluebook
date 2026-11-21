@@ -255,14 +255,9 @@ Hecks.bluebook "Hecks" do
         emits SessionFailed
       end
 
-      # A finished run's session is removed when it ended `done` or `stopped`; a session
-      # ended `abandoned` (a helper nobody answered) goes too; one still `working` or `blocked` on a
-      # person is kept, and so is one a person has taken over (the port says so).
-      #
-      # A run the review kept (`Retain`) stays finished, and every reap sends `Tidy` for it. It is
-      # refused here until its wait has passed, so a kept run is reviewed once per wait. `Release`
-      # ends the wait early. `+` because a rule has no `-`: `now - kept_at >= review_wait`. A run
-      # never kept holds neither and is reviewed at once; `nil?` is false in a rule: use `== nil`.
+      # A finished run's session goes when it ended done, stopped, failed or abandoned. A working or
+      # blocked one is kept, and so is one a person took over. A kept run waits its `review_wait`
+      # (`Retain`) before `Tidy` reviews it again; `Release` ends the wait, and a run never kept is reviewed at once.
       command "Tidy", from: "finished" do
         role "Operator"
         goal "Remove the finished session of one run, unless it is still working, a coder waiting on a person, or taken over"
@@ -272,8 +267,8 @@ Hecks.bluebook "Hecks" do
         attribute :now, Instant
         needs :now
 
-        given("the session ended done, stopped or abandoned: a working or blocked session is kept") do
-          condition.value == "done" || condition.value == "stopped" || condition.value == "abandoned"
+        given("the session ended done, stopped, failed or abandoned: a working or blocked session is kept") do
+          condition.value == "done" || condition.value == "stopped" || condition.value == "failed" || condition.value == "abandoned"
         end
         given("a kept run is reviewed again once its wait has passed") do
           kept_at.value == nil || review_wait.value == nil || kept_at.value + review_wait.value <= now.value
@@ -565,7 +560,7 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Tidyable" do
-        description "Every finished run, oldest key first; `Tidy` keeps those that did not end done, stopped or abandoned, and refuses one the review kept until its wait has passed."
+        description "Every finished run, oldest key first; `Tidy` keeps those that did not end done, stopped, failed or abandoned, and refuses one the review kept until its wait has passed."
         where(status: "finished")
         order_by :run
       end
@@ -3648,7 +3643,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # Each cause of a reap opens the turn (refused, and benign, once it is there) and then asks
-    # for it. The lease is an hour: a reap is over in minutes, and one that died frees nothing.
+    # for it. The lease is a quarter hour: a reap is over in minutes, and one that died frees nothing.
     policy "OpenTheReapTurnWhenWorkLands" do
       on      "Landing.LandedWorkFound"
       trigger ReapTurn::Open, with: { turn: "sessions" }
@@ -3657,11 +3652,17 @@ Hecks.bluebook "Hecks" do
     policy "ReapWhenWorkLands" do
       on      "Landing.LandedWorkFound"
       root
-      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :branch, spacing: 0, lease: 3600 }
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :branch, spacing: 0, lease: 900 }
     end
 
-    # The session of a run that ended is reviewed at once, not at the next beat. A run that
-    # failed is left out: `Tidy` keeps a session that did not end done or stopped.
+    # A run that finished is reviewed at once, not at the next beat. A run that failed starts no
+    # reap, so it is tidied on its own; its end holds no turn a stuck reap could keep.
+    policy "TidyTheRunThatFailed" do
+      on      "AgentRun.SessionFailed"
+      root
+      trigger AgentRun::Tidy, with: { agent_run: :run }
+    end
+
     policy "OpenTheReapTurnWhenASessionEnds" do
       on      "AgentRun.SessionFinished"
       trigger ReapTurn::Open, with: { turn: "sessions" }
@@ -3670,7 +3671,7 @@ Hecks.bluebook "Hecks" do
     policy "ReapWhenASessionEnds" do
       on      "AgentRun.SessionFinished"
       root
-      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :run, spacing: 0, lease: 3600 }
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :run, spacing: 0, lease: 900 }
     end
 
     # The backstop: a kept run whose wait passed, a session a person left, a cause refused while
@@ -3683,7 +3684,7 @@ Hecks.bluebook "Hecks" do
     policy "ReapOnHeartbeat" do
       on      "Heartbeat.Beaten"
       root
-      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :beat, spacing: 1800, lease: 3600 }
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :beat, spacing: 1800, lease: 900 }
     end
 
     policy "ReapWhenTheTurnIsTaken" do

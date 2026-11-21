@@ -122,11 +122,11 @@ RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
     settings.each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
   end
 
-  def command(verb, *argv, env: {})
+  def command(verb, *argv, env: {}, raw: false)
     with_stub_environment(env) do
       out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
                                                              argv: ["deploy", verb, scratch.project, *argv, "--wait"])
-      [JSON.parse(out), status]
+      [raw ? out : JSON.parse(out), status]
     end
   end
 
@@ -155,25 +155,24 @@ RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
   end
 
   describe "data_copy.restore!" do
-    it "refuses without confirm=true and exits 1", :aggregate_failures do
-      json, status = restore
+    it "refuses without confirm=true at the dispatch and exits 1", :aggregate_failures do
+      out, status = restore(raw: true)
 
       expect(status).to eq(1)
-      expect(json.dig("state", "status")).to eq("flagged")
+      expect(out).to include("given_not_met", "confirm=true", "dry_run=true")
     end
 
-    it "names what it would overwrite when it refuses without confirm=true" do
-      json, = restore
-
-      expect(refusal_of(json)).to include("refusing to restore", "schemas widgets, widgets_cms",
-                                          "database widgetdb on new.db.example", "OVERWRITING", "confirm=true")
-    end
-
-    it "touches nothing when it refuses without confirm=true", :aggregate_failures do
-      json, = restore
+    it "touches nothing when it refuses without confirm=true" do
+      restore(raw: true)
 
       expect(scratch.calls).to be_empty
-      expect(verification_status(json)).to be_nil
+    end
+
+    it "names what it would overwrite in the dry run" do
+      json, = restore("dry_run=true")
+
+      expect(json.dig("state", "report")).to include("schemas widgets, widgets_cms", "database widgetdb on new.db.example",
+                                                     "OVERWRITING")
     end
 
     it "prints the plan for dry_run=true", :aggregate_failures do
