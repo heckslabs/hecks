@@ -4,8 +4,8 @@ require_relative "support/new_work_started"
 
 # The expedite lane (ADR 0224): a work item `Work.expedite!` marks starts first after a red fix, in
 # the one place outside the cap, past the boot budget and the epic limit, and is held by the load
-# only above the CPU count. A further expedited item takes a regular seat under the cap. The plan and
-# the `WorkLimits` port apply the one rule in `WorkSlots`.
+# only above the CPU count. A further expedited item takes a regular seat under the cap. The
+# plan and the `WorkLimits` port apply the one rule in `WorkSlots`.
 RSpec.describe "the expedite lane" do
   include_context "with new work started"
 
