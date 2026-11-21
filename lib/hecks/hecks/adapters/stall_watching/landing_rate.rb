@@ -6,9 +6,9 @@ require_relative "computed_row"
 module Hecks
   module Adapters
     class StallWatching
-      # The `landing-rate` read: the lines that open the row in its window (an hour) against the same
-      # lines in three windows. It is an impediment while the window holds fewer than `limit` percent
-      # of one window's share of the three. It reads the tap and says nothing of why.
+      # The `landing-rate` read: the lines that open the row in its window (an hour) against the
+      # same lines in three windows. It is an impediment while the window holds fewer than `limit`
+      # percent of one window's share of the three. It reads the tap and says nothing of why.
       class LandingRate
         # @param now [Integer] the clock's answer, in Unix epoch seconds
         def initialize(now)

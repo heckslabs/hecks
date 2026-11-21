@@ -325,13 +325,13 @@ Hecks.bluebook "Hecks" do
         attribute :move,      String
         # How it is cleared, as `StallKind.cleared_by` says it: "help", since no look files it.
         attribute :cleared_by, String
-        # What a read counts or times, by name: `minutes` the age it must reach (the window of a rate),
-        # `limit` the count a leftover may reach (the percent of the three-hour rate a landing rate
-        # may fall to), `pattern` the text a held start's reason holds or the leftover it counts,
-        # and `ends_aggregate` and `ends` the lines that end a run or restart a count.
+        # The age a read must reach, in minutes, or the window of a rate.
         attribute :minutes,        Integer
+        # The count a leftover may reach, or the percent of the three-hour rate a landing rate may fall to.
         attribute :limit,          Integer
+        # The text a held start's reason holds, or the leftover it counts.
         attribute :pattern,        String
+        # The lines that end a run, or restart a count.
         attribute :ends_aggregate, String
         attribute :ends,           String
 
