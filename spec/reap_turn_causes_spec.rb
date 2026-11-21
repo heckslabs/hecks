@@ -5,7 +5,8 @@ require "support/reaping_fleet"
 require "support/reap_turn"
 
 # A session that ends reaps at once, whatever the beat's spacing; a beat inside the half hour
-# sends no `AgentRun.Tidy`; and a reap the port refuses frees the turn like one it reports.
+# sends no `AgentRun.Tidy` and removes nothing twice; and a reap the port refuses frees the turn
+# like one it reports.
 RSpec.describe "The turn to reap, asked by a session's end" do
   include_context "with a reaping fleet"
   include_context "with a first beat at noon"
@@ -19,7 +20,7 @@ RSpec.describe "The turn to reap, asked by a session's end" do
   it "sends no tidy for a finished run on a later beat inside the half hour", :aggregate_failures do
     done_run(user("one more thing"))
     expect { beat("b2") }.not_to(change { delivered("TidyEveryFinishedRun") })
-    expect(delivered("TidyEveryFinishedRun")).to eq(1)
+    expect(removed).to be_empty
   end
 
   it "frees the turn when the port refuses the reap", :aggregate_failures do
