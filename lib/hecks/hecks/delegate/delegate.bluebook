@@ -255,14 +255,9 @@ Hecks.bluebook "Hecks" do
         emits SessionFailed
       end
 
-      # A finished run's session is removed when it ended `done`, `stopped`, `failed` or
-      # `abandoned` (a helper nobody answered); one still `working` or `blocked` on a
-      # person is kept, and so is one a person has taken over (the port says so).
-      #
-      # A run the review kept (`Retain`) stays finished, and every reap sends `Tidy` for it. It is
-      # refused here until its wait has passed, so a kept run is reviewed once per wait. `Release`
-      # ends the wait early. `+` because a rule has no `-`: `now - kept_at >= review_wait`. A run
-      # never kept holds neither and is reviewed at once; `nil?` is false in a rule: use `== nil`.
+      # A finished run's session goes when it ended done, stopped, failed or abandoned. A working or
+      # blocked one is kept, and so is one a person took over. A kept run waits its `review_wait`
+      # (`Retain`) before `Tidy` reviews it again; `Release` ends the wait, and a run never kept is reviewed at once.
       command "Tidy", from: "finished" do
         role "Operator"
         goal "Remove the finished session of one run, unless it is still working, a coder waiting on a person, or taken over"
