@@ -474,6 +474,23 @@ Hecks.bluebook "Tickets" do
              covers: "everything else: language, docs, examples and new products"
     end
 
+    # The scrum master's marks, drafted as charter lines for the owner to read: `mark` is the number
+    # each theme is held to, `unit` says what it counts. The ranking never reads these rows; the owner
+    # moves one into `CharterLine` to adopt it.
+    value_object "DraftCharterLine" do
+      attribute :theme, String
+      attribute :mark,  Integer
+      attribute :unit,  String
+      attribute :covers, String
+
+      member theme: "landings an hour", mark: 6, unit: "at least, over three hours",
+             covers: "the pipeline lands work at a steady rate"
+      member theme: "reds, one landing in", mark: 10, unit: "at most one red landing in this many",
+             covers: "a landing that turns main or its train red is rare"
+      member theme: "minutes to answer a block", mark: 15, unit: "at most, from the call for help",
+             covers: "a call for help is assigned and answered quickly"
+    end
+
     # What a query answered from outside the domain returns: its lines.
     value_object "CharterDocument" do
       attribute :text, String

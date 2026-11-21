@@ -459,6 +459,15 @@ Hecks.bluebook "Hecks" do
         returns list_of(Relieved)
       end
 
+      # The impediments a call for help clears that nobody has met: no call for help stands for
+      # one and no run of the scrum master was ever started for it, so a wake that failed is not
+      # repeated on every beat. The scrum master's wake reads it.
+      query "Unraised" do
+        description "The impediments cleared by a call for help whose call is not open and for which no run was ever started under its key, oldest first, each as the view holds it. Read-only: it reads the tap and boots nothing."
+        attribute :run, String
+        returns list_of(Sighting)
+      end
+
       query "Abandoned" do
         description "The filed stalls, opened within their kind's window, whose run has ended or whose subject has settled since they opened and which no look has closed yet, each with the ending or settling line as its reason; a filed stall whose line has closed is one too. Read-only: it reads the tap and boots nothing."
         attribute :run, String
@@ -554,6 +563,39 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # One call to the scrum master for one impediment, keyed by the impediment: the evidence its run
+    # is briefed with. Nothing else is kept; the call for help is the scrum master's to raise.
+    aggregate "ScrumWake" do
+      description "One call to the scrum master for one impediment a call for help clears, keyed by the impediment, with the evidence its run is briefed with."
+      created_by "ScrumWake.call!"
+
+      attribute :wake,   WakeKey
+      attribute :detail, Line
+      reference_to StallWatch, as: :watch
+      identified_by :wake
+
+      value_object "WakeKey" do
+        attribute :value, String, pattern: '\Astall-[a-z0-9-]+-[A-Za-z0-9._-]+\z'
+      end
+
+      value_object "Line" do
+        attribute :value, String, matches: :present
+      end
+
+      command "Call" do
+        role "System"
+        goal "Call the scrum master for one impediment, once"
+
+        reference_to StallWatch, as: :watch
+        attribute :wake,   WakeKey, sets: true
+        attribute :detail, Line, sets: true
+
+        sets :watch
+
+        emits ScrumMasterCalled
+      end
+    end
+
     # Its key is the bound of ADR 0219, decision 10: one call per impediment, and a closed one
     # frees its key. No command records a helper's report, so a finished helper leaves it aging.
     aggregate "HelpWanted" do
@@ -608,10 +650,12 @@ Hecks.bluebook "Hecks" do
                needs: "An answer only the owner can give: it is asked on the board, never assigned."
         member kind: "release-dead-holder", role: "orchestrator",
                needs: "Release what the holder holds, once the holder is confirmed dead."
+        member kind: "settle-block", role: "orchestrator",
+               needs: "Read the evidence the call carries and settle the block, or plan the work item that does."
       end
 
       value_object "HelpKindName" do
-        attribute :value, String, one_of: %w[rebase owner-answer release-dead-holder]
+        attribute :value, String, one_of: %w[rebase owner-answer release-dead-holder settle-block]
       end
 
       # The role that fits the help: one of the pipeline's agent roles, or the owner.
@@ -750,6 +794,22 @@ Hecks.bluebook "Hecks" do
       root
       where   { how.value == "dispatch" }
       trigger AgentRun::Dispatch, with: { run: :help, agent: :role, brief: :needs }
+    end
+
+    # A new impediment is called to the scrum master once, keyed by the impediment (a second call for
+    # it is refused by name), and the call starts one run of the scrum master under that key. The
+    # run raises the call for help with its evidence.
+    policy "CallTheScrumMasterForEveryNewImpediment" do
+      on       "StallWatch.StallDetectRequested"
+      for_each "StallWatch.Unraised"
+      trigger  ScrumWake::Call, with: { watch: :id, wake: :impediment, detail: :detail }
+    end
+
+    # A root, as the helper's dispatch is: starting a session is a chain of its own.
+    policy "WakeTheScrumMasterWhenCalled" do
+      on      "ScrumWake.ScrumMasterCalled"
+      root
+      trigger AgentRun::Dispatch, with: { run: :wake, agent: "scrum-master", brief: :detail }
     end
 
     # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
