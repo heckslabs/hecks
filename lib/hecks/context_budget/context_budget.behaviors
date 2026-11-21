@@ -1,0 +1,126 @@
+Hecks.behaviors "ContextBudget" do
+  vision "A session keeps its context small: past its ceiling it writes its handoff note and restarts, and past its spend budget it asks the lead instead of running on."
+
+  loads "context_budget.bluebook", "context_budget.hecksagon", "context_budget.ports.hecksagon"
+
+  test "Declare sets the ceiling for a kind of session" do
+    tests "Declare", on: "Ceiling"
+    input kind: { value: "lead" }, tokens: { value: 60_000 }
+    expect emits: ["CeilingDeclared"]
+  end
+
+  test "Declare covers a hand-started session" do
+    tests "Declare", on: "Ceiling"
+    input kind: { value: "hand" }, tokens: { value: 80_000 }
+    expect emits: ["CeilingDeclared"]
+  end
+
+  test "Declare refuses a kind of session that is not known" do
+    tests "Declare", on: "Ceiling"
+    input kind: { value: "stranger" }, tokens: { value: 60_000 }
+    expect refused: "Kind admits"
+  end
+
+  test "Revise supersedes the ceiling of a kind" do
+    tests "Revise", on: "Ceiling"
+    setup "ContextBudget::Ceiling.Declare", kind: { value: "coder" }, tokens: { value: 60_000 }
+    input ceiling: "coder", tokens: { value: 40_000 }
+    expect emits: ["CeilingRevised"]
+  end
+
+  test "Open starts a session within its ceiling" do
+    tests "Open", on: "ContextBudget"
+    input session: { value: "s-1" }, kind: { value: "coder" }, ceiling: { value: 60_000 }
+    expect emits: ["BudgetOpened"], status: "within"
+  end
+
+  test "Measure under the ceiling keeps the session within" do
+    tests "Measure", on: "ContextBudget"
+    setup "ContextBudget::ContextBudget.Open", session: { value: "s-2" }, kind: { value: "coder" },
+          ceiling: { value: 60_000 }
+    input context_budget: "s-2", tokens: { value: 30_000 }, ceiling: { value: 60_000 }
+    expect emits: ["ContextMeasured"], status: "within"
+  end
+
+  # No adapter is bound in a behaviors boot, so the ask is refused as unwritten after it is made.
+  test "Measure over the ceiling asks the session for its handoff" do
+    tests "Measure", on: "ContextBudget"
+    setup "ContextBudget::ContextBudget.Open", session: { value: "s-3" }, kind: { value: "lead" },
+          ceiling: { value: 60_000 }
+    input context_budget: "s-3", tokens: { value: 530_000 }, ceiling: { value: 60_000 }
+    expect emits: ["ContextMeasured", "HandoffAsked", "HandoffUnwritten"], status: "handoff_asked"
+  end
+
+  test "AskHandoff refuses a session that has already been asked" do
+    tests "AskHandoff", on: "ContextBudget"
+    setup "ContextBudget::ContextBudget.Open", session: { value: "s-4" }, kind: { value: "lead" },
+          ceiling: { value: 60_000 }
+    setup "ContextBudget::ContextBudget.Measure", context_budget: "s-4", tokens: { value: 90_000 }, ceiling: { value: 60_000 }
+    input context_budget: "s-4"
+    expect refused: "moves it only from"
+  end
+
+  test "HandOff restarts a session that was asked" do
+    tests "HandOff", on: "ContextBudget"
+    setup "ContextBudget::ContextBudget.Open", session: { value: "s-5" }, kind: { value: "hand" },
+          ceiling: { value: 60_000 }
+    setup "ContextBudget::ContextBudget.Measure", context_budget: "s-5", tokens: { value: 90_000 }, ceiling: { value: 60_000 }
+    input context_budget: "s-5", note: { value: "HANDOFF: carry on with the ceiling slice." }
+    expect emits: ["HandedOff"], status: "handed_off"
+  end
+
+  test "HandOff refuses a session that was never asked" do
+    tests "HandOff", on: "ContextBudget"
+    setup "ContextBudget::ContextBudget.Open", session: { value: "s-6" }, kind: { value: "coder" },
+          ceiling: { value: 60_000 }
+    input context_budget: "s-6", note: { value: "HANDOFF: nothing yet." }
+    expect refused: "moves it only from"
+  end
+
+  test "Declare sets a budget for an item" do
+    tests "Declare", on: "SpendBudget"
+    input budget: { value: "item:a-slice" }, scope: { value: "item" }, limit_cents: { value: 1000 }
+    expect emits: ["SpendBudgetDeclared"], status: "within"
+  end
+
+  test "Record under the budget keeps the item within" do
+    tests "Record", on: "SpendBudget"
+    setup "ContextBudget::SpendBudget.Declare", budget: { value: "item:b" }, scope: { value: "item" },
+          limit_cents: { value: 1000 }
+    input spend_budget: "item:b", spent_cents: { value: 400 }, limit_cents: { value: 1000 }
+    expect emits: ["SpendRecorded"], status: "within"
+  end
+
+  test "Record past the budget stops the item and asks the lead" do
+    tests "Record", on: "SpendBudget"
+    setup "ContextBudget::SpendBudget.Declare", budget: { value: "item:c" }, scope: { value: "item" },
+          limit_cents: { value: 1000 }
+    input spend_budget: "item:c", spent_cents: { value: 1500 }, limit_cents: { value: 1000 }
+    expect emits: ["SpendRecorded", "SpendPastBudget", "LeadUnreached"], status: "past"
+  end
+
+  test "Decide records what the lead chose for an item past its budget" do
+    tests "Decide", on: "SpendBudget"
+    setup "ContextBudget::SpendBudget.Declare", budget: { value: "item:d" }, scope: { value: "item" },
+          limit_cents: { value: 1000 }
+    setup "ContextBudget::SpendBudget.Record", spend_budget: "item:d", spent_cents: { value: 1500 }, limit_cents: { value: 1000 }
+    input spend_budget: "item:d", choice: { value: "split" }
+    expect emits: ["SpendDecided"], status: "decided"
+  end
+
+  test "Decide refuses an item that is not past its budget" do
+    tests "Decide", on: "SpendBudget"
+    setup "ContextBudget::SpendBudget.Declare", budget: { value: "item:e" }, scope: { value: "item" },
+          limit_cents: { value: 1000 }
+    input spend_budget: "item:e", choice: { value: "continue" }
+    expect refused: "moves it only from"
+  end
+
+  test "Decide refuses a choice that is not continue, hand off or split" do
+    tests "Decide", on: "SpendBudget"
+    setup "ContextBudget::SpendBudget.Declare", budget: { value: "day:f" }, scope: { value: "day" },
+          limit_cents: { value: 1000 }
+    input spend_budget: "day:f", choice: { value: "ignore" }
+    expect refused: "Choice admits"
+  end
+end

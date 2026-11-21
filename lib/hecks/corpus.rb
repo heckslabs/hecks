@@ -79,6 +79,8 @@ module Hecks
       live_discovery: "lib/hecks/live_discovery/*.bluebook",
       # The Coach bluebook boots from its own directory beside its hecksagon.
       coach:          "lib/hecks/coach/*.bluebook",
+      # The ContextBudget bluebook boots from its own directory beside its hecksagon.
+      context_budget: "lib/hecks/context_budget/*.bluebook",
       # The Protocols bluebook boots from its own directory beside its hecksagon.
       protocols:      "lib/hecks/protocols/*.bluebook",
       fixture:        "spec/fixtures/**/*.bluebook"

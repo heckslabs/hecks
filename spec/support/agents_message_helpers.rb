@@ -14,8 +14,10 @@ module AgentsMessageHelpers
   def boot_messages = (@agents_runtime = AgentsMemoryBoot.call(extra: PORTS))
 
   # Registers a hand-started session through the booted Agents bluebook.
-  def register_hand(run: "owner-orchestrator", session: "134d89bd-full", role: "orchestrator-owner")
-    Hecks::Agents::HandRun.register!(run: { value: run }, session: { value: session }, role: { value: role })
+  def register_hand(run: "owner-orchestrator", session: "134d89bd-full", role: "orchestrator-owner", checkout: nil)
+    words = { run: { value: run }, session: { value: session }, role: { value: role } }
+    words[:checkout] = { value: checkout } if checkout
+    Hecks::Agents::HandRun.register!(**words)
   end
 
   # The runs the stand-in ledger holds, by key; every recipient the examples name is live.
