@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "safe_signal"
 require "open3"
 require "tmpdir"
 require_relative "../../rust_build/session_build"
@@ -129,7 +130,7 @@ module Hecks
       end
 
       def signal(name, group)
-        Process.kill(name, -group)
+        SafeSignal.to_group(name, group)
       rescue Errno::ESRCH, Errno::EPERM
         nil
       end

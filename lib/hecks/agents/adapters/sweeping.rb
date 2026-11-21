@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../../hecks/adapters/safe_signal"
+
 require "json"
 require "tmpdir"
 require "hecks/hecks/adapters/shell"
@@ -33,7 +35,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil)
         @shell = settings[:shell] || Shell.new
         @log = settings[:log] || File.join(Dir.home, ".claude", "daemon.log")
-        @killer = settings[:killer] || ->(pid) { Process.kill("TERM", pid) }
+        @killer = settings[:killer] || ->(pid) { Hecks::Adapters::SafeSignal.to_process("TERM", pid) }
         @tmps = settings[:tmp] ? [settings[:tmp]] : ["/tmp", Dir.tmpdir].uniq
         @residue = residue_for(settings)
       end

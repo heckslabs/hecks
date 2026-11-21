@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../safe_signal"
 require_relative "../shell"
 
 module Hecks
@@ -102,7 +103,7 @@ module Hecks
         def process_table = Shell.new.capture("ps", "-axo", "pid=,ppid=,command=").out
 
         def end_process(pid)
-          Process.kill("KILL", pid)
+          Hecks::Adapters::SafeSignal.to_process("KILL", pid)
         rescue Errno::ESRCH, Errno::EPERM
           nil
         end
