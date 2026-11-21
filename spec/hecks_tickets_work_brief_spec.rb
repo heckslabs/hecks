@@ -42,4 +42,18 @@ RSpec.describe "the brief of a planned Work item" do
     expect(brief[:area]).to be_nil.or be_empty
     expect(brief[:rules][:value]).to include("Map the whole picture")
   end
+
+  it "gives a red train's brief the bisect first, with the two ways to satisfy it", :aggregate_failures do
+    plan("red-train-55")
+    bisect = brief_for("red-train-55")[:bisect][:value]
+    expect(bisect).to start_with("BISECT FIRST").and include("Integration.probe!", "BisectLog.log!", "obvious")
+    expect(bisect).to include("work_key={work}", "Landing.land! is refused")
+  end
+
+  it "gives a red main's brief the bisect too, and any other brief none" do
+    plan("red-main-1")
+    plan("brief/c")
+    bisects = %w[red-main-1 brief/c].map { |key| brief_for(key)[:bisect]&.[](:value).to_s }
+    expect(bisects).to match([/BISECT FIRST/, ""])
+  end
 end

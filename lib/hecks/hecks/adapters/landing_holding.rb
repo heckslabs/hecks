@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "red_flag_guard"
+require_relative "bisect_log_guard"
 require_relative "boarding_hold_marker"
 require_relative "console_capture"
 require "hecks/indifferent_key"
@@ -38,9 +39,10 @@ module Hecks
       # @param git_dir [String] the repository's common git directory
       # @return [Hash{Symbol => Hash}] `report:` saying no flag stops the branch
       # @raise [ConsoleCapture::Failure] when a flag stands and the branch is not a red Work item's
-      #   fix
+      #   fix, or when the branch fixes a red train or a red main and its bisect is not logged
       def flag(branch:, git_dir:, **)
         RedFlagGuard.new(git_dir).landing!(branch)
+        BisectLogGuard.new(git_dir).landing!(branch)
         { report: { value: "no red flag stops #{branch}" } }
       end
 

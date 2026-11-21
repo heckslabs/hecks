@@ -140,6 +140,12 @@ One lifting of the hold on local main: released, or refused.
 
 - `hecks BoardingRelease.release! [<checkout>]`: Lift the hold on local main, whoever took it; a lift with nothing held is a no-op
 
+### BisectLog
+
+One entry of a red Work item's bisect log: a search that ran, or an obvious-from-the-failure finding with its quote.
+
+- `hecks BisectLog.log! <work> kind= [finding=] [quote=] [checkout=]`: Log how a red train's or a red main's Work item was searched: a bisect, or a finding that the failure makes the fix obvious, with the failure line quoted
+
 ### LandingReview
 
 One landing's wait, after its gates, for the reviewer's verdict on its tip: cleared when clean; otherwise refused by name when enforced, or landed anyway when shadowed.
