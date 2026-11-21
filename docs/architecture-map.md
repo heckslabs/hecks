@@ -73,6 +73,7 @@ directories its files sit in, and the vision it declares, written from the files
 - **CiWorkflows** (`lib/hecks/ci_workflows/`): Hecks's own GitHub Actions workflows, declared once as rows and projected into .github/workflows.
 - **Coder** (`lib/hecks/coder/`): Every bug QA logs is worked by one coder at a time, and a bug that cannot be fixed yet is still never hidden: it is stubbed, named, and retired once the fix lands.
 - **Composer** (`lib/hecks/composer/bluebook/`): Write a bluebook in an editor and watch the domain draw itself, with an agent that can change the draft when asked.
+- **ContextBudget** (`lib/hecks/context_budget/`): A session hands off and restarts small when its context passes a ceiling, and asks the lead before it runs past its budget.
 - **Deploy** (`lib/hecks/deploy/bluebook/`): Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
 - **Docs** (`lib/hecks/docs/`): A documentation page is made of regions, each projected from a bluebook, doctested by a booted example, or prose, and only a live page is held to its sources.
 - **Fixer** (`lib/hecks/fixer/`): A logged bug gets one attempt at a time, each claimed, investigated, fixed and verified on the record, and the bug itself is only ever written by the quality ledger.

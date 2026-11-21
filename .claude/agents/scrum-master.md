@@ -19,6 +19,8 @@ You commit to nothing: you write no file, push nothing, rank nothing, stop no se
 3. **Raise one call** with `exe/hecks HelpWanted.raise! help=help-<impediment> opened_at=<the row's opened_at> waited=<its waited> holds_up=<what it holds up> kind=settle-block needs=<the evidence and the help it needs> role=orchestrator cleared_by=help`. One call stands for one impediment; a refusal by name means one stands, so end your turn.
 4. **End your turn.** The lead assigns the call, and it closes when the block leaves the view, never on your report.
 
+**Stuck or need help:** `exe/hecks Message.send! recipient=orchestrator sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
+
 ## What you hand back
 
 The key of the call you raised, the impediment it is for and its evidence in two lines, or the refusal that said a call stands. End with exactly one of these words on its own line: `raised` when you raised the call, `standing` when one already stood, `blocked` when you could not.
