@@ -1,4 +1,5 @@
-# Keeps every spec off the owner's live ledger (`~/.claude/hecks-dev`: tickets.db, agent_run.db).
+# Keeps every spec off the owner's live ledger (`.claude/hecks-dev` of the real home: tickets.db,
+# agent_run.db).
 #
 # A checkout's gitignored `hecks.local.world` binds Tickets and AgentRun to absolute paths there,
 # so a spec that boots a domain through the local overlay writes to them. Booting through
@@ -7,9 +8,9 @@
 # spec fails by name instead of filling the ledger. `HECKS_LIVE_LEDGER_DIR` moves the directory
 # (a spec's own temp tree is never under it).
 module LiveLedgerGuard
-  # The live ledger's directory, symlinks resolved.
+  # The live ledger's directory in the owner's real home, which a run's own `HOME` never moves.
   def self.dir
-    File.expand_path(ENV.fetch("HECKS_LIVE_LEDGER_DIR", "~/.claude/hecks-dev"))
+    File.expand_path(ENV.fetch("HECKS_LIVE_LEDGER_DIR", File.join(RunSandbox.real_home, ".claude", "hecks-dev")))
   end
 
   # @param path [String] a database file a store is about to open
