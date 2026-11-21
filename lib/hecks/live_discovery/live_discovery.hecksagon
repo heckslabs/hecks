@@ -1,0 +1,98 @@
+# The ports the live discovery bluebook asks of the outside. Each ask names the words for what
+# came back (answers and refuses); no policy needs to react to the capture or the voice pair.
+Hecks.hecksagon "LiveDiscovery" do
+  # The roles the commands declare (Owner, Client, Assistant, System) are checked by Governance.
+  attaches "Governance"
+  persisted_by "Memory"
+
+  # The capture port starts and stops the audio the call transcribes locally. The audio is never
+  # stored, so no ask here carries a recording.
+  LiveDiscovery::Session.port "Capture" do
+    asks "CaptureStart", to: Session do
+      attribute :session, Reference
+      attribute :setup,   Setup
+      answers "CaptureStartAnswered"
+      refuses "CaptureStartRefused"
+    end
+
+    asks "CaptureStop", to: Session do
+      attribute :session, Reference
+      answers "CaptureStopAnswered"
+      refuses "CaptureStopRefused"
+    end
+  end
+
+  # The Interview this call feeds keeps the exchanges and the Points. Live discovery only asks it to
+  # record; it never restates them.
+  LiveDiscovery::Session.port "Interview" do
+    asks "OpenInterview", to: Session do
+      attribute :interview, InterviewRef
+      attribute :subject,   Subject
+      attribute :keeping,   Keeping
+      attribute :question,  ConsentLine
+      attribute :answer,    Answer
+      answers "OpenInterviewAnswered"
+      refuses "OpenInterviewRefused"
+    end
+
+    asks "RecordExchange", to: Session do
+      attribute :interview, InterviewRef
+      attribute :speaker,   Speaker
+      attribute :answer,    Text
+      answers "RecordExchangeAnswered"
+      refuses "RecordExchangeRefused"
+    end
+
+    asks "ProposePoint", to: Session do
+      attribute :interview,  InterviewRef
+      attribute :source,     Source
+      attribute :kind,       Kind
+      attribute :statement,  Statement
+      attribute :supersedes, PointNumber
+      answers "ProposePointAnswered"
+      refuses "ProposePointRefused"
+    end
+
+    asks "ConcludeInterview", to: Session do
+      attribute :interview, InterviewRef
+      answers "ConcludeInterviewAnswered"
+      refuses "ConcludeInterviewRefused"
+    end
+  end
+
+  # The sources the owner names for the prep, read before the call: a site, a document, an email, a
+  # note, or the owner's typed prompt. What is found comes back as proposed Points, not to the client.
+  LiveDiscovery::Session.port "Sources" do
+    asks "ReadSource", to: Session do
+      attribute :session, Reference
+      attribute :source,  SourceName
+      answers "ReadSourceAnswered"
+      refuses "ReadSourceRefused"
+    end
+  end
+
+  # The working demo, built only when the owner asks, from the Points accepted so far.
+  LiveDiscovery::Session.port "Demo" do
+    asks "BuildDemo", to: Session do
+      attribute :session,   Reference
+      attribute :interview, InterviewRef
+      answers "BuildDemoAnswered"
+      refuses "BuildDemoRefused"
+    end
+  end
+
+  # The spoken suggestion, voiced by the tts family's voiced_by verb. Nothing in the domain reacts to
+  # its answer, and only a spoken suggestion reaches it.
+  LiveDiscovery::Suggestion.port "Voice" do
+    asks "VoicedBy", to: Suggestion do
+      attribute :text, Question
+      answers "VoicedAnswered"
+      refuses "VoicedRefused"
+    end
+  end
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

@@ -1,0 +1,504 @@
+# Live discovery: an owner interviews a client on a call with Claude taking part.
+# The session keeps consent and timed turns; the Interview (ADR 0194) keeps exchanges and Points.
+# Capture, source reading, the Interview and the voice are outside ports named by the asks below.
+
+Hecks.bluebook "LiveDiscovery" do
+  vision "A discovery call is consented before it is captured, keeps its turns as they were said, and shows the client only what the owner sends."
+
+  supporting
+
+  # One call with one client. Its turns mirror the exchanges of the Interview it feeds, one for one,
+  # so a Point that cites a turn cites the same number as the exchange it became.
+  aggregate "Session" do
+    description "One discovery call: its consent, the capture that runs under it, the timed turns it heard, and the summary the client confirms."
+    created_by "Session.open!"
+
+    identified_by :reference
+
+    attribute :reference,    Reference
+    attribute :interview,    InterviewRef
+    attribute :turns,        list_of(Turn)
+    attribute :consent_line, ConsentLine, optional: true
+    attribute :summary_link, SummaryLink, optional: true
+    attribute :setup,        Setup
+    attribute :voices,       list_of(Voice)
+
+    # How the session is held: `call` takes each side from its own channel, `room` takes one mic that
+    # hears everyone, so its turns carry a speaker found by speaker separation, and `desk` is the
+    # owner's prep alone, with no client present, so it takes no consent and no capture.
+    value_object "Setup" do
+      attribute :value, String, one_of: %w[call room desk]
+    end
+
+    value_object "Reference" do
+      attribute :value, String, matches: :present
+    end
+
+    # The Interview this call feeds, by its reference: the Interview keeps its own record.
+    value_object "InterviewRef" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Subject" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Keeping" do
+      attribute :value, String, one_of: %w[committed local]
+    end
+
+    value_object "Speaker" do
+      attribute :value, String, one_of: %w[owner client]
+    end
+
+    # A voice label the speaker separation gives in a room, named once as the owner or the client.
+    value_object "Voice" do
+      attribute :label,   String, matches: :present
+      attribute :speaker, Speaker
+    end
+
+    value_object "Answer" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    value_object "Text" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer, default: 0
+      invariant("a time is not negative") { !value.negative? }
+    end
+
+    # A turn or an exchange, counted from one.
+    value_object "Source" do
+      attribute :value, Integer
+      invariant("a fact cites a turn by its number, from one") { value.positive? }
+    end
+
+    value_object "PointNumber" do
+      attribute :value, Integer
+      invariant("a point is numbered from one") { value.positive? }
+    end
+
+    value_object "Kind" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Statement" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # The consent line the owner reads and the client accepts. Its wording is fixed by the guard on
+    # Consent below, so the value holds only the line as it was worded.
+    value_object "ConsentLine" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # A link to the private summary the client reviews. Only an https link is made.
+    value_object "SummaryLink" do
+      attribute :value, String, matches: :present
+      invariant("a summary link is https") { value.start_with?("https://") }
+    end
+
+    # The name of a source the owner gave for the prep: a site, a document, an email or a note.
+    value_object "SourceName" do
+      attribute :value, String
+    end
+
+    # One turn as it was heard: who spoke, what was said, and when (epoch seconds). The audio is
+    # never kept; only this text and its time are.
+    value_object "Turn" do
+      attribute :speaker, Speaker
+      attribute :text,    String, matches: :not_empty
+      attribute :at,      Integer, default: 0
+    end
+
+    # Open until the client accepts the consent line. A decline stops the call from any step before
+    # the summary is confirmed; a confirmed summary concludes the session.
+    lifecycle :status, default: "invited" do
+      mark :rests, "invited", "consented", "capturing", "ended"
+      mark :terminal, "declined", "confirmed"
+      transition "Consent"        => "consented", from: "invited"
+      transition "Decline"        => "declined",  from: %w[invited consented capturing]
+      transition "StartCapture"   => "capturing", from: "consented"
+      transition "EndCapture"     => "ended",     from: "capturing"
+      transition "ConfirmSummary" => "confirmed", from: "ended"
+    end
+
+    query "Open" do
+      description "Every session still under way: invited, consented, capturing or ended but not yet confirmed."
+      where(status: { in: "invited,consented,capturing,ended" })
+      order_by :reference
+    end
+
+    command "Open" do
+      role "Owner"
+      goal "Start a discovery call with one client, feeding one Interview"
+
+      attribute :reference, Reference, sets: true
+      attribute :interview, InterviewRef, sets: true
+      attribute :setup,     Setup, sets: true
+
+      emits "SessionOpened"
+    end
+
+    # In a room the speaker separation's labels are named once, before capture starts. A call takes
+    # its speakers from their channels, so it names none.
+    command "NameSpeaker" do
+      role "Owner"
+      goal "Name one voice label of a room as the owner or the client, before capture starts"
+
+      reference_to Session
+      attribute :label,   String
+      attribute :speaker, Speaker
+
+      given("only a room names its speakers") { setup.value == "room" }
+      given("speakers are named before capture starts") { status == "invited" || status == "consented" }
+
+      sets :voices, append: { label: :label, speaker: :speaker }
+
+      emits "SpeakerNamed"
+    end
+
+    # The owner names a source for the prep, and Claude reads only that source. The reading is an
+    # outside ask; what it finds comes back as proposed Points, not as anything the client sees.
+    command "Prepare" do
+      role "Owner"
+      goal "Have Claude read one source the owner named, before the call, for a first picture"
+
+      reference_to Session
+      attribute :source_name, SourceName
+
+      given("the prep reads only a source the owner named") { !source_name.value.to_s.strip.empty? }
+      given("the prep happens before the client consents") { status == "invited" }
+
+      emits "SessionPrepared"
+    end
+
+    # The client accepts the consent line as the owner read it. The line and the client's answer
+    # become the Interview's opening exchange, and the client's answer is the call's first turn.
+    command "Consent" do
+      role "Client"
+      goal "Record that the client accepts the consent line before any capture starts"
+
+      reference_to Session
+      attribute :interview, InterviewRef
+      attribute :subject,   Subject
+      attribute :keeping,   Keeping
+      attribute :line,      ConsentLine
+      attribute :answer,    Answer
+      attribute :at,        Stamp
+
+      given("capture never starts without consent to the line as worded") { line.value == "The audio is never recorded; it is transcribed on my computer. An AI assistant reads the transcript to help me take notes and suggest questions, and its replies may be spoken by a voice service. Nothing is used to train AI models." }
+      given("consent is recorded only before the call starts") { status == "invited" }
+      given("a desk takes no consent: no client is present") { setup.value != "desk" }
+
+      sets :consent_line, to: :line
+      sets :turns, append: { speaker: { value: "client" }, text: :answer, at: :at }
+
+      emits "SessionConsented"
+    end
+
+    command "Decline" do
+      role "Client"
+      goal "Stop the call: the client does not consent, or withdraws consent mid-call"
+
+      reference_to Session
+
+      emits "SessionDeclined"
+    end
+
+    # Capture begins only once consent is recorded: the lifecycle admits it from consented alone.
+    command "StartCapture" do
+      role "Owner"
+      goal "Start capturing the call's audio, which the consent has allowed"
+
+      reference_to Session
+      attribute :setup, Setup
+
+      given("capture starts only after the client has consented") { status == "consented" }
+      given("capture starts only with a recorded consent line") { consent_line != nil }
+      given("a desk takes no capture: no client is present") { setup.value != "desk" }
+
+      emits "CaptureStarted"
+    end
+
+    # A turn heard while capture runs. The capture port transcribes the audio as it streams and
+    # delivers only the text of each turn; the audio is discarded and never stored.
+    command "Hear" do
+      role "System"
+      goal "Keep one timed turn of the call, as it was said"
+
+      reference_to Session
+      attribute :interview, InterviewRef
+      attribute :speaker,   Speaker
+      attribute :text,      Text
+      attribute :at,        Stamp
+
+      given("turns are kept only while capture runs") { status == "capturing" }
+
+      sets :turns, append: { speaker: :speaker, text: :text, at: :at }
+
+      emits "TurnHeard"
+    end
+
+    # A fact heard in a turn, proposed as a Point on the Interview that cites the turn by its number.
+    # A new fact that contradicts an earlier Point supersedes it by number, once the client has
+    # answered. A decision goes to the client as a question (see Suggestion).
+    command "ProposeFact" do
+      role "Assistant"
+      goal "Put forward a fact heard in a turn, citing the turn it rests on"
+
+      reference_to Session
+      attribute :interview,  InterviewRef
+      attribute :source,     Source
+      attribute :kind,       Kind
+      attribute :statement,  Statement
+      attribute :supersedes, PointNumber, optional: true
+
+      given("a fact cites a turn already heard") { source.value <= turns.size }
+
+      emits "FactProposed"
+    end
+
+    # The working demo is built only when the owner asks, from the Points accepted so far, never on
+    # each Point. A polished build can be requested after the call ends, to attach to the summary.
+    command "RequestDemo" do
+      role "Owner"
+      goal "Build a working demo from the accepted Points, when the owner asks to show it"
+
+      reference_to Session
+      attribute :interview, InterviewRef
+
+      given("a demo is built only while the call runs or after it ends") do
+        status == "capturing" || status == "ended"
+      end
+
+      emits "DemoRequested"
+    end
+
+    command "EndCapture" do
+      role "Owner"
+      goal "Stop capturing when the call ends"
+
+      reference_to Session
+
+      given("capture ends only while it runs") { status == "capturing" }
+
+      emits "CaptureEnded"
+    end
+
+    # The summary is made after the call ends, as a private link for the client to review.
+    command "Summarise" do
+      role "System"
+      goal "Make the private summary link the client reviews after the call ends"
+
+      reference_to Session
+      attribute :summary_link, SummaryLink, sets: true
+
+      given("a summary is made only after the call ends") { status == "ended" }
+
+      emits "SummaryReady"
+    end
+
+    # Only the client's confirmation concludes the session and, with it, the Interview it feeds.
+    command "ConfirmSummary" do
+      role "Client"
+      goal "Confirm the summary the client reviewed, which concludes the call"
+
+      reference_to Session
+      attribute :interview, InterviewRef
+
+      given("the client confirms only a summary that was made") { summary_link != nil }
+
+      emits "SummaryConfirmed"
+    end
+  end
+
+  # One suggested question from Claude: at a natural pause, when the owner asks, or a clarifying
+  # question where a new turn contradicts an earlier one. It is private to the owner until the owner
+  # sends it to the shared panel, has it spoken, or dismisses it.
+  aggregate "Suggestion" do
+    description "One suggested question from Claude, private to the owner until the owner sends it to the shared panel, has it spoken, or dismisses it."
+    created_by "Suggestion.propose!"
+
+    identified_by :reference
+
+    attribute :reference,   Reference
+    attribute :session,     SessionRef
+    attribute :origin,      Origin
+    attribute :kind,        SuggestionKind
+    attribute :question,    Question
+    attribute :earlier_turn, TurnNumber, optional: true
+    attribute :later_turn,   TurnNumber, optional: true
+
+    value_object "Reference" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SessionRef" do
+      attribute :value, String, matches: :present
+    end
+
+    # `followup` is a desk question for the next client contact: the owner keeps or dismisses it, and
+    # it is never sent to a panel or spoken.
+    value_object "Origin" do
+      attribute :value, String, one_of: %w[pause asked followup]
+    end
+
+    # `clarify` is raised only as a private suggestion, citing both turns it compares.
+    value_object "SuggestionKind" do
+      attribute :value, String, one_of: %w[question clarify]
+    end
+
+    value_object "TurnNumber" do
+      attribute :value, Integer
+      invariant("a turn is numbered from one") { value.positive? }
+    end
+
+    # Claude proposes one question at a time: a single question mark, at the end.
+    value_object "Question" do
+      attribute :value, String, pattern: %q(\A[^?]+\?\z)
+    end
+
+    # Who gave the owner's go-ahead to speak a suggestion aloud: the owner, or no one.
+    value_object "Invite" do
+      attribute :value, String, one_of: %w[owner none]
+    end
+
+    lifecycle :status, default: "proposed" do
+      mark :rests, "proposed"
+      mark :terminal, "sent", "spoken", "dismissed"
+      transition "Send"    => "sent",      from: "proposed"
+      transition "Speak"   => "spoken",    from: "proposed"
+      transition "Dismiss" => "dismissed", from: "proposed"
+    end
+
+    # The shared panel shows only the suggestions the owner sent to it. Nothing else reaches it.
+    query "OnThePanel" do
+      description "Every suggestion the owner sent to the shared panel, in the order proposed."
+      where(status: "sent")
+      order_by :reference
+    end
+
+    command "Propose" do
+      role "Assistant"
+      goal "Propose one suggested question, privately to the owner"
+
+      attribute :reference,    Reference, sets: true
+      attribute :session,      SessionRef, sets: true
+      attribute :origin,       Origin, sets: true
+      attribute :kind,         SuggestionKind, sets: true
+      attribute :question,     Question, sets: true
+      attribute :earlier_turn, TurnNumber, optional: true, sets: true
+      attribute :later_turn,   TurnNumber, optional: true, sets: true
+
+      given("a clarify suggestion cites the two turns it compares") do
+        kind.value != "clarify" || (earlier_turn != nil && later_turn != nil)
+      end
+
+      emits "SuggestionProposed"
+    end
+
+    # The owner's choice: the suggestion goes to the shared panel, and no policy sends it on.
+    command "Send" do
+      role "Owner"
+      goal "Put a suggestion on the shared panel, which the owner alone decides"
+
+      reference_to Suggestion
+
+      given("a follow-up question is kept or dismissed, not sent or spoken") { origin.value != "followup" }
+
+      emits "SuggestionSent"
+    end
+
+    # Speech is aloud to the client, so it needs the owner's invitation.
+    command "Speak" do
+      role "Owner"
+      goal "Have a suggestion spoken aloud, only when the owner invites it"
+
+      reference_to Suggestion
+      attribute :invite,   Invite
+      attribute :question, Question, sets: true
+
+      given("speech happens only on the owner's invite") { invite.value == "owner" }
+      given("a follow-up question is kept or dismissed, not sent or spoken") { origin.value != "followup" }
+
+      emits "SuggestionSpoken"
+    end
+
+    command "Dismiss" do
+      role "Owner"
+      goal "Set a suggestion aside without showing or speaking it"
+
+      reference_to Suggestion
+
+      emits "SuggestionDismissed"
+    end
+  end
+
+  # The capture, the Interview, the source reading and the voice service are outside ports. Each ask
+  # below names what the port is asked, and a hecksagon binds it later. The voice is fire-and-forget:
+  # nothing answers it.
+  policy "AskSourceReadingForThePrep" do
+    on      "Session.SessionPrepared"
+    ask     :read_source, with: { session: :reference, source: :source_name }
+  end
+
+  # The capture port differs by setup: a call's two channels, or a room's one mic and its separation.
+  policy "AskCaptureToStart" do
+    on      "Session.CaptureStarted"
+    ask     :capture_start, with: { session: :reference, setup: :setup }
+  end
+
+  policy "AskCaptureToStopAtTheEnd" do
+    on      "Session.CaptureEnded"
+    ask     :capture_stop, with: { session: :reference }
+  end
+
+  # A decline stops capture at once, from whatever step the call reached.
+  policy "AskCaptureToStopOnDecline" do
+    on      "Session.SessionDeclined"
+    ask     :capture_stop, with: { session: :reference }
+  end
+
+  # The consent exchange opens the Interview: the owner's line and the client's answer.
+  policy "OpenTheInterviewOnConsent" do
+    on      "Session.SessionConsented"
+    ask     :open_interview, with: {
+      interview: :interview, subject: :subject, keeping: :keeping, question: :line, answer: :answer
+    }
+  end
+
+  policy "RecordTheTurnAsAnExchange" do
+    on      "Session.TurnHeard"
+    ask     :record_exchange, with: { interview: :interview, speaker: :speaker, answer: :text }
+  end
+
+  policy "ProposeTheFactAsAPoint" do
+    on      "Session.FactProposed"
+    ask     :propose_point, with: {
+      interview: :interview, source: :source, kind: :kind, statement: :statement,
+      supersedes: :supersedes
+    }
+  end
+
+  # The build port is outside: it builds the demo from the Interview's accepted Points.
+  policy "AskBuildForTheRequestedDemo" do
+    on      "Session.DemoRequested"
+    ask     :build_demo, with: { session: :reference, interview: :interview }
+  end
+
+  policy "ConcludeTheInterviewOnConfirmation" do
+    on      "Session.SummaryConfirmed"
+    ask     :conclude_interview, with: { interview: :interview }
+  end
+
+  # Fire-and-forget: a spoken suggestion is voiced by the tts family's voiced_by verb, and nothing
+  # answers it. Only a spoken suggestion reaches it, and only after the owner's invite.
+  policy "VoiceTheInvitedSuggestion" do
+    on      "Suggestion.SuggestionSpoken"
+    ask     :voiced_by, with: { text: :question }
+  end
+end
