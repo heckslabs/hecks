@@ -38,19 +38,19 @@ RSpec.describe Hecks::Adapters::Metering do
   end
 
   it "prices the tokens in dollars from the declared table" do
-    expect(line(:by_session, "s2")[:dollars]).to eq(30.0)
+    expect(line(:by_session, "s2")[:dollars]).to eq(20.0)
   end
 
-  it "counts the prompt cache saving as cache reads at nine tenths of fresh input", :aggregate_failures do
+  it "counts the prompt cache saving as cache reads at each model's read rate", :aggregate_failures do
     cache = facts[:saved].find { |entry| entry[:label].start_with?("prompt cache") }
-    expect(cache[:tokens]).to eq(1_800_000)
-    expect(cache[:dollars]).to eq(27.0)
+    expect(cache[:tokens]).to eq(1_900_000)
+    expect(cache[:dollars]).to eq(7.6)
   end
 
   it "counts the model routing saving as the same tokens at Opus price, less their cost", :aggregate_failures do
     routing = facts[:saved].find { |entry| entry[:label].start_with?("model routing") }
     expect(routing[:tokens]).to eq(2_000_000)
-    expect(routing[:dollars]).to eq(120.0)
+    expect(routing[:dollars]).to eq(20.0)
   end
 
   it "names what it cannot measure rather than guessing it" do
