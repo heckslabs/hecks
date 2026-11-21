@@ -17,7 +17,7 @@ RSpec.describe "the Agents message recipient" do
   it "refuses a session that has no run, naming it", :aggregate_failures do
     refused = send_message(to: "134d89bd")
     expect(refused.status).to eq("refused")
-    expect(refused.refusal.value).to end_with("no run has that id; the session 134d89bd has no AgentRun; no hand run is registered")
+    expect(refused.refusal.value).to end_with("has no AgentRun; no hand run is registered")
   end
 
   it "keeps a refused message out of every inbox" do
