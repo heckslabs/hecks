@@ -474,23 +474,6 @@ Hecks.bluebook "Tickets" do
              covers: "everything else: language, docs, examples and new products"
     end
 
-    # The scrum master's marks, drafted as charter lines for the owner to read: `mark` is the number
-    # each theme is held to, `unit` says what it counts. The ranking never reads these rows; the owner
-    # moves one into `CharterLine` to adopt it.
-    value_object "DraftCharterLine" do
-      attribute :theme, String
-      attribute :mark,  Integer
-      attribute :unit,  String
-      attribute :covers, String
-
-      member theme: "landings an hour", mark: 6, unit: "at least, over three hours",
-             covers: "the pipeline lands work at a steady rate"
-      member theme: "reds, one landing in", mark: 10, unit: "at most one red landing in this many",
-             covers: "a landing that turns main or its train red is rare"
-      member theme: "minutes to answer a block", mark: 15, unit: "at most, from the call for help",
-             covers: "a call for help is assigned and answered quickly"
-    end
-
     # What a query answered from outside the domain returns: its lines.
     value_object "CharterDocument" do
       attribute :text, String
@@ -568,6 +551,9 @@ Hecks.bluebook "Tickets" do
       # No run was found still recorded started with its session gone: a retire closes exactly such a run.
       member measure: "no-ghost-run-is-retired", aggregate: "Hecks::AgentRun", events: "AgentRunRetired",
              minutes: 240, at_most: 0
+      # The board's glance was read four times in the hour: the orchestrator's turns steer by it.
+      member measure: "the-board-glance-is-read", aggregate: "PipelineBoard::PipelineBoard", events: "GlanceRead",
+             minutes: 60, at_least: 4
     end
 
     lifecycle :status, default: "open" do
@@ -803,6 +789,12 @@ Hecks.bluebook "Tickets" do
     # The work items it waits on: Dispatch starts it only once each has landed.
     attribute :waits_on, list_of(WorkKey), optional: true
     attribute :budget_minutes, Minutes, optional: true
+    # The pomodoros (25-minute rounds) a task is sized at, and the rounds spent on it so far. Both are
+    # optional: tasking in pomodoros is a choice. What is spent past the size is overage, read from the two.
+    attribute :pomodoros,       Pomodoros, optional: true
+    attribute :pomodoros_spent, Pomodoros, optional: true
+    # Work planned outside the day's plan: it is sized like any other item, and finishing it is overage.
+    attribute :unplanned,       Unplanned, optional: true
     attribute :category, Category, optional: true
     # The batch work item a batched item waits in: a sweep batch, or the lead of a group one coder
     # builds on the lead's branch. Empty once it is returned.
@@ -916,6 +908,18 @@ Hecks.bluebook "Tickets" do
       member hours: 24, upcoming: 3
     end
 
+    # How many pomodoros, whole rounds of work: a size or a count spent.
+    value_object "Pomodoros" do
+      attribute :value, Integer
+
+      invariant("a pomodoro count is not negative") { !value.negative? }
+    end
+
+    # Whether a work item came in outside the plan; its finishing counts as overage.
+    value_object "Unplanned" do
+      attribute :value, Boolean
+    end
+
     # How many times a work item has been sent back to the plan; its backoff grows with it.
     value_object "YieldCount" do
       attribute :value, Integer
@@ -972,6 +976,8 @@ Hecks.bluebook "Tickets" do
       attribute :step,   Step, optional: true, sets: true
       attribute :area,   list_of(Word), optional: true, sets: true, default: []
       attribute :waits_on, list_of(WorkKey), optional: true, sets: true, default: []
+      attribute :pomodoros, Pomodoros, optional: true, sets: true
+      attribute :unplanned, Unplanned, optional: true, sets: true
       attribute :interview, InterviewCitation, optional: true, sets: true
       attribute :point,     PointCitation, optional: true, sets: true
       reference_to Adr, as: :decision, optional: true
@@ -1211,6 +1217,7 @@ Hecks.bluebook "Tickets" do
       attribute :yield_kind, WorkText, optional: true, sets: true
       attribute :retry_at, WorkText, optional: true, sets: true
       attribute :yield_count, YieldCount, optional: true, sets: true
+      attribute :pomodoros_spent, Pomodoros, optional: true, sets: true
 
       sets :claimed_by, to: ""
       sets :claimed_at, to: ""
@@ -1239,9 +1246,10 @@ Hecks.bluebook "Tickets" do
 
     # A claim gone stale returns its work item to the plan, so the next session can claim it.
     command "Release" do
-      goal "Return a started work item to planned, releasing its claim"
+      goal "Return a started work item to planned, releasing its claim and recording the pomodoros spent"
 
       reference_to Work
+      attribute :pomodoros_spent, Pomodoros, optional: true, sets: true
 
       sets :claimed_by, to: ""
       sets :claimed_at, to: ""

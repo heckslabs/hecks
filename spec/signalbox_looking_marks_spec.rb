@@ -20,8 +20,8 @@ RSpec.describe Hecks::Adapters::Looking::Marks do
   end
 
   # The marks the Signalbox world itself declares, as the beat reads them.
-  it "puts the short load mark at the fill's old guard of 20.5: 342 percent of six cores" do
+  it "puts the short load mark at 250 percent of every core (30 on twelve)" do
     registry = boot_hecks_in_memory(Hecks::Adapters::Dispatching::SignalboxDoor::HOME).registry
-    expect(described_class.new(registry).facts).to include(load_tight: 150, load_short: 342)
+    expect(described_class.new(registry).facts).to include(load_tight: 150, load_short: 250)
   end
 end

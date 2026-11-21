@@ -16,8 +16,10 @@ RSpec.describe "PipelineBoard Board query" do
 
   def snapshot(lists = {})
     { generated_at: "2026-11-20T10:00:00Z", stages: [], readings: [], stuck: [], roles: [], runs: [], train: [],
-      release: { latest_tag: "v7.0.0" }, events: [] }.merge(lists)
+      release: { latest_tag: "v7.0.0" }, events: [] }.merge(unread, lists)
   end
+
+  def unread = Hecks::Adapters::PipelineBoard::BoardReads.build({}, "2026-11-20T10:00:00Z")
 
   def board(lists = {}) = ask_typed_board(@dir, "Board", snapshot(lists)).first
 
