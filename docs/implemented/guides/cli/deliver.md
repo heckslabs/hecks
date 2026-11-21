@@ -54,6 +54,7 @@ A look at how this copy of Hecks is set up: its settings, its stores and whether
 A measure of the landings a ledger recorded: how many a day, and how long a change waited.
 
 - `hecks LandingPace.pace [<days>]`: Landings per UTC day over the last days (14 unless given), the refusals, and the wait from ready to landed as median, 90th percentile and longest. A change is ready at the first request to land it (submit, finish, land, carry or train) that names its branch or is the landing's own run, since that branch last landed; it is landed at BranchLanded.
+- `hecks LandingPace.throughput [<hours>]`: The branches landed in the last hours (24 unless given), one per BranchLanded, and how many of them shipped: their landed commit is on origin/main. The unshipped branches are named.
 
 ### Restoration
 

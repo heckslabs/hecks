@@ -346,6 +346,7 @@ queries (nothing here changes anything):
   LandingPace:
     …
     pace
+    throughput
   RedEpisode:
     …
     recent
@@ -440,6 +441,7 @@ queries (nothing here changes anything):
     unclosed
     impediments
     relieved
+    unraised
     abandoned
   TestSuiteRun:
     …
