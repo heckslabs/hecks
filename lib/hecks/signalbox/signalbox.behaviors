@@ -139,7 +139,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 900 }, cores: { value: 12 },
           load_tight: { value: 150 }, load_short: { value: 250 }, load_gap: { value: 25 }
-    expect emits: %w[PressureRead PressureEased StandingEased PressurePosted], band: "normal"
+    expect emits: %w[PressureRead PressureEased PressurePosted], band: "normal"
   end
 
   test "a load of 19 on twelve cores is tight" do
