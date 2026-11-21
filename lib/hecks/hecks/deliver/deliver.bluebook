@@ -1153,6 +1153,8 @@ Hecks.bluebook "Hecks" do
       # A fact the search could not read is empty.
       attribute :base,             Report, optional: true
       attribute :culprit,          Report, optional: true
+      # The culprit's first parent: the good prefix of the range ends there.
+      attribute :parent,           Report, optional: true
       attribute :branch,           Report, optional: true
       attribute :subject,          Report, optional: true
       attribute :spec,             Report, optional: true
@@ -1594,7 +1596,7 @@ Hecks.bluebook "Hecks" do
       on      "Integration.BisectAnswered"
       root
       where   { culprit.value != "" && base_red.value == false && already_reverted.value == false && revert_count.value < 3 }
-      trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
+      trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, parent: :parent, branch: :branch, subject: :subject,
                                           spec: :spec, example: :example, local: :local, checkout: :checkout,
                                           work: :work, finding: :finding }
     end
@@ -1717,6 +1719,7 @@ Hecks.bluebook "Hecks" do
       attribute :run,      RunKey
       attribute :base,     Report, optional: true
       attribute :culprit,  Report, optional: true
+      attribute :parent,   Report, optional: true
       attribute :branch,   Report, optional: true
       attribute :subject,  Report, optional: true
       attribute :spec,     Report, optional: true
@@ -1764,6 +1767,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,      RunKey, sets: true
         attribute :base,     Report, sets: true
         attribute :culprit,  Report, sets: true
+        attribute :parent,   Report, optional: true, sets: true
         attribute :branch,   Report, optional: true, sets: true
         attribute :subject,  Report, optional: true, sets: true
         attribute :spec,     Report, optional: true, sets: true
@@ -1861,6 +1865,23 @@ Hecks.bluebook "Hecks" do
         given("the episode still stands") { ended_at == nil || ended_at.value == 0 }
 
         emits EpisodeRevertMade
+      end
+
+      # The good prefix of a reverted culprit that never reached `origin/main`: the commits before
+      # it, which ship while the revert and the reopened item's fix land. It says the parent and
+      # checkout again, so its event tells the push train all a boarding needs.
+      command "Prefix" do
+        role "System"
+        goal "Ask the push train to board the good prefix of a local culprit's range, the commits up to its first parent"
+
+        reference_to RedEpisode
+        attribute :parent,   Report, sets: true
+        attribute :checkout, Report, optional: true, sets: true
+
+        given("the episode's culprit is being reverted") { status == "reverting" }
+        given("the culprit never reached origin/main") { local != nil && local.value == true }
+
+        emits PrefixBoardingRequested
       end
 
       command "Restore" do
@@ -1987,6 +2008,24 @@ Hecks.bluebook "Hecks" do
       on      "Integration.VerifyAnswered"
       where   { outcome.value == "verified" && revert.value == true }
       trigger RedFlag::Clear, with: { run: :landed, commit: :landed, checkout: :checkout }
+    end
+
+    # The good prefix ships once the revert is verified and the flag is down: the train boards main
+    # up to the culprit's parent while the reopened item's fix lands later. `root`, so a refused
+    # boarding never undoes the revert; before the policies that end the episode, so its row stands.
+    policy "BoardThePrefixWhenTheFlagIsLowered" do
+      on       "RedFlag.RedFlagCleared"
+      root
+      for_each "RedEpisode.Standing"
+      trigger  RedEpisode::Prefix, with: { run: :id, parent: :parent, checkout: :checkout }
+    end
+
+    # The prefix boards in a cascade of its own, so a refused boarding never undoes the revert. Its
+    # key is the prefix commit: the episode's own run keys the revert (`Unland`).
+    policy "BoardThePrefix" do
+      on      "RedEpisode.PrefixBoardingRequested"
+      root
+      trigger SendTrain::Board, with: { run: :parent, commit: :parent, checkout: :checkout, confirm: true }
     end
 
     # The flag's key is the landed commit, not the episode's run, so a lowered flag ends every

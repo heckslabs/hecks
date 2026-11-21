@@ -77,7 +77,8 @@ module Hecks
 
         def naming(found)
           branch = branch_of(found[:subject])
-          { culprit: found[:sha], subject: found[:subject], branch: branch, work: branch.sub(WORK_SUFFIX, "") }
+          { culprit: found[:sha], parent: @repository.first_parent(found[:sha]).to_s, subject: found[:subject],
+            branch: branch, work: branch.sub(WORK_SUFFIX, "") }
         end
 
         def finding_facts(found, finding, log)

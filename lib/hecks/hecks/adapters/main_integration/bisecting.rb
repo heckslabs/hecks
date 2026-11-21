@@ -17,7 +17,7 @@ module Hecks
       class Bisecting
         # What the merge's keys hold when no merge failed. `searched` is false until a search ran,
         # and `examples` is empty unless the search is a red train's.
-        NONE = { culprit: "", subject: "", branch: "", work: "", finding: "", spec: "", example: "", base_red: false,
+        NONE = { culprit: "", parent: "", subject: "", branch: "", work: "", finding: "", spec: "", example: "", base_red: false,
                  local: false, revert_count: 0, searched: false, examples: "" }.freeze
 
         class << self
