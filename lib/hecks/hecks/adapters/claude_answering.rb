@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "claude_resumption"
+require_relative "run_role"
 require_relative "session_hooks"
 require_relative "session_inbox"
 require_relative "session_presence"
@@ -45,7 +46,7 @@ module Hecks
         id = plain(held[:session])
         started = ClaudeResumption.new(@command, @shell, nice: niceness)
                                   .call(id, listed(id), prompt(held), env: named(held), chdir: plain(held[:repo]),
-                                                                      agent: plain(held[:agent]))
+                                                                      agent: RunRole.of(held))
         @jobs.woken(started).merge(pinned_role: @holder.pinned_role(held))
       end
 
