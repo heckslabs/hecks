@@ -72,12 +72,16 @@ module ResidentLaunch
   # refused on them.
   BUNDLER = %w[RUBYOPT RUBYLIB GEM_HOME GEM_PATH].freeze
 
+  # The variables the run's sandbox sets that a plain terminal does not have, for the same reason.
+  SANDBOXED = %w[HECKS_DEV_STATE GIT_CEILING_DIRECTORIES].freeze
+
   # @return [Hash] the environment of a launcher started by this group, as a plain terminal would
   #   make it: the specs' own variable that keeps launchers off residents is unset for it, and so
   #   is whatever Bundler put in this process's environment
   def env(resident)
-    plain = (BUNDLER + ENV.keys.grep(/\ABUNDLE/)).to_h { |name| [name, nil] }
+    plain = (BUNDLER + SANDBOXED + ENV.keys.grep(/\ABUNDLE/)).to_h { |name| [name, nil] }
     plain.merge("HECKS_NO_RESIDENT" => (resident ? nil : "1"), "HECKS_CACHE_DIR" => @cache,
+                "HOME" => RunSandbox.real_home,
                 "XDG_CACHE_HOME" => @cache, "HECKS_USAGE" => "off")
   end
 
