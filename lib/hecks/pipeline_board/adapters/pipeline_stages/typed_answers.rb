@@ -7,6 +7,8 @@ require_relative "daily_health"
 require_relative "glance_rows"
 require_relative "glance_tap"
 require_relative "../pipeline_status"
+require_relative "board_reads"
+require_relative "read_facts"
 
 module Hecks
   module Adapters
@@ -34,6 +36,24 @@ module Hecks
           state
           PipelineStatus.build(@status_facts, @now.call, held(since))
         end
+
+        # @return [Hash] the one `Reading` for Signalbox's signal, in plain words
+        def signal = board[:signal]
+
+        # @return [Array<Hash>] one `FillWhy` row for each item the fill did not start
+        def fill_why = board[:fill_why]
+
+        # @return [Array<Hash>] one `RedEpisodeLine` per episode, newest first
+        def red_episodes(limit: nil) = board[:red_episodes].first(held(limit) || board[:red_episodes].size)
+
+        # @return [Array<Hash>] one `Reading` per outcome measure
+        def measures = board[:measures]
+
+        # @return [Array<Hash>] one `Reading` per ranked epic
+        def epics = board[:epics]
+
+        # @return [Array<Hash>] one `Reading` per hold on boarding
+        def holds = board[:holds]
 
         # @return [Array<Hash>] one `Stage` row per node of the strip, left to right
         def stages = board[:stages]
@@ -68,8 +88,14 @@ module Hecks
         # The state with its typed `Snapshot` row under `board`.
         def with_board(held, data)
           @status_facts = data.merge(held.slice(:load_guard))
-          held.merge(board:  SnapshotRows.build(held, data.slice(:train_prs, :release, :turns)),
+          held.merge(board:  SnapshotRows.build(held, data.slice(:train_prs, :release, :turns).merge(reads: reads(data))),
                      glance: GlanceRows.build(data.merge(held.slice(:load_guard)), @now.call))
+        end
+
+        # The newer readings, asked of the aggregates that own them.
+        def reads(data)
+          facts = ReadFacts.new(registry: @registry, tickets: @tickets, now: @now).of(data[:fill])
+          BoardReads.build(facts, @now.call.iso8601)
         end
 
         # The cycles laid from the stage events as they stand now.
