@@ -13,7 +13,7 @@ RSpec.describe "a hand-started session's registration, across processes" do
   after { FileUtils.remove_entry(root) }
 
   def boot_process
-    extra = AgentsMessageHelpers::PORTS + AgentsKeptStore.files(root, rows)
+    extra = AgentsMessageHelpers::PORTS + [AgentsKeptStore::ADAPTER] + AgentsKeptStore.files(root, rows)
     @agents_runtime = AgentsMemoryBoot.call(extra: extra)
   end
 

@@ -19,7 +19,8 @@ RSpec.describe "cross-call kept rows" do
     ["Agents", "Message"]    => "main",
     ["Agents", "Verdict"]    => "main",
     ["Agents", "Escalation"] => "main",
-    ["Agents", "Turn"]       => "main"
+    ["Agents", "Turn"]       => "main",
+    ["Agents", "HandRun"]    => "main"
   }.each do |(domain, aggregate), checkout|
     it "keeps #{domain}::#{aggregate} for the #{checkout} checkout, with a reason", :aggregate_failures do
       row = Hecks::Adapters::MainIntegration::KeptRows.find(rows, domain, aggregate)
