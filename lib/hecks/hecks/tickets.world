@@ -6,12 +6,9 @@
 # to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
 # The Machine's load marks and `dispatch_max_load` are one number, below the CPU count (12 on the owner's
 # machine; 10.0 since 2026-11-11, which leaves about two cores for the desktop), so the Machine pausing the plan and the plan's own load check agree.
-# `cpu_budget` is a ceiling on the hours of launcher boots in a rolling 24 hours (the usage record's
-# `boot_ms`, from each run's start time; a run with no boot time adds nothing): once they have spent it,
-# `Dispatch.Fill` starts no session except a red-* fix ("boot budget spent") and the board's Boot hours
-# tile fails, so a loop that boots the launcher over and over stops itself. 6.0 is a ceiling, not a
-# target: the first 45 minutes of measured runs held 0.42 hours (2026-11-09), so a full day of the
-# same work sits well under it; tighten it once the boot-time work has landed and a day is measured.
+# `cpu_budget` is the hours of launcher boots in a rolling 24 hours (the usage record's `boot_ms`,
+# from each run's start time; a run with no boot time adds nothing). It is a reading on the board and
+# holds nothing: a loop that boots the launcher over and over is stopped by `boot_storm` and `boot_share`.
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
 # when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
 # policies run `Dispatch.Fill` on events that free capacity, and false pauses them and the beat; `Fill only=<key>` still starts one. `session_environment` is what every dispatched session starts with: a shared cargo
@@ -89,6 +86,11 @@ Hecks.world "Tickets" do
   # group to one coder (`only=group:<path>`), so one session stays reviewable; the rest of the group
   # waits for the next batch. The batch is one session, so it takes one place under `work_limit`.
   work_group_cap "Dispatch", cap: 6
+  # `boot_storm`: a caller over `boots` boots in `minutes` has its own run held. `boot_share`: boots
+  # over `percent` of the CPU in `minutes`, at a load over its high mark, hold every start.
+  # `cpu_budget` is the day's hours, a reading only.
+  boot_storm "Dispatch", boots: 30, minutes: 5
+  boot_share "Dispatch", percent: 25.0, minutes: 15
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
   # `load_shed` bounds the Delegate `Shed`: a rise of the load asks one started item to yield.
   # `min_coders` 2: asking the only coder frees the machine for no other work. `at_once` 1: a

@@ -23,12 +23,15 @@ module Hecks
       # @return [Hash] `hours`, `boots`, `unmeasured`, `approximate` (runs placed by their day
       #   alone), `truncated` (the byte limit cut the read short, so `hours` is a floor),
       #   `last_hour` (callers to runs), `budget` (hours a day, nil when none is set), `load` and
-      #   `max_load`
+      #   `max_load`, `share` (percent of the CPU the last minutes' boots took) and `storms`
+      #   (callers booting over the declared rate); the day's hours are a reading, never a brake
       def today
         reading = @budget.today
         { hours: reading.hours, boots: reading.boots, unmeasured: reading.unmeasured,
           approximate: reading.approximate, truncated: reading.capped, last_hour: reading.last_hour,
-          budget: @machine.boot_budget, load: @machine.load.round(1), max_load: @machine.max_load.round(1) }
+          budget: @machine.boot_budget, load: @machine.load.round(1), max_load: @machine.max_load.round(1),
+          share: @machine.boot_share_percent, share_mark: @machine.boot_share_mark,
+          storms: @machine.boot_storms }
       end
     end
   end

@@ -12,6 +12,7 @@ require_relative "../machine_sampling/history"
 require_relative "rethinks"
 require_relative "meter_switch"
 require_relative "batching"
+require_relative "boot_guard"
 
 module Hecks
   module Adapters
@@ -19,6 +20,8 @@ module Hecks
       # What the Tickets world says about filling the queue, and what the machine says about its
       # load. The bluebook never reads the OS, so the load and the CPU count come through here.
       class Settings
+        include BootGuard
+
         # The world verb naming the areas and aggregates whose persisted shape may not move.
         FREEZE = "frozen_shapes"
 
@@ -125,25 +128,12 @@ module Hecks
           "skipped: memory low (MemoryLow)" if standing[:memory] == "low"
         end
 
-        # @return [Float, nil] the hours of launcher boots a day the world allows, nil for none
+        # @return [Float, nil] the hours of launcher boots a day the world declares, a reading for
+        #   the board that holds nothing; nil for none
         def boot_budget = declared(BOOT_BUDGET)[:boot_hours_per_day]&.to_f
 
         # @return [BootBudget] what the day's boots cost, which protection reads too
         attr_reader :boots
-
-        # @return [String, nil] why no session starts: the day's boots have spent the world's
-        #   budget; nil when they have not, or the world sets none
-        def boot_stop
-          hours = boot_budget
-          @boots.stop_reason(hours) if hours
-        end
-
-        # @return [Time, nil] when the oldest counted boots leave the window far enough to free the
-        #   budget; nil when the world sets no budget or the window alone cannot free it
-        def boot_frees_at
-          hours = boot_budget
-          @boots.frees_at(hours) if hours
-        end
 
         # @return [Integer] the seconds a started session is given to appear in the listing
         def session_grace = Integer(declared(GRACE)[:seconds] || GRACE_SECONDS)
