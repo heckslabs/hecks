@@ -4,12 +4,12 @@ module Hecks
   module Adapters
     class Dispatching
       # The order planned work items are listed in: a red one first, then an expedited one, then
-      # one whose last yield a
-      # fill restarts first, then one of priority `now`, then a filed stall, then the rest. A stall
-      # never ranks ahead of priority-now work, so it cannot take the free places an urgent fix
-      # needs. Inside a group the order is the priority, then the epic's tier, then the plan step,
-      # then the key. It is mixed into
-      # {WorkItems}, whose `find`, `red?`, `expedited?` and `first_kinds` it uses.
+      # one whose last yield a fill restarts first, then one of priority `now`, then a filed stall,
+      # then the rest. A stall never ranks ahead of priority-now work, so it cannot take the free
+      # places an urgent fix needs. Inside the rest the order is the priority, then the epic's
+      # tier, then the plan step, then the key. Priority-now work is an ordered queue: the plan
+      # step first, the epic's tier only breaking a tie of equal step, then the key. It is mixed
+      # into {WorkItems}, whose `find`, `red?`, `expedited?` and `first_kinds` it uses.
       module PlanOrder
         # The urgency of an expedited work item: after a red one, ahead of everything else.
         EXPEDITED = 1
@@ -36,7 +36,9 @@ module Hecks
         def order(entry, index, marks)
           step, rank, item = entry
           urgency = urgency(item, marks)
-          [urgency, urgency == RESTARTED ? [rank.first, 0] : rank, step, item.key, index]
+          return [urgency, [rank.first], step, rank.last, item.key, index] if urgency == URGENT
+
+          [urgency, urgency == RESTARTED ? [rank.first, 0] : rank, step, 0, item.key, index]
         end
 
         def urgency(item, marks)
