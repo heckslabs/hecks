@@ -49,7 +49,9 @@ module RealHomeGuard
   def self.resolve(text)
     File.realpath(File.expand_path(text))
   rescue SystemCallError
-    File.expand_path(text)
+    path = File.expand_path(text)
+    parent = File.dirname(path)
+    parent == path ? path : File.join(resolve(parent), File.basename(path))
   end
 
   # @param expanded [String] an absolute path
