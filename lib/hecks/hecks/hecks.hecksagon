@@ -284,6 +284,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Abandoned"
     answers_query "Impediments"
     answers_query "Relieved"
+    answers_query "Unraised"
   end
 
   Hecks::SendTrain.port "Alerts" do

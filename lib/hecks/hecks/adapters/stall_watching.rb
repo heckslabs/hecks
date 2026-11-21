@@ -1,14 +1,18 @@
 # frozen_string_literal: true
 
+require "etc"
 require "hecks/runtime/event_feed"
 require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
 require_relative "stall_watching/impediments"
 require_relative "stall_watching/relieved"
+require_relative "stall_watching/unraised"
 require_relative "stall_watching/open_branches"
 require_relative "stall_watching/shared_files"
+require_relative "stall_watching/computed"
 require_relative "stall_watching/slot_evidence"
 require_relative "machine_sampling/process_classes"
+require_relative "machine_sampling/marks"
 
 module Hecks
   module Adapters
@@ -26,7 +30,9 @@ module Hecks
       # @param reads [Hash] the machine reads, each for a spec: `processes:` the `processes`
       #   evidence ({MachineSampling::ProcessClasses} when absent), `slots:` the `slots` evidence
       #   ({SlotEvidence}), `origin:` whether a commit is on origin/main ({SettledReads}, git),
-      #   `branches:` the open branches' tips and changed files ({OpenBranches}, git)
+      #   `branches:` the open branches' tips and changed files ({OpenBranches}, git), `load:` the
+      #   1-minute load (`Etc.getloadavg`), `leftovers:` a leftover's count by name
+      #   ({LeftoverReads})
       def initialize(registry: nil, aggregate: nil, tap: nil, **reads)
         @registry = registry
         @aggregate = aggregate
@@ -34,6 +40,8 @@ module Hecks
         @processes = reads[:processes]
         @slots = reads[:slots]
         @branches = reads[:branches]
+        @load = reads[:load]
+        @leftovers = reads[:leftovers]
         @settled_read = SettledReads.new(origin: reads[:origin])
       end
 
@@ -80,18 +88,40 @@ module Hecks
         Relieved.new(read, held(read, look)).rows(look)
       end
 
+      # @param run [Hash, String] the look that asks, as its key or the key's value
+      # @return [Array<Hash>] one `Sighting` row per impediment a call for help clears that no call
+      #   and no scrum master run has met; none when the world declares no tap
+      def unraised(run:)
+        path = tap_path
+        return [] unless path
+
+        read = lines(path)
+        look = plain(run).to_s
+        Unraised.new(read, held(read, look)).rows(look)
+      end
+
       private
 
       # What a look holds: the tap's impediments and the computed ones, oldest first.
       def held(read, look)
-        rows = Impediments.new(sightings.open_lines(read, look)).rows + shared_files.rows(read, look)
+        rows = Impediments.new(sightings.open_lines(read, look)).rows + shared_files.rows(read, look) +
+               computed(read).rows(read, look)
         rows.sort_by { |row| [row[:opened_at], row[:stall]] }
       end
 
-      # The computed impediments, read from the `ComputedSignal` rows and the open branches.
+      # The computed impediments of the open branches; a row naming a read no class answers lands
+      # here too, so it is refused by name.
       def shared_files
         branches = @branches || OpenBranches.new(Dir.pwd)
-        SharedFiles.new(members("ComputedSignal"), SystemClock.now, branches: branches)
+        rest = members("ComputedSignal").reject { |signal| Computed::READS.include?(signal[:read]) }
+        SharedFiles.new(rest, SystemClock.now, branches: branches)
+      end
+
+      # The computed impediments of the tap and the machine's cheap readings.
+      def computed(read)
+        Computed.new(members("ComputedSignal"), SystemClock.now, load:     @load || -> { Etc.getloadavg.first },
+                                                                 low_mark: MachineSampling::Marks.of(@registry)[:load_low],
+                                                                 counts:   @leftovers || LeftoverReads.new(read, Dir.pwd))
       end
 
       def sightings = Sightings.new(kinds, SystemClock.now, evidence: method(:evidence), settled_read: @settled_read)
