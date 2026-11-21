@@ -47,9 +47,7 @@ module LandingPaceScratch
   private
 
   def stored(row)
-    name, aggregate, record, branch, at, sha = row
-    payload = branch ? { branch: { value: branch } } : {}
-    payload[:landed] = { value: sha } if sha
-    [name, aggregate, record, JSON.generate(payload), at]
+    name, aggregate, record, branch, at = row
+    [name, aggregate, record, JSON.generate(branch ? { branch: { value: branch } } : {}), at]
   end
 end

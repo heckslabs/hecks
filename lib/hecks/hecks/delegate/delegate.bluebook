@@ -29,8 +29,6 @@ Hecks.bluebook "Hecks" do
       attribute :refusal,   Report,    optional: true
       attribute :tidied_at, Moment,    optional: true
       attribute :answered_at, Moment,  optional: true
-      # When the session began waiting on a person, as its job reports; set by `Block`.
-      attribute :blocked_at, Moment,   optional: true
       attribute :detail,    Report,    optional: true
       attribute :work,      WorkSlug,  optional: true
       attribute :trial,     Trial,     optional: true
@@ -225,7 +223,6 @@ Hecks.bluebook "Hecks" do
         attribute :condition, Condition, sets: true
         attribute :detail,    Report, sets: true
         attribute :checkout,  Checkout
-        attribute :blocked_at, Moment, optional: true, sets: true
 
         emits SessionBlocked
       end
@@ -593,17 +590,9 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Blocked" do
-        description "Every started run whose session waits on a person, the longest waiting first, each with its question (`detail`) and when it began waiting (`blocked_at`)."
+        description "Every started run whose session waits on a person, oldest key first."
         where(status: "started", condition: "blocked")
-        order_by :blocked_at
-      end
-
-      # What a run last said: the question a blocked run waits on, or the report a finished run ended
-      # with, both kept in `detail`. A run that is working has said nothing the ledger holds yet.
-      query "LastReport" do
-        description "The run under one key, with what it last said (`detail`), its condition and when it began waiting."
-        attribute :run, RunKey
-        where(run: :run)
+        order_by :run
       end
 
       # The started runs that answer a question: at most two, as the answer desk seats two, so an
@@ -890,15 +879,11 @@ Hecks.bluebook "Hecks" do
       attribute :report,    RollOutcome, optional: true
       attribute :refusal,   RollOutcome, optional: true
       attribute :held_back, HeldBack, optional: true
-      # When the fill was reported, as the port reads its clock; the report holds why each item waits.
-      attribute :answered_at, RollMoment, optional: true
       identified_by :run
 
       value_object "RollKey" do
         attribute :value, String, matches: :present
       end
-
-      value_object "RollMoment", String
 
       value_object "RollOutcome", String
 
@@ -928,18 +913,8 @@ Hecks.bluebook "Hecks" do
         reference_to Roll
         attribute :report,    RollOutcome, sets: true
         attribute :held_back, HeldBack, sets: true
-        attribute :answered_at, RollMoment, optional: true, sets: true
 
         emits RollAnswered
-      end
-
-      # The last fill the roll recorded, read and not recomputed as `Dispatch.Preview` does: its
-      # report names what started and why each other item waits, and `held_back` says whether the
-      # boot budget, the load or a pause held work.
-      query "Latest" do
-        description "Every answered roll, the newest first: the fill's report with the reason each item waits, and when it was reported."
-        where(status: "answered")
-        order_by :answered_at, :desc
       end
 
       command "Decline" do
@@ -2379,7 +2354,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRoll" do
       on      "Roll.RollReported"
-      trigger Roll::Record, with: { report: :report, held_back: :held_back, answered_at: :answered_at }
+      trigger Roll::Record, with: { report: :report, held_back: :held_back }
     end
 
     policy "RecordTheDeclinedRoll" do
@@ -2635,7 +2610,7 @@ Hecks.bluebook "Hecks" do
       on      "AgentRun.JobRead"
       root
       where   { state == "blocked" && previous != state }
-      trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout, blocked_at: :blocked_at }
+      trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
     # Resuming an idle session with an answer stops it and wakes it again, and the stop runs the

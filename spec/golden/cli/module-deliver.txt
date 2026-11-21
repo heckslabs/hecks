@@ -60,7 +60,6 @@ queries (nothing here changes anything):
   LandingPace:
     …
     pace
-    throughput
   RedEpisode:
     …
     recent

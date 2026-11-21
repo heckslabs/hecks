@@ -112,8 +112,8 @@ RSpec.describe Hecks::Tools::AgentRoles do
       expect(hushed { run_list("--check") }).to eq(1)
     end
 
-    it "names the orchestrator, the scrum master, the planner and the architect as the guarded roles of the checkout" do
-      expect(Hecks::Tools::AgentRoles::Rows.guarded(InMemoryDomain::ROOT)).to eq(%w[orchestrator scrum-master planner architect])
+    it "names the orchestrator, the planner and the architect as the guarded roles of the checkout" do
+      expect(Hecks::Tools::AgentRoles::Rows.guarded(InMemoryDomain::ROOT)).to eq(%w[orchestrator planner architect])
     end
   end
 
@@ -138,7 +138,7 @@ RSpec.describe Hecks::Tools::AgentRoles do
     end
 
     it "project every role, the architect too" do
-      names = %w[architect coder orchestrator orchestrator-owner planner pruner reviewer scrum-master]
+      names = %w[architect coder orchestrator orchestrator-owner planner pruner reviewer]
       expect(rows.map { |real| real[:role] }).to match_array(names)
     end
 

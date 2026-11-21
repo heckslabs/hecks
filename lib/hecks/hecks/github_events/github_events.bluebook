@@ -95,7 +95,7 @@ Hecks.bluebook "Hecks" do
 
       # The kinds of event the pipeline follows. A delivery of any other kind is not recorded.
       value_object "Kind" do
-        attribute :value, String, one_of: %w[check_run check_suite pull_request workflow_run ping]
+        attribute :value, String, one_of: %w[check_run check_suite pull_request workflow_run ping rate_limit]
       end
 
       # When the listener took the delivery, in microseconds since the epoch. It is the cursor
@@ -140,6 +140,101 @@ Hecks.bluebook "Hecks" do
         attribute :cursor, Integer
         where(received: { gt: :cursor })
         order_by :received
+      end
+    end
+
+    # The one edge that names GitHub's REST fields. The adapter hands each reading over with a `key`
+    # (a check run's id, status and conclusion, so a completed reading is no replay) and `observed`;
+    # `github_events.hecksagon` translates it into `GithubEvent.Record`.
+    aggregate "GithubRest" do
+      description "One reading of a GitHub REST answer (a pull request, a check run or a refused call), kept by its key, in GitHub's own field names."
+
+      identified_by :key
+
+      attribute :key,         Key
+      attribute :observed,    Stamp
+      attribute :number,      Count, optional: true
+      attribute :head_sha,    Text, optional: true
+      attribute :head_ref,    Text, optional: true
+      attribute :state,       Text, optional: true
+      attribute :merged_at,   Moment, default: { value: "" }
+      attribute :name,        Text, optional: true
+      attribute :status,      Text, optional: true
+      attribute :conclusion,  Text, optional: true
+      attribute :http_status, Count, optional: true
+      attribute :remaining,   Count, optional: true
+      attribute :reset,       Count, optional: true
+
+      # Letters, digits and hyphens, so it becomes the delivery key of the event it translates to.
+      value_object "Key" do
+        attribute :value, String, pattern: '\A[A-Za-z0-9-]{1,80}\z'
+      end
+
+      # When the adapter read the answer, in microseconds since the epoch.
+      value_object "Stamp" do
+        attribute :value, Integer
+
+        invariant("a stamp is not negative") { !value.negative? }
+      end
+
+      value_object "Text" do
+        attribute :value, String, matches: :present
+      end
+
+      # An instant as GitHub writes it, or "" when the answer has none (a pull request not merged).
+      value_object "Moment" do
+        attribute :value, String, default: ""
+      end
+
+      value_object "Count", Integer
+
+      lifecycle :phase, default: "unread" do
+        transition "ReadPull"      => "read", from: "unread"
+        transition "ReadCheckRun"  => "read", from: "unread"
+        transition "ReadRateLimit" => "read", from: "unread"
+        mark :terminal, "read"
+      end
+
+      command "ReadPull" do
+        role "System"
+        goal "Keep one reading of a pull request as the REST endpoint answered it"
+
+        attribute :key,       Key, sets: true
+        attribute :observed,  Stamp, sets: true
+        attribute :number,    Count, sets: true
+        attribute :head_sha,  Text, sets: true
+        attribute :head_ref,  Text, sets: true
+        attribute :state,     Text, sets: true
+        attribute :merged_at, Moment, default: { value: "" }, sets: true
+
+        emits PullRead
+      end
+
+      command "ReadCheckRun" do
+        role "System"
+        goal "Keep one reading of a check run as the REST endpoint answered it"
+
+        attribute :key,        Key, sets: true
+        attribute :observed,   Stamp, sets: true
+        attribute :name,       Text, sets: true
+        attribute :head_sha,   Text, sets: true
+        attribute :status,     Text, sets: true
+        attribute :conclusion, Text, optional: true, sets: true
+
+        emits CheckRunRead
+      end
+
+      command "ReadRateLimit" do
+        role "System"
+        goal "Keep one refused call and the rate-limit headers it answered with"
+
+        attribute :key,         Key, sets: true
+        attribute :observed,    Stamp, sets: true
+        attribute :http_status, Count, sets: true
+        attribute :remaining,   Count, sets: true
+        attribute :reset,       Count, optional: true, sets: true
+
+        emits RateLimitRead
       end
     end
 

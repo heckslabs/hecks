@@ -1,0 +1,47 @@
+# The anti-corruption layer for GitHub's REST shapes: each `GithubRest` reading, in GitHub's own
+# fields, becomes a `GithubEvent` with the kinds, actions and conclusions a webhook delivery has.
+Hecks.hecksagon "Hecks" do
+  # An open pull request, or a closed one that was not merged.
+  translates "RecordAPullRequestRead" do
+    on GithubRest::PullRead
+    where { merged_at == "" }
+    trigger GithubEvent::Record, with: { delivery: :key, kind: "pull_request", action: :state, pr: :number,
+                                         commit: :head_sha, branch: :head_ref, conclusion: :state,
+                                         received: :observed }
+  end
+
+  # A pull request GitHub says was merged.
+  translates "RecordAMergedPullRequestRead" do
+    on GithubRest::PullRead
+    where { merged_at != "" }
+    trigger GithubEvent::Record, with: { delivery: :key, kind: "pull_request", action: "closed", pr: :number,
+                                         commit: :head_sha, branch: :head_ref, conclusion: "merged",
+                                         received: :observed }
+  end
+
+  # A check run that has ended, green or red: its conclusion.
+  translates "RecordACompletedCheckRunRead" do
+    on GithubRest::CheckRunRead
+    where { status == "completed" }
+    trigger GithubEvent::Record, with: { delivery: :key, kind: "check_run", action: "completed",
+                                         commit: :head_sha, check: :name, conclusion: :conclusion,
+                                         received: :observed }
+  end
+
+  # A check run that has not ended: its status stands where a conclusion would.
+  translates "RecordAPendingCheckRunRead" do
+    on GithubRest::CheckRunRead
+    where { status != "completed" }
+    trigger GithubEvent::Record, with: { delivery: :key, kind: "check_run", action: :status,
+                                         commit: :head_sha, check: :name, conclusion: :status,
+                                         received: :observed }
+  end
+
+  # A refused call with no budget left: the rate limit is exhausted.
+  translates "RecordAnExhaustedRateLimit" do
+    on GithubRest::RateLimitRead
+    where { http_status == 403 && remaining == 0 }
+    trigger GithubEvent::Record, with: { delivery: :key, kind: "rate_limit", action: "exhausted",
+                                         received: :observed }
+  end
+end

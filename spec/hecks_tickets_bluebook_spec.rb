@@ -161,8 +161,7 @@ RSpec.describe "the Tickets bluebook" do
     asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 
     expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted",
-                                                      "CheckAreaNamesWhenPlanned", "CheckAreaNamesWhenRescoped",
-                                                      "ComposeNoteWhenNoteRequested")
+                                                      "CheckAreaNamesWhenPlanned", "CheckAreaNamesWhenRescoped")
   end
 
   it "lapses a superseded decision's undone steps" do
