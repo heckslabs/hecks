@@ -2,6 +2,8 @@
 
 require "shellwords"
 require_relative "session_inbox"
+require_relative "claude_jobs"
+require_relative "state_gate"
 
 module Hecks
   module Adapters
@@ -9,20 +11,29 @@ module Hecks
     # session reach Hecks as a check of its own run instead of waiting for a sweep: Claude Code runs
     # `Stop` after each turn (a session that finishes or blocks has just ended one) and `SessionEnd`
     # when the session is stopped. The job's state file can lag the hook by a moment, so the command
-    # checks, waits, and checks again: a check that finds nothing new records nothing.
+    # waits once, then checks only when the state changed since its last check (see {StateGate}):
+    # a stop with nothing new boots nothing.
     #
     # `PostToolUse` and `Stop` also read the session's inbox (see {SessionInbox}), so an answer left
     # for a working session reaches it at its next tool call or the end of its turn.
     class SessionHooks
-      # Seconds the command waits before its second check.
+      # Seconds the command waits before it reads the job's state.
       SETTLE = 3
+
+      # Where the last checked state of each run is kept unless a setting names another directory.
+      SEEN = "~/.claude/hecks-dev/checked"
 
       # @param launcher [String, nil] the main checkout's `exe/hecks`, which owns the ledgers; nil
       #   for none
       # @param inbox [SessionInbox] where an answer for the session waits
-      def initialize(launcher:, inbox: SessionInbox.new)
+      # @param jobs [String, nil] the jobs directory (default {ClaudeJobs::DIRECTORY})
+      # @param seen [String, nil] where each run's last checked state is kept (default {SEEN})
+      # @param settle [Numeric] seconds the check waits before it reads the job's state
+      def initialize(launcher:, inbox: SessionInbox.new, jobs: nil, seen: nil, settle: SETTLE)
         @launcher = launcher
         @inbox = inbox
+        @gate = StateGate.new(jobs: File.expand_path(jobs || ClaudeJobs::DIRECTORY),
+                              seen: File.expand_path(seen || SEEN), settle: settle)
       end
 
       # @param run [String] the key of the `AgentRun` the session belongs to
@@ -58,7 +69,7 @@ module Hecks
 
       def command(run)
         check = "#{Shellwords.escape(@launcher)} AgentRun.check! to=#{Shellwords.escape(run)} >/dev/null 2>&1"
-        "#{check}; sleep #{SETTLE}; #{check}; exit 0"
+        @gate.command(run, check)
       end
     end
   end
