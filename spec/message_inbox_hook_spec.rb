@@ -6,8 +6,8 @@ require "open3"
 require "tmpdir"
 
 # The inbox hook, run after each tool step against scratch ledgers and a stand-in `exe/hecks`: a
-# message sent to a working run appears in its session at once and is marked read, a step with
-# nothing unread boots nothing, and a session with no run hears nothing.
+# message sent to a working run appears in its session at once and is recorded handed over, a
+# step with nothing unread boots nothing, and a session with no run hears nothing.
 RSpec.describe "the message inbox hook" do
   let(:root) { File.expand_path("..", __dir__) }
   let(:dir) { Dir.mktmpdir("message_inbox") }
@@ -63,10 +63,10 @@ RSpec.describe "the message inbox hook" do
     expect(context).to include("miette", "answer", "use the smaller version", "m1", "Message.send!", "in_reply_to")
   end
 
-  it "marks the message read through Message.read!" do
+  it "records the message handed over with Message.receive!, which the domain marks read", :aggregate_failures do
     say
     step
-    expect(calls.lines(chomp: true)).to include("Message.read!", "to=m1")
+    expect(calls.lines(chomp: true)).to include("Message.receive!", "to=m1", "reader=aedefaa0-1111-2222-3333-444444444444")
   end
 
   it "says nothing and boots nothing when the inbox is empty", :aggregate_failures do
