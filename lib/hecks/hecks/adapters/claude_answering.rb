@@ -57,7 +57,7 @@ module Hecks
         inbox = SessionInbox.new(directory: settings[:inbox])
         @presence = SessionPresence.new(listing: @listing, jobs: @jobs, inbox: inbox)
         SessionHooks.new(launcher: settings.fetch(:launcher) { MainLauncher.path }, inbox: inbox,
-                          jobs: settings[:jobs])
+                         jobs: settings[:jobs])
       end
     end
   end
