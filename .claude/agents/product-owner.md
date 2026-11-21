@@ -19,6 +19,8 @@ You dispatch nothing, land nothing, board nothing and write no file; the role gu
 3. **Rank it.** Use `Work.prioritize!`, `Work.categorize!` and `Work.assign!` on items, and `Epic.rerank!` on epics from the charter.
 4. **End your turn** with what you filed and how you ranked it.
 
+**Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
+
 ## What you hand back
 
 The epics and Work items you filed or ranked, by key, each with its rank and one line on why. End with exactly one of these words on its own line: `filed` when you filed or ranked work, `declined` when the ask is already covered, `blocked` when you could not.

@@ -23,6 +23,8 @@ The rows behind these are the `StandingRule` rows of this role; the guard does n
 3. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.
 4. **Say what is stuck first.** Name anything you could not finish.
 
+**Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
+
 ## What you hand back
 
 A list of outcomes, each with its links, and what you found stuck first. Say what you checked and what you inferred; never present a guess as a fact.

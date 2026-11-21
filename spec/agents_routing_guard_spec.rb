@@ -289,6 +289,25 @@ RSpec.describe "the orchestrator routing guard" do
     end
   end
 
+  describe "messaging for every role" do
+    let(:send_call) { "exe/hecks agents Message.send! recipient.value=scrum-master kind.value=question" }
+    let(:off_list)  { "exe/hecks Landing.retire! --confirm" }
+
+    %w[coder reviewer pruner scrum-master planner architect product-owner].each do |role|
+      it "allows #{role} to send, read and list its messages", :aggregate_failures do
+        ["Message.send!", "Message.inbox", "Message.read!", "Message.receive!"].each do |verb|
+          expect(verdict("exe/hecks agents #{verb}", role: role)).to eq(text: "allowed")
+        end
+      end
+    end
+
+    %w[scrum-master planner architect product-owner].each do |role|
+      it "still refuses #{role} a command off its rows" do
+        expect { verdict(off_list, role: role) }.to raise_error(Hecks::Adapters::RoutingGuard::Refused)
+      end
+    end
+  end
+
   it "does not guard a role with no routing rows" do
     expect(verdict("cat lib/x.rb", role: "coder")).to eq(text: "allowed")
   end
