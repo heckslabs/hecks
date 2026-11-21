@@ -933,9 +933,7 @@ Hecks.bluebook "Tickets" do
     end
 
     # Whether a work item came in outside the plan; its finishing counts as overage.
-    value_object "Unplanned" do
-      attribute :value, Boolean
-    end
+    value_object "Unplanned", Boolean
 
     # How many times a work item has been sent back to the plan; its backoff grows with it.
     value_object "YieldCount" do
