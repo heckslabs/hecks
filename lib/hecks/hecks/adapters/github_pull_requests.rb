@@ -175,13 +175,6 @@ module Hecks
         raise ConsoleCapture::Failure, "no title or body given to edit the pull request: name at least one"
       end
 
-      # Refuses a pull request that is not open, so a merged or closed one is never edited.
-      def ensure_open!(number)
-        state = JSON.parse(gh!("pr", "view", number, "--json", "state"))["state"]
-        raise ConsoleCapture::Failure, "pull request ##{number} is not open (#{state}); only an open one is changed" unless
-          state == "OPEN"
-      end
-
       # A pull request's number, digits only: gh reads a value that starts with a dash as an option.
       def pull_request_number(argument, verb)
         number = plain(argument)
