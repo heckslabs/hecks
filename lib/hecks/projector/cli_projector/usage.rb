@@ -36,14 +36,21 @@ module Hecks
           pool[key] || questions[key]
         end
 
-        # The whole help: the everyday lines, the two tables, the bluebooks, then the hints.
+        # The whole help: the everyday lines, the two tables, the bluebooks, then the hints. A
+        # `brief` help swaps the two tables for the bluebook's modules, one line each, and says
+        # where the tables are.
         def full_usage(bluebook, commands, questions, options, program)
           shown = [commands, questions].map do |specs|
             in_module(bluebook, CliAudience.audience_specs(specs, options), options[:module])
           end
+          body = if options[:brief]
+                   brief_lines(bluebook, program)
+                 else
+                   tables(*shown, all: options[:all], notes: aggregate_notes(bluebook))
+                 end
           [header_for(bluebook, program, options[:module]),
            everyday_lines(*shown, options),
-           tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)),
+           body,
            CliAudience.bluebook_lines(program, options[:declarations]),
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
         end
