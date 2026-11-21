@@ -17,9 +17,10 @@ module SignalboxDoorWiring
   # @param view [Hash] the copy's view the beat looks from
   # @param signal [Hash, nil] what the posted signal reads
   # @param metered [Boolean] whether the beat reads the machine from the meter the door hands in
+  # @param machine [Hash, nil] the machine facts the beat reads, the quiet machine when absent
   # @return [Hecks::Adapters::Dispatching::SignalboxDoor]
-  def door(view: Hecks::Adapters::ReplayedLooking::MAIN, signal: nil, metered: false)
-    @stand_ins = { "Looking"         => looking(view, metered: metered),
+  def door(view: Hecks::Adapters::ReplayedLooking::MAIN, signal: nil, metered: false, machine: nil)
+    @stand_ins = { "Looking"         => looking(view, metered: metered, machine: machine),
                    "PressurePosting" => Hecks::Adapters::ReplayedPressurePosting.new }
     runtime = boot_hecks_in_memory(Hecks::Adapters::Dispatching::SignalboxDoor::HOME)
     Hecks::Adapters::Dispatching::SignalboxDoor.new(runtime, signal: -> { signal })
@@ -41,10 +42,10 @@ module SignalboxDoorWiring
   private
 
   # A look at the quiet machine, or, `metered`, at whatever meter the door hands in.
-  def looking(view, metered: false)
+  def looking(view, metered: false, machine: nil)
     replayed = Hecks::Adapters::ReplayedLooking
-    machine = metered ? {} : { machine: -> { replayed::QUIET } }
-    Hecks::Adapters::Looking.new(settings: { view: -> { view }, **machine, delegate: -> { replayed::STARTED },
+    reads = metered ? {} : { machine: -> { machine || replayed::QUIET } }
+    Hecks::Adapters::Looking.new(settings: { view: -> { view }, **reads, delegate: -> { replayed::STARTED },
                                              marks: -> { Hecks::Adapters::Looking::Marks.new(nil).facts } })
   end
 end

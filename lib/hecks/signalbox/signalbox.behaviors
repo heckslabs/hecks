@@ -52,6 +52,15 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[PressureRead PressureTightened StandingTightened PressurePosted], band: "tight"
   end
 
+  # An uncleared view (a worktree's beat) may judge its own fresh reading for admission, never post it.
+  test "law 2: a reading judged only for admission settles its band and posts nothing" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, posts: { value: "no" }
+    expect emits: %w[PressureRead PressureTightened StandingTightened], band: "tight"
+  end
+
   test "headroom under the floor puts the machine in the short band" do
     tests "Read", on: "Pressure"
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
