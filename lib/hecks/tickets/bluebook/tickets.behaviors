@@ -152,6 +152,22 @@ Hecks.behaviors "Tickets" do
     expect refused: "a done or dropped work item is not expedited"
   end
 
+  test "Order puts an expedited work item at the front of its lane" do
+    tests "Order", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w33" }, title: { value: "Later hot" }
+    setup  "Tickets::Work.Expedite", work: { value: "w33" }
+    input  work: { value: "w33" }, step: { value: 0 }
+    expect status: "planned", priority: { value: "expedite" }, step: { value: 0 }
+  end
+
+  test "Order refuses a done work item" do
+    tests "Order", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w34" }, title: { value: "Over" }
+    setup  "Tickets::Work.Close", work: { value: "w34" }, no_change: { value: "a verify" }
+    input  work: { value: "w34" }, step: { value: 0 }
+    expect refused: "a done or dropped work item takes no step"
+  end
+
   test "Prioritize leaves expedite to Expedite" do
     tests "Prioritize", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w32" }, title: { value: "Hot" }

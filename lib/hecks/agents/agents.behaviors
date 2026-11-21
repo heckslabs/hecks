@@ -311,4 +311,12 @@ Hecks.behaviors "Agents" do
            verdict: { value: "routed" }, landing_state: { value: "somewhere" }
     expect refused: "a landing state is landed, pushed_not_landed, committed_not_pushed or uncommitted"
   end
+
+  test "Receive refuses a message that is not sent" do
+    tests "Receive", on: "Message"
+    setup  "Agents::Message.Send", message: { value: "m2" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "how is it going" }
+    input  message: { value: "m2" }, reader: { value: "run-a" }
+    expect refused: "Receive refused — status is \"refused\", and Receive moves it only from \"sent\""
+  end
 end
