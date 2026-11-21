@@ -83,7 +83,7 @@ module Hecks
         Array(pages).flat_map { |page| key ? page.fetch(key) : page }
       end
 
-      # Each pull request under `prefix`, open, merged or closed, whose commits hold `sha`, with its shape.
+      # Each pull request under `prefix`, in any state, whose commits hold `sha`, with its shape.
       def holding(sha, prefix)
         rows = listed("repos/{owner}/{repo}/commits/#{sha}/pulls?per_page=#{PAGE}").map { |pull| [pull, shaped(pull)] }
         rows.select { |_, row| row["headRefName"].to_s.start_with?(prefix) }
