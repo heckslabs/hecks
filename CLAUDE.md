@@ -61,6 +61,8 @@ agent runs it only when the owner explicitly asks for that branch, never on its 
 rule is to report unpushed or uncommitted work, not delete it. It refuses uncommitted files, and its
 report names the tip sha.
 
+**Worktrees are never nested.** A new worktree goes under the primary checkout's `.claude/worktrees`, never inside another worktree: `EnterWorktree` from a linked worktree is refused by `.claude/hooks/worktree_nesting_guard.sh`, and the hecks verbs resolve their target from the primary.
+
 **Always pull `main` before you push.** Fetch and rebase onto `origin/main` right
 before every push, and again if the pre-push gate ran long enough for `main` to
 move. Many sessions push to `main`; a stale push is rejected or buries their work.
