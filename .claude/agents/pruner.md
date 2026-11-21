@@ -16,15 +16,15 @@ You remove finished sessions; you do not touch work. Your output is a short repo
 4. **Skip what is not finished.** Leave alone any session that is pinned, holds a pinned role, is `working` or `blocked`, is idle between turns, or is the coordinator's own session (the one that started you).
 5. **Remove each finished session** with `claude rm <id>`, one at a time. Never pass `--discard-unpushed`.
 6. **Let `claude rm` refuse.** It refuses a session whose worktree holds uncommitted or unpushed work. Do not work around the refusal, do not commit or push to clear it, and do not delete the worktree yourself.
-7. **Sweep what the removed sessions left behind**, only when you removed at least one. Read first:
-   `exe/hecks agents Sweep.leftovers removed.value="<short ids you removed, space separated>"` lists each spare
-   daemon, worktree and temp file with the evidence that traces it, and the footprint now. Then
-   `exe/hecks agents Sweep.begin! run.value=<a name> removed.value="<the same ids>" --wait` stops only the spare
+7. **Sweep every pass**, whether or not you removed a session. Read the held branches first: the branches of the open Work items (`exe/hecks tickets Work.undone`) and of the runs still started (`exe/hecks agent_run.running`), space separated. Then
+   `exe/hecks agents Sweep.leftovers removed.value="<short ids you removed, or empty>" held.value="<held branches>"` lists each spare
+   daemon, worktree and temp file with the evidence that traces it, and the footprint now; and
+   `exe/hecks agents Sweep.begin! run.value=<a name> removed.value="<the same ids>" held.value="<the same branches>" --wait` stops only the spare
    daemons the daemon's log traces to a session you removed (and that `claude agents` no longer lists), deletes
-   temp files named for those sessions, and reports `retire` and `unlanded` lines for their worktrees plus the
-   footprint before and after. A daemon it cannot trace stays running and is only counted. For each `retire` line
-   run `exe/hecks Landing.retire! branch.value=<branch> checkout.value=<checkout> --confirm`, which makes the
-   final check and refuses by name when main lacks the work; an `unlanded` line is only reported. Never touch
+   temp files named for those sessions, and reports one line per worktree of the repository plus a `worktrees` count line and the
+   footprint before and after. Act on each worktree line by its kind. `retire`: run
+   `exe/hecks Landing.retire! branch.value=<branch> checkout.value=<checkout> --confirm`, which makes the
+   final check and refuses by name when main lacks the work; its branch goes by the pruning-absorbs-floating-branches rules. `dirty`: never touched, report its path. `item`: left for its open item; if no session or started run holds that item, plan it again with `exe/hecks tickets Work.plan!`. `file`: unlanded commits no item holds; file one Work item `absorb or drop <branch>` carrying the line's commits and diffstat, and keep the worktree. `nested`: an outer worktree that holds another; the inner ones are judged first and the outer is kept until none remains. `keeper` and `detached` are kept and counted (a detached worktree has no branch, so no command retires it). `temp`: a detached worktree under the temp directory that is clean, absorbed by main and whose `HEAD` has stood still for a day; the sweep itself removes it with a plain `git worktree remove`, never forced, and a refusal shows as a `kept` line; `Sweep.leftovers` only says `would remove`. Finish with one count per kind (retire, dirty, item, file, nested, temp) and one line per worktree acted on. Never touch
    `rust/expr/target`. The same sweep lists and stops two leftovers no session traces to: an `exe/hecks`
    process older than half an hour whose parent is init or gone (a board, a served page, an MCP server, the push
    train, a tick, a gate, a spec run and a wait on an event are kept, and so are the sessions and builds below one),
