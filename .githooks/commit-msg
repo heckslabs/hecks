@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# commit-msg — strips Claude attribution trailers from the message, then lets the commit go.
+#
+# It removes `Co-Authored-By: ... Claude ...` and `Claude-Session: ...` lines and the blank lines
+# they leave at the end. It strips and never refuses: a refusal would make an agent loop. A message
+# without those lines is left untouched. This is imperative glue on a git hook, not domain
+# behaviour, so it lives here beside pre-push and not in a bluebook. `git commit --no-verify` skips
+# it; the push train's range guard still refuses these trailers before main is pushed.
+#
+# Install:  git config core.hooksPath .githooks
+
+MSG="$1"
+
+grep -qi -e '^Co-Authored-By:.*Claude' -e '^Claude-Session:' "$MSG" 2>/dev/null || exit 0
+
+WORK=$(mktemp) || exit 0
+trap 'rm -f "$WORK"' EXIT
+
+grep -vi -e '^Co-Authored-By:.*Claude' -e '^Claude-Session:' "$MSG" | awk '{ lines[NR] = $0 } END {
+  last = NR
+  while (last > 0 && lines[last] ~ /^[ \t]*$/) last--
+  for (i = 1; i <= last; i++) print lines[i]
+}' > "$WORK" && cat "$WORK" > "$MSG"
+exit 0

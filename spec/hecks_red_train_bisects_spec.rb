@@ -15,6 +15,7 @@ RSpec.describe "a red train bisecting to its culprit" do
   before(:all) { @hecks = boot_hecks_in_memory }
 
   before do
+    Hecks::CacheDir.reset!
     open_repository
     @logged = @hecks.registry.event_log.size
     Hecks::Adapters::CiRuns.runner = ->(argv, chdir:) { [true, (reruns << argv.join(" ")) && chdir] }
@@ -25,6 +26,7 @@ RSpec.describe "a red train bisecting to its culprit" do
   end
 
   after do
+    Hecks::CacheDir.reset!
     Hecks::Adapters::CiRuns.runner = nil
     Hecks::Adapters::MainVerification.runner = nil
     Hecks::Adapters::MainVerification.specs = nil
@@ -74,6 +76,13 @@ RSpec.describe "a red train bisecting to its culprit" do
     made = payload("EpisodeRevertMade")
     expect(made.dig(:work, :value)).to eq("three")
     expect(made.dig(:report, :value)).to include("culprit #{@bad}", "breaks the build", "search: ", "To land this work again")
+  end
+
+  it "logs the search as the red train's bisect, which the landing guard then accepts", :aggregate_failures do
+    stand_in
+    fail_ci(train_of_five, work: "red-train-77")
+    expect(Hecks::Adapters::BisectLogMarker.new(File.join(repo, ".git")).read("red-train-77")).to include("kind" => "bisect")
+    expect { Hecks::Adapters::BisectLogGuard.new(File.join(repo, ".git")).landing!("red-train-77") }.not_to raise_error
   end
 
   it "lowers the flag once the revert of a landing that never left local main is verified" do
