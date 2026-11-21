@@ -966,6 +966,24 @@
               ],
               [
                 "aggregate",
+                "HandRun"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a hand-started session registers in one call and the recipient check reads it in the process that sends"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
                 "Pruning"
               ],
               [

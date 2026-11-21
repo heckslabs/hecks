@@ -32,6 +32,22 @@ Hecks.behaviors "Hecks" do
     expect refused: "state"
   end
 
+  # The ReleaseCut saga: a release is examined, accepted, approved, then carried out. The examiner
+  # is a port with no stub here, so the full cut and the wait for approval are specified through the
+  # launcher in spec/hecks_publishing_spec.rb; these scenarios hold what needs no examiner.
+  test "Publish starts the cut, and a release whose facts do not hold is refused" do
+    tests "Publish", on: "PublishingRun"
+    input run: { value: "cut-1" }
+    expect emits: ["PublishRequested", "PublishStarted", "PublishingExamined", "PublishingFaulted"]
+  end
+
+  test "Approve refuses a release that was not accepted" do
+    tests "Approve", on: "PublishingRun"
+    setup "Hecks::PublishingRun.Publish", run: { value: "cut-2" }
+    input run: { value: "cut-2" }
+    expect refused: "Approve moves it only from"
+  end
+
   test "Record keeps a boot cache as fresh" do
     tests "Record", on: "SyntaxBootCache"
     input digest: { value: "abc123" }

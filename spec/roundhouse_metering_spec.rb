@@ -42,7 +42,7 @@ RSpec.describe Hecks::Adapters::Metering do
     run = { run: "signalbox-phase-2-shadow", agent: "", works_as: "coder", work: "signalbox-phase-2-shadow" }
     runs = { "aaaa1111-full" => run }
     machine_reads = {
-      memsize: 38_654_705_664, perf_cores: 6, loadavg: "{ 33.97 35.28 28.52 }",
+      memsize: 38_654_705_664, cores: 6, loadavg: "{ 33.97 35.28 28.52 }",
       vm_stat: "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages active:   759487.\n" \
                "Pages wired down:   320011.\nPages occupied by compressor:   230127.\n"
     }
@@ -105,10 +105,16 @@ RSpec.describe Hecks::Adapters::Metering do
   end
 
   it "passes on the kernel's memory pressure level as the number it reads" do
-    machine_reads = { memsize: 1, perf_cores: 6, loadavg: "{ 1.0 }", vm_stat: "", memory_pressure_level: "1\n" }
+    machine_reads = { memsize: 1, cores: 6, loadavg: "{ 1.0 }", vm_stat: "", memory_pressure_level: "1\n" }
     gauge = Hecks::Adapters::Metering::MachineGauge.new(machine_reads)
 
     expect(gauge.memory_pressure_level).to eq(1)
+  end
+
+  it "reads the load against every core the machine has, the efficiency cores with the performance ones" do
+    reads = { memsize: 1, cores: 12, perf_cores: 6, loadavg: "{ 9.00 9.00 9.00 }", vm_stat: "" }
+
+    expect(Hecks::Adapters::Metering::MachineGauge.new(reads).cores).to eq(12)
   end
 
   it "reads no memory pressure level as 0, unread" do
@@ -120,7 +126,7 @@ RSpec.describe Hecks::Adapters::Metering do
   end
 
   it "reads the machine's load alone without listing a session or reading the process table" do
-    reads = { memsize: 1, perf_cores: 6, loadavg: "{ 7.02 15.23 20.46 }", vm_stat: "" }
+    reads = { memsize: 1, cores: 6, loadavg: "{ 7.02 15.23 20.46 }", vm_stat: "" }
     alone = described_class.new(settings: { listing: -> { raise "listed" }, processes: -> { raise "ps" },
                                             machine: -> { reads }, now: -> { now } })
 

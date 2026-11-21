@@ -19,7 +19,8 @@ RSpec.describe "the coordinator's standing rules" do
   it "holds the standing rules" do
     names = %w[revert-first all-hands-on-red board-when-level report-when-green remove-when-pushed rely-on-events
                say-work-item-and-coder release-is-the-owners discard-is-the-owners bounded-fan-out
-               budget-every-brief answer-within-the-brief fan-out-where-independent]
+               budget-every-brief answer-within-the-brief fan-out-where-independent
+               begin-from-the-glance]
     expect(role_rows("StandingRule").map { |row| row[:rule] }).to match_array(names)
   end
 

@@ -54,28 +54,32 @@ module Hecks
     # prefix, so a nested fixture keeps its subdirectory (`eras/base`)
     # and never collides with a same-named file elsewhere in the kind.
     FILE_KINDS = {
-      grammar:      "lib/hecks/grammar/*.bluebook",
-      framework:    "lib/hecks/framework/bluebook/*.bluebook",
-      qa:           "lib/hecks/quality_control/*.bluebook",
-      language:     "lib/hecks/language/**/*.bluebook",
-      deploy:       "lib/hecks/deploy/bluebook/*.bluebook",
-      site:         "lib/hecks/site/bluebook/*.bluebook",
-      rails_app:    "lib/hecks/rails_app/bluebook/*.bluebook",
-      tickets:      "lib/hecks/tickets/bluebook/*.bluebook",
-      composer:     "lib/hecks/composer/bluebook/*.bluebook",
-      tenancy:      "lib/hecks/tenancy/bluebook/*.bluebook",
-      gate:         "lib/hecks/gate/*.bluebook",
-      questions:    "lib/hecks/questions/*.bluebook",
-      bulk:         "lib/hecks/bulk/bluebook/*.bluebook",
+      grammar:        "lib/hecks/grammar/*.bluebook",
+      framework:      "lib/hecks/framework/bluebook/*.bluebook",
+      qa:             "lib/hecks/quality_control/*.bluebook",
+      language:       "lib/hecks/language/**/*.bluebook",
+      deploy:         "lib/hecks/deploy/bluebook/*.bluebook",
+      site:           "lib/hecks/site/bluebook/*.bluebook",
+      rails_app:      "lib/hecks/rails_app/bluebook/*.bluebook",
+      tickets:        "lib/hecks/tickets/bluebook/*.bluebook",
+      composer:       "lib/hecks/composer/bluebook/*.bluebook",
+      tenancy:        "lib/hecks/tenancy/bluebook/*.bluebook",
+      gate:           "lib/hecks/gate/*.bluebook",
+      questions:      "lib/hecks/questions/*.bluebook",
+      bulk:           "lib/hecks/bulk/bluebook/*.bluebook",
       # The CI bluebooks keep their bluebook beside their hecksagon, not under a `bluebook/` folder.
       # CiPipeline is attachable; CiSpeed boots from its own directory; CiWorkflows is the client
       # whose rows project into .github/workflows.
-      ci_pipeline:  "lib/hecks/ci_pipeline/*.bluebook",
-      ci_speed:     "lib/hecks/ci_speed/*.bluebook",
-      ci_workflows: "lib/hecks/ci_workflows/*.bluebook",
+      ci_pipeline:    "lib/hecks/ci_pipeline/*.bluebook",
+      ci_speed:       "lib/hecks/ci_speed/*.bluebook",
+      ci_workflows:   "lib/hecks/ci_workflows/*.bluebook",
       # The Interviews bluebook boots from its own directory beside its hecksagon (ADR 0194).
-      interviews:   "lib/hecks/interviews/*.bluebook",
-      fixture:      "spec/fixtures/**/*.bluebook"
+      interviews:     "lib/hecks/interviews/*.bluebook",
+      # The LiveDiscovery bluebook boots from its own directory beside its hecksagon.
+      live_discovery: "lib/hecks/live_discovery/*.bluebook",
+      # The Protocols bluebook boots from its own directory beside its hecksagon.
+      protocols:      "lib/hecks/protocols/*.bluebook",
+      fixture:        "spec/fixtures/**/*.bluebook"
     }.freeze
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
