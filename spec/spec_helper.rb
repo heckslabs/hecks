@@ -4,6 +4,10 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 # has no `LANG` or `LC_ALL`, and Ruby would otherwise read files and pipes as `US-ASCII`.
 Encoding.default_external = Encoding::UTF_8
 
+# Every run gets its own home, temporary directory and caches. It loads before `hecks`, so a
+# constant that expands `~` at load lands inside it.
+require_relative "support/run_sandbox"
+
 if ENV["COVERAGE"]
   require "simplecov"
   SimpleCov.start do
@@ -18,14 +22,11 @@ require "tmpdir"
 # The suite runs with the verdict cache on but never reads or writes the
 # user's real one: a stale file there could hide a judging regression, and a
 # run should not leave a megabyte behind. Each run gets a private directory.
-VERDICT_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-verdict-cache-spec")
-at_exit { FileUtils.rm_rf(VERDICT_CACHE_SPEC_DIR) }
+VERDICT_CACHE_SPEC_DIR = RunSandbox.path("verdict-cache")
 Hecks::Bluebook::MetaValidator::VerdictCache.define_singleton_method(:dir) { VERDICT_CACHE_SPEC_DIR }
 
 # The launcher's remembered help is likewise private to the run, children included.
-USAGE_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-usage-cache-spec")
-at_exit { FileUtils.rm_rf(USAGE_CACHE_SPEC_DIR) }
-ENV["HECKS_CACHE_DIR"] = USAGE_CACHE_SPEC_DIR
+USAGE_CACHE_SPEC_DIR = RunSandbox.path("cache")
 
 # A launcher a spec starts boots on its own: it neither asks a resident to run its line nor
 # leaves one standing after the run. The resident's own specs unset the variable for the
@@ -43,9 +44,7 @@ ENV["PGGSSENCMODE"] = "disable"
 # The runtime's event tap is private to the run as well, children included: a child that boots
 # the Hecks domain in its real world writes its lines here, never to the owner's log, which the
 # pipeline board reads. In this process the Memory overlay switches the tap off altogether.
-EVENT_TAP_SPEC_DIR = Dir.mktmpdir("hecks-event-tap-spec")
-at_exit { FileUtils.rm_rf(EVENT_TAP_SPEC_DIR) }
-ENV["HECKS_EVENT_TAP"] = File.join(EVENT_TAP_SPEC_DIR, "events.jsonl")
+EVENT_TAP_SPEC_DIR = RunSandbox.path("event-tap")
 require_relative "support/ci_skip_backstop"
 require_relative "support/pull_cache_reset"
 require_relative "support/hecks_memory_environment"
@@ -55,6 +54,7 @@ require_relative "support/declaration_cache"
 require_relative "support/prism_source_memo"
 require_relative "support/memory_ports"
 require_relative "support/scratch_directory"
+require_relative "support/real_home_guard"
 require_relative "support/live_ledger_guard"
 require_relative "support/live_state_guard"
 require_relative "support/live_session_guard"
