@@ -5,8 +5,7 @@ module Hecks
         # The time limit of a line: a child still running `line_seconds` after its fork is ended,
         # its whole process group with it, and its caller is told why on its standard error. The
         # limit is the Hecks world's to set (`resident "Launcher", line_seconds: ...`); a world
-        # that names none has none, because how long a landing or a gate may run is not for this
-        # adapter to decide.
+        # that names none has the default ({Loading::DEFAULTS}), so no line runs without one.
         module LineLimit
           private
 

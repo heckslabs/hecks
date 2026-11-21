@@ -24,12 +24,11 @@ module Hecks
           # (`ENVIRONMENTS`, and one more per value a line brings, named to the resident), so it
           # never refuses a line.
           PER_LINE = %w[HECKS_ENVIRONMENT].freeze
-          # The world's defaults when it declares no `resident` line.
+          # The world's defaults when it declares no `resident` line. `line_seconds` is how long a
+          # line may run before the resident ends it ({LineLimit}).
           DEFAULTS = { idle_seconds: 600.0, worktree_idle_seconds: 120.0, max_residents: Crowd::DEFAULT_CAP.to_f,
-                       ready_wait_ms: 400.0, workers: 8.0 }.freeze
-          # Settings with no default: a world that does not declare one leaves it unset.
-          # `line_seconds` is how long a line may run before the resident ends it ({LineLimit}).
-          OPTIONAL = %i[line_seconds].freeze
+                       ready_wait_ms: 400.0, workers: 8.0,
+                       line_seconds: 1800.0 }.freeze
 
           private
 
@@ -142,7 +141,7 @@ module Hecks
           def settings
             world = @cache.fetch(File.join(@root, DOMAIN), ENVIRONMENTS.first)&.registry&.world("Hecks")
             declared = world ? world.for_verb("resident") : {}
-            read = DEFAULTS.merge(declared.slice(*DEFAULTS.keys, *OPTIONAL)).transform_values { |value| Float(value) }
+            read = DEFAULTS.merge(declared.slice(*DEFAULTS.keys)).transform_values { |value| Float(value) }
             read.merge(idle_seconds: read[linked_worktree? ? :worktree_idle_seconds : :idle_seconds])
           end
 
