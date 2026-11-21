@@ -26,6 +26,26 @@ RSpec.describe Hecks::Adapters::MeasureReadings do
     expect(row("two-branches-land")).to include("reading" => 2, "state" => "met", "at_most" => nil)
   end
 
+  def glance_reads(count) = Array.new(count) { |i| ["PipelineBoard::PipelineBoard", "GlanceRead", "look-#{i}", 5 + i] }
+
+  it "says three reads of the glance in the hour miss the floor of four" do
+    write_tap(*glance_reads(3))
+
+    expect(row("the-board-glance-is-read")).to include("reading" => 3, "at_least" => 4, "state" => "missed")
+  end
+
+  it "says four reads of the glance in the hour meet the floor" do
+    write_tap(*glance_reads(4))
+
+    expect(row("the-board-glance-is-read")).to include("reading" => 4, "state" => "met")
+  end
+
+  it "says an idle hour with no read of the glance misses" do
+    write_tap(["Delivery::Landing", "BranchLanded", "a", 5])
+
+    expect(row("the-board-glance-is-read")).to include("reading" => 0, "state" => "missed")
+  end
+
   it "answers each row unread where no tap is declared", :aggregate_failures do
     entries = JSON.parse(described_class.new(registry: hecks.registry).measures[:text])
 

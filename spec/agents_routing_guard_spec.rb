@@ -106,6 +106,10 @@ RSpec.describe "the orchestrator routing guard" do
     it "allows a listed verb with arguments" do
       expect(verdict("exe/hecks pipeline_board PipelineBoard.snapshot width.value=120")).to eq(text: "allowed")
     end
+
+    it "allows the board's glance read" do
+      expect(verdict("exe/hecks pipeline_board PipelineBoard.glance")).to eq(text: "allowed")
+    end
   end
 
   describe "a command off the list" do
@@ -374,6 +378,21 @@ RSpec.describe "the orchestrator routing guard" do
 
     it "ends every reply with the board snapshot" do
       expect(file).to include("PipelineBoard.snapshot width.value=120")
+    end
+
+    it "begins each turn from the glance, acting on what waits on the orchestrator" do
+      expect(file).to include("PipelineBoard.glance", "standing too long", "waits on the orchestrator")
+    end
+
+    it "reports what waits on a person without acting on it" do
+      expect(file).to include("waiting on a person", "without acting on")
+    end
+  end
+
+  describe "the orchestrator's refusal hints" do
+    it "names the read verbs for raw sqlite", :aggregate_failures do
+      expect(refusal("sqlite3 ~/.claude/hecks-dev/agent_run.db .tables")).to include("use AgentRun.running")
+      expect(refusal("tail -f session.jsonl")).to include("use Fleet.topic")
     end
   end
 end
