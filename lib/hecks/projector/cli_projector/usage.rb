@@ -50,9 +50,10 @@ module Hecks
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
         end
 
-        # The brief's module lines, or the two tables of everything `shown`.
+        # The brief's module lines, or the two tables of everything `shown`; a bluebook that groups
+        # nothing into modules has no module lines to brief with, so it lists the tables.
         def usage_body(bluebook, shown, options, program)
-          return brief_lines(bluebook, program) if options[:brief]
+          return brief_lines(bluebook, program) if options[:brief] && module_names(bluebook).any?
 
           tables(*shown, all: options[:all], notes: aggregate_notes(bluebook))
         end

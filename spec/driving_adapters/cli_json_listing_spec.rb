@@ -15,7 +15,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   it "lists every command the text listing names" do
-    expect(calls("--json")).to all(satisfy { |call| run.first.include?(call.split(".").last) })
+    expect(calls("--json")).to all(satisfy { |call| run("--all").first.include?(call.split(".").last) })
   end
 
   it "lists only one module's entries when a module is named" do
