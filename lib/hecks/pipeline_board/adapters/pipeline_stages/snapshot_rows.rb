@@ -4,6 +4,7 @@ require_relative "../rules"
 require_relative "readings"
 require_relative "stuck_rows"
 require_relative "run_rows"
+require_relative "board_reads"
 
 module Hecks
   module Adapters
@@ -31,7 +32,7 @@ module Hecks
         def build(state, extras = {})
           at = state[:generated_at].to_s
           { generated_at: at, stale_seconds: 0, events: events(listed(state[:events])) }
-            .merge(numbers(state, at), people(state, extras), shipping(extras), extras.fetch(:reads, {}))
+            .merge(numbers(state, at), people(state, extras), shipping(extras), extras.fetch(:reads) { BoardReads.build({}, at) })
         end
 
         # @return [Hash] the stages, the readings and the roles: every number, one key each
