@@ -1,0 +1,90 @@
+Hecks.behaviors "Coach" do
+  vision "Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide."
+
+  loads "coach.hecksagon", "coach.bluebook"
+
+  test "Observe records what Miette saw and where" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-1" }, source: { value: "stall_item" }, saw: { value: "A coder stopped short of landing." }
+    expect emits: ["Observed"]
+  end
+
+  test "Observe refuses a source she does not read from" do
+    tests "Observe", on: "Observation"
+    input observation: { value: "obs-2" }, source: { value: "hearsay" }, saw: { value: "Someone said so." }
+    expect refused: "Source admits"
+  end
+
+  test "Notice cites the observations a coaching rests on" do
+    tests "Notice", on: "Coaching"
+    input coaching: { value: "c-1" }, role: { value: "coder" }, kind: { value: "stumble" },
+          pattern: { value: "Cannot run another repo's specs." }, evidence: [{ value: "obs-1" }]
+    expect emits: ["Noticed"], status: "noticed"
+  end
+
+  test "Notice refuses a coaching that cites no observation" do
+    tests "Notice", on: "Coaching"
+    input coaching: { value: "c-2" }, role: { value: "coder" }, kind: { value: "stumble" },
+          pattern: { value: "Cannot run another repo's specs." }, evidence: []
+    expect refused: "at least one observation"
+  end
+
+  test "Advise states the change for a coaching that touches no vow" do
+    tests "Advise", on: "Coaching"
+    setup "Coach::Coaching.Notice", coaching: { value: "c-3" }, role: { value: "coder" }, kind: { value: "stumble" },
+          pattern: { value: "Stops short of landing." }, evidence: [{ value: "obs-1" }]
+    input coaching: "c-3", change: { value: "Add the landing step to its brief." }, touches: { value: "none" }
+    expect emits: ["Advised"], status: "advised"
+  end
+
+  test "Advise refuses a change touching a vow, which is the owner's to decide" do
+    tests "Advise", on: "Coaching"
+    setup "Coach::Coaching.Notice", coaching: { value: "c-4" }, role: { value: "crew" }, kind: { value: "value" },
+          pattern: { value: "Direct dispatch past the cap." }, evidence: [{ value: "obs-1" }]
+    input coaching: "c-4", change: { value: "Change a vow." }, touches: { value: "vow" }
+    expect refused: "owner's to decide"
+  end
+
+  test "Refer sends a vow to the owner" do
+    tests "Refer", on: "Coaching"
+    setup "Coach::Coaching.Notice", coaching: { value: "c-5" }, role: { value: "crew" }, kind: { value: "value" },
+          pattern: { value: "Direct dispatch past the cap." }, evidence: [{ value: "obs-1" }]
+    input coaching: "c-5", touches: { value: "vow" }
+    expect emits: ["Referred"], status: "referred"
+  end
+
+  test "Refer refuses what touches no vow" do
+    tests "Refer", on: "Coaching"
+    setup "Coach::Coaching.Notice", coaching: { value: "c-6" }, role: { value: "coder" }, kind: { value: "stumble" },
+          pattern: { value: "Stops short." }, evidence: [{ value: "obs-1" }]
+    input coaching: "c-6", touches: { value: "none" }
+    expect refused: "touches a vow"
+  end
+
+  test "Ask puts a question to Miette and stands asked" do
+    tests "Ask", on: "Relay"
+    input relay: { value: "r-1" }, question: { value: "What did you see in the landings?" }
+    expect emits: ["Asked"], status: "asked"
+  end
+
+  test "Forward relays her words labelled as hers" do
+    tests "Forward", on: "Relay"
+    setup "Coach::Relay.Ask", relay: { value: "r-2" }, question: { value: "What did you see?" }
+    input relay: "r-2", words: { value: "Three runs stopped before landing." }, author: { value: "miette" }
+    expect emits: ["Forwarded"], status: "forwarded"
+  end
+
+  test "Forward refuses words under any name but hers" do
+    tests "Forward", on: "Relay"
+    setup "Coach::Relay.Ask", relay: { value: "r-3" }, question: { value: "What did you see?" }
+    input relay: "r-3", words: { value: "She would say so." }, author: { value: "coach" }
+    expect refused: "Author admits"
+  end
+
+  test "Unreached answers nothing in her place" do
+    tests "Unreached", on: "Relay"
+    setup "Coach::Relay.Ask", relay: { value: "r-4" }, question: { value: "What did you see?" }
+    input relay: "r-4"
+    expect emits: ["WasUnreached"], status: "unreached"
+  end
+end
