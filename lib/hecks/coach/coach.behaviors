@@ -96,4 +96,132 @@ Hecks.behaviors "Coach" do
     input relay: "r-4"
     expect emits: ["Declined"], status: "declined"
   end
+
+  test "Invite asks one live run to a one-on-one" do
+    tests "Invite", on: "OneOnOne"
+    input one_on_one: { value: "m-1" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    expect emits: ["Invited"], status: "invited"
+  end
+
+  test "Invite is refused while a red flag stands" do
+    tests "Invite", on: "OneOnOne"
+    input one_on_one: { value: "m-2" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" },
+          red_flag: { value: "standing" }, run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    expect refused: "red flag"
+  end
+
+  test "Invite is refused for a run fixing a red item or in a landing" do
+    tests "Invite", on: "OneOnOne"
+    input one_on_one: { value: "m-3" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" },
+          red_flag: { value: "clear" }, run_state: { value: "landing" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    expect refused: "fixing a red item"
+  end
+
+  test "Invite is refused while another meeting is open" do
+    tests "Invite", on: "OneOnOne"
+    input one_on_one: { value: "m-4" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" },
+          red_flag: { value: "clear" }, run_state: { value: "free" }, meetings_open: { value: "open" }, role_met_today: { value: "no" }
+    expect refused: "one meeting"
+  end
+
+  test "Invite is refused for a role already met today" do
+    tests "Invite", on: "OneOnOne"
+    input one_on_one: { value: "m-5" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" },
+          red_flag: { value: "clear" }, run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "yes" }
+    expect refused: "once a day"
+  end
+
+  test "Accept opens the meeting after the checkpoint" do
+    tests "Accept", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-6" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    input one_on_one: "m-6", checkpoint: { value: "done" }
+    expect emits: ["Accepted"], status: "accepted"
+  end
+
+  test "Accept is refused until the checkpoint is done" do
+    tests "Accept", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-7" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    input one_on_one: "m-7", checkpoint: { value: "pending" }
+    expect refused: "checkpoint is done"
+  end
+
+  test "Decline records the reason and the run goes back to work" do
+    tests "Decline", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-8" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    input one_on_one: "m-8", reason: { value: "Mid-review." }
+    expect emits: ["InvitationDeclined"], status: "declined"
+  end
+
+  test "Defer holds the invitation until a later time" do
+    tests "Defer", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-9" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    input one_on_one: "m-9", until: { value: "2026-11-21T10:00" }
+    expect emits: ["Deferred"], status: "deferred"
+  end
+
+  test "Reinvite returns a deferred invitation to invited" do
+    tests "Reinvite", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-10" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    setup "Coach::OneOnOne.Defer", one_on_one: "m-10", until: { value: "2026-11-21T10:00" }
+    input one_on_one: "m-10"
+    expect emits: ["Reinvited"], status: "invited"
+  end
+
+  test "Lapse defers an invitation whose checkpoint ran past its limit" do
+    tests "Lapse", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-11" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    input one_on_one: "m-11"
+    expect emits: ["Lapsed"], status: "deferred"
+  end
+
+  test "Say records one turn verbatim under its prompt" do
+    tests "Say", on: "Turn"
+    input turn: { value: "m-12-1" }, one_on_one: { value: "m-12" }, number: { value: "1" }, prompt: { value: "going_well" },
+          words: { value: "Reviews come back fast." }
+    expect emits: ["Said"]
+  end
+
+  test "Say refuses a fifth turn, the meeting's budget" do
+    tests "Say", on: "Turn"
+    input turn: { value: "m-13-5" }, one_on_one: { value: "m-13" }, number: { value: "5" }, prompt: { value: "follow_up" },
+          words: { value: "One more." }
+    expect refused: "Number admits"
+  end
+
+  test "Say refuses a prompt but the two and their follow-up" do
+    tests "Say", on: "Turn"
+    input turn: { value: "m-14-1" }, one_on_one: { value: "m-14" }, number: { value: "1" }, prompt: { value: "orders" },
+          words: { value: "Do this." }
+    expect refused: "Prompt admits"
+  end
+
+  test "Propose records an ask a run makes for the lead" do
+    tests "Propose", on: "Proposal"
+    input proposal: { value: "p-1" }, one_on_one: { value: "m-15" }, ask: { value: "A longer review window." }
+    expect emits: ["Proposed"], status: "proposed"
+  end
+
+  test "Close ends a held meeting and carries the resume note" do
+    tests "Close", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-16" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    setup "Coach::OneOnOne.Accept", one_on_one: "m-16", checkpoint: { value: "done" }
+    input one_on_one: "m-16", resume_note: { value: "Back to the landing step." }
+    expect emits: ["OneOnOneHeld"], status: "closed"
+  end
+
+  test "Close is refused for a meeting never accepted" do
+    tests "Close", on: "OneOnOne"
+    setup "Coach::OneOnOne.Invite", one_on_one: { value: "m-17" }, coach: { value: "miette" }, run: { value: "run-1" }, role: { value: "coder" }, red_flag: { value: "clear" },
+          run_state: { value: "free" }, meetings_open: { value: "none" }, role_met_today: { value: "no" }
+    input one_on_one: "m-17", resume_note: { value: "Back to work." }
+    expect refused: "Close"
+  end
 end

@@ -200,4 +200,237 @@ Hecks.bluebook "Coach" do
       emits Declined
     end
   end
+
+  # The run may decline and the coach gives no orders. `Invite` takes the guards (red flag, the
+  # run's work, the day's meetings) as inputs the caller reads, so they hold as far as it reports.
+  aggregate "OneOnOne" do
+    description "One meeting between the coach and one live run: invited, then accepted, declined or deferred, held, closed."
+    created_by "OneOnOne.invite!"
+
+    identified_by :one_on_one
+
+    attribute :one_on_one,     Ref
+    attribute :coach,          Name
+    attribute :run,            Ref
+    attribute :role,           Name
+    attribute :red_flag,       RedFlag
+    attribute :run_state,      RunState
+    attribute :meetings_open,  Open
+    attribute :role_met_today, Met
+    attribute :checkpoint,     Checkpoint, optional: true
+    attribute :reason,         Words, optional: true
+    attribute :until,          Words, optional: true
+    attribute :resume_note,    Words, optional: true
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Name" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Words" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # Whether a red flag stands, as the caller read it.
+    value_object "RedFlag" do
+      attribute :value, String, one_of: %w[clear standing]
+    end
+
+    # `free` for a run doing ordinary work; the others are runs an invitation never reaches.
+    value_object "RunState" do
+      attribute :value, String, one_of: %w[free red_fix landing]
+    end
+
+    value_object "Open" do
+      attribute :value, String, one_of: %w[none open]
+    end
+
+    value_object "Met" do
+      attribute :value, String, one_of: %w[no yes]
+    end
+
+    # The run's own save before it sits down: committed or noted, no half-done writes.
+    value_object "Checkpoint" do
+      attribute :value, String, one_of: %w[pending done]
+    end
+
+    lifecycle :status, default: "invited" do
+      mark :terminal, "declined", "closed"
+      mark :rests, "invited", "deferred"
+      transition "Accept"   => "accepted", from: "invited"
+      transition "Decline"  => "declined", from: "invited"
+      transition "Defer"    => "deferred", from: "invited"
+      transition "Lapse"    => "deferred", from: "invited"
+      transition "Reinvite" => "invited",  from: "deferred"
+      transition "Close"    => "closed",   from: "accepted"
+    end
+
+    command "Invite" do
+      role "Operator"
+      goal "Invite one live run to a one-on-one, when nothing stands in the way"
+
+      attribute :one_on_one,     Ref, sets: true
+      attribute :coach,          Name, sets: true
+      attribute :run,            Ref, sets: true
+      attribute :role,           Name, sets: true
+      attribute :red_flag,       RedFlag, sets: true
+      attribute :run_state,      RunState, sets: true
+      attribute :meetings_open,  Open, sets: true
+      attribute :role_met_today, Met, sets: true
+
+      given("no invitation while a red flag stands") { red_flag.value == "clear" }
+      given("no invitation to a run fixing a red item or in a landing") { run_state.value == "free" }
+      given("at most one meeting open at a time") { meetings_open.value == "none" }
+      given("a role meets the coach once a day") { role_met_today.value == "no" }
+
+      emits Invited
+    end
+
+    # The run's checkpoint is done first; the meeting's budget starts here, not before.
+    command "Accept" do
+      role "Operator"
+      goal "The run accepts, its checkpoint done, and the meeting opens"
+
+      reference_to OneOnOne
+      attribute :checkpoint, Checkpoint, sets: true
+
+      given("the checkpoint is done before the meeting opens") { checkpoint.value == "done" }
+
+      emits Accepted
+    end
+
+    command "Decline" do
+      role "Operator"
+      goal "The run declines, with its reason, and goes on working"
+
+      reference_to OneOnOne
+      attribute :reason, Words, sets: true
+
+      emits InvitationDeclined
+    end
+
+    command "Defer" do
+      role "Operator"
+      goal "Hold the invitation until a later time"
+
+      reference_to OneOnOne
+      attribute :until, Words, sets: true
+
+      emits Deferred
+    end
+
+    command "Reinvite" do
+      role "Operator"
+      goal "Offer a deferred invitation again"
+
+      reference_to OneOnOne
+
+      emits Reinvited
+    end
+
+    # Fired by whatever watches the checkpoint's own limit; the run goes back to work and the
+    # meeting never opened, so a slow checkpoint costs the meeting nothing.
+    command "Lapse" do
+      role "System"
+      goal "Defer an invitation whose checkpoint did not finish within its limit"
+
+      reference_to OneOnOne
+
+      emits Lapsed
+    end
+
+    command "Close" do
+      role "Operator"
+      goal "End the meeting and carry the note the run resumes from"
+
+      reference_to OneOnOne
+      attribute :resume_note, Words, sets: true
+
+      emits OneOnOneHeld
+    end
+  end
+
+  # One turn of a meeting, as said. At most four: the two prompts and a follow-up to each, which
+  # is the meeting's budget.
+  aggregate "Turn" do
+    description "One turn of a one-on-one, recorded verbatim under its prompt."
+    created_by "Turn.say!"
+
+    identified_by :turn
+
+    attribute :turn,       Ref
+    attribute :one_on_one, Ref
+    attribute :number,     Number
+    attribute :prompt,     Prompt
+    attribute :words,      Words
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Number" do
+      attribute :value, String, one_of: %w[1 2 3 4]
+    end
+
+    # What is going well, what is in the way, and a follow-up to either; no other prompt.
+    value_object "Prompt" do
+      attribute :value, String, one_of: %w[going_well in_the_way follow_up]
+    end
+
+    value_object "Words" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    command "Say" do
+      role "Operator"
+      goal "Record one turn of the meeting exactly as it was said"
+
+      attribute :turn,       Ref, sets: true
+      attribute :one_on_one, Ref, sets: true
+      attribute :number,     Number, sets: true
+      attribute :prompt,     Prompt, sets: true
+      attribute :words,      Words, sets: true
+
+      emits Said
+    end
+  end
+
+  # An ask a run makes in a meeting. It is recorded for the lead and changes nothing: the coach
+  # gives no orders and a proposal moves no run.
+  aggregate "Proposal" do
+    description "An ask a run made in a one-on-one, kept as a proposal for the lead."
+    created_by "Proposal.propose!"
+
+    identified_by :proposal
+
+    attribute :proposal,   Ref
+    attribute :one_on_one, Ref
+    attribute :ask,        Ask
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Ask" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    lifecycle :status, default: "proposed" do
+      mark :rests, "proposed"
+    end
+
+    command "Propose" do
+      role "Operator"
+      goal "Record an ask a run made, as a proposal for the lead"
+
+      attribute :proposal,   Ref, sets: true
+      attribute :one_on_one, Ref, sets: true
+      attribute :ask,        Ask, sets: true
+
+      emits Proposed
+    end
+  end
 end
