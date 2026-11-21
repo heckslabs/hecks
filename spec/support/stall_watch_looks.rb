@@ -72,8 +72,7 @@ module StallWatchLooks
 
   def watching
     aggregate = registry.bluebook("Hecks").aggregate("StallWatch")
-    Hecks::Adapters::StallWatching.new(registry: registry, aggregate: aggregate, tap: tap, branches: branch_read,
-                                       load: -> { 0.5 }, leftovers: ->(_name) { 0 })
+    Hecks::Adapters::StallWatching.new(registry: registry, aggregate: aggregate, tap: tap, branches: branch_read)
   end
 
   # The open branches a look reads: none, so no spec reads the checkout it runs in. A group that
