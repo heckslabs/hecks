@@ -233,6 +233,16 @@ Hecks.behaviors "Tickets" do
     expect status: "started", claimed_by: { value: "session-1" }
   end
 
+  test "Rescope narrows a bare directory area to the files an item edits" do
+    tests "Rescope", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w14b" }, title: { value: "Bare" }
+    setup  "Tickets::Work.Start", work: { value: "w14b" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" },
+           area: [{ value: "spec" }]
+    input  work: { value: "w14b" }, area: [{ value: "spec/a_spec.rb" }]
+    expect status: "started", claimed_by: { value: "session-1" }
+  end
+
   test "Plan takes the work items a work item waits on" do
     tests "Plan", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w17" }, title: { value: "Earlier" }
