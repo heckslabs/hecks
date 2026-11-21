@@ -21,6 +21,12 @@ RSpec.describe "a heartbeat's measure" do
     expect(measuring[:recorded]).to eq([["beat-1", steps]])
   end
 
+  it "keeps the twenty slowest steps of a long cascade" do
+    many = Array.new(30) { |i| steps.first.merge(policy: "Step#{i}") }
+    listeners_after_taking(measuring[:place]).each { |listener| listener.call(many) }
+    expect(measuring[:recorded].first.last.map { |step| step[:policy] }).to eq(many.first(20).map { |step| step[:policy] })
+  end
+
   it "asks nothing of a registry it was not given" do
     expect(Hecks::Adapters::Beating.new(settings: { dir: dir }).take(beat: { value: "b" })).to eq({})
   end
