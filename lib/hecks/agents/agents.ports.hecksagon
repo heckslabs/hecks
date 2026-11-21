@@ -29,6 +29,17 @@ Hecks.hecksagon "Agents" do
     answers_query "Leftovers"
   end
 
+  # Where a hand-started session's role is kept for the Bash guard hook, which reads it without
+  # booting Hecks. Bound by adapters/seat_marker, which writes one small file per session.
+  Agents::Seat.port "Seats" do
+    asks "Seat", to: Seat do
+      attribute :session, SeatSession
+      attribute :role,    SeatRole
+      answers "SeatKept"
+      refuses "SeatRefused"
+    end
+  end
+
   # Whether a message's recipient is a run with a live session. Bound by adapters/recipient_check,
   # which reads the AgentRun ledger and the session listing and refuses, by name, a recipient that
   # is neither.
