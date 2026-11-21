@@ -13,6 +13,7 @@ module GitHistoryReads
   SHELLED = /\bgit (?:-C \S+ )?(?:#{SUBCOMMANDS.join("|")})\b/
   GIT_WORD = /\bgit\b/i
   ALLOWED = {
+    "branch_pruning/reading.rb"               => "whether main holds a branch's commits, and the ones it lacks: ancestry",
     "claude_cleaning/worktree_check.rb"       => "unpushed commits of a worktree before removal: a checkout fact",
     "codebase/impacted_specs.rb"              => "merge-base picks the diff base of a branch: ancestry is git",
     "codebase/release_facts.rb"               => "trailer of the commit that set the version: message text is git",
