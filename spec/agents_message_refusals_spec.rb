@@ -16,7 +16,10 @@ RSpec.describe "the Agents message refusals" do
     expect { send_message(body: " ") }.to raise_error(Hecks::Runtime::GivenNotMet, /says something/)
   end
 
-  it "refuses a kind outside the list" do
-    expect { send_message(kind: "verdict") }.to raise_error(Hecks::Refused)
+  %w[notice tonight].each do |kind|
+    it "refuses the kind #{kind} naming the declared kinds" do
+      expect { send_message(kind: kind) }
+        .to raise_error(Hecks::Refused, /MessageKind admits "answer".*"done" — got "#{kind}"/)
+    end
   end
 end
