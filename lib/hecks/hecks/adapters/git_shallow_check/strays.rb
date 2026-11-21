@@ -38,7 +38,7 @@ module Hecks
         end
 
         # @param branch [String] the branch to land
-        # @return [String] what the judgment covered: the area it held the branch to, or that it had none
+        # @return [String] what the judgment covered: the area held to, or that none was declared
         def verdict(branch)
           area = own_area(branch)
           area.empty? ? "strays: not judged, no area declared" : "strays: none outside area (#{area.join(", ")})"
