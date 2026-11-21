@@ -598,12 +598,41 @@ Hecks.bluebook "Coder" do
                                               "then submit again." }
   end
 
+  # Test first: `first_spec` is none, passed, failed, errored or unchecked for the first commit's
+  # `first_paths`; docs (`docs/`, `*.md`) and ledgers (`/translations/`) alone are exempt. These
+  # two and the accept policy below partition the facts with the unread policy, so one fires.
+  policy "WithholdTheSubmissionWhoseFirstCommitAddsNoSpec" do
+    on      "Submission.SubmitterMeasured"
+    where do
+      inbox != true && resuming != true && first_spec == "none" &&
+        !first_paths.split("|").all? { |path| path.start_with?("docs/") || path.end_with?(".md") || path.include?("/translations/") }
+    end
+    trigger Submission::Withhold,
+            with: { branch: :branch, refusal: "The branch's first commit adds no spec or .behaviors file. Start the branch " \
+                                              "with one that fails on main, commit it first, then submit again." }
+  end
+
+  policy "WithholdTheSubmissionWhoseFirstSpecPassesOnMain" do
+    on      "Submission.SubmitterMeasured"
+    where do
+      inbox != true && resuming != true && first_spec == "passed" &&
+        !first_paths.split("|").all? { |path| path.start_with?("docs/") || path.end_with?(".md") || path.include?("/translations/") }
+    end
+    trigger Submission::Withhold,
+            with: { branch: :branch, refusal: "The spec the branch's first commit adds passes on main, so it proves no " \
+                                              "behaviour. Make it fail on main first, then submit again." }
+  end
+
   # Each accept is a root: the reviewer's start that `WorkSubmitted` asks for sits past the
   # reaction depth limit when counted from the job read that submitted.
   policy "AcceptTheSubmissionWhenNothingIsUnread" do
     on      "Submission.SubmitterMeasured"
     root
-    where   { inbox != true && resuming != true }
+    where do
+      inbox != true && resuming != true &&
+        ((first_spec != "none" && first_spec != "passed") ||
+          first_paths.split("|").all? { |path| path.start_with?("docs/") || path.end_with?(".md") || path.include?("/translations/") })
+    end
     trigger Submission::Accept, with: { branch: :branch, sha: :sha, checkout: :checkout }
   end
 

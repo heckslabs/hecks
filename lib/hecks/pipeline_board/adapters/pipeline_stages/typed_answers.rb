@@ -4,6 +4,8 @@ require_relative "../probe"
 require_relative "snapshot_rows"
 require_relative "typed_rows"
 require_relative "daily_health"
+require_relative "glance_rows"
+require_relative "glance_tap"
 
 module Hecks
   module Adapters
@@ -16,6 +18,13 @@ module Hecks
       module TypedAnswers
         # @return [Hash] the bluebook's one `Snapshot` row: the whole read model, typed
         def board = state[:board]
+
+        # @return [Hash] the bluebook's one `Glance` row: what needs a person or stands too long,
+        #   and whether work is flowing
+        def glance
+          GlanceTap.record(@registry, @now.call)
+          state[:glance]
+        end
 
         # @return [Array<Hash>] one `Stage` row per node of the strip, left to right
         def stages = board[:stages]
@@ -49,7 +58,8 @@ module Hecks
 
         # The state with its typed `Snapshot` row under `board`.
         def with_board(held, data)
-          held.merge(board: SnapshotRows.build(held, data.slice(:train_prs, :release, :turns)))
+          held.merge(board:  SnapshotRows.build(held, data.slice(:train_prs, :release, :turns)),
+                     glance: GlanceRows.build(data.merge(held.slice(:load_guard)), @now.call))
         end
 
         # The cycles laid from the stage events as they stand now.
