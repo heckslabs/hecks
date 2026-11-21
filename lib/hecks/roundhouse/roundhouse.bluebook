@@ -245,7 +245,7 @@ Hecks.bluebook "Roundhouse" do
     # the memory they draw. It rides this aggregate's port because it is read the same way, off the
     # sessions' own records, and no domain is booted to answer it.
     query "Tokens" do
-      description "Tokens used per session, role, Work item and day (input, output and cache split, with dollars from the declared price table) and tokens saved by prompt cache and by model routing, each line labelled with how it is counted; the Hecks door and work not redone are named as not measured."
+      description "Tokens used per session, role, Work item and day (input, output and cache split, turns and the context each turn read in, with dollars from the declared price table), the turns by what set them going (a trigger kind label, never the prompt text) and tokens saved by prompt cache and by model routing, each line labelled with how it is counted; the Hecks door and work not redone are named as not measured."
       returns Document
     end
 
@@ -320,6 +320,45 @@ Hecks.bluebook "Roundhouse" do
       given("productive sessions are no more than all sessions") { productive.value <= sessions.value }
 
       emits TallyClosed
+    end
+  end
+
+  # What set a turn going: the declared rows (a pattern on the prompt's opening text, and a label)
+  # are projected to the lookup the Tokens query labels each turn with. The first row that matches
+  # wins, in the order declared; a prompt no row matches is a user prompt when typed, else other.
+  aggregate "TriggerKind" do
+    description "One declared kind of trigger: the pattern a prompt's opening text matches and the label the token report gives the turn."
+    created_by "TriggerKind.declare!"
+
+    identified_by :kind
+
+    attribute :kind,    KindKey
+    attribute :pattern, Pattern
+    attribute :label,   KindLabel
+
+    value_object "KindKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Pattern" do
+      attribute :value, String
+      invariant("a trigger kind names the pattern it matches") { !value.to_s.strip.empty? }
+    end
+
+    value_object "KindLabel" do
+      attribute :value, String
+      invariant("a trigger kind names the label it gives") { !value.to_s.strip.empty? }
+    end
+
+    command "Declare" do
+      role "System"
+      goal "Declare one trigger kind: the pattern and the label a turn it matches is given"
+
+      attribute :kind,    KindKey, sets: true
+      attribute :pattern, Pattern, sets: true
+      attribute :label,   KindLabel, sets: true
+
+      emits TriggerKindDeclared
     end
   end
 
