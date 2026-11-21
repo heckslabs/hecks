@@ -75,4 +75,12 @@ Hecks.behaviors "Hecks" do
     input  digest: { value: "abc123" }
     expect refused: "state"
   end
+
+  # A beat runs every policy that hears `Beaten`, so a scenario cannot set one up; the measure of a
+  # taken beat is specified in spec/hecks_heartbeat_measured_spec.rb.
+  test "Measure refuses a beat that was never taken" do
+    tests "Measure", on: "Heartbeat"
+    input  heartbeat: "never-beat", steps: []
+    expect refused: "never-beat"
+  end
 end
