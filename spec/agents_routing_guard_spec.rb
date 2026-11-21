@@ -388,4 +388,11 @@ RSpec.describe "the orchestrator routing guard" do
       expect(file).to include("waiting on a person", "without acting on")
     end
   end
+
+  describe "the orchestrator's refusal hints" do
+    it "names the read verbs for raw sqlite", :aggregate_failures do
+      expect(refusal("sqlite3 ~/.claude/hecks-dev/agent_run.db .tables")).to include("use AgentRun.running")
+      expect(refusal("tail -f session.jsonl")).to include("use Fleet.topic")
+    end
+  end
 end
