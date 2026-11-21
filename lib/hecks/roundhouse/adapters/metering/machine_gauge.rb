@@ -4,7 +4,7 @@ module Hecks
   module Adapters
     class Metering
       # The machine's memory and load from what `sysctl` and `vm_stat` print. It only parses the
-      # readings it is handed: `memsize` in bytes, `perf_cores` (the performance cores), `loadavg`
+      # readings it is handed: `memsize` in bytes, `cores` (every core, efficiency ones too), `loadavg`
       # as `{ 1m 5m 15m }`, the `vm_stat` text and `memory_pressure_level`, the kernel's own level.
       class MachineGauge
         BYTES_PER_MB = 1024 * 1024
@@ -17,7 +17,7 @@ module Hecks
         PAGES = /\A(.+?):\s+(\d+)\.?\s*\z/
         NUMBER = /[\d.]+/
 
-        # @param reads [Hash] `memsize:`, `perf_cores:`, `loadavg:` and `vm_stat:`
+        # @param reads [Hash] `memsize:`, `cores:`, `loadavg:` and `vm_stat:`
         def initialize(reads)
           @reads = reads
         end
@@ -34,8 +34,8 @@ module Hecks
         # @return [Integer] the 1-minute load in hundredths
         def load = (@reads[:loadavg].to_s[NUMBER].to_f * 100).round
 
-        # @return [Integer] the performance cores the load is read against
-        def cores = @reads[:perf_cores].to_i
+        # @return [Integer] every core the load is read against (`hw.ncpu`)
+        def cores = @reads[:cores].to_i
 
         # The kernel's memory pressure level as `kern.memorystatus_vm_pressure_level` prints it,
         # passed on as the number it is; 0 when it could not be read. What a level means is the
