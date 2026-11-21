@@ -1,3 +1,4 @@
+require "hecks/hecks/adapters/safe_signal"
 require "hecks/adapters/driving/resident/paths"
 require "hecks/adapters/driving/resident/atypical"
 
@@ -33,7 +34,7 @@ module Hecks
             uid ? [Integer(uid), command.to_s] : nil
           end
           # Sends a process the signal that asks it to end.
-          STOP = ->(pid) { Process.kill("TERM", pid) }
+          STOP = ->(pid) { Hecks::Adapters::SafeSignal.to_process("TERM", pid) }
 
           module_function
 

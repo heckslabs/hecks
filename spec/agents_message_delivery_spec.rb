@@ -2,7 +2,8 @@ require "spec_helper"
 require_relative "support/agents_message_helpers"
 
 # A sent message is handed to its run's session once: the hook reads `Undelivered`, records each
-# message delivered with `Receive`, and the run answers the sender with a message of its own.
+# message with `Receive`, which marks it read, and the run answers the sender with a message
+# of its own.
 RSpec.describe "the Agents message delivery" do
   include AgentsMessageHelpers
 
@@ -17,19 +18,18 @@ RSpec.describe "the Agents message delivery" do
     expect(undelivered).to eq(["m1"])
   end
 
-  it "marks a received message delivered and hands it over only once", :aggregate_failures do
+  it "marks a message read once its session has been handed it", :aggregate_failures do
     send_message
     receive("m1")
-    expect(Hecks::Agents::Message.find("m1").status).to eq("delivered")
-    expect(undelivered).to be_empty
+    message = Hecks::Agents::Message.find("m1")
+    expect([message.status, message.reader.value]).to eq(%w[read run-a])
+    expect([undelivered, inbox("run-a")]).to eq([[], []])
   end
 
-  it "keeps a delivered message in the inbox until it is read", :aggregate_failures do
+  it "refuses to hand over a message twice" do
     send_message
     receive("m1")
-    expect(inbox("run-a")).to eq(["m1"])
-    Hecks::Agents::Message.find("m1").read!(reader: { value: "run-a" })
-    expect(inbox("run-a")).to be_empty
+    expect { receive("m1") }.to raise_error(StandardError, /Receive/)
   end
 
   it "reaches the sender with the run's reply" do

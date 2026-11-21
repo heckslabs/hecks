@@ -530,6 +530,12 @@ Hecks.hecksagon "Hecks" do
       refuses "AmendRefused"
     end
 
+    asks "Shut", to: ReviewRequest do
+      attribute :run, RunKey
+      answers "ShutAnswered"
+      refuses "ShutRefused"
+    end
+
     answers_query "Status"
     answers_query "Timeline"
     answers_query "Failures"

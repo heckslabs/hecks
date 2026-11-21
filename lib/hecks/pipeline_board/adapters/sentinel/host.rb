@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/safe_signal"
 require "net/http"
 require "open3"
 require_relative "../restart_notes"
@@ -69,9 +70,9 @@ module Hecks
           # Ends the board: asks it to stop, then forces it when the grace has passed.
           # @param pid [Integer] the board's process id
           def stop(pid)
-            Process.kill("TERM", pid)
+            SafeSignal.to_process("TERM", pid)
             sleep(GRACE_SECONDS)
-            Process.kill("KILL", pid)
+            SafeSignal.to_process("KILL", pid)
           rescue Errno::ESRCH
             nil
           end

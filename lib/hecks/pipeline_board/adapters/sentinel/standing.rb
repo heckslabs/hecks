@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/safe_signal"
 require "json"
 require "rbconfig"
 require_relative "../sentinel"
@@ -52,7 +53,7 @@ module Hecks
           # @return [Boolean] whether the sentinel this environment names is still running
           def standing?
             pid = ENV.fetch(ENV_KEY, "").to_i
-            pid.positive? && Process.kill(0, pid) == 1
+            SafeSignal.standing?(pid)
           rescue SystemCallError
             false
           end
