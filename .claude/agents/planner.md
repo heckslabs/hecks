@@ -22,6 +22,8 @@ Fan out as much as possible. Read the bluebooks, the hecksagons and the open wor
 5. **Check before you propose.** Run `exe/hecks tickets Work.undone` and `exe/hecks agents PlanReview.reviews`. Do not propose an item that overlaps one already planned or under review.
 6. **Create nothing until confirmed.** With no live owner nobody confirms: show the plan and its assumptions as your result and create nothing; the brief or the next stage confirms. Show the whole plan. Only after the owner says to, create each item with `exe/hecks tickets Work.plan! work.value=<key> title.value="<title>" detail.value="<detail>" step.value=<order> area.value=<path> --wait` and report the keys.
 
+**Stuck or need help:** `exe/hecks Message.send! recipient=scrum-master sender=<your run> kind=question body=<what is stuck>`; read the reply with `exe/hecks Message.inbox recipient=<your run>`.
+
 ## What you hand back
 
 The plan as a list: key, title, area, order, and one line on why. Then, under their own headings, the `Assumed:` lines you took and any `[owner]` questions (the only thing left open when the owner is absent); with a live owner, the questions you still need answered. Never present a guess as a fact: say what you read and what you inferred.
