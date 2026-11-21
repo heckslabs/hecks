@@ -3,59 +3,78 @@ Hecks.behaviors "ContextBudget" do
 
   loads "context_budget.bluebook", "context_budget.hecksagon", "context_budget.ports.hecksagon"
 
-  test "Declare sets the ceiling for a kind of session" do
+  # The ruled ceilings are 150000 tokens for the lead and 200000 for a role, helper, coder or hand
+  # session. The behaviors boot a fresh Memory repository each, so a declaration here is never a
+  # live row: the rows go live when the adapter slice declares them.
+  test "Declare sets the ceiling for the lead" do
     tests "Declare", on: "Ceiling"
-    input kind: { value: "lead" }, tokens: { value: 60_000 }
+    input kind: { value: "lead" }, tokens: { value: 150_000 }
     expect emits: ["CeilingDeclared"]
   end
 
   test "Declare covers a hand-started session" do
     tests "Declare", on: "Ceiling"
-    input kind: { value: "hand" }, tokens: { value: 80_000 }
+    input kind: { value: "hand" }, tokens: { value: 200_000 }
     expect emits: ["CeilingDeclared"]
   end
 
   test "Declare refuses a kind of session that is not known" do
     tests "Declare", on: "Ceiling"
-    input kind: { value: "stranger" }, tokens: { value: 60_000 }
+    input kind: { value: "stranger" }, tokens: { value: 200_000 }
     expect refused: "Kind admits"
   end
 
   test "Revise supersedes the ceiling of a kind" do
     tests "Revise", on: "Ceiling"
-    setup "ContextBudget::Ceiling.Declare", kind: { value: "coder" }, tokens: { value: 60_000 }
-    input ceiling: "coder", tokens: { value: 40_000 }
+    setup "ContextBudget::Ceiling.Declare", kind: { value: "coder" }, tokens: { value: 200_000 }
+    input ceiling: "coder", tokens: { value: 150_000 }
     expect emits: ["CeilingRevised"]
   end
 
   test "Open starts a session within its ceiling" do
     tests "Open", on: "ContextBudget"
-    input session: { value: "s-1" }, kind: { value: "coder" }, ceiling: { value: 60_000 }
+    input session: { value: "s-1" }, kind: { value: "coder" }, ceiling: { value: 200_000 }
     expect emits: ["BudgetOpened"], status: "within"
   end
 
   test "Measure under the ceiling keeps the session within" do
     tests "Measure", on: "ContextBudget"
     setup "ContextBudget::ContextBudget.Open", session: { value: "s-2" }, kind: { value: "coder" },
-          ceiling: { value: 60_000 }
-    input context_budget: "s-2", tokens: { value: 30_000 }, ceiling: { value: 60_000 }
+          ceiling: { value: 200_000 }
+    input context_budget: "s-2", tokens: { value: 60_000 }, ceiling: { value: 200_000 }
+    expect emits: ["ContextMeasured"], status: "within"
+  end
+
+  test "Measure exactly at the ceiling does not ask for a handoff" do
+    tests "Measure", on: "ContextBudget"
+    setup "ContextBudget::ContextBudget.Open", session: { value: "s-2b" }, kind: { value: "lead" },
+          ceiling: { value: 150_000 }
+    input context_budget: "s-2b", tokens: { value: 150_000 }, ceiling: { value: 150_000 }
     expect emits: ["ContextMeasured"], status: "within"
   end
 
   # No adapter is bound in a behaviors boot, so the ask is refused as unwritten after it is made.
-  test "Measure over the ceiling asks the session for its handoff" do
+  test "Measure one token over the ceiling asks the session for its handoff" do
+    tests "Measure", on: "ContextBudget"
+    setup "ContextBudget::ContextBudget.Open", session: { value: "s-3b" }, kind: { value: "lead" },
+          ceiling: { value: 150_000 }
+    input context_budget: "s-3b", tokens: { value: 150_001 }, ceiling: { value: 150_000 }
+    expect emits: ["ContextMeasured", "HandoffAsked", "HandoffUnwritten"], status: "handoff_asked"
+  end
+
+  test "Measure far over the ceiling asks the session for its handoff" do
     tests "Measure", on: "ContextBudget"
     setup "ContextBudget::ContextBudget.Open", session: { value: "s-3" }, kind: { value: "lead" },
-          ceiling: { value: 60_000 }
-    input context_budget: "s-3", tokens: { value: 530_000 }, ceiling: { value: 60_000 }
+          ceiling: { value: 150_000 }
+    input context_budget: "s-3", tokens: { value: 530_000 }, ceiling: { value: 150_000 }
     expect emits: ["ContextMeasured", "HandoffAsked", "HandoffUnwritten"], status: "handoff_asked"
   end
 
   test "AskHandoff refuses a session that has already been asked" do
     tests "AskHandoff", on: "ContextBudget"
     setup "ContextBudget::ContextBudget.Open", session: { value: "s-4" }, kind: { value: "lead" },
-          ceiling: { value: 60_000 }
-    setup "ContextBudget::ContextBudget.Measure", context_budget: "s-4", tokens: { value: 90_000 }, ceiling: { value: 60_000 }
+          ceiling: { value: 150_000 }
+    setup "ContextBudget::ContextBudget.Measure", context_budget: "s-4", tokens: { value: 190_000 }, ceiling: { value: 150_000 }
     input context_budget: "s-4"
     expect refused: "moves it only from"
   end
@@ -63,18 +82,34 @@ Hecks.behaviors "ContextBudget" do
   test "HandOff restarts a session that was asked" do
     tests "HandOff", on: "ContextBudget"
     setup "ContextBudget::ContextBudget.Open", session: { value: "s-5" }, kind: { value: "hand" },
-          ceiling: { value: 60_000 }
-    setup "ContextBudget::ContextBudget.Measure", context_budget: "s-5", tokens: { value: 90_000 }, ceiling: { value: 60_000 }
-    input context_budget: "s-5", note: { value: "HANDOFF: carry on with the ceiling slice." }
+          ceiling: { value: 200_000 }
+    setup "ContextBudget::ContextBudget.Measure", context_budget: "s-5", tokens: { value: 230_000 }, ceiling: { value: 200_000 }
+    input context_budget: "s-5", note: { open_runs: "none", decisions_waiting: "none",
+                                          files_touched: "lib/hecks/context_budget/context_budget.bluebook",
+                                          next_step: "carry on with the ceiling slice" }
     expect emits: ["HandedOff"], status: "handed_off"
   end
 
   test "HandOff refuses a session that was never asked" do
     tests "HandOff", on: "ContextBudget"
     setup "ContextBudget::ContextBudget.Open", session: { value: "s-6" }, kind: { value: "coder" },
-          ceiling: { value: 60_000 }
-    input context_budget: "s-6", note: { value: "HANDOFF: nothing yet." }
+          ceiling: { value: 200_000 }
+    input context_budget: "s-6", note: { open_runs: "none", decisions_waiting: "none",
+                                          files_touched: "none", next_step: "nothing yet" }
     expect refused: "moves it only from"
+  end
+
+  %w[open_runs decisions_waiting files_touched next_step].each do |field|
+    test "HandOff refuses a note whose #{field} is empty" do
+      tests "HandOff", on: "ContextBudget"
+      setup "ContextBudget::ContextBudget.Open", session: { value: "s-7-#{field}" }, kind: { value: "coder" },
+            ceiling: { value: 200_000 }
+      setup "ContextBudget::ContextBudget.Measure", context_budget: "s-7-#{field}", tokens: { value: 230_000 },
+            ceiling: { value: 200_000 }
+      note = { open_runs: "none", decisions_waiting: "none", files_touched: "none", next_step: "go on" }
+      input context_budget: "s-7-#{field}", note: note.merge(field.to_sym => "")
+      expect refused: field
+    end
   end
 
   test "Declare sets a budget for an item" do
