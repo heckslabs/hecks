@@ -268,6 +268,13 @@ Hecks.behaviors "Tickets" do
     expect measured: { value: "unread" }, evidence: { value: "" }, status: "complete"
   end
 
+  test "MeasureBy names the board's glance read count as an epic's measure" do
+    tests "MeasureBy", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "board-revamp" }, title: { value: "Revamp the board" }, outcome: { value: "The board steers" }
+    input epic: "board-revamp", measure: { value: "the-board-glance-is-read" }
+    expect measure: { value: "the-board-glance-is-read" }, measured: { value: "unread" }
+  end
+
   test "Retitle changes the title and keeps the outcome" do
     tests "Retitle", on: "Epic"
     setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
