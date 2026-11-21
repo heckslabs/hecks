@@ -67,8 +67,11 @@ A squash on GitHub erased those merge commits, so the two had to change together
    `CarriedCheck` keeps only the ancestry test; the `Squash` ask is renamed `Merge`; the specs
    build a train on origin as a merge commit; `adoption.rb` stays, because a pull still rebases a
    held tip onto the merge of the train ahead of it.
-3. **Waits on the delivery package:** the vendored `git_main_pull/carried.rb`, `nowhere.rb` and
-   `git_landing/carried.rb` still read old squashes and include `git_main_pull/boarding.rb`. That
-   code belongs to Switchyard, so the squash path is dropped there and re-vendored; then
-   `boarding.rb` and the specs of that path (`hecks_pull_main_squash_spec`,
-   `hecks_git_landing_squash_carried_spec`, the squash example of `hecks_pull_main_spec`) go.
+3. **Built:** the vendored delivery package no longer reads a squashed train. `git_main_pull/boarding.rb`
+   and `git_main_pull/carried.rb` are gone, `nowhere.rb` and `git_landing/carried.rb` keep only
+   ancestry and patch ids, and the rebase of a pull or a landing is a plain `--rebase-merges` onto
+   `origin/main`. It is removed, not put behind a port: `CarriedCheck` is ancestry-only and none of
+   the open `MainIntegration` runs was carried only by a squash (checked 2026-11-19, see
+   Consequences), so no standing history needs the reading. The specs of that path
+   (`hecks_pull_main_squash_spec`, `hecks_git_landing_squash_carried_spec`, the squash example of
+   `hecks_pull_main_spec`) are gone with it. Delivery requires nothing of the train.

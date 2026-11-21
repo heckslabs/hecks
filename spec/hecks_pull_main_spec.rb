@@ -114,13 +114,6 @@ RSpec.describe "pulling main first" do
       git("checkout", "-b", "elsewhere")
     end
 
-    it "carries a main whose tree origin/main already holds, naming the squash", :aggregate_failures do
-      mine_then_leave("mine.txt")
-      push_from_other("mine.txt", "squash of mine", "mine.txt")
-      expect(report).to start_with("main carried by squash")
-      expect(tip("main")).to eq(tip("origin/main"))
-    end
-
     it "fast-forwards the ref when main is only behind", :aggregate_failures do
       git("checkout", "-b", "elsewhere")
       origin_moves

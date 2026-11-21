@@ -84,12 +84,8 @@ module Hecks
                 "conflict: rebasing #{@branch} onto #{@onto} #{abandon_rebase(@checkout, result)}; nothing changed"
         end
 
-        # What the rebase replays: when the branch was cut from a commit that `onto` carried by
-        # squash, only the branch's own commits after it.
-        def rebase_range
-          boarded = carried_boarding("#{@branch}..#{@onto}", @branch)
-          boarded ? ["--onto", @onto, boarded] : [@onto]
-        end
+        # What the rebase replays: the branch's commits since it forked from `onto`.
+        def rebase_range = [@onto]
 
         # Asks the project's gate, or the stand-in a caller handed over, and refuses when it is red.
         def run_gate
