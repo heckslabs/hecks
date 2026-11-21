@@ -50,7 +50,9 @@ module Hecks
           open_findings: %i[tickets open_findings plain], integration: %i[integration reading plain],
           window_opened: [:journal, :named, :plain, "WindowOpened", 3],
           window_closed: [:journal, :named, :plain, "WindowClosed", 3],
-          train_prs: %i[github train_prs plain], turns: %i[journal turns plain]
+          train_prs: %i[github train_prs plain], turns: %i[journal turns plain],
+          red_episodes: %i[tickets red_episodes plain], overloads: %i[tickets overloads plain],
+          approvals: %i[tickets approvals plain], epics: %i[tickets epics plain]
         }.freeze
 
         private

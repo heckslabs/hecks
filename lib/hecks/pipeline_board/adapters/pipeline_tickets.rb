@@ -6,6 +6,7 @@ require_relative "live_store"
 require_relative "rows"
 require_relative "pipeline_tickets/run_detail"
 require_relative "pipeline_tickets/stopped_runs"
+require_relative "pipeline_tickets/standing_facts"
 require_relative "pipeline_tickets/finished_times"
 require_relative "pipeline_tickets/closed_work"
 require_relative "pipeline_tickets/project_work"
@@ -22,6 +23,7 @@ module Hecks
     class PipelineTickets
       include PipelineBoard::RunDetail
       include PipelineBoard::StoppedRuns
+      include PipelineBoard::StandingFacts
       include PipelineBoard::FinishedTimes
       include PipelineBoard::ProjectWork
       include PipelineBoard::OpenHelp
@@ -154,8 +156,14 @@ module Hecks
         mine = works.select { |work| field(work, :epic).to_s == key }
         { epic: key, title: field(record, :title).to_s, outcome: field(record, :outcome).to_s,
           tier: field(record, :tier).to_s, decision: field(record, :decision).to_s }
-          .merge(PipelineBoard::ClosedWork.of(mine, method(:field)))
+          .merge(hand_hold(record), closed(mine))
       end
+
+      def closed(works) = PipelineBoard::ClosedWork.of(works, method(:field))
+
+      # @return [Hash] when the owner's hand ranked the epic (epoch seconds, 0 when never) and
+      #   for how many seconds that rank holds
+      def hand_hold(record) = { hand_ranked_at: field(record, :hand_ranked_at).to_i, hold: field(record, :hold).to_i }
 
       # The run under its current session and, when it forked, under the session it held before.
       # The current session is listed last, so it wins should the two ids be one.
