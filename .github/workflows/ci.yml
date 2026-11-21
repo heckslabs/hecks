@@ -32,7 +32,7 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]
   merge_group:
   push:
-    branches: [main]
+    branches: [main, hecks-full]
   # Called by nightly-main.yml, which runs this same job set with attestation ignored
   # (.github/actions/check-attestation) and must write nothing (`github.workflow` below).
   workflow_call:
