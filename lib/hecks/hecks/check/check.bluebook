@@ -303,6 +303,89 @@ Hecks.bluebook "Hecks" do
       trigger ModelCheckRun::Flag, with: { refusal: :refusal }
     end
 
+    # Reports only; refusing a changed aggregate with no .behaviors file belongs to Submission.
+    aggregate "BehaviorsCoverage" do
+      description "One count of the bluebooks with and without a .behaviors file, and which lack one."
+
+      attribute :run,     RunKey
+      attribute :root,    Root, optional: true
+      attribute :report,  Report, optional: true
+      attribute :missing, Count, optional: true
+      attribute :total,   Count, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Root" do
+        attribute :value, String, matches: :present
+      end
+
+      # The report names each bluebook with no .behaviors file, one per line, or says none lacks one;
+      # when the count could not be made it holds the reason.
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Count" do
+        attribute :value, Integer
+
+        invariant("a count is not negative") { value >= 0 }
+      end
+
+      lifecycle :status, default: "requested" do
+        transition "Record" => "reported", from: "requested"
+        mark :terminal, "reported"
+      end
+
+      command "Cover" do
+        role "Maintainer"
+        goal "Count the bluebooks with no .behaviors file and name them"
+
+        attribute :run,  RunKey, sets: true
+        attribute :root, Root, optional: true, sets: true
+
+        emits CoverageRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Keep what the count found, or why it could not be made"
+
+        reference_to BehaviorsCoverage
+        attribute :report,  Report, sets: true
+        attribute :missing, Count, optional: true, sets: true
+        attribute :total,   Count, optional: true, sets: true
+
+        emits CoverageRecorded
+      end
+
+      query "Coverage" do
+        description "What one count found: its status, the bluebooks lacking a .behaviors file, and the counts."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+    end
+
+    policy "CountWhenCoverageRequested" do
+      on      "BehaviorsCoverage.CoverageRequested"
+      ask     :count, with: { run: :run }
+    end
+
+    policy "RecordTheCoverage" do
+      on      "BehaviorsCoverage.CoverageCounted"
+      trigger BehaviorsCoverage::Record, with: { report: :report, missing: :missing, total: :total }
+    end
+
+    policy "RecordTheCoverageRefusal" do
+      on      "BehaviorsCoverage.CoverageUncounted"
+      trigger BehaviorsCoverage::Record, with: { report: :refusal }
+    end
+
     # Conformance: the checks on the language itself. Each finds every disagreement and refuses with
     # them all, so a check that fails is recorded as faulted with what it found. The argument-gate
     # matrix rewrites a committed matrix and its fixtures, so it only reports unless it is confirmed.
