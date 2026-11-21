@@ -55,6 +55,7 @@ module Hecks
         @standin, @epics_standin = settings.values_at(:work_items, :epics)
         @landed, @stopped = settings.values_at(:landings, :findings)
         @finished, @work_times = settings.values_at(:finished_times, :work_times)
+        @work_lock = Mutex.new
         @projects_dir, @help = settings.values_at(:projects_dir, :help)
       end
 
