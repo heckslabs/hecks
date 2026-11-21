@@ -28,9 +28,10 @@ RSpec.describe Hecks::Adapters::PipelineBoard::SnapshotRows do
   end
 
   it "lists the red main, the owner's question and the stalled session as stuck, each with its run" do
-    expect(row[:stuck].map { |item| item.values_at(:kind, :owner_run, :group, :waits_on) })
-      .to eq([["red_main", "", "standing too long", ""], ["owner_ask", "r1", "waiting on a person", "owner"],
-              ["stalled_session", "r2", "standing too long", ""]])
+    expect(row[:stuck].map { |item| item.values_at(:kind, :owner_run, :group, :waits_on, :waits_on_kind) })
+      .to eq([["red_main", "", "standing too long", "orchestrator", "role"],
+              ["owner_ask", "r1", "waiting on a person", "owner", "person"],
+              ["stalled_session", "r2", "standing too long", "orchestrator", "role"]])
   end
 
   it "gives a run card to each session that holds a run, with its last word" do

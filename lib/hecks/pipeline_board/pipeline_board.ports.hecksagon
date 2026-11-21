@@ -43,6 +43,7 @@ Hecks.hecksagon "PipelineBoard" do
   PipelineBoard::PipelineBoard.port "Pipeline" do
     answers_query "Stages"
     answers_query "Board"
+    answers_query "Glance"
     answers_query "Readings"
     answers_query "Snapshot"
     answers_query "Cycles"
