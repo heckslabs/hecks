@@ -4,8 +4,8 @@ require "hecks/adapters/driving/resident/server"
 
 # The time limit of a resident's forked line (ADR 0201): the Hecks world may set `line_seconds`,
 # and a child still running after it is ended, its whole group with it, with the reason on its
-# caller's standard error. A world that sets none leaves a line the default limit. The signals and the
-# waits are stood in for; one example forks a real child that ends at once.
+# caller's standard error. A world that sets none leaves a line the default limit. The signals
+# and the waits are stood in for; one example forks a real child that ends at once.
 RSpec.describe Hecks::Adapters::Driving::Resident::LineLimit do
   let(:server) { Hecks::Adapters::Driving::Resident::Server.new("/checkout", "/checkout/exe/hecks") }
   let(:signals) { [] }
