@@ -53,6 +53,9 @@ commands:
   ModelCheckRun:
     …
     model_check!
+  BehaviorsCoverage:
+    …
+    cover!
   ConformanceRun:
     …
     check_engine_agreement!
