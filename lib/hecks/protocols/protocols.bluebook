@@ -1,0 +1,149 @@
+# Protocols: the crew sets its own working agreements through the Decider protocol.
+Hecks.bluebook "Protocols" do
+  vision "A role proposes a working agreement; the roles it affects settle it by a quick yes or a veto with a reason; an accepted agreement is recorded and a peer flags a break for the retrospective."
+  supporting
+
+  aggregate "Agreement" do
+    description "One working agreement: the text proposed, the roles it affects, which of them still owe an answer, and whether it was accepted, vetoed or sent to the owner."
+    created_by "Agreement.propose!"
+
+    identified_by :reference
+
+    attribute :reference,     Reference
+    attribute :text,          Text
+    attribute :proposer,      Speaker
+    # The affected roles, bar-delimited (`|coder|reviewer|`), because a rule cannot look inside a list.
+    attribute :affects,       Roles
+    attribute :touches_owner, Flag
+    # Each role's yes takes one away; the agreement is accepted when none is owed.
+    attribute :owed,          Tally
+    attribute :veto_reason,   Text, optional: true
+    # Each flagged break adds one, for the scrum master's retrospective.
+    attribute :breaks,        Tally
+
+    value_object "Reference" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Text" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    value_object "Speaker" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Roles" do
+      attribute :value, String, matches: :present
+    end
+
+    # An agreement that touches the owner's charter marks, spend or releases goes to the owner.
+    value_object "Flag" do
+      attribute :value, String, one_of: %w[yes no]
+    end
+
+    value_object "Tally" do
+      attribute :value, Integer, default: 0
+      invariant("a tally is not negative") { !value.negative? }
+    end
+
+    lifecycle :status, default: "proposed" do
+      transition "Accept"   => "accepted",      from: "proposed"
+      transition "Veto"     => "vetoed",        from: "proposed"
+      transition "Escalate" => "owner_pending", from: "proposed"
+      # An owner-pending agreement ends here for the roles: the owner settles it outside this domain.
+      mark :terminal, "accepted", "vetoed", "owner_pending"
+    end
+
+    command "Propose" do
+      role "Maintainer"
+      goal "Put a working agreement forward to the roles it affects"
+
+      attribute :reference,     Reference
+      attribute :text,          Text
+      attribute :proposer,      Speaker
+      attribute :affects,       Roles
+      attribute :touches_owner, Flag
+      attribute :owed,          Tally
+
+      given("an agreement affects at least one role") { owed.value.positive? }
+
+      emits "AgreementProposed"
+    end
+
+    command "Agree" do
+      role "Maintainer"
+      goal "One affected role says a quick yes"
+
+      reference_to Agreement
+
+      given("a yes is counted only while the agreement waits on roles") { status == "proposed" && owed.value.positive? }
+
+      sets :owed, decrement: { value: 1 }
+
+      emits "AgreementAgreed"
+    end
+
+    command "Veto" do
+      role "Maintainer"
+      goal "One affected role refuses, and says why"
+
+      reference_to Agreement
+      attribute :veto_reason, Text, sets: true
+
+      emits "AgreementVetoed"
+    end
+
+    command "Accept" do
+      role "System"
+      policy_only
+      goal "Record the agreement once every affected role said yes"
+
+      reference_to Agreement
+
+      given("an agreement is accepted when no affected role still owes an answer") { owed.value.zero? }
+      given("an agreement that touches the owner is never accepted by the roles") { touches_owner.value == "no" }
+
+      emits "AgreementAccepted"
+    end
+
+    command "Escalate" do
+      role "System"
+      policy_only
+      goal "Send an agreement that touches the owner to the owner"
+
+      reference_to Agreement
+
+      given("only an agreement that touches the owner goes to the owner") { touches_owner.value == "yes" }
+
+      emits "AgreementEscalated"
+    end
+
+    # A refusal to break the agreement needs a guard in the owner of the rule (a routing rule or a
+    # stall row); this records the break for the retrospective.
+    command "Flag" do
+      role "Maintainer"
+      goal "A peer flags a break of an accepted agreement"
+
+      reference_to Agreement
+      attribute :peer, Speaker
+      attribute :what, Text
+
+      given("only an accepted agreement can be broken") { status == "accepted" }
+
+      sets :breaks, increment: { value: 1 }
+
+      emits "ProtocolFlagged"
+    end
+  end
+
+  policy "AcceptWhenEveryRoleAgreed" do
+    on      "Agreement.AgreementAgreed"
+    trigger Agreement::Accept, with: { agreement: :reference }
+  end
+
+  policy "EscalateWhatTouchesTheOwner" do
+    on      "Agreement.AgreementProposed"
+    trigger Agreement::Escalate, with: { agreement: :reference }
+  end
+end

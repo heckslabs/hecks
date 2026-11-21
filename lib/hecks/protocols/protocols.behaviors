@@ -1,0 +1,92 @@
+Hecks.behaviors "Protocols" do
+  vision "A working agreement is accepted when every affected role says yes, vetoed with a reason, sent to the owner when it touches the owner, and a break of it is flagged."
+
+  loads "protocols.hecksagon", "protocols.bluebook"
+
+  test "Propose opens an agreement owing one answer per affected role" do
+    tests "Propose", on: "Agreement"
+    input reference: { value: "WA-1" }, text: { value: "A run checks in every 20 minutes" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|reviewer|" },
+          touches_owner: { value: "no" }, owed: { value: 2 }
+    expect emits: ["AgreementProposed"], status: "proposed", owed: { value: 2 }
+  end
+
+  test "Propose refuses an agreement that affects no role" do
+    tests "Propose", on: "Agreement"
+    input reference: { value: "WA-2" }, text: { value: "Nothing" }, proposer: { value: "scrum-master" },
+          affects: { value: "||" }, touches_owner: { value: "no" }, owed: { value: 0 }
+    expect refused: "an agreement affects at least one role"
+  end
+
+  test "The last yes accepts the agreement" do
+    tests "Agree", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-3" },
+          text: { value: "A reviewer answers in 10 minutes" }, proposer: { value: "scrum-master" },
+          affects: { value: "|reviewer|" }, touches_owner: { value: "no" }, owed: { value: 1 }
+    input agreement: "WA-3"
+    expect emits: %w[AgreementAgreed AgreementAccepted], status: "accepted"
+  end
+
+  test "A yes with another role still owing leaves the agreement proposed" do
+    tests "Agree", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-4" },
+          text: { value: "At most two items expedited" }, proposer: { value: "scrum-master" },
+          affects: { value: "|coder|reviewer|" }, touches_owner: { value: "no" }, owed: { value: 2 }
+    input agreement: "WA-4"
+    expect emits: ["AgreementAgreed"], status: "proposed", owed: { value: 1 }
+  end
+
+  test "Veto settles the agreement with its reason" do
+    tests "Veto", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-5" },
+          text: { value: "No landing deletes outside its area" }, proposer: { value: "scrum-master" },
+          affects: { value: "|coder|" }, touches_owner: { value: "no" }, owed: { value: 1 }
+    input agreement: "WA-5", veto_reason: { value: "The area is not always known up front" }
+    expect emits: ["AgreementVetoed"], status: "vetoed"
+  end
+
+  test "Veto refuses no reason" do
+    tests "Veto", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-6" }, text: { value: "Anything" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" }, touches_owner: { value: "no" },
+          owed: { value: 1 }
+    input agreement: "WA-6"
+    expect refused: "veto_reason"
+  end
+
+  test "An agreement touching the owner goes to the owner" do
+    tests "Propose", on: "Agreement"
+    input reference: { value: "WA-7" }, text: { value: "A release waits a day" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
+          touches_owner: { value: "yes" }, owed: { value: 1 }
+    expect emits: %w[AgreementProposed AgreementEscalated], status: "owner_pending"
+  end
+
+  test "An agreement touching the owner is not accepted by the roles" do
+    tests "Agree", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-8" },
+          text: { value: "A release waits a day" }, proposer: { value: "scrum-master" },
+          affects: { value: "|coder|" }, touches_owner: { value: "yes" }, owed: { value: 1 }
+    input agreement: "WA-8"
+    expect refused: "a yes is counted only while the agreement waits on roles"
+  end
+
+  test "Flag records a break of an accepted agreement" do
+    tests "Flag", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-9" },
+          text: { value: "A reviewer answers in 10 minutes" }, proposer: { value: "scrum-master" },
+          affects: { value: "|reviewer|" }, touches_owner: { value: "no" }, owed: { value: 1 }
+    setup "Protocols::Agreement.Agree", agreement: "WA-9"
+    input agreement: "WA-9", peer: { value: "coder" }, what: { value: "No answer after 25 minutes" }
+    expect emits: ["ProtocolFlagged"], breaks: { value: 1 }
+  end
+
+  test "Flag refuses a break of an agreement not accepted" do
+    tests "Flag", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-10" }, text: { value: "Anything" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" }, touches_owner: { value: "no" },
+          owed: { value: 1 }
+    input agreement: "WA-10", peer: { value: "coder" }, what: { value: "Early" }
+    expect refused: "only an accepted agreement can be broken"
+  end
+end
