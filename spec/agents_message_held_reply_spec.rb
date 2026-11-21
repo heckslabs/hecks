@@ -1,8 +1,8 @@
 require "spec_helper"
 require_relative "support/agents_message_helpers"
 
-# A reply to a hand-started sender (miette, the orchestrator, the coach) is held unread for it
-# instead of refused as unaddressable.
+# A reply to a hand-started sender (miette, the orchestrator, the staff engineer) is held unread
+# for it instead of refused as unaddressable.
 RSpec.describe "a reply to a hand-started sender" do
   include AgentsMessageHelpers
 

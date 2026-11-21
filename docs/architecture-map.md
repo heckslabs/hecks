@@ -71,7 +71,6 @@ directories its files sit in, and the vision it declares, written from the files
 - **CiPipeline** (`lib/hecks/ci_pipeline/`): A workflow file is what its rows say: a job runs after what it needs, a skipped gate leaves its dependents runnable, a build passes only when every required job settled, and a corpus is regenerated once and shared.
 - **CiSpeed** (`lib/hecks/ci_speed/`): A main CI run is measured as it finished, and a change to the pipeline is kept only when a run of the same cache state proves it faster.
 - **CiWorkflows** (`lib/hecks/ci_workflows/`): Hecks's own GitHub Actions workflows, declared once as rows and projected into .github/workflows.
-- **Coach** (`lib/hecks/coach/`): Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide.
 - **Coder** (`lib/hecks/coder/`): Every bug QA logs is worked by one coder at a time, and a bug that cannot be fixed yet is still never hidden: it is stubbed, named, and retired once the fix lands.
 - **Composer** (`lib/hecks/composer/bluebook/`): Write a bluebook in an editor and watch the domain draw itself, with an agent that can change the draft when asked.
 - **Deploy** (`lib/hecks/deploy/bluebook/`): Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
@@ -107,6 +106,7 @@ directories its files sit in, and the vision it declares, written from the files
 - **Roundhouse** (`lib/hecks/roundhouse/`): Every session runs only on an admission, is metered for what it draws, blows its own fuse when it overdraws, and is reaped only with nothing unsaved.
 - **Signalbox** (`lib/hecks/signalbox/`): The machine's compute is one budget: every session is admitted by headroom, answers one pressure signal by its own rule, and is protected smallest breaker first.
 - **Site** (`lib/hecks/site/bluebook/`): Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS read.
+- **StaffEngineer** (`lib/hecks/staff_engineer/`): Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide.
 - **Tenancy** (`lib/hecks/tenancy/bluebook/`): Which tenants exist, which realm and storage each one owns, and whether each is currently allowed to run, is one queryable, historical fact — not scattered across a world-file overlay and a validation-only command.
 - **Tickets** (`lib/hecks/tickets/bluebook/`): Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
 - **Triage** (`lib/hecks/triage/`): A red main is one incident: its failing jobs are grouped into causes, each cause is held by one coder at a time, and the incident closes when CI is green on the fix.
