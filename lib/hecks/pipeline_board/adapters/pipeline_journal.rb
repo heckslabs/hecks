@@ -9,6 +9,7 @@ require_relative "pipeline_journal/chain"
 require_relative "pipeline_turns"
 require_relative "pipeline_stages/cycles"
 require_relative "pipeline_stages/daily_health"
+require_relative "pipeline_stages/rework"
 require_relative "pipeline_stages/integration_runs"
 require_relative "pipeline_stages/snapshot_rows"
 
@@ -149,6 +150,7 @@ module Hecks
       # the log serves them all.
       def indexed_names
         PipelineBoard::Cycles.event_names + PipelineBoard::DailyHealth.event_names +
+          PipelineBoard::Rework.event_names +
           [STOPPED, PipelineBoard::Turns::EVENT]
       end
 
