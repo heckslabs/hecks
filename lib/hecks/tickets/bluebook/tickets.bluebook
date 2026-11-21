@@ -1771,11 +1771,8 @@ Hecks.bluebook "Tickets" do
     trigger Work::Yield, with: { reason: :refusal }
   end
 
-  # An expedited work item asks the ExpediteLimits port who else holds the priority lane; what the port
-  # read goes to Work.Unexpedite with the lane's limit, two, which puts the item back when the lane is full.
-  # The two is a placeholder for a world setting, so the number has one home later. The check follows the
-  # event: items expedited at once each read the others and all go back to now (safe, over-refusing). A lane
-  # the port cannot read (ExpediteUnread) leaves the item expedited: failing open is deliberate.
+  # The lane's limit, two, is a placeholder for a world setting. The check follows the event, so items
+  # expedited at once all go back to now; an unreadable lane (ExpediteUnread) fails open, deliberately.
   policy "CheckExpediteWhenExpedited" do
     on  "Work.WorkExpedited"
     ask :check_expedite, with: { work: :work }
