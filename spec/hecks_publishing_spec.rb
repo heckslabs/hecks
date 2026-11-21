@@ -156,13 +156,20 @@ RSpec.describe "publishing a release" do
       expect(commands.runs).to be_empty
     end
 
-    it "refuses a bump whose commit carries no Release-Approved-By line, and does nothing", :aggregate_failures do
+    it "waits for approval when the bump commit carries no Release-Approved-By line, and does nothing",
+       :aggregate_failures do
       bump_message!("Release #{version}\n")
 
-      out, = launch("publishing_run.publish!", "run=unapproved", "--gem-only", "--confirm")
+      launch("publishing_run.publish!", "run=unapproved", "--gem-only", "--confirm")
 
-      expect(out).to include("the commit that set the version carries a Release-Approved-By line")
+      expect(outcome("unapproved")).to include('"status": "accepted"')
       expect(commands.runs).to be_empty
+    end
+
+    it "carries out an approved release: the trailer approves it and the run completes" do
+      launch("publishing_run.publish!", "run=approved", "--gem-only")
+
+      expect(outcome("approved")).to include('"status": "completed"')
     end
 
     it "lets a release whose tag already stands on the release commit finish without the line", :aggregate_failures do
