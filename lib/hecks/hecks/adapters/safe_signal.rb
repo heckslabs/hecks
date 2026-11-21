@@ -39,15 +39,18 @@ module Hecks
         killer.call(name, checked(pid, "process"))
       end
 
-      # Asks whether a process stands, by the null signal, which delivers nothing.
+      # Asks whether a process stands, by the null signal, which delivers nothing to anyone, so
+      # process 1 may be asked about though it is never signalled.
       #
-      # @param pid [Integer] the process id; one this module refuses answers false
+      # @param pid [Integer] the process id; nil, a non-integer, zero or a negative answers false
       # @param killer [#call] sends the signal to a target; a stub in a spec
       # @return [Boolean] false when the id is refused or the process is gone, else true
       def self.standing?(pid, killer: KERNEL)
-        to_process(0, pid, killer: killer)
+        return false unless pid.is_a?(Integer) && pid.positive?
+
+        killer.call(0, pid)
         true
-      rescue Refused, Errno::ESRCH
+      rescue Errno::ESRCH
         false
       rescue SystemCallError
         true

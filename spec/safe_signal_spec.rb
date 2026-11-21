@@ -44,9 +44,14 @@ RSpec.describe Hecks::Adapters::SafeSignal do
   end
 
   describe "asking whether a process stands" do
-    it "answers false for a pid it refuses, and sends nothing", :aggregate_failures do
-      expect(described_class.standing?(1, killer: killer)).to be(false)
+    it "answers false for a pid that names no process, and sends nothing", :aggregate_failures do
+      expect(described_class.standing?(0, killer: killer)).to be(false)
       expect(sent).to eq([])
+    end
+
+    it "asks about process 1 with the null signal, which delivers nothing", :aggregate_failures do
+      expect(described_class.standing?(1, killer: killer)).to be(true)
+      expect(sent).to eq([[0, 1]])
     end
 
     it "answers true when the process takes the null signal" do
