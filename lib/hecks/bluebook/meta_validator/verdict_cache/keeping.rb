@@ -48,8 +48,7 @@ module Hecks
             file = path
             FileUtils.mkdir_p(File.dirname(file), mode: 0o700)
             tmp = "#{file}.#{Process.pid}.tmp"
-            File.binwrite(tmp, text)
-            restrict(tmp)
+            File.write(tmp, text, mode: "wb", perm: 0o600)
             File.rename(tmp, file)
           end
 
@@ -85,15 +84,6 @@ module Hecks
             false
           rescue SystemCallError, NotImplementedError
             false
-          end
-
-          # Makes the temp file private to the user where the platform can; the directory is
-          # already private, and a read checks the owner and mode, so a platform without chmod
-          # (WASI) writes it as it is.
-          def restrict(file)
-            File.chmod(0o600, file)
-          rescue SystemCallError, NotImplementedError
-            nil
           end
 
           # Says on stderr that the verdicts were not saved; the cache is optional, nothing raises.

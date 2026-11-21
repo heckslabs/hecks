@@ -172,7 +172,6 @@ module Hecks
           keep(pairs)
           prune
         rescue StandardError => e
-          @dirty = true
           report_unsaved(e)
         end
 
