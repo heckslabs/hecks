@@ -1902,7 +1902,7 @@ Hecks.bluebook "Agents" do
   # word and proves nothing. A session hears its messages with `Operation.follow` on this aggregate;
   # one that is not following is still answered with `AgentRun.answer!`.
   aggregate "Message" do
-    description "One message from a session to a run: addressed, sent as an event the run's session hears once the recipient is a run with a live session, delivered when its session has heard it, then read; refused by name when it is not. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
+    description "One message from a session to a run: addressed, sent as an event the run's session hears once the recipient is a run with a live session, delivered when its session has heard it, and read at once, so an inbox clears itself; refused by name when it is not. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
 
     identified_by :message
 
@@ -1965,9 +1965,9 @@ Hecks.bluebook "Agents" do
       transition "Release" => "sent", from: "held"
       transition "Receive" => "delivered", from: "sent"
       transition "Read" => "read", from: %w[sent delivered]
-      # A sent message waits for its session to hear it, a delivered one for it to read it; nothing
-      # times either.
-      mark :rests, "sent", "delivered", "held"
+      # A sent message waits for its session to hear it; a held one for its seat to register. Hearing
+      # it marks it read at once, so a delivered message rests only if that read was refused.
+      mark :rests, "sent", "held"
       mark :terminal, "read", "refused"
     end
 
@@ -2092,6 +2092,13 @@ Hecks.bluebook "Agents" do
     policy "CheckTheRecipient" do
       on      "Message.MessageStamped"
       ask     :recipient, with: { message: :message, recipient: :recipient }
+    end
+
+    # A message handed to its session is read: the hook records `Receive`, and this records the read.
+    # A read refused leaves the message delivered, handed over once and still in the inbox.
+    policy "ReadWhatWasHandedOver" do
+      on      "Message.MessageDelivered"
+      trigger Message::Read, with: { message: :message, reader: :reader }
     end
 
     policy "SendToTheRun" do
