@@ -2007,13 +2007,15 @@ Hecks.bluebook "Agents" do
       goal "Record a registration, which frees its key for the next one"
 
       reference_to HandRun
+      attribute :session, SessionId
+      attribute :role,    RunRole
 
       emits "HandRunRegistered"
     end
 
     policy "RecordTheRegistration" do
       on      "HandRun.HandRunRequested"
-      trigger HandRun::Record, with: { run: :run }
+      trigger HandRun::Record, with: { run: :run, session: :session, role: :role }
     end
 
     query "Registered" do
