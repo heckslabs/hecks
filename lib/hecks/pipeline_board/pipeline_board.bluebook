@@ -579,6 +579,11 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Pipeline health", position: 1, measure: "found", op: "missing", than: "",  scale: 1, state: "unknown"
       member stage: "Pipeline health", position: 2, measure: "found", op: ">",       than: "0", scale: 1, state: "attention"
       member stage: "Pipeline health", position: 3, measure: "",      op: "always",  than: "",  scale: 1, state: "ok"
+      member stage: "Rework", position: 1, measure: "share", op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "Rework", position: 2, measure: "share", op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Rework", position: 3, measure: "",      op: "always",  than: "",  scale: 1, state: "ok"
+      member stage: "Rework count", position: 1, measure: "found", op: "missing", than: "", scale: 1, state: "unknown"
+      member stage: "Rework count", position: 2, measure: "",      op: "always",  than: "", scale: 1, state: "ok"
 
       # A number with no bound of its own (commit to green CI, landed to pushed, the latest
       # release's age): it is read, or it is not.
@@ -855,6 +860,22 @@ Hecks.bluebook "PipelineBoard" do
       member kind: "stale_finding",
              opens: "Tickets::Finding.FindingReported Tickets::Finding.RunFindingReported Tickets::Finding.StoppedRunReported",
              closes: "", joins: "id", test: "aged", bound: "finding_bound_hours", counted: "no", says: "stale findings"
+    end
+
+    # One way a landed Work item comes back. An `event` row opens on an event whose `link` names the
+    # item (its own id when empty); a `title` row takes landed items titled `prefix` whose epic
+    # another landed item shares, a stand-in until the ledger links an item to its follow-up.
+    value_object "ReworkCheck" do
+      attribute :kind,   String
+      attribute :opens,  String
+      attribute :link,   String
+      attribute :test,   String
+      attribute :prefix, String
+      attribute :says,   String
+
+      member kind: "reopened", opens: "Tickets::Work.WorkReopened",     link: "",     test: "event", prefix: "",      says: "reopened"
+      member kind: "reverted", opens: "RedEpisode.EpisodeRevertMade",   link: "work", test: "event", prefix: "",      says: "reverted"
+      member kind: "still",    opens: "",                               link: "",     test: "title", prefix: "still", says: "followed by a still item"
     end
 
     # One stage of a Work item's cycle, in `position` order. The first stage starts at its `opens`
@@ -1146,6 +1167,11 @@ Hecks.bluebook "PipelineBoard" do
 
     query "DailyHealth" do
       description "What the pipeline found of its own day, one Reading per HealthCheck row: boardings made by hand or of an unverified commit, verifications over their bound, Work items finished with parts not delivered, sessions left blocked or stopped and findings left open. The value is how many were found and the note names each with its age. It reads only and alerts no one."
+      returns list_of(Reading)
+    end
+
+    query "Rework" do
+      description "How much landed work came back, as Readings: one per ReworkCheck row (items reopened, items whose merge a red main reverted, items followed by a 'still ...' item of the same epic) and the rework rate, the share of landed items that came back. With no landed item, or an unreadable log, the rate is a Reading in state unknown, 'no reading', never zero. The cost of a landed item waits on the spend reading of ADR 0220. It reads only."
       returns list_of(Reading)
     end
 
