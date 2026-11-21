@@ -128,8 +128,7 @@ module Hecks
       # @return [Hash{Symbol => Object}] {ClaudeJobs#waiting}'s `blocked_minutes:` and
       #   `pin_listed:`, {SessionReaping#abandon_after} and {#time_facts}
       def blocked_facts(job, held)
-        @jobs.waiting(job, plain(held[:session]), @clock.call)
-             .merge(abandon_after: @reaping.abandon_after, blocked_at: job["updatedAt"].to_s, **time_facts(held))
+        @jobs.waiting(job, plain(held[:session]), @clock.call).merge(abandon_after: @reaping.abandon_after, **time_facts(held))
       end
 
       # @return [Hash{Symbol => Integer}] `running_minutes:` since the run's session started
