@@ -12,8 +12,8 @@ module Hecks
       # The times are held, with the position the log was read to, and each refresh reads only the
       # events past it. The position is a count of the store's whole log (a Sqlite store shares one
       # table across aggregates), which is right because the fold keeps only the Work events in
-      # {FLOW}. The log is append-only; a store that is swapped or whose log has shrunk (a database
-      # replaced) is read again from the start.
+      # {FinishedTimes::FLOW}. The log is append-only; a store that is swapped or whose log has
+      # shrunk (a database replaced) is read again from the start.
       module FinishedTimes
         # The event a finished Work item emits.
         FINISHED = "WorkFinished"
