@@ -320,6 +320,13 @@ Hecks.behaviors "Agents" do
     expect refused: "Receive refused — status is \"refused\", and Receive moves it only from \"sent\""
   end
 
+  test "Send refuses a message kind it does not know" do
+    tests "Send", on: "Message"
+    input  message: { value: "m4" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "notice" }, body: { value: "tonight" }
+    expect refused: "MessageKind admits"
+  end
+
   test "Stamp refuses a message that is no longer addressed" do
     tests "Stamp", on: "Message"
     setup  "Agents::Message.Send", message: { value: "m3" }, recipient: { value: "run-a" }, sender: { value: "miette" },
