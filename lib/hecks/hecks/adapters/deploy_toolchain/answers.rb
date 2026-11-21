@@ -28,18 +28,14 @@ module Hecks
         end
 
         # What a preview verb that writes would do, read from the script, or nil for one that reads.
-        # A dry run answers the plan; otherwise the write needs `confirm`.
+        # A dry run answers the plan; the bluebook's given has already refused an unconfirmed write.
         #
         # @return [Hash, nil] the dry run's answer, when it is one
         def gate_preview(held, action)
-          return unless PREVIEW_WRITES.include?(action)
+          return unless PREVIEW_WRITES.include?(action) && plain(held[:dry_run]) == true
 
           script = script_for(PREVIEW_SCRIPT, plain(held[:project]), plain(held[:script]))
-          plan = DeployPlans.preview(File.read(script), action, plain(held[:branch]))
-          return planned_answer("#{action}: #{plan}") if plain(held[:dry_run]) == true
-
-          require_confirm(held, "#{action} a preview", plan)
-          nil
+          planned_answer("#{action}: #{DeployPlans.preview(File.read(script), action, plain(held[:branch]))}")
         end
 
         # What rolling the companion would do, read from its script.
@@ -51,13 +47,6 @@ module Hecks
         # A dry run's answer: the plan, and nothing run.
         def planned_answer(plan)
           { outcome: { value: "planned" }, report: { value: "#{plan}\ndry run: nothing was run" }, planned: { value: true } }
-        end
-
-        def require_confirm(held, what, plan)
-          return if plain(held[:confirm]) == true
-
-          raise ConsoleCapture::Failure,
-                "refusing to #{what}: #{plan}\npass confirm=true to run it (dry_run=true prints this plan)"
         end
 
         def diff_files(old, new)

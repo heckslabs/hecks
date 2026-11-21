@@ -85,10 +85,10 @@ RSpec.describe "the Deploy bluebook's PreviewRun", :io do
     settings.each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
   end
 
-  def preview(verb, *argv, env: {})
+  def preview(verb, *argv, env: {}, raw: false)
     settings = { "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir }.merge(env)
     out, status = with_env(settings) { deploy_call("preview_run.#{verb}!", *argv) }
-    [JSON.parse(out), status]
+    [raw ? out : JSON.parse(out), status]
   end
 
   def calls
@@ -101,11 +101,6 @@ RSpec.describe "the Deploy bluebook's PreviewRun", :io do
   def report_of(json) = json.dig("state", "report")
 
   def refusal_of(json) = json.dig("state", "refusal")
-
-  # What the refusal names when a write is not confirmed.
-  def plan_phrases(verb)
-    ["refusing to #{verb} a preview", "widget-preview-<name derived from feature-a>", "us-east-1", "confirm=true", "dry_run=true"]
-  end
 
   it "declares the six verbs and their recorders in the Deploy bluebook" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("PreviewRun").commands.map(&:hecks_name)
@@ -151,11 +146,11 @@ RSpec.describe "the Deploy bluebook's PreviewRun", :io do
     describe "preview_run.#{verb}, which writes or reads secrets" do
       with_project
 
-      it "refuses without confirm=true, names the plan, and runs nothing", :aggregate_failures do
-        json, status = preview(verb, "branch=feature-a")
+      it "refuses without confirm=true at the dispatch and runs nothing", :aggregate_failures do
+        out, status = preview(verb, "branch=feature-a", raw: true)
 
-        expect([status, state_status(json)]).to eq([1, "flagged"])
-        expect(refusal_of(json)).to include(*plan_phrases(verb))
+        expect(status).to eq(1)
+        expect(out).to include("given_not_met", "confirm=true", "dry_run=true")
         expect(calls).to be_empty
       end
 

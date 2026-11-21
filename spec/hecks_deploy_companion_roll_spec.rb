@@ -47,14 +47,14 @@ RSpec.describe "the Deploy bluebook's CompanionRoll", :io do
     end
   end
 
-  def roll(dir, *argv, env: {})
+  def roll(dir, *argv, env: {}, raw: false)
     settings = { "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir }.merge(env)
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
     out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
                                                            argv: ["deploy", "companion_roll.run!", File.join(dir, "project"),
                                                                   *argv, "--wait"])
-    [JSON.parse(out), status]
+    [raw ? out : JSON.parse(out), status]
   ensure
     settings.each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }
   end
@@ -65,16 +65,15 @@ RSpec.describe "the Deploy bluebook's CompanionRoll", :io do
   end
 
   # Rolls inside a throwaway project and returns the parsed answer, the exit status, and what ran.
-  def rolled(*argv, env: {}, script: true)
+  def rolled(*argv, env: {}, script: true, raw: false)
     with_project(script: script) do |dir|
-      json, status = roll(dir, *argv, env: env)
+      json, status = roll(dir, *argv, env: env, raw: raw)
       [json, status, calls(dir)]
     end
   end
 
-  def refusal_plan
-    ["refusing to roll umami", "Compose project umami in /opt/widget/umami", "task definition umami:4",
-     "stack widget-box", "over SSM", "confirm=true"]
+  def dry_run_plan
+    ["Compose project umami in /opt/widget/umami", "task definition umami:4", "stack widget-box", "over SSM"]
   end
 
   it "declares the roll and its recorders in the Deploy bluebook" do
@@ -83,12 +82,11 @@ RSpec.describe "the Deploy bluebook's CompanionRoll", :io do
     expect(commands).to eq(%w[Run Complete Plan Flag])
   end
 
-  it "refuses without confirm=true, names the plan read from the script, and runs nothing", :aggregate_failures do
-    json, status, logged = rolled("taskdef=umami:4")
+  it "refuses without confirm=true at the dispatch and runs nothing", :aggregate_failures do
+    out, status, logged = rolled("taskdef=umami:4", raw: true)
 
     expect(status).to eq(1)
-    expect(json.dig("state", "status")).to eq("flagged")
-    expect(json.dig("state", "refusal")).to include(*refusal_plan)
+    expect(out).to include("given_not_met", "confirm=true", "dry_run=true")
     expect(logged).to be_empty
   end
 
@@ -97,7 +95,7 @@ RSpec.describe "the Deploy bluebook's CompanionRoll", :io do
 
     expect(status).to eq(0)
     expect(json.dig("state", "status")).to eq("planned")
-    expect(json.dig("state", "report")).to include("dry run: nothing was run")
+    expect(json.dig("state", "report")).to include("dry run: nothing was run", *dry_run_plan)
     expect(logged).to be_empty
   end
 
@@ -134,7 +132,7 @@ RSpec.describe "the Deploy bluebook's CompanionRoll", :io do
 
   it "lists the rolls that were flagged" do
     with_project do |dir|
-      roll(dir, "taskdef=umami:4")
+      roll(dir, "taskdef=umami:4", "confirm=true", env: { "STUB_UNHEALTHY" => "1" })
       out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[deploy companion_roll.flagged])
 
       expect(JSON.parse(out).map { |row| row["status"] }).to include("flagged")
