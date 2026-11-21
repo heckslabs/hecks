@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "batching"
+
 module Hecks
   module Adapters
     class Dispatching
