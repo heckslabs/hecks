@@ -42,8 +42,8 @@ module Hecks
                  archive_max_bytes: DEFAULT_ARCHIVE_MAX_BYTES }.freeze
 
       # Payload keys that tie one record to another: a landed or pushed sha, a branch, a Work item's
-      # slug, and the reason a hold or a refusal gives. Only these payload values reach the log.
-      LINKS = %w[branch landed boarded pushed commit ci_run work reason].freeze
+      # slug. Only these payload values reach the log.
+      LINKS = %w[branch landed boarded pushed commit ci_run work].freeze
 
       # Characters kept of one link value; a longer value is cut.
       LINK_WIDTH = 80
