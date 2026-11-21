@@ -189,6 +189,7 @@ module Hecks
 
       def dispatch_invocation(call)
         @registry.collecting_reactions { |reactions| dispatch_collecting(call, reactions) }
+                 .tap { @policies.settle_timings }
       end
 
       # One dispatch, with `reactions` receiving every reaction its events cause.

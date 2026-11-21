@@ -155,6 +155,29 @@ Hecks.bluebook "Agents" do
       member role: "planner", pattern: "git log"
       member role: "planner", pattern: "git diff"
       member role: "planner", pattern: "git show"
+      # The product owner turns the owner's asks into epics and Work items and ranks them: it opens an
+      # epic, plans, prioritizes, categorizes and assigns Work items and reranks epics. It dispatches,
+      # lands, boards and writes no file (ADR 0218).
+      member role: "product-owner", pattern: "Epic.open!"
+      member role: "product-owner", pattern: "Work.plan!"
+      member role: "product-owner", pattern: "Work.prioritize!"
+      member role: "product-owner", pattern: "Work.categorize!"
+      member role: "product-owner", pattern: "Work.assign!"
+      member role: "product-owner", pattern: "Epic.rerank!"
+      member role: "product-owner", pattern: "Work.undone"
+      member role: "product-owner", pattern: "Work.show"
+      member role: "product-owner", pattern: "Work.under"
+      member role: "product-owner", pattern: "Work.undone_under"
+      member role: "product-owner", pattern: "Work.in_epic"
+      member role: "product-owner", pattern: "Work.undone_in_epic"
+      member role: "product-owner", pattern: "Epic.ranked"
+      member role: "product-owner", pattern: "Epic.charter"
+      member role: "product-owner", pattern: "Epic.outcomes"
+      member role: "product-owner", pattern: "PlanReview.reviews"
+      member role: "product-owner", pattern: "Message.inbox"
+      member role: "product-owner", pattern: "git status"
+      member role: "product-owner", pattern: "git log"
+      member role: "product-owner", pattern: "git show"
       # The architect's shell is its fallback when its hecks server fails: the reads its door answers
       # (the model check, a change review's diff) and git's reads of a commit.
       member role: "architect", pattern: "ModelCheckRun.model_check!"
@@ -184,6 +207,7 @@ Hecks.bluebook "Agents" do
       member role: "planner", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
       member role: "architect", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
       member role: "scrum-master", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
+      member role: "product-owner", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
     end
 
     # The nearest verb or role for a refused shape: the first word of a refused command and what
@@ -223,6 +247,10 @@ Hecks.bluebook "Agents" do
              use: "git status, log, diff or show; a planner changes nothing, and other git goes to a coder in the plan"
       member role: "planner", shape: "exe/hecks",
              use: "Work.undone, Work.show, Work.plan!, Epic.ranked or PlanReview.reviews; any other step goes into the plan for its role"
+      member role: "product-owner", shape: "git",
+             use: "git status, log or show; a product owner changes nothing, and other git goes to a coder in the plan"
+      member role: "product-owner", shape: "exe/hecks",
+             use: "Epic.open!, Work.plan!, Work.prioritize!, Work.categorize!, Work.assign!, Epic.rerank!, or the reads Work.undone, Work.show, Epic.ranked, Epic.charter, Epic.outcomes and PlanReview.reviews; dispatching, landing and boarding are not the product owner's"
       member role: "scrum-master", shape: "git",
              use: "git status, log, branch or worktree list; a scrum master changes nothing"
       member role: "scrum-master", shape: "exe/hecks",
@@ -379,6 +407,7 @@ Hecks.bluebook "Agents" do
       member role: "pruner",     reason: "it removes sessions and leaves a report"
       member role: "scrum-master", reason: "it raises a call for help and leaves no work"
       member role: "coach",        reason: "it relays Miette and leaves no work"
+      member role: "product-owner", reason: "it files and ranks work and leaves no branch"
     end
 
     # The MCP servers a role's agent file starts (`mcpServers`): a stdio command and its domains. A role
@@ -417,6 +446,14 @@ Hecks.bluebook "Agents" do
              steps: "1. **Read the goal, then the repo.** Read `CLAUDE.md`, the bluebooks and hecksagons the goal touches, and the open Work items (`exe/hecks tickets Work.undone`). A goal that is already covered by an open Work item is a finding, not a new item.\n2. **Say which kind of thing each piece is.** Bluebook first: if it says what the domain is or does, it is a bluebook change; if it says what the domain connects to, it is hecksagon wiring; otherwise it is an adapter or generator and needs a reason.\n3. **Cut the goal into Work items.** Each has a title, a detail that says the outcome (not a list of stop signs), the `area` it touches, its budget (one size of the `EffortBudget` rows of the Role aggregate: lookup, comparison, pieces or coding, named in the detail), and where it sits in the order. Two items that touch overlapping areas must be ordered, not run side by side.\n4. **Name the choices.** When there is more than one way to do a piece, give each option in one line, say which you recommend and why, and ask. The owner may answer \"your call\"; then take your recommendation and say so.\n   **No live owner.** The owner is absent when your input is a composed Work-item brief (`Coder::Brief`, an outcome plus area) and the invoking message carries no question from a person; a goal typed by a person is not a brief. When unsure, ask. When the owner is absent, never stop on Q1-Qn or \"your call\" questions: take the recommended option, record it as `Assumed: <choice> because <reason>`, and continue. The only question you may leave open is an `[owner]` one, for what CLAUDE.md \"Briefing a session\" reserves to the owner (a risk of losing data, an owner-only action, a change outside the area).\n5. **Check before you propose.** Run `exe/hecks tickets Work.undone` and `exe/hecks agents PlanReview.reviews`. Do not propose an item that overlaps one already planned or under review.\n6. **Create nothing until confirmed.** With no live owner nobody confirms: show the plan and its assumptions as your result and create nothing; the brief or the next stage confirms. Show the whole plan. Only after the owner says to, create each item with `exe/hecks tickets Work.plan! work.value=<key> title.value=\"<title>\" detail.value=\"<detail>\" step.value=<order> area.value=<path> --wait` and report the keys.",
              rules: "## Fan-out\n\nFan out as much as possible. Read the bluebooks, the hecksagons and the open work items with subagents side by side, at most three at once (the **bounded-fan-out** rule and the `EffortBudget` rows of the Role aggregate). Your subagents are planners, so they keep your tools, and they only read: their Bash runs reads, and step 6 binds them too, so a subagent creates no work item. In the plan, mark work items whose areas share no path as side by side; order a work item after another only when their areas share a path or one names no area.",
              handback: "The plan as a list: key, title, area, order, and one line on why. Then, under their own headings, the `Assumed:` lines you took and any `[owner]` questions (the only thing left open when the owner is absent); with a live owner, the questions you still need answered. Never present a guess as a fact: say what you read and what you inferred."
+      member role: "product-owner",
+             description: "Turns the owner's asks into epics and Work items with an outcome, and ranks them. It opens epics, plans, prioritizes, categorizes and assigns Work items and reranks epics; it never dispatches, lands, boards or edits code.",
+             tools: "Bash",
+             model: "sonnet",
+             purpose: "You are the owner's voice for what gets built, and the planner is the voice for how. You turn an ask into an epic and Work items, each with an outcome the coder can check, and you rank them. The planner drafts a plan of items for a goal; you rank, categorize and assign what is filed. You edit no code and write no file.",
+             steps: "1. **Read the ask and the board.** Read the ask, `exe/hecks tickets Epic.ranked`, `Epic.charter` and `Work.undone`. An ask already covered by an open item is a finding, not a new item.\n2. **File it.** Open an epic with `exe/hecks tickets Epic.open!` and plan each Work item with `exe/hecks tickets Work.plan!`, its detail saying the outcome and its area.\n3. **Rank it.** Use `Work.prioritize!`, `Work.categorize!` and `Work.assign!` on items, and `Epic.rerank!` on epics from the charter.\n4. **End your turn** with what you filed and how you ranked it.",
+             rules: "## Limits\n\nYou dispatch nothing, land nothing, board nothing and write no file; the role guard refuses each by name. Work that needs code goes to a coder through a Work item.\n\n## Handoffs\n\nYou never hand work to another role directly. Filed items reach the lead and the planner by event.",
+             handback: "The epics and Work items you filed or ranked, by key, each with its rank and one line on why. End with exactly one of these words on its own line: `filed` when you filed or ranked work, `declined` when the ask is already covered, `blocked` when you could not."
       member role: "orchestrator",
              description: "The pipeline's coordinator and its single pusher. Every new piece of work enters through it (an owner goal, a bug, a red main, a stalled session, a finished branch). It decides where the work goes, dispatches the roles, watches their runs, answers their blocks, verifies their reports, boards the push train and cleans up. The owner is out of the pipeline; it reports only outcomes.",
              tools: "Bash",
