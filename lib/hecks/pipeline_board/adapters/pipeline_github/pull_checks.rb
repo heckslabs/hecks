@@ -38,7 +38,7 @@ module Hecks
         def counted(pull)
           stands = Array(pull["statusCheckRollup"]).map { |check| standing(check) }
           tally = stands.tally
-          { number: pull["number"], branch: pull["headRefName"], total: stands.size,
+          { number: pull["number"], branch: pull["headRefName"], created: pull["createdAt"].to_s, total: stands.size,
             passed: tally.fetch(:passed, 0), failed: tally.fetch(:failed, 0), pending: tally.fetch(:pending, 0) }
         end
 

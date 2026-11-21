@@ -53,6 +53,7 @@ module Hecks
       # @param root [String, nil] the checkout the readers run in
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
+        @registry = registry
         @now = settings[:now] || -> { Time.now.utc }
         wire(settings.fetch(:readers, {}), registry)
       end
