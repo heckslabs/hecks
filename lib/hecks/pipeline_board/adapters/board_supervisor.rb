@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/safe_signal"
 require "json"
 require "net/http"
 require "tmpdir"
@@ -57,7 +58,7 @@ module Hecks
 
       def host_defaults
         { get: method(:fetch), listeners: method(:listening), alive: method(:running?), start: method(:spawn_board),
-          signal: ->(name, pid) { Process.kill(name, pid) }, pause: ->(seconds) { sleep(seconds) },
+          signal: ->(name, pid) { SafeSignal.to_process(name, pid) }, pause: ->(seconds) { sleep(seconds) },
           limits: method(:declared) }
       end
 
@@ -90,10 +91,7 @@ module Hecks
       end
 
       def running?(pid)
-        Process.kill(0, pid)
-        true
-      rescue Errno::ESRCH
-        false
+        SafeSignal.standing?(pid)
       end
 
       # Not guarded: a loaded machine is when a wedged board most needs to be restarted.

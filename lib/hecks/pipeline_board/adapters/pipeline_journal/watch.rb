@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/safe_signal"
 require "json"
 
 module Hecks
@@ -50,7 +51,7 @@ module Hecks
         end
 
         def end_process(io)
-          Process.kill("TERM", io.pid) if io.respond_to?(:pid)
+          SafeSignal.to_process("TERM", io.pid) if io.respond_to?(:pid)
         rescue SystemCallError, IOError
           nil
         end

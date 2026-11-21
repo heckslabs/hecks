@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/safe_signal"
 require "tempfile"
 
 module Hecks
@@ -113,7 +114,7 @@ module Hecks
         # Ends the children still running when the parent leaves early (an interrupt, say).
         def stop_children
           @running.each_value do |pid, _|
-            Process.kill("TERM", pid)
+            Hecks::Adapters::SafeSignal.to_process("TERM", pid)
           rescue Errno::ESRCH
             next
           end
