@@ -66,15 +66,17 @@ module Hecks
       #
       # @param held [Hash] the `Integration` record: `confirm` lets the launch agents be written
       # @return [Hash{Symbol => Hash}] `report:` what was done, or would be
-      def arrange(**held) = { report: { value: BeatSchedule.new.install(confirm: plain(held[:confirm]) == true) } }
+      def arrange(**held) = { report: { value: beat_schedule.install(confirm: plain(held[:confirm]) == true) } }
 
       # Unloads and removes the launchd job.
       #
       # @param held [Hash] the `Integration` record: `confirm` lets the launch agents be written
       # @return [Hash{Symbol => Hash}] `report:` what was done, or would be
-      def withdraw(**held) = { report: { value: BeatSchedule.new.uninstall(confirm: plain(held[:confirm]) == true) } }
+      def withdraw(**held) = { report: { value: beat_schedule.uninstall(confirm: plain(held[:confirm]) == true) } }
 
       private
+
+      def beat_schedule = BeatSchedule.new(priority: JobPriority.from(@registry))
 
       # A run that stood in one stage past its bound is parked first, so the line it held is free
       # for the runs behind it in this same pass.
