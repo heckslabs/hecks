@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pipeline Board: signal box (mock-up)</title>
+  <link rel="stylesheet" href="signal_box.css">
+</head>
+<body>
+  <header class="plate">
+    <div class="name">
+      <span class="kicker">Pipeline Board</span>
+      <h1>Signal box</h1>
+    </div>
+    <div class="switch" role="group" aria-label="Which day to show">
+      <button type="button" data-day="real">Real state</button>
+      <button type="button" data-day="bad">Staged bad day</button>
+    </div>
+    <div class="clock" id="clock"></div>
+  </header>
+
+  <div id="alarm"></div>
+  <div id="notice"></div>
+
+  <main>
+    <section>
+      <h2><b>1</b> Block instruments</h2>
+      <div id="block"></div>
+    </section>
+    <section>
+      <h2><b>2</b> Sidings: what is stuck</h2>
+      <div id="sidings"></div>
+    </section>
+    <section>
+      <h2><b>3</b> The line: branch to main</h2>
+      <div id="line"></div>
+    </section>
+    <section>
+      <h2><b>4</b> The day</h2>
+      <div id="day"></div>
+    </section>
+    <section>
+      <h2><b>5</b> Everything else</h2>
+      <div id="rest"></div>
+    </section>
+  </main>
+
+  <footer>A mock-up, hand-built to be judged and thrown away. It reads the board on :4747 and changes nothing.</footer>
+
+  <script src="bad_day.js"></script>
+  <script src="signal_box.js"></script>
+</body>
+</html>
