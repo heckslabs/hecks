@@ -2,8 +2,8 @@ require "spec_helper"
 require_relative "support/pipeline_board_world"
 
 # The Boot hours metric: the reader's reading of the usage record, the day's hours as a
-# reading beside the boot signals, and the tile's state for each. The reader is handed canned usage entries and a
-# canned load, so the live record and the machine are never read.
+# reading beside the boot signals, and the tile's state for each. The reader is handed canned
+# usage entries and a canned load, so the live record and the machine are never read.
 RSpec.describe "the Boot hours metric" do
   include PipelineBoardWorld
 
