@@ -129,11 +129,9 @@ Hecks.bluebook "Agents" do
       member role: "scrum-master", pattern: "git log"
       member role: "scrum-master", pattern: "git branch"
       member role: "scrum-master", pattern: "git worktree"
-      # The coach relays a question to Miette and her answer back, and nothing more: it lands, pushes
-      # and stops nothing, and writes no Coaching or Observation of its own (it never answers for her).
-      member role: "coach", pattern: "Relay.ask!"
-      member role: "coach", pattern: "Relay.forward!"
-      member role: "coach", pattern: "Relay.decline!"
+      # The coach relays a question to Miette and her answer back through messages, and nothing more: it
+      # lands, pushes and stops nothing, and writes no Coaching or Observation of its own. The Relay record
+      # waits for the transport that binds the Coach domain to the launcher.
       member role: "coach", pattern: "Message.send!"
       member role: "coach", pattern: "Message.inbox"
       member role: "coach", pattern: "Message.read!"
@@ -226,7 +224,7 @@ Hecks.bluebook "Agents" do
       member role: "scrum-master", shape: "exe/hecks",
              use: "StallWatch.impediments, HelpWanted.open, HelpWanted.raise!, AgentRun.running or PipelineBoard.snapshot"
       member role: "coach", shape: "exe/hecks",
-             use: "Relay.ask!, Relay.forward!, Relay.decline!, Message.send!, Message.inbox or Message.read!; landing, pushing and stopping are not the coach's"
+             use: "Message.send!, Message.inbox or Message.read!; landing, pushing and stopping are not the coach's"
       # Every role: a script held once because no hecks command ran since the last one (`Script`).
       member role: "*", shape: "script",
              use: "Try hecks first: exe/hecks --all; run it again if no command fits"
@@ -478,7 +476,7 @@ Hecks.bluebook "Agents" do
              tools: "Bash",
              model: "sonnet",
              purpose: "You are the coach role: the crew's way to Miette, who coaches the agents and keeps the crew true to the owner. Her coaching comes from her, in her own system; you carry the question to her and her words back. You add nothing and never answer for her.",
-             steps: "1. **Read the question.** Read your inbox with `exe/hecks Message.inbox recipient=coach` and the question it holds, from any role or the scrum master.\n2. **Record it and ask her.** Run `exe/hecks Relay.ask! relay=<a key> question=<the question verbatim> run=<the asking run>`, then pass the question to Miette through her channel.\n3. **Relay her answer.** When her words come back, run `exe/hecks Relay.forward! relay=<the key> words=<her words, unchanged> author=miette`, then `exe/hecks Message.send!` them to the asking run as hers. Mark the message read with `exe/hecks Message.read!`.\n4. **When she is not reached.** Run `exe/hecks Relay.decline! relay=<the key>` and tell the asker she was not reached. Say nothing in her place.",
+             steps: "1. **Read the question.** Read your inbox with `exe/hecks Message.inbox recipient=coach` and the question it holds, from any role or the scrum master.\n2. **Ask her.** Pass the question to Miette through her channel, in the asker's words.\n3. **Relay her answer.** When her words come back, `exe/hecks Message.send!` them to the asking run unchanged, labelled as hers (sender coach, her name first). Mark the question read with `exe/hecks Message.read!`.\n4. **When she is not reached.** Tell the asker she was not reached with `exe/hecks Message.send!`. Say nothing in her place.",
              rules: "## Her words\n\nRelay her words as she said them, labelled as hers. Add, trim and reword nothing, and never answer for her when she has not been reached (her transparency vow). Anything that touches one of her vows is the owner's to decide, not the crew's.\n\n## Limits\n\nYou coach by relay and do not land: no push, no gate, no merge, and no stopping a run. Code she suggests goes to a coder in its own worktree. Advise only, until the owner says otherwise.\n\n## Handoffs\n\nYou never hand work to another role directly. Your answer reaches the asker as a message, by event.",
              handback: "The relay key, the question in a line, and whether Miette answered (her words, verbatim) or was not reached. End with exactly one of these words on its own line: `relayed` when her answer was forwarded, `declined` when she was not reached, `blocked` when you could not."
     end
