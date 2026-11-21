@@ -16,7 +16,7 @@ require "tmpdir"
 # threads would corrupt each other.
 module RunSandbox
   # The sub-directories of the root, each emptied when a run arms it.
-  PARTS = %w[home tmp cache dev mint verdict-cache event-tap].freeze
+  PARTS = %w[home tmp cache dev verdict-cache event-tap].freeze
 
   # Gem variables a child reads, pinned to this process's gems.
   PINNED = %w[GEM_HOME GEM_PATH].freeze
@@ -29,7 +29,7 @@ module RunSandbox
 
     # @return [String] the root of this process's sandbox
     def root
-      @root ||= Dir.mktmpdir("hecks-spec-run").tap { |dir| at_exit { retire(dir) } }
+      @root ||= Dir.mktmpdir("hecks-spec-run").tap { |dir| retire_at_exit(dir, Process.pid) }
     end
 
     # @param part [String] one of the sandbox's parts
@@ -77,7 +77,6 @@ module RunSandbox
         "XDG_CACHE_HOME"          => path("cache"),
         "HECKS_CACHE_DIR"         => path("cache"),
         "HECKS_DEV_STATE"         => path("dev"),
-        "HECKS_MINT_STATE"        => path("mint"),
         "HECKS_EVENT_TAP"         => File.join(path("event-tap"), "events.jsonl"),
         "GIT_CEILING_DIRECTORIES" => root }
     end
@@ -105,6 +104,11 @@ module RunSandbox
     end
 
     def retire(dir) = FileUtils.rm_rf(dir)
+
+    # A forked child inherits the hook and must not remove the root its parent still uses.
+    def retire_at_exit(dir, owner)
+      at_exit { retire(dir) if Process.pid == owner }
+    end
   end
 
   # Prepended to the RSpec runner, so every run after the first arms the sandbox and disarms it.
