@@ -18,6 +18,9 @@ module Hecks
       # The file's name under the cache directory's `beat` folder.
       FILE = "beat.lock"
 
+      # The most steps a beat's measure keeps, slowest net time first.
+      KEPT = 20
+
       @held = nil
 
       class << self
@@ -61,13 +64,15 @@ module Hecks
       # Asks to be told when the beat's reactions have ended, so the beat can be measured.
       def measured(beat)
         key = beat.is_a?(Hash) ? beat[:value] : beat
-        Runtime::PolicyInterpreter::Timing.on_settled { |steps| @measure.call(key.to_s, steps) } if key && @registry
+        Runtime::PolicyInterpreter::Timing.on_settled { |steps| @measure.call(key.to_s, steps.first(KEPT)) } if key && @registry
         {}
       end
 
-      # A fault in measuring is said and never fails the beat it measures.
+      # Hands the slowest steps (the domain keeps twenty at most) to the domain's `Measure`. A fault
+      # in measuring is said and never fails the beat it measures.
       def measure(beat, steps)
-        Runtime::Dispatcher.new(@registry).dispatch_flat("Hecks::Heartbeat.Measure", heartbeat: beat, steps: steps)
+        Runtime::Dispatcher.new(@registry)
+                           .dispatch_flat("Hecks::Heartbeat.Measure", heartbeat: beat, steps: steps)
       rescue StandardError => e
         warn "[hecks] beat #{beat} was not measured: #{e.class}: #{e.message}"
       end

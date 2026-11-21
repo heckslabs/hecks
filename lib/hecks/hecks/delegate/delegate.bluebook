@@ -1155,6 +1155,8 @@ Hecks.bluebook "Hecks" do
         reference_to Heartbeat
         attribute :steps, list_of(BeatStep), sets: true
 
+        given("a beat keeps its twenty slowest steps at most") { steps.size <= 20 }
+
         emits BeatMeasured
       end
     end
