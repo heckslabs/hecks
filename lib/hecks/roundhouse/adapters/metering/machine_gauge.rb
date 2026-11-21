@@ -4,8 +4,8 @@ module Hecks
   module Adapters
     class Metering
       # The machine's memory and load from what `sysctl` and `vm_stat` print. It only parses the
-      # readings it is handed: `memsize` in bytes, `cores` (every core, efficiency ones too), `loadavg`
-      # as `{ 1m 5m 15m }`, the `vm_stat` text and `memory_pressure_level`, the kernel's own level.
+      # readings it is handed: `memsize` in bytes, `cores` (every core), `loadavg` as
+      # `{ 1m 5m 15m }`, the `vm_stat` text and `memory_pressure_level`, the kernel's own level.
       class MachineGauge
         BYTES_PER_MB = 1024 * 1024
 
