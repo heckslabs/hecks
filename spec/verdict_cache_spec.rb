@@ -375,6 +375,41 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
     end
   end
 
+  describe "where flock and chmod are unsupported" do
+    # Writes one verdict in a child process whose flock and chmod are both unsupported.
+    UNSUPPORTED_WRITER = <<~RUBY.freeze
+      require "hecks"
+      File.prepend(Module.new { def flock(*) = raise(Errno::EINVAL) })
+      File.singleton_class.prepend(Module.new { def chmod(*) = raise(Errno::ENOSYS) })
+      cache = Hecks::Bluebook::MetaValidator::VerdictCache
+      cache.record("wasi", { refusals: ["Probe is not well formed"] })
+      cache.flush
+    RUBY
+
+    # Reads the verdict keys in a second, ordinary child process.
+    READER = 'require "hecks"; puts Hecks::Bluebook::MetaValidator::VerdictCache.seed.keys.inspect'.freeze
+
+    def child(code)
+      env = { "XDG_CACHE_HOME" => scratch, "HOME" => scratch }
+      Open3.capture3(env, RbConfig.ruby, "-I", File.join(gem_root, "lib"), "-e", code, chdir: gem_root)
+    end
+
+    it "writes the verdicts, and a second process reads them back", :aggregate_failures, :process do
+      _, err, = child(UNSUPPORTED_WRITER)
+      out, = child(READER)
+
+      expect(err).to eq("")
+      expect(out.strip).to eq('["wasi"]')
+    end
+
+    it "reports a save that failed, and does not raise", :aggregate_failures do
+      allow(cache).to receive(:keep).and_raise(Errno::EACCES)
+      cache.record("k1", accepted)
+
+      expect { cache.flush }.to output(/verdict cache not saved: Errno::EACCES/).to_stderr
+    end
+  end
+
   describe "when it cannot be used" do
     def block_cache_directory
       blocker = File.join(scratch, "blocker")
