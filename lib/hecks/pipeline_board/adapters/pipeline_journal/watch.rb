@@ -51,7 +51,7 @@ module Hecks
 
         def end_process(io)
           Process.kill("TERM", io.pid) if io.respond_to?(:pid)
-        rescue SystemCallError
+        rescue SystemCallError, IOError
           nil
         end
 

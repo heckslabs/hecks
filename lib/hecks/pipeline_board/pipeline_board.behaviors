@@ -28,4 +28,16 @@ Hecks.behaviors "PipelineBoard" do
     input board_watch: "watch-1", last: { value: "the launcher is held" }
     expect emits: ["RestartRefusalRecorded"]
   end
+
+  test "Draw refuses a state that is neither live nor bad_day" do
+    tests "Draw", on: "PipelineBoard"
+    input run: { value: "board-1" }, state: { value: "tuesday" }, into: { value: "/tmp/pictures" }
+    expect refused: "a picture is of live or bad_day"
+  end
+
+  test "Draw refuses no directory" do
+    tests "Draw", on: "PipelineBoard"
+    input run: { value: "board-1" }, state: { value: "bad_day" }, into: { value: "" }
+    expect refused: "PictureDirectory.value must match"
+  end
 end
