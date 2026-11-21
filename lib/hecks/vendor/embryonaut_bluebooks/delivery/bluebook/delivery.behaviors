@@ -1,0 +1,41 @@
+Hecks.behaviors "Delivery" do
+  vision "A landing is requested, then lands on main or is refused with the reason it names, and ends once."
+
+  # The Hecks world binds the package's ports and the Memory store, as `custodian.behaviors` does.
+  loads "../../../../hecks/hecks.bluebook", "../../../../hecks/context_map.hecksagon",
+        "../../../../hecks/hecks.hecksagon", "../../../../hecks/red_wake.hecksagon",
+        "../../../../hecks/stable_roll.hecksagon", "../../../../hecks/environments/memory.world",
+        *Dir.glob(File.expand_path("../../../../hecks/*/*.bluebook", __dir__)).select { |f| File.basename(f, ".bluebook") == File.basename(File.dirname(f)) }.sort
+
+  # The git steps (rebase, gate, swap) run behind the ports, so these scenarios reach each outcome
+  # through the events the ports answer; a swap lost to a faster landing and a main that moved
+  # arrive as the same `MergeRefused` and `LandingRefused` a missing checkout does, and the
+  # LandingRun saga is driven by those events (its states are not read by a behaviors expectation).
+  test "Land without confirm is refused" do
+    tests "Land", on: "Landing"
+    input run: { value: "RUN-1" }, branch: { value: "topic" }
+    expect refused: "merges the branch onto local main needs --confirm; without it this only reports"
+  end
+
+  test "Land keeps a checkout that is not there as a refused landing" do
+    tests "Land", on: "Landing"
+    input run: { value: "RUN-2" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }, confirm: { value: true }
+    expect emits: %w[LandingRequested MergeRefused LandingRefused], status: "refused"
+  end
+
+  test "Record on a refused landing is refused, so a landing ends once" do
+    tests "Record", on: "Landing"
+    setup "Delivery::Landing.Land", run: { value: "RUN-3" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+                                    confirm: { value: true }
+    input landing: "RUN-3", branch: { value: "topic" }, landed: { value: "abc" }, report: "landed"
+    expect refused: "Record refused — status is \"refused\", and Record moves it only from \"requested\""
+  end
+
+  test "Refuse on a refused landing is refused, so the first refusal stands" do
+    tests "Refuse", on: "Landing"
+    setup "Delivery::Landing.Land", run: { value: "RUN-4" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+                                    confirm: { value: true }
+    input landing: "RUN-4", refusal: "a second word"
+    expect refused: "Refuse refused — status is \"refused\", and Refuse moves it only from \"requested\""
+  end
+end

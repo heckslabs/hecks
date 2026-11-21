@@ -767,6 +767,23 @@ Hecks.bluebook "Delivery" do
     end
   end
 
+  # The landing's own progress: asked, carried, then landed on main or refused. Rebase, gate and
+  # swap run inside the port adapter behind `Finish` and `Carry`, which answers only with
+  # `BranchLanded` or `LandingRefused`, so no finer state has an event to drive it; the refusal
+  # report carries every fault the adapter found. `GateAndBoard` follows the same two events for
+  # its own `landing` stage and owns no state of the landing itself. No wait declares a timeout:
+  # the grammar has none, and an exit needs a stall event as `MainIntegration`'s `RunStalled`.
+  process_manager "LandingRun" do
+    correlates_by :"run.value"
+    starts_on Landing::LandingRequested
+    ends_on Landing::BranchLanded
+    ends_on Landing::LandingRefused
+
+    transition Landing::CarryRequested => "carrying", from: "requested"
+    transition Landing::BranchLanded   => "landed",   from: %w[requested carrying]
+    transition Landing::LandingRefused => "refused",  from: %w[requested carrying]
+  end
+
   policy "MergeWhenLanding" do
     on      "Landing.LandingRequested"
     ask     :merge, with: { run: :run }
