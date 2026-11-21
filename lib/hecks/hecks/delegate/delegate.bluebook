@@ -2132,13 +2132,21 @@ Hecks.bluebook "Hecks" do
         reference_to Overload
         attribute :reading, OverloadReason, sets: true
 
-        given("an overload stands") { standing.value == 1 }
+        given("an overload stands to be lifted") { standing.value == 1 }
         given("the load stayed under its limit for ten readings") { calm_run.value >= 10 }
         given("memory is not low") { low_run.value == 0 }
 
         sets :standing, to: { value: 0 }
 
         emits OverloadLifted
+      end
+
+      # What a standing overload shows: its reason, and the runs that say what would lift it. It
+      # lifts when `calm_run` reaches 10 (ten readings under the load limit) with `low_run` at 0
+      # (memory ok), so the readings still to come are 10 less `calm_run`, and none while memory is low.
+      query "Standing" do
+        description "The overload while it stands, with its reason and the calm and low runs that lift it: ten readings under the load limit (`calm_run`) with memory ok (`low_run` nought)."
+        where(standing: 1)
       end
     end
 

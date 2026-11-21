@@ -9,14 +9,16 @@ require_relative "sweeping/spare_trace"
 require_relative "sweeping/spare_plan"
 require_relative "sweeping/footprint"
 require_relative "sweeping/residue"
+require_relative "sweeping/worktrees"
 require_relative "sweeping/orphans"
 
 module Hecks
   module Adapters
     # The `Machine` port's adapter for `Sweep`: finds what removed sessions left behind and clears
     # what it can trace to them. {#leftovers} lists and changes nothing; {#sweep} lists, then stops
-    # the spare daemons the daemon's log traces to a removed session, deletes the temp files named
-    # for one, and reports each worktree for `Landing.retire!` or as unlanded. It also stops the
+    # the spare daemons the daemon's log traces to a removed session and deletes the temp files
+    # named for one. Every pass, with or without a removed session, it reads every worktree of the
+    # repository ({Worktrees}) for `Landing.retire!` or as kept. It also stops the
     # launchers left running with no parent and the isolated pushes a rehearsal left behind
     # ({Orphans}), whichever session they trace to.
     #
@@ -25,43 +27,57 @@ module Hecks
     class Sweeping
       SHORT_ID = /\A[0-9a-f]{8}\z/
       SEPARATORS = /[\s,]+/
+      KEEPERS = %w[/.claude/hecks-train /switchyard-hecks].freeze
+      TEMP_IDLE = 24 * 60 * 60
 
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `shell:`, `log:` (the daemon log), `projects:`, `tmp:`, and
-      #   `killer:` (called with a pid)
+      # @param settings [Hash] `shell:`, `log:` (the daemon log), `tmp:`, `repo:` (a checkout of
+      #   the repository, the working directory by default), `keepers:` (path fragments of
+      #   worktrees always kept) and `killer:` (called with a pid)
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil)
         @shell = settings[:shell] || Shell.new
         @log = settings[:log] || File.join(Dir.home, ".claude", "daemon.log")
         @killer = settings[:killer] || ->(pid) { Process.kill("TERM", pid) }
-        @tmps = settings[:tmp] ? [settings[:tmp]] : ["/tmp", Dir.tmpdir].uniq
-        @residue = residue_for(settings)
+        @repo = settings[:repo] || Dir.pwd
+        @tmps = tmps_for(settings)
+        @residue = Residue.new(tmp: settings[:tmp] || "/tmp")
+        @worktrees = worktrees_for(settings)
       end
 
-      # @param removed [Hash, String] the short ids of the removed sessions
+      # @param removed [Hash, String] the short ids of the removed sessions, possibly none
+      # @param held [Hash, String] the branches an open item or a live run holds
       # @return [Hash{Symbol => String}] `text:` what a sweep would do; nothing is changed
-      def leftovers(removed:)
+      def leftovers(removed: "", held: "")
         ids = ids_of(removed)
         lines = ["footprint  #{footprint.line}"] + plan_lines(ids) + residue_lines(ids, delete: false)
-        { text: (lines + orphans.lines).join("\n") }
+        { text: (lines + worktree_lines(held, remove: false) + orphans.lines).join("\n") }
       end
 
-      # @param removed [Hash, String] the short ids of the removed sessions
+      # @param removed [Hash, String] the short ids of the removed sessions, possibly none
+      # @param held [Hash, String] the branches an open item or a live run holds
       # @return [Hash{Symbol => Hash}] `report:` each action taken, and the footprint before
       #   and after
       # @raise [ConsoleCapture::Failure] when the session list cannot be read
-      def sweep(removed:, **)
+      def sweep(removed: "", held: "", **)
         ids = ids_of(removed)
         before = footprint.line
-        lines = stop_spares(ids) + residue_lines(ids, delete: true) + orphans.reap
+        lines = stop_spares(ids) + residue_lines(ids, delete: true) + worktree_lines(held, remove: true) + orphans.reap
         { report: { value: (["before  #{before}"] + lines + ["after   #{footprint.line}"]).join("\n") } }
       end
 
       private
 
-      def residue_for(settings)
-        projects = settings[:projects] || File.join(Dir.home, ".claude", "projects")
-        Residue.new(shell: @shell, projects: projects, tmp: settings[:tmp] || "/tmp")
+      def tmps_for(settings) = settings[:tmp] ? [settings[:tmp]] : ["/tmp", Dir.tmpdir].uniq
+
+      def worktrees_for(settings)
+        temp = Worktrees::TempKind.new(roots: @tmps, idle: settings[:idle] || TEMP_IDLE)
+        Worktrees.new(shell: @shell, repo: @repo, keepers: settings[:keepers] || KEEPERS, temp: temp)
+      end
+
+      def worktree_lines(held, remove:)
+        reaper = Worktrees::TempReaper.new(shell: @shell, repo: @repo)
+        reaper.apply(@worktrees.lines(held: names(held)), remove: remove)
       end
 
       def stop_spares(ids)
@@ -92,7 +108,7 @@ module Hecks
         ids.flat_map do |id|
           files = @residue.temp_files(id)
           files.each { |path| File.delete(path) } if delete
-          [@residue.worktree(id)].compact + files.map { |path| "#{delete ? "deleted" : "would delete"}  #{path}" }
+          files.map { |path| "#{delete ? "deleted" : "would delete"}  #{path}" }
         end
       end
 
@@ -105,10 +121,12 @@ module Hecks
 
       def ids_of(removed)
         text = removed.is_a?(Hash) ? removed.transform_keys(&:to_s).fetch("value", "") : removed
-        ids = text.to_s.split(SEPARATORS).grep(SHORT_ID)
-        raise ConsoleCapture::Failure, "the sweep names no removed session" if ids.empty?
+        text.to_s.split(SEPARATORS).grep(SHORT_ID)
+      end
 
-        ids
+      def names(held)
+        text = held.is_a?(Hash) ? held.transform_keys(&:to_s).fetch("value", "") : held
+        text.to_s.split(SEPARATORS).reject(&:empty?)
       end
 
       def table = (@table ||= ProcessTable.new(shell: @shell))

@@ -50,6 +50,12 @@ One static analysis over domains' models, and what it found: a check's history.
 
 - `hecks ModelCheckRun.model_check! [<domains>] [profile=] [--strict]`: Check domains for dead states and unreachable steps, and keep the verdict
 
+### BehaviorsCoverage
+
+One count of the bluebooks with and without a .behaviors file, and which lack one.
+
+- `hecks BehaviorsCoverage.cover! [<root>]`: Count the bluebooks with no .behaviors file and name them
+
 ### ConformanceRun
 
 One check that the engines, the reference docs and the argument gates agree with the language.

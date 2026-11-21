@@ -92,7 +92,7 @@ RSpec.describe "the waker after its second review" do
     it "records when the window alone could free the budget", :aggregate_failures do
       confirmed(adapter(hours: 7.5))
 
-      expect(dispatching::Pending.budget_frees_at).to eq(now - 3600 + Hecks::Adapters::BootBudget::WINDOW)
+      expect(dispatching::Pending.budget_frees_at).to eq(now)
     end
 
     it "clears both flags when a confirmed fill is stopped by neither", :aggregate_failures do
@@ -156,12 +156,16 @@ RSpec.describe "the waker after its second review" do
     end
 
     def budget
-      rows = [stamped(3, 600), stamped(3, 300), stamped(3, 60)]
+      rows = [stamped(0.2, 50), stamped(0.2, 20), { "boot_ms" => 3_600_000, "date" => now.strftime("%Y-%m-%d") }]
       described_class.new(entries: ->(_cutoff) { rows }, now: -> { now })
     end
 
-    it "names the time the oldest runs leave the window far enough to bring the hours under it" do
-      expect(budget.frees_at(6.0)).to eq(now - (300 * 60) + described_class::WINDOW)
+    it "names the time the oldest runs leave the short window far enough to bring the hours under it" do
+      expect(budget.frees_at(6.0)).to eq(now - (50 * 60) + described_class::SHORT_WINDOW)
+    end
+
+    it "leaves out a run with no start time, which the short window cannot place" do
+      expect(budget.frees_at(48.0)).to be_nil
     end
 
     it "names none when the budget is not spent" do

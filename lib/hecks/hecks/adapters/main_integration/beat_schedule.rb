@@ -3,6 +3,7 @@
 require "cgi"
 require "fileutils"
 require "open3"
+require_relative "local_copy"
 
 module Hecks
   module Adapters
@@ -19,6 +20,12 @@ module Hecks
 
         # Seconds between two beats.
         INTERVAL = 60
+
+        # The step that keeps the copy at local main, as plain shell so it runs on a copy that
+        # predates any code of the domain: only a detached copy with no tracked change whose
+        # head is an ancestor of main moves, forward to main; a failed step never stops the beat.
+        FOLLOW_MAIN = "{ ! git symbolic-ref -q HEAD >/dev/null 2>&1 && git diff --quiet HEAD && " \
+                      "git merge-base --is-ancestor HEAD main && git checkout -q --detach main; } 2>/dev/null; true"
 
         # @param root [String] the checkout whose launcher each beat dispatches through; the push
         #   train's copy by default, the one whose records a beat reads
@@ -110,6 +117,8 @@ module Hecks
           "cd #{@root} || exit 1\n" \
             "mkdir -p \"#{File.dirname(lock)}\" && : >> \"#{lock}\"\n" \
             "zmodload zsh/system && zsystem flock -t 0 \"#{lock}\" 2>/dev/null || #{skipped}\n" \
+            "#{FOLLOW_MAIN}\n" \
+            "#{LocalCopy.step}\n" \
             "exe/hecks Heartbeat.Beat! beat=launchd-$(date +%s) --wait > \"#{dev_file("train-beat.log")}\" 2>&1"
         end
 
