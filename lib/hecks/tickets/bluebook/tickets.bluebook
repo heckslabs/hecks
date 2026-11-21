@@ -1212,10 +1212,9 @@ Hecks.bluebook "Tickets" do
       emits "WorkExpedited"
     end
 
-    # Sent by UnexpediteWhenExpediteRead with the lane's holders the ExpediteLimits port read and the
-    # lane's limit: a `given` sees its own arguments, not the Work items, so they carry the rule. It puts
-    # a work item back to priority `now` only when the lane is full. A caller who dispatches it by
-    # hand vouches for the numbers.
+    # Sent by UnexpediteWhenExpediteRead with the holders the ExpediteLimits port read and the lane's limit:
+    # a `given` sees its own arguments, not the Work items. A caller who dispatches it by hand vouches
+    # for the numbers.
     command "Unexpedite" do
       role "System"
       goal "Put an expedited work item back to now when the priority lane already holds its limit, naming the holders"
