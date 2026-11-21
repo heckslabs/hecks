@@ -54,6 +54,20 @@ Hecks.bluebook "PipelineBoard" do
       attribute :value, String, matches: :present
     end
 
+    # Which state a picture of the board shows: the live one, or the staged bad day (main red with an
+    # episode being reverted, load short and admission closed, three entries waiting on a person and
+    # two standing too long).
+    value_object "PictureState" do
+      attribute :value, String, default: "live"
+
+      invariant("a picture is of live or bad_day") { value == "live" || value == "bad_day" }
+    end
+
+    # The directory the pictures are written to.
+    value_object "PictureDirectory" do
+      attribute :value, String, matches: :present
+    end
+
     # A text drawn for a terminal: the panel (`Snapshot`) or one turn's block (`TurnBlock`). Never
     # JSON: every other query answers rows of a value object declared here, and the runtime
     # refuses an adapter's answer that is not that shape.
@@ -954,6 +968,17 @@ Hecks.bluebook "PipelineBoard" do
       emits ServeRequested
     end
 
+    command "Draw" do
+      role "Maintainer"
+      goal "Draw every page of the board to an image file from the live state or the staged bad day, with no browser tool and no person; the staged day reads nothing of the owner's"
+
+      attribute :run,   RunKey, sets: true
+      attribute :state, PictureState, default: "live"
+      attribute :into,  PictureDirectory
+
+      emits DrawRequested
+    end
+
     command "Act" do
       role "Maintainer"
       goal "Take one step the page offers, from the ActionRule rows: it runs once its fields are sent and, for a step that moves code or deletes, once it is confirmed"
@@ -1232,6 +1257,11 @@ Hecks.bluebook "PipelineBoard" do
   policy "ListenWhenServed" do
     on  "PipelineBoard.ServeRequested"
     ask :listen, with: { port: :port }
+  end
+
+  policy "DrawWhenRequested" do
+    on  "PipelineBoard.DrawRequested"
+    ask :draw_pages, with: { state: :state, into: :into }
   end
 
   policy "CloseWhenEnded" do
