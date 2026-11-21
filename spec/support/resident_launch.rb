@@ -47,6 +47,7 @@ module ResidentLaunch
   # Stops the group's resident, then puts the cache directory back and removes the group's own.
   def leave_own_cache
     stop_resident
+    end_remembered_residents
     ENV["HECKS_CACHE_DIR"] = @saved_cache
     FileUtils.rm_rf(@cache)
   end
@@ -97,13 +98,26 @@ module ResidentLaunch
   # Waits until a resident stands, and answers its process id.
   def wait_for_resident
     ThreadParking.wait_for(timeout: STARTUP) { resident_pid }
-    ChildProcessGuard.watch(resident_pid)
+    remember_resident(resident_pid)
   end
 
   # Waits until a resident other than `old` stands, and answers its process id.
   def wait_for_new_resident(old)
     ThreadParking.wait_for(timeout: STARTUP) { resident_pid && resident_pid != old }
-    ChildProcessGuard.watch(resident_pid)
+    remember_resident(resident_pid)
+  end
+
+  # Watches a resident the group started and keeps its pid, so the group ends it even after a
+  # replacement has taken its pid file.
+  def remember_resident(pid)
+    @residents = [*@residents, pid].uniq
+    ChildProcessGuard.watch(pid)
+  end
+
+  # Ends each resident the group started that still stands, with the lines it forked: a resident a
+  # replacement displaced, or one that was stopped, is not the one in the pid file.
+  def end_remembered_residents
+    (@residents || []).each { |pid| ProcessTree.end_tree(pid) if ProcessTree.alive?(pid) }
   end
 
   # Stops the resident and the lines it forked, and clears its files, so a launch finds none.
