@@ -1091,6 +1091,7 @@ Hecks.bluebook "Hecks" do
 
       attribute :beat, BeatKey
       attribute :refusal, BeatNote, optional: true
+      attribute :steps, list_of(BeatStep), optional: true
       identified_by :beat
 
       value_object "BeatKey" do
@@ -1099,11 +1100,24 @@ Hecks.bluebook "Hecks" do
 
       value_object "BeatNote", String
 
+      # One reaction of a beat: its time and CPU in milliseconds, whole and net of the reactions it
+      # started, and how deep in the cascade it ran. A beat lists them slowest net time first.
+      value_object "BeatStep" do
+        attribute :policy,      String
+        attribute :ms,          Float
+        attribute :cpu_ms,      Float
+        attribute :self_ms,     Float
+        attribute :self_cpu_ms, Float
+        attribute :depth,       Integer, default: 0
+        invariant("a step does not run backwards") { ms >= 0 && cpu_ms >= 0 && self_ms >= 0 && self_cpu_ms >= 0 }
+      end
+
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
         transition "Record"  => "beaten",   from: "requested"
         transition "Decline" => "declined", from: "requested"
-        mark :terminal, "beaten", "declined"
+        transition "Measure" => "measured", from: "beaten"
+        mark :terminal, "measured", "declined"
       end
 
       command "Beat" do
@@ -1132,6 +1146,16 @@ Hecks.bluebook "Hecks" do
         attribute :refusal, BeatNote, sets: true
 
         emits BeatDeclined
+      end
+
+      command "Measure" do
+        role "System"
+        goal "Record what each reaction of the beat cost in time and CPU, once its reactions have ended"
+
+        reference_to Heartbeat
+        attribute :steps, list_of(BeatStep), sets: true
+
+        emits BeatMeasured
       end
     end
 
