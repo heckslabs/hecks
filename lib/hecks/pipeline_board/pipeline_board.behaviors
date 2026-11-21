@@ -16,14 +16,16 @@ Hecks.behaviors "PipelineBoard" do
   end
   # A restart the Supervisor port answered, or refused, is recorded by the watch that asked.
   test "a restart that was made is recorded" do
+    setup "PipelineBoard::BoardWatch.Watch", run: { value: "watch-1" }, port: { value: 4747 }
     tests "RecordRestart", on: "BoardWatch"
-    input run: { value: "watch-1" }, port: { value: 4747 }
+    input board_watch: "watch-1", port: { value: 4747 }
     expect emits: ["RestartRecorded"]
   end
 
   test "a restart that was refused is recorded with its reason" do
+    setup "PipelineBoard::BoardWatch.Watch", run: { value: "watch-1" }, port: { value: 4747 }
     tests "RecordRestartRefusal", on: "BoardWatch"
-    input run: { value: "watch-1" }, last: { value: "the launcher is held" }
+    input board_watch: "watch-1", last: { value: "the launcher is held" }
     expect emits: ["RestartRefusalRecorded"]
   end
 end
