@@ -44,10 +44,10 @@ module Hecks
           ""
         end
 
-        # @return [Hash] `memsize:`, `perf_cores:`, `loadavg:`, `vm_stat:` and
+        # @return [Hash] `memsize:`, `cores:`, `loadavg:`, `vm_stat:` and
         #   `memory_pressure_level:`
         def machine
-          { memsize: sysctl("hw.memsize"), perf_cores: sysctl("hw.perflevel0.physicalcpu"),
+          { memsize: sysctl("hw.memsize"), cores: sysctl("hw.ncpu"),
             loadavg: sysctl("vm.loadavg"), vm_stat: out("vm_stat"),
             memory_pressure_level: sysctl("kern.memorystatus_vm_pressure_level") }
         end

@@ -85,10 +85,11 @@ Hecks.world "Hecks" do
   # How the board is kept small: it reads its state every `refresh_seconds`, and restarts itself, as the
   # command that started it, above `rss_mb` megabytes resident or after `age_hours` hours up.
   board_restart "PipelineBoard", refresh_seconds: 30, rss_mb: 1024, age_hours: 24
-  # A resident (ADR 0201) exits after `idle_seconds` with nothing to run (`worktree_idle_seconds` in a
-  # linked worktree); past `max_residents` a checkout boots each line cold. A launcher waits
-  # `ready_wait_ms` for its first word, then boots on its own; it takes `workers` callers at once.
-  resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, max_residents: 8, ready_wait_ms: 400, workers: 8
+  # A resident (ADR 0201) exits after `idle_seconds` idle (`worktree_idle_seconds` in a linked worktree);
+  # past `max_residents` a checkout boots cold. A launcher waits `ready_wait_ms` for a first word; it takes
+  # `workers` callers at once; a line past `line_seconds` is ended, its group with it.
+  resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, max_residents: 8, ready_wait_ms: 400, workers: 8,
+           line_seconds: 1800
   # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
   # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level. These are
   # the volume's own lines for relief; `disk_health` above sets the floors of the board's Disk free tile.

@@ -4,8 +4,8 @@ require "hecks/adapters/driving/resident/server"
 
 # The time limit of a resident's forked line (ADR 0201): the Hecks world may set `line_seconds`,
 # and a child still running after it is ended, its whole group with it, with the reason on its
-# caller's standard error. A world that sets none leaves a line no limit. The signals and the
-# waits are stood in for; one example forks a real child that ends at once.
+# caller's standard error. A world that sets none leaves a line the default limit. The signals
+# and the waits are stood in for; one example forks a real child that ends at once.
 RSpec.describe Hecks::Adapters::Driving::Resident::LineLimit do
   let(:server) { Hecks::Adapters::Driving::Resident::Server.new("/checkout", "/checkout/exe/hecks") }
   let(:signals) { [] }
@@ -74,8 +74,8 @@ RSpec.describe Hecks::Adapters::Driving::Resident::LineLimit do
     expect(world_declaring({ line_seconds: 1800 })[:line_seconds]).to eq(1800.0)
   end
 
-  it "has no limit when the world's resident line names none" do
-    expect(world_declaring({ idle_seconds: 600 })).not_to have_key(:line_seconds)
+  it "has the default limit when the world's resident line names none" do
+    expect(world_declaring({ idle_seconds: 600 })[:line_seconds]).to eq(1800.0)
   end
 
   it "lets go of the kept stream, and reports the status, when the child leaves first", :aggregate_failures do

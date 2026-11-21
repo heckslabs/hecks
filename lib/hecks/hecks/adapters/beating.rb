@@ -15,6 +15,9 @@ module Hecks
     class Beating
       # The file's name under the cache directory's `beat` folder.
       FILE = "beat.lock"
+      # Seconds a beat may hold the place: the clock beats once a minute, so a beat that is still
+      # running after this has stalled, and its process ends so the next beat can run.
+      WINDOW = 300
 
       @held = nil
 
@@ -30,6 +33,9 @@ module Hecks
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @dir = settings[:dir] || Hecks::CacheDir.path("beat")
         @clock = settings[:clock] || -> { Time.now.to_i }
+        @window = settings[:window] || WINDOW
+        @sleeper = settings[:sleeper] || method(:sleep)
+        @ender = settings[:ender] || -> { Process.exit!(75) }
       end
 
       # The `Take` ask: holds the place for this process.
@@ -47,10 +53,23 @@ module Hecks
         file.write("#{Process.pid} #{@clock.call}")
         file.flush
         self.class.held = file
+        arm_deadline
         {}
       end
 
       private
+
+      # Ends this process once the window has passed, which frees the place at once; the thread is
+      # the beat's own, so a beat that spins or waits still ends.
+      def arm_deadline
+        sleeper = @sleeper
+        window = @window
+        ender = @ender
+        Thread.new do
+          sleeper.call(window)
+          ender.call
+        end
+      end
 
       def open_place
         FileUtils.mkdir_p(@dir)
