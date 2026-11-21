@@ -1,7 +1,5 @@
-# The Coach bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
-# directory). It persists in Memory like every tooling domain. The read ports for tickets.db and
-# the event stream are not declared: Miette asks the owner for that access herself, and a port is
-# declared when an adapter stands behind it.
+# The Coach bluebook, bound so it boots alone, persisted in Memory. No read ports yet: Miette asks
+# the owner for tickets.db and event-stream access, and a port waits for its adapter.
 Hecks.hecksagon "Coach" do
   attaches "Governance"
   persisted_by "Memory"

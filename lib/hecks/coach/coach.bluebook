@@ -1,15 +1,6 @@
-# Coach: Miette is the crew's coach (owner, 2026-11-20). She watches and reads first and says what
-# she saw before what to change; she coaches and does not land. This domain keeps what she saw, the
-# coaching drawn from it, and the words she sends through the coach role, so each is in her name.
-#
-# Miette is not a Hecks role: she is her own system, reached by message. The bluebook records the
-# exchange and never carries it: how a message reaches her is a transport the Recipients port has
-# no recipient for yet, so a request to her stands `asked` until her words arrive (Forward) or the
-# transport says she was not reached (Unreached). The coach role that relays is registered in
-# the Agents bluebook, which another work item holds.
-#
-# Modeled on Triage (lib/hecks/triage/triage.bluebook): small aggregates, `given` rules that
-# refuse by name, counts supplied by the caller where a rule cannot look inside a list.
+# Coach: Miette, the crew's coach (owner, 2026-11-20). She is her own system, reached by message; the
+# domain keeps what she saw, the coaching drawn from it, and her words relayed unchanged as hers.
+# Modeled on Triage. The coach role that relays is registered in Agents, held by another item.
 
 Hecks.bluebook "Coach" do
   vision "Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide."
