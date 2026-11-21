@@ -5,8 +5,8 @@ require "hecks/pipeline_board/adapters/pipeline_stages"
 require_relative "support/board_rows"
 require_relative "support/glance_facts"
 
-# The board's `Glance`, what waits on a person. The `StuckKind` and `Verdict` rows decide
-# the members and how long is too long; the adapter only reshapes the facts it is handed.
+# The board's `Glance`, what waits on a person.
+# The `StuckKind` and `Verdict` rows decide it; the adapter only reshapes the facts.
 RSpec.describe Hecks::Adapters::PipelineBoard::GlanceRows, ".build" do
   include BoardRows
   include GlanceFacts
