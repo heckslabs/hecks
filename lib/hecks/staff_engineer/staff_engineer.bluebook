@@ -1,8 +1,8 @@
-# Coach: Miette, the crew's coach (owner, 2026-11-20). She is her own system, reached by message; the
-# domain keeps what she saw, the coaching drawn from it, and her words relayed unchanged as hers.
-# Modeled on Triage. The coach role that relays is registered in Agents, held by another item.
+# StaffEngineer: Miette, the crew's staff engineer (owner, 2026-11-21). She is her own system, reached
+# by message; the domain keeps what she saw, the coaching drawn from it, and her words relayed
+# unchanged as hers. Modeled on Triage. The staff-engineer role that relays is registered in Agents.
 
-Hecks.bluebook "Coach" do
+Hecks.bluebook "StaffEngineer" do
   vision "Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide."
 
   supporting
@@ -134,7 +134,7 @@ Hecks.bluebook "Coach" do
     end
   end
 
-  # A question put to Miette through the coach role and her answer. The words are hers, stored as
+  # A question put to Miette through the staff-engineer role and her answer. The words are hers, stored as
   # she said them and labelled with her name; when she has not been reached nothing is said for her.
   aggregate "Relay" do
     description "A question to Miette, and her words forwarded unchanged and labelled as hers, or the fact that she was not reached."
@@ -172,7 +172,7 @@ Hecks.bluebook "Coach" do
 
     command "Ask" do
       role "Operator"
-      goal "Put a question to Miette through the coach role"
+      goal "Put a question to Miette through the staff-engineer role"
 
       attribute :relay,    Ref, sets: true
       attribute :question, Words, sets: true
@@ -216,10 +216,10 @@ Hecks.bluebook "Coach" do
     end
   end
 
-  # The run may decline and the coach gives no orders. `Invite` takes the guards (red flag, the
+  # The run may decline and the staff engineer gives no orders. `Invite` takes the guards (red flag, the
   # run's work, the day's meetings) as inputs the caller reads, so they hold as far as it reports.
   aggregate "OneOnOne" do
-    description "One meeting between the coach and one live run: invited, then accepted, declined or deferred, held, closed."
+    description "One meeting between the staff engineer and one live run: invited, then accepted, declined or deferred, held, closed."
     created_by "OneOnOne.invite!"
 
     identified_by :one_on_one
@@ -299,7 +299,7 @@ Hecks.bluebook "Coach" do
       given("no invitation while a red flag stands") { red_flag.value == "clear" }
       given("no invitation to a run fixing a red item or in a landing") { run_state.value == "free" }
       given("at most one meeting open at a time") { meetings_open.value == "none" }
-      given("a role meets the coach once a day") { role_met_today.value == "no" }
+      given("a role meets the staff engineer once a day") { role_met_today.value == "no" }
 
       emits Invited
     end
@@ -413,7 +413,7 @@ Hecks.bluebook "Coach" do
     end
   end
 
-  # An ask a run makes in a meeting. It is recorded for the lead and changes nothing: the coach
+  # An ask a run makes in a meeting. It is recorded for the lead and changes nothing: the staff engineer
   # gives no orders and a proposal moves no run.
   aggregate "Proposal" do
     description "An ask a run made in a one-on-one, kept as a proposal for the lead."

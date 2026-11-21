@@ -77,8 +77,8 @@ module Hecks
       interviews:     "lib/hecks/interviews/*.bluebook",
       # The LiveDiscovery bluebook boots from its own directory beside its hecksagon.
       live_discovery: "lib/hecks/live_discovery/*.bluebook",
-      # The Coach bluebook boots from its own directory beside its hecksagon.
-      coach:          "lib/hecks/coach/*.bluebook",
+      # The StaffEngineer bluebook boots from its own directory beside its hecksagon.
+      staff_engineer: "lib/hecks/staff_engineer/*.bluebook",
       # The Protocols bluebook boots from its own directory beside its hecksagon.
       protocols:      "lib/hecks/protocols/*.bluebook",
       fixture:        "spec/fixtures/**/*.bluebook"
