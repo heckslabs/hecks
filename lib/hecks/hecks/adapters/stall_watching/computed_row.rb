@@ -8,7 +8,7 @@ module Hecks
   module Adapters
     class StallWatching
       # One `Sighting` row of a computed impediment, built from its `ComputedSignal` row. A computed
-      # row is never filed, so its minutes and window are nought: only the impediment view carries it.
+      # row is never filed, so its minutes and window are nought: only the impediment view holds it.
       module ComputedRow
         # @param signal [Hash] the `ComputedSignal` row
         # @param run [String] the look that asks

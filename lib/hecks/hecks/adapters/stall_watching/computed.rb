@@ -9,8 +9,8 @@ require_relative "leftover_reads"
 module Hecks
   module Adapters
     class StallWatching
-      # The computed impediments read from the tap and cheap machine readings, each by the `read` its
-      # `ComputedSignal` row names. A row never files: only the impediment view carries it.
+      # The computed impediments read from the tap and cheap machine readings, each by the `read`
+      # its `ComputedSignal` row names. A row never files: only the impediment view carries it.
       class Computed
         # The reads this class answers; `shared-files` is {SharedFiles}'s.
         READS = %w[held-starts leftovers run-finished landing-rate].freeze

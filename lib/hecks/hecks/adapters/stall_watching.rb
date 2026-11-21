@@ -31,7 +31,8 @@ module Hecks
       #   evidence ({MachineSampling::ProcessClasses} when absent), `slots:` the `slots` evidence
       #   ({SlotEvidence}), `origin:` whether a commit is on origin/main ({SettledReads}, git),
       #   `branches:` the open branches' tips and changed files ({OpenBranches}, git), `load:` the
-      #   1-minute load (`Etc.getloadavg`), `leftovers:` a leftover's count by name ({LeftoverReads})
+      #   1-minute load (`Etc.getloadavg`), `leftovers:` a leftover's count by name
+      #   ({LeftoverReads})
       def initialize(registry: nil, aggregate: nil, tap: nil, **reads)
         @registry = registry
         @aggregate = aggregate
