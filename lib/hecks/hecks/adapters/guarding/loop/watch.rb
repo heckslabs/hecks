@@ -6,17 +6,36 @@
 require "json"
 require_relative "pass"
 
-home = ARGV.fetch(0)
-shell = Hecks::Adapters::Guarding::Loop::Shell.new
-clock = -> { Time.now.to_i }
+module Hecks
+  module Adapters
+    class Guarding
+      module Loop
+        # The forever loop over {Pass}.
+        module Watch
+          module_function
 
-loop do
-  roster = JSON.parse(File.read(File.join(home, "roster.json")))
-  begin
-    pass = Hecks::Adapters::Guarding::Loop::Pass
-    pass.new(roster: roster, shell: shell, clock: clock, home: home, pause: ->(seconds) { sleep(seconds) }).run
-  rescue StandardError => e
-    Hecks::Adapters::Guarding::Loop::Journal.new(home, clock).add("pass_failed", "", error: "#{e.class}: #{e.message}")
+          # @param home [String] the loop's directory, where the roster file is
+          # @return [void]
+          def run(home)
+            clock = -> { Time.now.to_i }
+            loop do
+              roster = JSON.parse(File.read(File.join(home, "roster.json")))
+              once(roster, clock, home)
+              sleep(roster.dig("settings", "pass_seconds").to_i)
+            end
+          end
+
+          # @return [void]
+          def once(roster, clock, home)
+            pause = ->(seconds) { sleep(seconds) }
+            Pass.new(roster: roster, shell: Shell.new, clock: clock, home: home, pause: pause).run
+          rescue StandardError => e
+            Journal.new(home, clock).add("pass_failed", "", error: "#{e.class}: #{e.message}")
+          end
+        end
+      end
+    end
   end
-  sleep(roster.dig("settings", "pass_seconds").to_i)
 end
+
+Hecks::Adapters::Guarding::Loop::Watch.run(ARGV.fetch(0)) if $PROGRAM_NAME == __FILE__
