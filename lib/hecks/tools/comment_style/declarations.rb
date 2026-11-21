@@ -17,12 +17,18 @@ module Hecks
           found = paths.flat_map do |path|
             File.directory?(path) ? Dir[File.join(path, "**", DECLARATION_FILES)] : [path].select { |file| declares?(file) }
           end
-          found.reject { |file| file.include?(VENDORED) }.sort.uniq
+          found.reject { |file| file.include?(VENDORED) || local_settings?(file) }.sort.uniq
         end
 
         # @param file [String] a path
         # @return [Boolean] whether it is a declaration file by its name
-        def declares?(file) = File.fnmatch(DECLARATION_FILES, File.basename(file), File::FNM_EXTGLOB)
+        def declares?(file)
+          File.fnmatch(DECLARATION_FILES, File.basename(file), File::FNM_EXTGLOB) && !local_settings?(file)
+        end
+
+        # @param file [String] a path
+        # @return [Boolean] whether it is a copy's own untracked settings (`shop.local.world`)
+        def local_settings?(file) = File.basename(file).include?(LOCAL_SETTINGS)
 
         private
 

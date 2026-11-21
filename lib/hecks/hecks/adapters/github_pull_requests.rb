@@ -5,6 +5,7 @@ require "open3"
 require_relative "console_capture"
 require_relative "github_pull_requests/train_sweep"
 require_relative "github_pull_requests/train_reopen"
+require_relative "github_pull_requests/check_failures"
 
 module Hecks
   module Adapters
@@ -137,6 +138,17 @@ module Hecks
 
         events.flatten.map { |event| timeline_row(event) }
       end
+
+      # Why the checks of one pull request failed: one row per failed job, with its failed steps,
+      # the failing spec examples, the message of its first failure and the newest commit of the
+      # pull request touching the failing specs. Read-only: every call is a `gh` read.
+      #
+      # @param held [Hash] the query's arguments: `number` (required)
+      # @return [Array<Hash{Symbol => String}>] one `job:`/`steps:`/`examples:`/`error:`/`culprit:`
+      #   row per failed job, empty when no check failed
+      # @raise [ConsoleCapture::Failure] when no number is named, the number is not a pull request,
+      #   or GitHub refuses
+      def failures(**held) = CheckFailures.new(method(:gh!)).read(pull_request_number(held[:number], "read"))
 
       private
 
