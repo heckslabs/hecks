@@ -201,11 +201,8 @@ Hecks.bluebook "Coach" do
     end
   end
 
-  # One meeting between the coach and one live run. The run pauses for it by its own say-so: it may
-  # decline, and the coach gives no orders in it. The guards are facts of other domains (the red
-  # flag, the run's work, the day's meetings); `Invite` takes them as inputs the caller reads, so
-  # they hold only as far as the caller reports them. Each turn and proposal is its own record,
-  # named for the meeting, so the exchange is kept verbatim and the retro reads it.
+  # The run may decline and the coach gives no orders. `Invite` takes the guards (red flag, the
+  # run's work, the day's meetings) as inputs the caller reads, so they hold as far as it reports.
   aggregate "OneOnOne" do
     description "One meeting between the coach and one live run: invited, then accepted, declined or deferred, held, closed."
     created_by "OneOnOne.invite!"
