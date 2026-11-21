@@ -8,6 +8,8 @@ require_relative "metering/session_runs"
 require_relative "metering/live_reads"
 require_relative "metering/ended_rows"
 require_relative "metering/copy_reads"
+require_relative "metering/token_transcripts"
+require_relative "metering/token_report"
 
 module Hecks
   module Adapters
@@ -26,13 +28,15 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins for the outside, each a callable: `listing:` (the listed
       #   sessions), `processes:` (the `ps` text), `machine:` (the `sysctl` and `vm_stat` reads),
-      #   `runs:` (runs by session id), `activity:` (a session's last transcript time), `copies:`
-      #   (the checkout's worktrees, as {CopyReads#call} answers) and `now:`
+      #   `runs:` (runs by session id), `usage:` (the token
+      #   usage rows), `activity:` (a session's last transcript time), `copies:` (the checkout's
+      #   worktrees, as {CopyReads#call} answers) and `now:`
       # @param root [String, nil] the checkout whose copies are read; the working directory when nil
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         live = LiveReads.new(registry)
         @listing, @processes, @machine, @runs, @activity =
           %i[listing processes machine runs activity].map { |read| settings[read] || live.method(read) }
+        @usage = settings[:usage] || TokenTranscripts.new
         @now = settings[:now] || -> { Time.now }
         @copies = settings[:copies] || CopyReads.new(root || Dir.pwd, now: @now)
       end
@@ -41,6 +45,11 @@ module Hecks
       #
       # @return [Hash{Symbol => String}] `text:` the per-session meter as JSON
       def sessions = { text: JSON.generate(rows) }
+
+      # The `Tokens` query: tokens used and saved, rolled up from the transcripts' usage records.
+      #
+      # @return [Hash{Symbol => String}] `text:` the {TokenReport} facts as JSON
+      def tokens = { text: JSON.generate(TokenReport.new(Array(@usage.call), @runs.call).facts) }
 
       # The `Machine` query.
       #
