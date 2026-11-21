@@ -1931,8 +1931,10 @@ Hecks.bluebook "Agents" do
     end
 
     # What the message is, to a session or back from one: `owner` holds the owner's verbatim words.
+    # An `ack` only says a message was seen: it is queued rather than sent, so it wakes no session,
+    # it is cleared once handed over, and it owes no reply, so no ack is ever answered with one.
     value_object "MessageKind" do
-      attribute :value, String, one_of: %w[answer brief-change stand-down question owner report blocked done]
+      attribute :value, String, one_of: %w[answer brief-change stand-down question owner report blocked done ack]
     end
 
     # Free text. Nothing reads it as a command: it reaches no port and no policy.
@@ -1963,11 +1965,12 @@ Hecks.bluebook "Agents" do
       transition "Decline" => "refused", from: "addressed"
       transition "Hold" => "held", from: "addressed"
       transition "Release" => "sent", from: "held"
-      transition "Receive" => "delivered", from: "sent"
+      transition "Queue" => "queued", from: "addressed"
+      transition "Receive" => "delivered", from: %w[sent queued]
       transition "Read" => "read", from: %w[sent delivered]
       # A sent message waits for its session to hear it; a held one for its seat to register. Hearing
       # it marks it read at once, so a delivered message rests only if that read was refused.
-      mark :rests, "sent", "held"
+      mark :rests, "sent", "held", "queued"
       mark :terminal, "read", "refused"
     end
 
@@ -1994,8 +1997,18 @@ Hecks.bluebook "Agents" do
       reference_to Message
       attribute :verified, VerifiedSender, sets: true
       attribute :recipient, RunKey, sets: true
+      attribute :kind, MessageKind, sets: true
 
       emits "MessageStamped"
+    end
+
+    command "Queue", from: "addressed" do
+      role "System"
+      goal "Keep an ack for its run's next boundary without sending it, so it wakes no session"
+
+      reference_to Message
+
+      emits "AckQueued"
     end
 
     command "Deliver", from: "addressed" do
@@ -2035,7 +2048,7 @@ Hecks.bluebook "Agents" do
       emits "MessageSent"
     end
 
-    command "Receive", from: "sent" do
+    command "Receive", from: %w[sent queued] do
       role "Operator"
       goal "Record that a run's session heard a message (to=<message>), so its hook hands it over once"
 
@@ -2072,7 +2085,7 @@ Hecks.bluebook "Agents" do
     query "Undelivered" do
       description "The messages for one run its session has not heard yet: what a hook hands over, once, before it records them delivered."
       attribute :recipient, RunKey
-      where(status: "sent", recipient: :recipient)
+      where(status: { in: %w[sent queued] }, recipient: :recipient)
       order_by :message
     end
 
@@ -2080,18 +2093,18 @@ Hecks.bluebook "Agents" do
     # another domain, which a given cannot read; so the port is asked before a message is sent.
     policy "CheckTheSender" do
       on      "Message.MessageAddressed"
-      ask     :sender, with: { message: :message, sender: :sender, recipient: :recipient }
+      ask     :sender, with: { message: :message, sender: :sender, recipient: :recipient, kind: :kind }
     end
 
     policy "StampTheSender" do
       on      "Message.SenderChecked"
-      trigger Message::Stamp, with: { message: :message, verified: :verified, recipient: :recipient }
+      trigger Message::Stamp, with: { message: :message, verified: :verified, recipient: :recipient, kind: :kind }
     end
 
     # The recipient is checked after the stamp lands, so a message is never heard unstamped.
     policy "CheckTheRecipient" do
       on      "Message.MessageStamped"
-      ask     :recipient, with: { message: :message, recipient: :recipient }
+      ask     :recipient, with: { message: :message, recipient: :recipient, kind: :kind }
     end
 
     # A message handed to its session is read: the hook records `Receive`, and this records the read.
@@ -2103,7 +2116,15 @@ Hecks.bluebook "Agents" do
 
     policy "SendToTheRun" do
       on      "Message.RecipientFound"
+      where   { kind.value != "ack" }
       trigger Message::Deliver, with: { message: :message }
+    end
+
+    # An ack is kept for the run's next boundary and never sent, so no session is woken for it.
+    policy "QueueTheAck" do
+      on      "Message.RecipientFound"
+      where   { kind.value == "ack" }
+      trigger Message::Queue, with: { message: :message }
     end
 
     # The seats a hand starts and registers by name: a message to one before it registers waits.
