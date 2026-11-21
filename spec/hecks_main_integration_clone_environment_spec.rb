@@ -64,7 +64,8 @@ RSpec.describe "the environment of a verification's checks" do
   it "puts rustup's proxies ahead of a cargo earlier on PATH" do
     skip "no rustup cargo on this machine (#{toolchain.proxies})" if toolchain.environment.empty?
 
-    path = toolchain.environment("PATH" => "/opt/homebrew/bin:#{toolchain.proxies}")["PATH"]
+    base = { "PATH" => "/opt/homebrew/bin:#{toolchain.proxies}", "CARGO_HOME" => ENV.fetch("CARGO_HOME") }
+    path = toolchain.environment(base)["PATH"]
     expect(path).to eq("#{toolchain.proxies}:/opt/homebrew/bin")
   end
 

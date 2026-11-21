@@ -6,9 +6,10 @@ require_relative "../rules"
 module Hecks
   module Adapters
     module PipelineBoard
-      # The tile that reads the launcher's boots: the hours they have taken today against the
-      # budget the Tickets world's `cpu_budget` line sets, who booted in the last hour, and the
-      # load average against the limit a fill stops at.
+      # The tile that reads the launcher's boots: the hours they have taken today (a reading, set
+      # against the Tickets world's `cpu_budget` line), who booted in the last hour, the load
+      # average against the limit a fill stops at, and the signals that hold a fill: it fails on a
+      # boot storm and asks for attention while the boot share is over its mark.
       module BootTiles
         include TileKit
 
@@ -23,21 +24,28 @@ module Hecks
           return unknown_tile("boots", "Boot hours today", reading) unless reading.is_a?(Hash) && !reading.key?(:unknown)
 
           tile("boots", "Boot hours today", reading[:hours].round(2), "h",
-               state: boot_state(reading[:hours], reading[:budget]), detail: detail(reading))
+               state: boot_state(reading), detail: detail(reading))
         end
 
         private
 
-        # The state the `Boot hours` rows give the hours as a percent of the budget; with no
-        # budget set there is no percent to read.
-        def boot_state(hours, budget)
-          share = budget.to_f.positive? ? (100.0 * hours / budget) : nil
-          Rules.verdict("Boot hours", { share: share })
+        # A boot storm fails the tile; a boot share over its mark at a load over the limit asks for
+        # attention; the day's hours alone never change it.
+        def boot_state(reading)
+          return "failed" if reading[:storms].to_h.any?
+
+          reading[:share].to_f > reading[:share_mark].to_f && reading[:load] > reading[:max_load] ? "attention" : "ok"
         end
 
         def detail(reading)
           [budget_part(reading), "#{reading[:boots]} boots#{unmeasured_part(reading)}", last_hour_part(reading[:last_hour]),
-           "load #{reading[:load]} of #{reading[:max_load]}"].join("; ")
+           "load #{reading[:load]} of #{reading[:max_load]}", *signal_parts(reading)].join("; ")
+        end
+
+        # The boot share, and each caller storming, when there are any.
+        def signal_parts(reading)
+          storms = reading[:storms].to_h.map { |name, count| "storm #{name} #{count}" }
+          [("boot share #{reading[:share]}%" if reading[:share]), *storms].compact
         end
 
         def budget_part(reading) = reading[:budget] ? "budget #{reading[:budget]} h" : "no budget set"

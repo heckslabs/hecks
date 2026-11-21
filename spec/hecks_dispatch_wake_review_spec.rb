@@ -26,13 +26,14 @@ RSpec.describe "the waker after its second review" do
 
   after { dispatching::Pending.reset! }
 
-  def boots(hours)
-    row = { "boot_ms" => (hours * 3_600_000).to_i, "at" => (now - 3600).iso8601 }
+  # A heavy minute: 3.6 million boot ms in the last 15 minutes of 12 CPUs is 33 percent of them.
+  def boots(heavy)
+    row = { "boot_ms" => heavy ? 3_600_000 : 100_000, "at" => (now - 60).iso8601 }
     Hecks::Adapters::BootBudget.new(entries: ->(_cutoff) { [row] }, now: -> { now })
   end
 
-  def adapter(hours: 0.1)
-    settings = { load: -> { level[:load] }, cpus: 12, work_items: work_items, boots: boots(hours), now: -> { now },
+  def adapter(heavy: false)
+    settings = { load: -> { level[:load] }, cpus: 12, work_items: work_items, boots: boots(heavy), now: -> { now },
                  runner: ->(*) { raise "no launch" } }
     dispatching.new(registry: boot_hecks_in_memory.registry, settings: settings)
   end
@@ -81,18 +82,18 @@ RSpec.describe "the waker after its second review" do
   end
 
   describe "the flags a dry plan leaves alone" do
-    it "keeps the budget flag a confirmed stop set when a dry plan reads a freed budget", :aggregate_failures do
-      confirmed(adapter(hours: 7.5))
+    it "keeps the budget flag a confirmed stop set when a dry plan reads a freed share", :aggregate_failures do
+      confirmed(adapter(heavy: true))
       expect(dispatching::Pending.budget_stopped).to be(true)
 
-      adapter(hours: 0.1).preview(repo: { value: "/repo" })
+      adapter.preview(repo: { value: "/repo" })
       expect(dispatching::Pending.budget_stopped).to be(true)
     end
 
     it "records when the window alone could free the budget", :aggregate_failures do
-      confirmed(adapter(hours: 7.5))
+      confirmed(adapter(heavy: true))
 
-      expect(dispatching::Pending.budget_frees_at).to eq(now)
+      expect(dispatching::Pending.budget_frees_at).to eq(now - 60 + (15 * 60))
     end
 
     it "clears both flags when a confirmed fill is stopped by neither", :aggregate_failures do
@@ -151,25 +152,22 @@ RSpec.describe "the waker after its second review" do
   end
 
   describe Hecks::Adapters::BootBudget do
-    def stamped(hours, minutes_ago)
-      { "boot_ms" => (hours * 3_600_000).to_i, "at" => (now - (minutes_ago * 60)).iso8601 }
+    def stamped(boot_ms, minutes_ago) = { "boot_ms" => boot_ms, "at" => (now - (minutes_ago * 60)).iso8601 }
+
+    def budget(*rows) = described_class.new(entries: ->(_cutoff) { rows }, now: -> { now })
+
+    def frees_at(*rows, percent: 25.0) = budget(*rows).share_frees_at(percent: percent, minutes: 15, cpus: 12)
+
+    it "names the time the oldest boots leave the share's window far enough to bring it under the mark" do
+      expect(frees_at(stamped(2_000_000, 10), stamped(2_000_000, 5))).to eq(now + 300)
     end
 
-    def budget
-      rows = [stamped(0.2, 50), stamped(0.2, 20), { "boot_ms" => 3_600_000, "date" => now.strftime("%Y-%m-%d") }]
-      described_class.new(entries: ->(_cutoff) { rows }, now: -> { now })
+    it "names none for a run with no start time, which the window cannot place" do
+      expect(frees_at({ "boot_ms" => 9_000_000, "date" => now.strftime("%Y-%m-%d") })).to be_nil
     end
 
-    it "names the time the oldest runs leave the short window far enough to bring the hours under it" do
-      expect(budget.frees_at(6.0)).to eq(now - (50 * 60) + described_class::SHORT_WINDOW)
-    end
-
-    it "leaves out a run with no start time, which the short window cannot place" do
-      expect(budget.frees_at(48.0)).to be_nil
-    end
-
-    it "names none when the budget is not spent" do
-      expect(budget.frees_at(20.0)).to be_nil
+    it "names none when the share is not over the mark" do
+      expect(frees_at(stamped(1_000_000, 5))).to be_nil
     end
   end
 

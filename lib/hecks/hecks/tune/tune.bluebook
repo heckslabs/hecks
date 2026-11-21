@@ -90,7 +90,7 @@ Hecks.bluebook "Hecks" do
         member world: "Tickets", setting: "load_shed.min_coders", kind: "integer", least: "1", most: "10",
                context: "Hecks / Delegate", says: "Coders that must be running before one is asked to yield"
         member world: "Tickets", setting: "cpu_budget.boot_hours_per_day", kind: "number", least: "1", most: "48",
-               context: "Hecks / Delegate", says: "Hours of launcher boots a day before the fill stops"
+               context: "Hecks / Delegate", says: "Hours of launcher boots a day the board reads against; it holds no start"
         member world: "Tickets", setting: "heavy_jobs.cap", kind: "integer", least: "1", most: "8",
                context: "Hecks / Test", says: "Heavy jobs (a gate run, a run of several spec files) at once on the machine"
         member world: "Tickets", setting: "spec_workers.max", kind: "integer", least: "1", most: "16",
