@@ -2,8 +2,9 @@ require "spec_helper"
 require "tmpdir"
 require_relative "../../support/memory_ports"
 
-# verify! warns, not refuses, when a process_manager's saga store has no save_saga: dev and
-# test legitimately run sagas on Memory (as saga_durability_spec.rb does); a restart loses them.
+# verify! warns, not refuses, when a process_manager's saga store has no save_saga while its
+# domain keeps records elsewhere. A domain wholly in Memory, bound or by default, chose to keep
+# nothing (as saga_durability_spec.rb does), so it stays silent.
 RSpec.describe "verify! warning for an undurable process_manager" do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
 
@@ -68,8 +69,13 @@ RSpec.describe "verify! warning for an undurable process_manager" do
     registry
   end
 
-  it "warns when a process_manager resolves to the no-op saga store" do
+  it "stays silent when the whole domain is in Memory" do
+    expect { memory_wire_registry.verify! }.not_to output(/process_manager/).to_stderr
+  end
+
+  it "warns when records are kept but a process_manager resolves to the no-op saga store" do
     registry = memory_wire_registry
+    allow(registry).to receive(:memory_only?).and_return(false)
 
     expect { registry.verify! }.to output(UNDURABLE_SAGA_WARNING).to_stderr
   end
