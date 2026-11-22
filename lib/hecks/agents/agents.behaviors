@@ -363,6 +363,42 @@ Hecks.behaviors "Agents" do
     expect emits: ["HandRunEnded"]
   end
 
+  test "Lose refuses a hand run that is not registered" do
+    tests "Lose", on: "HandRun"
+    input  run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }, reason: "stopped"
+    expect refused: "no HandRun with run.value \"lead\""
+  end
+
+  test "Lose records a registered hand run whose session ended as lost" do
+    tests "Lose", on: "HandRun"
+    setup  "Agents::HandRun.Register", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }
+    input  run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }, reason: "stopped"
+    expect emits: ["HandRunLost", "FleetResumeRequested", "SessionReviveRefused", "FleetRefused"]
+  end
+
+  test "Restart moves a lost hand run to its new session" do
+    tests "Restart", on: "HandRun"
+    setup  "Agents::HandRun.Register", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }
+    setup  "Agents::HandRun.Lose", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }, reason: "stopped"
+    input  run: { value: "lead" }, session: { value: "1ead-new" }, role: { value: "orchestrator-owner" }
+    expect emits: ["HandRunRestarted", "HandRunRequested", "HandRunRegistered"]
+  end
+
+  test "Restart refuses a hand run that is still registered" do
+    tests "Restart", on: "HandRun"
+    setup  "Agents::HandRun.Register", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }
+    input  run: { value: "lead" }, session: { value: "1ead-new" }, role: { value: "orchestrator-owner" }
+    expect refused: "Restart refused"
+  end
+
+  test "End ends a lost hand run" do
+    tests "End", on: "HandRun"
+    setup  "Agents::HandRun.Register", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }
+    setup  "Agents::HandRun.Lose", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }, reason: "stopped"
+    input  run: { value: "lead" }
+    expect emits: ["HandRunEnded"]
+  end
+
   test "Record refuses a sound verdict whose findings say nothing was checked" do
     tests "Record", on: "PlanReview"
     input  run: { value: "r-nc1" }, work: { value: "w-nc1" }, verdict: { value: "sound" },
