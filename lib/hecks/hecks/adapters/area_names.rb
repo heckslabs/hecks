@@ -17,7 +17,8 @@ module Hecks
     # whole repository. A word with sections (`x.bluebook#Coder,Brief`, {Landing::SectionArea})
     # also needs each section to be a declaration of that bluebook, read as
     # {Landing::Declarations} cuts it. A work item that adds a directory names the directory that
-    # holds it, and one that adds an aggregate names its bluebook with no section.
+    # holds it, and one that adds an aggregate names its bluebook with no section. A word that
+    # starts with a sibling checkout's name (`switchyard/bluebook`) is read inside that checkout.
     module AreaNames
       # The Tickets world verb that switches the check on (`area_names "WorkAreas", checked: true`).
       VERB = "area_names"
@@ -40,6 +41,7 @@ module Hecks
       # @param root [String] the checkout the path is relative to
       # @return [Boolean] whether the word names a place and every section it claims
       def named?(word, root)
+        root, word = sibling(word, root)
         full = File.expand_path(Landing::SectionArea.path(word), root)
         return sections_declared?(word, full) if Landing::SectionArea.sectioned?(word)
 
@@ -53,6 +55,20 @@ module Hecks
         common, status = Open3.capture2e("git", "-C", dir, "rev-parse", "--path-format=absolute",
                                          "--git-common-dir")
         status.success? ? File.dirname(common.strip) : dir
+      end
+
+      # A word whose first segment is a sibling checkout (a directory with a `.git` beside this
+      # checkout, as Switchyard is) names a path in that checkout, which the store also serves.
+      #
+      # @param word [String] an area word
+      # @param root [String] this checkout's top level
+      # @return [Array(String, String)] the root the word is read against, and the word within it
+      def sibling(word, root)
+        head, rest = word.split("/", 2)
+        other = File.join(File.dirname(root), head.to_s)
+        return [root, word] unless rest && File.exist?(File.join(other, ".git")) && other != root
+
+        [other, rest]
       end
 
       def place?(path, full, root)
@@ -73,7 +89,7 @@ module Hecks
         (Landing::SectionArea.sections(word) - names).empty?
       end
 
-      private_class_method :place?, :glob?, :sections_declared?
+      private_class_method :sibling, :place?, :glob?, :sections_declared?
     end
   end
 end

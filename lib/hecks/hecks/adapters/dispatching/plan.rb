@@ -26,11 +26,12 @@ module Hecks
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
         # `waits_on` is the work items it names as waited on ({Dependencies}), nil when not read.
+        # `held` is why its area holds it back, empty when it does not (read from `held_reason`).
         # `batch` is the lead whose batch holds it, and `batch_commit` its commit on the lead's
         # branch once built; a lead a fill starts for a group carries the work items it builds as
         # `batched` and the `group` it was asked for ({Batching}).
         Item = Struct.new(:key, :title, :detail, :area, :waits_on, :yield_kind, :retry_at, :yield_count, :priority,
-                          :epic, :batch, :batch_commit, :batched, :group, keyword_init: true)
+                          :epic, :batch, :batch_commit, :batched, :group, :held, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)
@@ -107,9 +108,10 @@ module Hecks
         # What holds an item whatever room there is; such an item does not count against the cap.
         def held_reason(item) = rethink_reason(item) || dependency_reason(item) || parked_reason(item) || storm_reason(item)
 
-        # An item waits until each work item it names has landed, a red one included: it is never
-        # chosen, so it is never started and yielded for a dependency.
-        def dependency_reason(item) = @limits[:waits]&.call(item)
+        # An item waits while its area names nothing (until a rescope gives it one), and until each
+        # work item it names has landed, a red one included: it is never chosen, so it is never
+        # started and yielded for a dependency.
+        def dependency_reason(item) = ("skipped: held: #{item.held}" unless item.held.to_s.empty?) || @limits[:waits]&.call(item)
 
         # A work item the architect said to rethink too often waits for a person.
         def rethink_reason(item) = @limits[:rethinks]&.call(item.key)

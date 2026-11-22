@@ -218,7 +218,44 @@ Hecks.behaviors "Tickets" do
   test "Plan takes the work items a work item waits on" do
     tests "Plan", on: "Work"
     input  work: { value: "w16" }, title: { value: "Later" }, waits_on: [{ value: "w17" }]
-    expect status: "planned", emits: ["WorkPlanned", "AreaNamed"]
+    expect status: "planned", emits: ["WorkPlanned", "AreaNamed", "WorkUnheld"]
+  end
+
+  test "Hold keeps a planned work item planned and records why" do
+    tests "Hold", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w30" }, title: { value: "Misplaced" }
+    input  work: { value: "w30" }, held_reason: { value: "w30 area names nothing in the checkout: lib/nope" }
+    expect status: "planned", emits: ["WorkHeld"]
+  end
+
+  test "Start refuses a held work item" do
+    tests "Start", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w31" }, title: { value: "Misplaced" }
+    setup  "Tickets::Work.Hold", work: { value: "w31" }, held_reason: { value: "area names nothing: lib/nope" }
+    input  work: { value: "w31" }, claimed_by: { value: "s" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
+    expect refused: "a held work item does not start"
+  end
+
+  test "Unhold releases a held work item" do
+    tests "Unhold", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w32" }, title: { value: "Misplaced" }
+    setup  "Tickets::Work.Hold", work: { value: "w32" }, held_reason: { value: "area names nothing: lib/nope" }
+    input  work: { value: "w32" }
+    expect status: "planned", emits: ["WorkUnheld"]
+  end
+
+  test "Unhold of a work item that is not held changes nothing and is not refused" do
+    tests "Unhold", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w33" }, title: { value: "Clean" }
+    input  work: { value: "w33" }
+    expect status: "planned"
+  end
+
+  test "A held work item stays in the undone list" do
+    tests "Hold", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w34" }, title: { value: "Misplaced" }
+    input  work: { value: "w34" }, held_reason: { value: "w34 area names nothing in the checkout: lib/nope" }
+    expect status: "planned", emits: ["WorkHeld"]
   end
 
   test "WaitOn replaces the work items a planned work item waits on" do
