@@ -375,6 +375,27 @@ Hecks.behaviors "Agents" do
     expect refused: "a message body is at most 2000 characters; split it"
   end
 
+  test "Send refuses a kind the old protocol named and the new one does not" do
+    tests "Send", on: "Message"
+    input  message: { value: "m7" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "brief-change" }, body: { value: "smaller" }
+    expect refused: "MessageKind admits"
+  end
+
+  test "Send refuses a priority that is neither normal nor urgent" do
+    tests "Send", on: "Message"
+    input  message: { value: "m8" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "now" }, priority: { value: "loud" }
+    expect refused: "Priority admits"
+  end
+
+  test "Send refuses a channel that is not help, all or train" do
+    tests "Send", on: "Message"
+    input  message: { value: "m9" }, recipient: { value: "scrum-master" }, sender: { value: "run-a" },
+           kind: { value: "help" }, body: { value: "stuck" }, channel: { value: "random" }
+    expect refused: "Channel admits"
+  end
+
   test "Stamp refuses a message that is no longer addressed" do
     tests "Stamp", on: "Message"
     setup  "Agents::Message.Send", message: { value: "m3" }, recipient: { value: "run-a" }, sender: { value: "miette" },
