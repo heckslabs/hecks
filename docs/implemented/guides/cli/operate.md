@@ -46,7 +46,7 @@ One thing an operator ran against a domain, and how it ended.
 - `hecks Operation.refresh_projections! <subject>`: Bring every read-model projection of a domain up to date now
 - `hecks Operation.redrive_outbox! <subject> [row=] [--claimed]`: Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled
 - `hecks Operation.abandon_outbox_row! <subject> row= [reason=]`: Settle one stalled outbox row as failed without running it: subject.value is the domain, row.value its delivery id or uuid
-- `hecks Operation.run_behaviors! <subject>`: Run a domain's behavior tests and keep the verdict
+- `hecks Operation.run_behaviors! <subject>`: Run a domain's behavior tests and keep the verdict; without --wait it returns at status requested, so pass --wait to read the verdict
 - `hecks console! [<subject>]`: Open an interactive console on a domain
 - `hecks Operation.smoke_test! [<subject>]`: Dispatch one synthesized call per command and report of a wired domain
 - `hecks Operation.smoke_http! [<url>] path= [header=] [scheme=] [payload=] [payload_file=] [health_path=] [state_path=]`: Check that a running service refuses bad signatures and accepts a good one
