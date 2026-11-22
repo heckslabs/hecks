@@ -62,9 +62,12 @@ module Hecks
                .max_by { |entry| busy?(entry) ? 1 : 0 }
       end
 
-      def busy?(entry) = entry["status"].to_s == "busy" || %w[working blocked].include?(entry["state"].to_s)
+      # A listed status of idle wins over the state, which a finished turn leaves at working.
+      def busy?(entry) = !idle?(entry) && (entry["status"].to_s == "busy" || %w[working blocked].include?(entry["state"].to_s))
 
-      def idle?(entry) = !busy?(entry) && IDLE.include?(entry["state"].to_s.then { |s| s.empty? ? "idle" : s })
+      def idle?(entry) = entry["status"].to_s == "idle" || (entry["status"].to_s != "busy" && resting?(entry))
+
+      def resting?(entry) = IDLE.include?(entry["state"].to_s.then { |state| state.empty? ? "idle" : state })
 
       def wake(entry, role)
         prompt = "You have mail for #{role}: read it with exe/hecks agents Message.inbox recipient.value=#{role}"
