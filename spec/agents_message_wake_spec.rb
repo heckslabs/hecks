@@ -36,4 +36,18 @@ RSpec.describe "the Agents message wake" do
     send_message(to: "orchestrator")
     expect(resumed.map(&:first)).to eq(["ab12"])
   end
+
+  it "wakes a session listed idle whatever its state says", :aggregate_failures do
+    role_sessions.first.merge!("status" => "idle", "state" => "working", "sessionId" => "ab12-full")
+    send_message(to: "orchestrator")
+    expect(resumed.map(&:first)).to eq(["ab12"])
+    expect(resumed_entries.first["sessionId"]).to eq("ab12-full")
+  end
+
+  it "prefers the seat listed idle over a second seat that is busy", :aggregate_failures do
+    role_sessions.first.merge!("status" => "idle", "state" => "working")
+    role_sessions << { "id" => "cd34", "name" => "orchestrator 2", "status" => "busy", "state" => "working" }
+    send_message(to: "orchestrator")
+    expect(resumed.map(&:first)).to eq(["ab12"])
+  end
 end
