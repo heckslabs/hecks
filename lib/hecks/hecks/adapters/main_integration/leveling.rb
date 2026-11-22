@@ -8,7 +8,8 @@ module Hecks
       # Brings local main level with origin/main when a train merged there: origin/main is merged
       # into main, so a tip made on the old base sits on a main that holds the train's merge commit
       # and boards with no conflict. Main is only ever moved forward (a fast-forward or a merge
-      # commit), never rewritten. A merge that conflicts is abandoned and leaves main where it was.
+      # commit, nothing when level), never rewritten. A merge that conflicts is abandoned and
+      # leaves main where it was.
       class Leveling
         REMOTE = "origin/main"
 
@@ -21,7 +22,7 @@ module Hecks
         # @return [String, nil] why origin/main could not be merged into main (the files in
         #   conflict); nil when main is level, was brought level, or is not checked out here
         def call
-          return unless on_main? && clean? && count("main..#{REMOTE}").positive?
+          return unless on_main? && clean?
 
           merged = merge
           merged.ok? ? nil : abandon
@@ -45,14 +46,11 @@ module Hecks
 
         def blank?(text) = text.strip.empty?
 
-        def count(range) = @git.capture("rev-list", "--count", range, chdir: @checkout).out.to_i
-
-        # The committer of main's tip, when git knows no one.
+        # A committer for the merge commit, when git knows no one.
         def identity
           return [] unless blank?(out("config", "user.email"))
 
-          name, email = @git.capture("log", "-1", "--format=%cn%n%ce", chdir: @checkout).out.split("\n")
-          name && email ? ["-c", "user.name=#{name}", "-c", "user.email=#{email}"] : []
+          ["-c", "user.name=Hecks", "-c", "user.email=hecks@localhost"]
         end
       end
     end
