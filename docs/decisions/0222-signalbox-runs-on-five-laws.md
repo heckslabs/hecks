@@ -209,3 +209,82 @@ The owner left the four open items to the orchestrator ("your call"), which deci
    replaced by the meter's measured means.
 4. **The names.** Signalbox and Roundhouse stand. The wider naming record
    (`naming-decision-hecks-on-rails-and-its-parts`) stays Proposed.
+
+## Inventory 2026-11-22
+
+Work item `cut-over-and-delete-the-old-delegate-machinery`. This amendment deletes nothing, flips no
+switch and changes no bluebook; it is the map the later items start from. The rule for them: **a
+Delegate aggregate with no row below and no named owner stays where it is**, so the delete list is an
+allow-list, and each deletion waits for its own switch to hold a measured day (the owner's call).
+
+`lib/hecks/hecks/delegate/delegate.bluebook` holds **23** aggregates, not the 19 the Context counts:
+SweepBatch, FillStall, LoadStanding and ComputeMeter have no row in the placement table above.
+Roundhouse's `Session` has `Start`, `Meter`, `Blow`, `Rest`, `Resume`, `Finish` and `Reap` today; it has
+no `Question` (that row is phase 2).
+
+Statuses: **moved** (a home with the commands exists), **planned** (a home is named, its commands do
+not exist), **deleted-by-0222** (the table says so, nothing replaces it), **unplaced** (no row; stays
+until the owner names an owner).
+
+| Delegate aggregate | Status | New home (0222) | Switch in `tickets.world` | Callers outside `delegate.bluebook` (files) |
+|---|---|---|---|---|
+| AgentRun | moved | Roundhouse `Session` | `metering` (roundhouse), `reaping` | 35: agents adapters (fleet_control, recipient_check), agents.bluebook, agents.hecksagon |
+| SessionSweep | moved | Roundhouse `Session.Meter` | `metering` | 0 |
+| PlainSession | moved | Roundhouse `Session` | none | 0 |
+| SessionCleanup | moved | Roundhouse `Session.Reap` | `reaping.signalbox` | 0 |
+| ReapTurn | deleted-by-0222 | none | `reaping.signalbox` | 2: hecks.bluebook, `spec/reap_turn_spec.rb` |
+| Dispatch | moved | Signalbox `Admission` | `admission.signalbox`, `protection.signalbox` | 17 (word matches): agents.bluebook, `dispatching/*`, bluebook DSL files |
+| Roll | deleted-by-0222 | none | none | 7: `adapters/dispatching/rolls.rb`, `adapters/rolling.rb`, hecks.bluebook, hecksagon, deploy.bluebook, pipeline_fill.rb |
+| RollSwitch | moved | Signalbox `Admission` | `dispatch_roll_forward` (stays) | 1+: `adapters/rolling.rb`, hecks.hecksagon, 4 specs |
+| Idler | deleted-by-0222 | none | `idles` | 4: `adapters/idling.rb`, hecks.bluebook, hecksagon, tickets.world, 2 specs |
+| Ticker | deleted-by-0222 | none | `ticks` | 8: `adapters/ticking*`, `ticker_persistence.rb`, `main_integration/*`, agents.bluebook |
+| Wake | deleted-by-0222 | folded into the beat | none | 1+: `dispatching/wake.rb`, `adapters/waking.rb`, `dispatching/rolls.rb`, stall_watch |
+| Heartbeat | moved | Signalbox `Pressure` (`Beat`) | `signalbox_pressure.drives` | 1+: `adapters/beating.rb`, `main_integration/beat_schedule.rb`, many bluebooks name a beat |
+| Machine | moved | Signalbox `Pressure` | `signalbox_pressure`, `metering`, `machine_marks` | 11: sweeping adapter, `dispatching/headroom.rb`, `codebase/memory_wait.rb`, agents.bluebook |
+| Overload | moved | Signalbox `Pressure` (short band) | `signalbox_pressure` | 4: hecks.bluebook, pipeline_board.bluebook, `standing_facts.rb`, 2 specs |
+| Shed | moved | Signalbox `Breaker` | `protection.signalbox`, `load_shed` | 6: `dispatching/{protecting,shed_facts,shedding}.rb`, hecksagon, stall_watch, tickets.world |
+| RedWake | moved | Signalbox `Admission` | `admission.signalbox` | 0 |
+| MergeWindow | moved | Signalbox `Response` | `signalbox_response.drives` | 3: `dispatching/{stall_reading,window_standing}.rb`, `quieting.rb`, hecks.bluebook, pipeline_board |
+| Question | planned | Roundhouse (phase 2) | none | 2+: agents.bluebook, stall_watch, interviews (word matches) |
+| AnswerDesk | deleted-by-0222 | none | none | 0 |
+| SweepBatch | **unplaced** | none; proposed: Roundhouse `Session.Meter` [owner] | none (`work_limit` counts a batch as one place) | 0 in lib; `spec/hecks_sweep_batch_spec.rb` |
+| ComputeMeter | **unplaced** | none; proposed: Roundhouse `Tally` [owner] | none | `lib/hecks/hecks/compute_meter.behaviors` |
+| FillStall | **unplaced** | none; proposed: Signalbox `Shadow`/`Ruling` [owner] | none | 1+: `dispatching/{fill_gauge,stall_gauging}.rb`, hecksagon, stall_watch, 2 specs |
+| LoadStanding | **unplaced** | none; proposed: Signalbox `Standing` [owner] | none | 2: `machine_sampling/history.rb`, hecks.bluebook, 2 specs |
+
+Open for the owner [owner]: whether any unplaced aggregate is deleted by decision rather than moved.
+The ledger-care comment in `tickets.world` says a beat compacts the AgentRun journal; that duty has
+no Roundhouse owner either and stays with `AgentRun` until named.
+
+### Settings
+
+None of these is deleted by this record. A setting goes only after its last reader has moved.
+
+| Setting | Read by (outside Delegate) | Fate |
+|---|---|---|
+| `work_limit`, `work_cap` | `Dispatch.Fill`, the Tune `WorkCap` | replaced by `admission.signalbox`, after it holds |
+| `dispatch_max_load` | `Dispatch.Fill`, impacted-spec workers (`impacted_workers`), `heavy_jobs` comments | replaced by the headroom target; impacted workers read it today |
+| `epic_wip_limit` | `Dispatch.Fill` | open: no 0222 successor named |
+| `load_shed` | `Shed` | replaced by `Breaker` after `protection.signalbox` holds |
+| `machine_marks` | `Machine` readings, `heavy_jobs` memory wait | replaced after `signalbox_pressure` holds |
+| `ticks`, `idles` | `Ticker`, `Idler` | go with them |
+| `heavy_jobs` | `Codebase::HeavySlots` | stays until it has a Signalbox reading to wait on |
+| `cpu_budget` | `Dispatch` | **stays**: the whole-machine fuse |
+| `dispatch_roll_forward` | `RollSwitch` | **stays**: the owner's switch |
+
+Switches (all `false` on 2026-11-22): `signalbox_pressure.drives`, `signalbox_response.drives`,
+`metering.roundhouse`, `admission.signalbox`, `protection.signalbox`, `reaping.signalbox`. No shadow
+agreement or held day is recorded for any of them.
+
+Caller counts are a snapshot of 2026-11-22; rerun with
+`git grep -l -w <Aggregate> -- lib spec ':!lib/hecks/hecks/delegate/delegate.bluebook'`. Names such
+as Dispatch, Roll, Question and Wake are common words, so those counts overstate.
+
+### Follow-on items, in order
+
+1. Behaviors for each moved row whose parity is missing (`.behaviors` first, then the bluebook, then
+   `regeneration_run.regenerate_corpus!` and `--check`).
+2. Re-home the adapters behind each function, one switch at a time, in the owner's order.
+3. The owner flips each switch after its own shadow agreement; a held day follows each.
+4. Delete: only what a held switch made dead, started by the owner, with `model_check` before and after
+   each aggregate and the shape ledger read first.
