@@ -397,10 +397,8 @@ Hecks.bluebook "PipelineBoard" do
       attribute :holds,         list_of(Reading)
     end
 
-    # Where one worktree's change stands: `worktree` (commits main lacks, by content),
-    # `local_main` (on local main, not yet on origin) or `origin_main`. A rebased or cherry-picked
-    # landing counts as landed. `say` is the `StandingSays` row's words, `dirty` the uncommitted
-    # files, `shas` the commits behind the standing.
+    # Where one worktree's change stands: `worktree`, `local_main` or `origin_main`; landed by
+    # content, so a rebased landing counts. `say` is the `StandingSays` words, `shas` the commits.
     value_object "ChangeStanding" do
       attribute :subject,  String
       attribute :branch,   String, default: ""
