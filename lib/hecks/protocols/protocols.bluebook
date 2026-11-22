@@ -20,6 +20,8 @@ Hecks.bluebook "Protocols" do
     attribute :veto_reason,   Text, optional: true
     # Each flagged break adds one, for the scrum master's retrospective.
     attribute :breaks,        Tally
+    # Each open thumbs-down adds one and its replacement takes one away; a proposal carries only at none.
+    attribute :objections,    Tally
     # The instant after which an absent seat no longer holds the agreement, and when it closed.
     attribute :deadline,      Instant, optional: true
     attribute :closed_at,     Instant, optional: true
@@ -95,6 +97,34 @@ Hecks.bluebook "Protocols" do
       emits "AgreementAgreed"
     end
 
+    command "Oppose" do
+      role "System"
+      policy_only
+      goal "Count one seat's open thumbs-down, which holds the agreement from carrying"
+
+      reference_to Agreement
+
+      given("a thumbs-down is counted only while the agreement waits on roles") { status == "proposed" }
+
+      sets :objections, increment: { value: 1 }
+
+      emits "AgreementOpposed"
+    end
+
+    command "Withdraw" do
+      role "System"
+      policy_only
+      goal "Take away a thumbs-down its seat replaced"
+
+      reference_to Agreement
+
+      given("an objection is withdrawn only while one is open") { objections.value.positive? }
+
+      sets :objections, decrement: { value: 1 }
+
+      emits "ObjectionWithdrawn"
+    end
+
     command "Veto" do
       role "Maintainer"
       goal "One affected role refuses, and says why"
@@ -113,6 +143,7 @@ Hecks.bluebook "Protocols" do
       reference_to Agreement
 
       given("an agreement is accepted when no affected role still owes an answer") { owed.value.zero? }
+      given("an agreement with an open thumbs-down does not carry") { objections.value.zero? }
       given("an agreement that touches the owner is never accepted by the roles") { touches_owner.value == "no" }
 
       emits "AgreementAccepted"
@@ -232,6 +263,8 @@ Hecks.bluebook "Protocols" do
       goal "A seat resolves its earlier no, freeing its place for a new vote while the no stays as evidence"
 
       reference_to Vote
+      # The agreement the replaced no was held against, whose objection is withdrawn with it.
+      attribute :held_against, Reference
 
       given("only a no can be replaced") { gesture.value == "no" }
 
@@ -253,6 +286,22 @@ Hecks.bluebook "Protocols" do
     on      "Vote.VoteCast"
     where   { gesture.value == "yes" }
     trigger Agreement::Agree, with: { agreement: :agreement }
+  end
+
+  policy "CountTheNo" do
+    on      "Vote.VoteCast"
+    where   { gesture.value == "no" }
+    trigger Agreement::Oppose, with: { agreement: :agreement }
+  end
+
+  policy "WithdrawTheReplacedNo" do
+    on      "Vote.VoteReplaced"
+    trigger Agreement::Withdraw, with: { agreement: :held_against }
+  end
+
+  policy "AcceptWhenTheLastObjectionIsWithdrawn" do
+    on      "Agreement.ObjectionWithdrawn"
+    trigger Agreement::Accept, with: { agreement: :reference }
   end
 
   policy "AcceptWhenEveryRoleAgreed" do
