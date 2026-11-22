@@ -28,7 +28,8 @@ module AgentsHandRunWatchHelpers
   def watch_adapter = Hecks::Adapters::HandRunWatch.new(listing: -> { sessions })
 
   def fleet_adapter
-    Hecks::Adapters::FleetControl.new(settings: { shell: shell, projects: Dir.tmpdir, runs: -> { { runs: {}, sessions: {}, pinned: [] } } })
+    ledger = -> { { runs: {}, sessions: {}, pinned: [] } }
+    Hecks::Adapters::FleetControl.new(settings: { shell: shell, projects: Dir.tmpdir, runs: ledger })
   end
 
   def adapters
