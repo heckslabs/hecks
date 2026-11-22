@@ -5,27 +5,30 @@ require "hecks/agents/adapters/sweeping"
 # A process bound to no held run and past its time limit: a stuck tick, a resident fork of a
 # worktree nobody holds, a mock-up server. Stand-ins for the process table and the killer, so no
 # real process is listed or stopped.
-RSpec.describe Hecks::Adapters::Sweeping::Orphans, "strays" do
-  let(:entry_class) { Hecks::Adapters::Sweeping::ProcessTable::Entry }
+RSpec.describe Hecks::Adapters::Sweeping::Orphans do
   let(:table) { instance_double(Hecks::Adapters::Sweeping::ProcessTable) }
   let(:killed) { [] }
-  let(:tmp) { Dir.mktmpdir("hecks-strays") }
-  let(:late) { 4_000 }
   let(:tick) { "ruby -e require \"x/ticking/chain\";Hecks::Adapters::Ticking::Chain.run(ARGV); abc123" }
   let(:resident) { "hecks resident gone-branch (resident/server.rb /r/.claude/worktrees/gone-branch)" }
 
-  after { FileUtils.remove_entry(tmp) }
+  def late = 4_000
 
-  def entry(pid, age, command, ppid: 10) = entry_class.new(pid, ppid, age, 1, command)
+  def entry(pid, age, command, ppid: 10)
+    Hecks::Adapters::Sweeping::ProcessTable::Entry.new(pid, ppid, age, 1, command)
+  end
 
-  def orphans(entries, held: [])
+  def stub_table(entries)
     allow(table).to receive_messages(entries: entries, working_directories: [])
     allow(table).to receive(:below) { |pid, all| all.select { |e| e.ppid == pid } }
-    described_class.new(table: table, killer: ->(pid) { killed << pid }, tmp: tmp, held: held, pause: -> {})
+  end
+
+  def orphans(entries)
+    stub_table(entries)
+    described_class.new(table: table, killer: ->(pid) { killed << pid }, tmp: [], pause: -> {})
   end
 
   def stopped(entries, held: [])
-    orphans([entry(10, 99_999, "zsh", ppid: 1)] + entries, held: held).reap
+    orphans([entry(10, 99_999, "zsh", ppid: 1)] + entries).reap(held: held)
     killed
   end
 
