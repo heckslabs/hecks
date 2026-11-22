@@ -1,5 +1,5 @@
 {
-  "digest": "8fd726883f9f275c2eca1c33320a09900ad15fca2ea7f4a2661798fe0966153c",
+  "digest": "a330deac9177d61d5d6cf981880ba5877dab07bd67dfad31dfaacefcae123a1f",
   "roles": {
     "orchestrator": [
       "git status",

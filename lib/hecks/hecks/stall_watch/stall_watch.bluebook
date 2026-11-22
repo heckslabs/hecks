@@ -95,6 +95,12 @@ Hecks.bluebook "Hecks" do
                move: "Read the message (Message.inbox recipient=<run>) and its recipient: a run with no live " \
                      "session needs AgentRun.answer! or a new wake, a busy one hears it at its next tool step. " \
                      "Wake the holder (Message.send! again under a new key), or report who holds the seat."
+        # A hand-started run whose session died and was not restarted or ended: the lead's seat (or any
+        # hand run) stands lost, and mail to its key is held or refused.
+        member kind: "hand-run-lost", not_about: "stall-", aggregate: "Agents::HandRun", opens: "HandRunLost",
+               closes: "HandRunRestarted,HandRunEnded", minutes: 5, forgets: 1440, fixer: "orchestrator",
+               move: "Start its session again under the run key, then register it with HandRun.register! " \
+                     "run=<run> session=<id>, or end the registration with HandRun.end! run=<run>."
         # A rerun does not close the line; an exhaust or a search does, and any later merge settles it
         # (`TrainPr` records no pass), even an unrelated one. A failed rerun exhausts or is searched
         # under a new key, so this line still files and its move stops.
