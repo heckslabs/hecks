@@ -17,8 +17,9 @@ module Hecks
     # whole repository. A word with sections (`x.bluebook#Coder,Brief`, {Landing::SectionArea})
     # also needs each section to be a declaration of that bluebook, read as
     # {Landing::Declarations} cuts it. A word that starts with a sibling checkout's directory name
-    # (`switchyard/bluebook`) is read inside that checkout. A work item that adds a directory names the directory that
-    # holds it, and one that adds an aggregate names its bluebook with no section.
+    # (`switchyard/bluebook`) is read inside that checkout. A work item that adds a directory
+    # names the directory that holds it, and one that adds an aggregate names its bluebook with
+    # no section.
     module AreaNames
       # The Tickets world verb that switches the check on (`area_names "WorkAreas", checked: true`).
       VERB = "area_names"
