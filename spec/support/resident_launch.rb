@@ -6,6 +6,7 @@ require "hecks/adapters/driving/resident/paths"
 require_relative "thread_parking"
 require_relative "child_process_guard"
 require_relative "resident_autopsy"
+require_relative "resident_taken"
 
 # Runs this checkout's `exe/hecks` against a resident of its own, in cache directories that
 # belong to the example group, so a spec never reaches a developer's resident or their usage
@@ -18,6 +19,7 @@ require_relative "resident_autopsy"
 # example that needs it standing.
 module ResidentLaunch
   include ResidentAutopsy
+  include ResidentTaken
 
   ROOT = File.expand_path("../..", __dir__)
   PATHS = Hecks::Adapters::Driving::Resident::Paths
