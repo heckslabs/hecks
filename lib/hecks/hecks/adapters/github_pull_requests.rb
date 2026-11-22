@@ -8,6 +8,7 @@ require_relative "github_pull_requests/train_reopen"
 require_relative "github_pull_requests/train_arm"
 require_relative "github_pull_requests/check_failures"
 require_relative "github_pull_requests/closing"
+require_relative "github_pull_requests/queue_standing"
 
 module Hecks
   module Adapters
@@ -132,6 +133,7 @@ module Hecks
       def status(**held)
         number = pull_request_number(held[:number], "read")
         view = JSON.parse(gh!("pr", "view", number, "--json", "number,state,url,mergedAt,statusCheckRollup"))
+        view["queue"] = QueueStanding.new(method(:gh!)).place(number)
         { text: "#{status_lines(view).join("\n")}\n" }
       end
 
@@ -198,7 +200,8 @@ module Hecks
       def status_lines(view)
         checks = Array(view["statusCheckRollup"]).map { |check| "#{check["name"]}=#{check_state(check)}" }
         ["number: #{view["number"]}", "state: #{view["state"]}", "url: #{view["url"]}",
-         "merged: #{view["mergedAt"] || "no"}", "checks: #{checks.empty? ? "none" : checks.join(", ")}"]
+         "merged: #{view["mergedAt"] || "no"}", "queue: #{view["queue"]}",
+         "checks: #{checks.empty? ? "none" : checks.join(", ")}"]
       end
 
       # A check's conclusion once it has one, and its state while it is still pending.
