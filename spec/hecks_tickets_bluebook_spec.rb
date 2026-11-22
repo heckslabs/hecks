@@ -162,7 +162,7 @@ RSpec.describe "the Tickets bluebook" do
 
     expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted",
                                                       "CheckAreaNamesWhenPlanned", "CheckAreaNamesWhenRescoped",
-                                                      "ComposeNoteWhenNoteRequested")
+                                                      "CheckExpediteWhenExpedited", "ComposeNoteWhenNoteRequested")
   end
 
   it "lapses a superseded decision's undone steps" do
