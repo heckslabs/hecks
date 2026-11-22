@@ -5,7 +5,8 @@ module Hecks
     class MachineSampling
       # The marks a reading is judged against: the Tickets world's `machine_marks` line laid over
       # these defaults. Each state has two marks with a gap between them, so a reading inside the
-      # gap changes nothing and a gauge that hovers near one mark does not flap.
+      # gap changes nothing and a gauge that hovers near one mark does not flap. `nice_high` and
+      # `priority_low` (4, the Background clamp) mark a Claude process as on the efficiency cores.
       class Marks
         # The world verb that carries the marks.
         VERB = "machine_marks"
@@ -36,7 +37,9 @@ module Hecks
           pressure_level_ok:  1.0,
           lane_busy:          4.0,
           lane_idle:          1.0,
-          interval:           60.0
+          interval:           60.0,
+          nice_high:          15.0,
+          priority_low:       4.0
         }.freeze
 
         # @param registry [Runtime::Registry, nil] the booted registry whose Tickets world is read

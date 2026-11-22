@@ -62,19 +62,30 @@ module Hecks
         { report: { value: lines.join("\n") } }
       end
 
-      # Writes and loads the launchd job that beats the clock once a minute (`BeatSchedule`).
+      # Writes and loads the launchd jobs the domain keeps: the beat once a minute
+      # (`BeatSchedule`) and a Claude daemon at normal priority (`ClaudeDaemonSchedule`).
       #
       # @param held [Hash] the `Integration` record: `confirm` lets the launch agents be written
       # @return [Hash{Symbol => Hash}] `report:` what was done, or would be
-      def arrange(**held) = { report: { value: BeatSchedule.new.install(confirm: plain(held[:confirm]) == true) } }
+      def arrange(**held) = { report: { value: schedules.map { |job| job.install(confirm: confirmed?(held)) }.join("\n") } }
 
-      # Unloads and removes the launchd job.
+      # Unloads and removes the launchd jobs.
       #
       # @param held [Hash] the `Integration` record: `confirm` lets the launch agents be written
       # @return [Hash{Symbol => Hash}] `report:` what was done, or would be
-      def withdraw(**held) = { report: { value: BeatSchedule.new.uninstall(confirm: plain(held[:confirm]) == true) } }
+      def withdraw(**held) = { report: { value: schedules.map { |job| job.uninstall(confirm: confirmed?(held)) }.join("\n") } }
 
       private
+
+      # The launchd jobs the domain keeps: the beat, and the Claude daemon at normal priority.
+      def schedules = [BeatSchedule.new(priority: JobPriority.from(@registry)), daemon_schedule]
+
+      def daemon_schedule
+        verb = ClaudeDaemonSchedule::VERB
+        ClaudeDaemonSchedule.new(priority: JobPriority.from(@registry, verb: verb, nice: 0))
+      end
+
+      def confirmed?(held) = plain(held[:confirm]) == true
 
       # A run that stood in one stage past its bound is parked first, so the line it held is free
       # for the runs behind it in this same pass.
@@ -182,3 +193,4 @@ require_relative "main_integration/fault"
 require_relative "main_integration/outcome"
 require_relative "main_integration/train_checks"
 require_relative "main_integration/beat_schedule"
+require_relative "main_integration/claude_daemon_schedule"

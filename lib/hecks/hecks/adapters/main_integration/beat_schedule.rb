@@ -3,6 +3,7 @@
 require "cgi"
 require "fileutils"
 require "open3"
+require_relative "job_priority"
 require_relative "local_copy"
 
 module Hecks
@@ -30,18 +31,21 @@ module Hecks
         # @param root [String] the checkout whose launcher each beat dispatches through; the push
         #   train's copy by default, the one whose records a beat reads
         # @param home [String] the home directory whose launch agents and log are used
+        # @param priority [JobPriority] how the job is scheduled: the world's setting or defaults
         # @param runner [#call, nil] runs `launchctl` from its argument list and answers
         #   `[output, success]`; a stand-in in specs
-        def initialize(root: File.join(Dir.home, ".claude", "hecks-train"), home: Dir.home, runner: nil)
+        def initialize(root: File.join(Dir.home, ".claude", "hecks-train"), home: Dir.home,
+                       priority: JobPriority.new, runner: nil)
           @root = root
           @home = home
+          @priority = priority
           @runner = runner || method(:launchctl)
         end
 
         # @return [String] where the property list is kept
         def path = File.join(@home, "Library", "LaunchAgents", "#{LABEL}.plist")
 
-        # @return [String] the property list, a pure function of the root and the home directory
+        # @return [String] the property list, a pure function of the root, home and priority
         def plist
           <<~XML
             <?xml version="1.0" encoding="UTF-8"?>
@@ -60,12 +64,7 @@ module Hecks
               <integer>#{INTERVAL}</integer>
               <key>RunAtLoad</key>
               <false/>
-              <key>ProcessType</key>
-              <string>Background</string>
-              <key>LowPriorityIO</key>
-              <true/>
-              <key>Nice</key>
-              <integer>10</integer>
+              #{@priority.keys}
             </dict>
             </plist>
           XML
