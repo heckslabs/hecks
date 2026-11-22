@@ -85,10 +85,11 @@ module Hecks
           def unservable(request)
             return "script" unless same_script?(request)
 
-            names = differing(request[:env])
+            control = Control.line?(request[:argv].to_a)
+            names = differing(request[:env], control: control)
             return "env:#{names}" if names
 
-            refusal = PersistenceGuard.foreign_overlay(request[:cwd].to_s, @root) || unpersisted(request[:env])
+            refusal = (control ? nil : PersistenceGuard.foreign_overlay(request[:cwd].to_s, @root)) || unpersisted(request[:env])
             return refusal if refusal
             return nil unless changed?
 
@@ -131,8 +132,8 @@ module Hecks
 
           # @return [String, nil] the names of the first variables the line differs on from what
           #   the code loaded under, never their values, short enough to fit in a reply
-          def differing(env)
-            names = loaded_names.reject { |name| same_value?(name, env[name]) }
+          def differing(env, control: false)
+            names = (loaded_names - (control ? Control::GEM_ENV : [])).reject { |name| same_value?(name, env[name]) }
             names.empty? ? nil : names.first(NAMES).join("+")[0, NAMES_WIDTH]
           end
 
