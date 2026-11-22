@@ -99,15 +99,15 @@ module Hecks
 
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
-          answer = answer_since(answer, options[:since]) if plan[:asking] && options[:since][:given]
-          finish_line(answer, plan, started, { argv: argv, usage_log: options[:usage_log], err: err })
+          finish_line(answer, plan, started, options.merge(argv: argv, err: err))
         end
 
         # Records a line that ran and prints its details when `-v` asked for them.
         #
         # @api private
-        # @return [Array(String, Integer)] the answer, unchanged
+        # @return [Array(String, Integer)] the answer, a repeated query's as `--since` asks
         def finish_line(answer, plan, started, details)
+          answer = answer_since(answer, details[:since]) if plan[:asking] && details[:since][:given]
           UsageLog.record(argv: details[:argv], resolved: plan[:name], status: answer[1], started: started) if details[:usage_log]
           verbose_details(details[:err], plan[:name], started) if verbose?
           answer

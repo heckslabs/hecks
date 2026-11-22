@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # `--since[=<hash>]` lets a caller that asks a query again pay for a line when nothing changed.
-RSpec.describe Hecks::Adapters::Driving::CliRunner::Since do
+RSpec.describe Hecks::Adapters::Driving::CliRunner::Since, :aggregate_failures do
   subject(:since) { Object.new.extend(described_class) }
 
   describe "#split_since" do

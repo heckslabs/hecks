@@ -29,14 +29,22 @@ module Hecks
         # The short help's body: each module's word and the first sentence of its vision, then the
         # line saying where the commands and queries are listed in full.
         def brief_lines(bluebook, program)
-          rows = module_names(bluebook).to_h do |name|
-            vision = bluebook.modules.find { |row| row.name == name }.vision
-            [Naming.snake(name), CliAudience.clipped(first_sentence(vision), 72)]
-          end
-          width = rows.keys.map(&:length).max.to_i
+          rows = module_summaries(bluebook)
+          width = widest(rows.keys)
           ["modules (`#{program} <module>` lists its commands and queries):",
            *rows.map { |word, vision| "  #{word.ljust(width)}  #{vision}" },
            "", "  #{program} --all                  every command and query, in full"]
+        end
+
+        # The length of the longest word.
+        def widest(words) = words.map(&:length).max.to_i
+
+        # Each module's word, with the first sentence of its vision cut to fit one line.
+        def module_summaries(bluebook)
+          module_names(bluebook).to_h do |name|
+            vision = bluebook.modules.find { |row| row.name == name }.vision
+            [Naming.snake(name), CliAudience.clipped(first_sentence(vision), 72)]
+          end
         end
 
         # A module's heading: its word and its vision, then the two ways to call what it lists.

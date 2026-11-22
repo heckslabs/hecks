@@ -25,7 +25,7 @@ module Hecks
           #   and the words without it
           def split_since(argv)
             flag = argv.filter_map { |word| FLAG.match(word) }.last
-            [{ given: !flag.nil?, hash: flag && flag[:hash] }, argv.reject { |word| FLAG.match?(word) }]
+            [{ given: !flag.nil?, hash: flag && flag[:hash] }, argv.grep_v(FLAG)]
           end
 
           # The answer a query gets under the flag.
