@@ -17,7 +17,8 @@ module Hecks
       class Bisecting
         # What the merge's keys hold when no merge failed. `searched` is false until a search ran,
         # and `examples` is empty unless the search is a red train's.
-        NONE = { culprit: "", subject: "", branch: "", work: "", finding: "", spec: "", example: "", base_red: false,
+        NONE = { culprit: "", run_of_culprit: "", subject: "", branch: "", work: "", finding: "", spec: "", example: "",
+                 base_red: false,
                  local: false, revert_count: 0, searched: false, examples: "" }.freeze
 
         class << self
@@ -81,7 +82,7 @@ module Hecks
           def line(facts)
             return "no first bad merge: #{facts[:reason]}" if facts[:culprit].to_s.empty?
 
-            "first bad merge #{facts[:culprit][0, 10]} #{facts[:subject]}#{detail(facts)}"
+            "first bad merge #{facts[:culprit][0, 10]} #{facts[:subject]}#{run_part(facts)}#{detail(facts)}"
           end
 
           private
@@ -91,6 +92,10 @@ module Hecks
             return if repository.commit(landed)
 
             raise ConsoleCapture::Failure, "#{landed[0, 10]} is not a commit of #{repository.checkout}"
+          end
+
+          def run_part(facts)
+            facts[:run_of_culprit].to_s.empty? ? "" : " by run #{facts[:run_of_culprit]}"
           end
 
           def detail(facts)
