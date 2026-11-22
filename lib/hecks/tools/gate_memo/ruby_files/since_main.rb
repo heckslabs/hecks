@@ -35,8 +35,8 @@ module Hecks
             RubyFiles.lintable(root, RubyFiles.closure(root, changed, now.keys))
           end
 
-          # @return [Array<String>] the Ruby files that differ from the merge-base with `origin/main`
-          #   (or `main` when there is no remote), or none when there is no trunk to compare with
+          # @return [Array<String>] the Ruby files that differ from the merge-base with
+          #   `origin/main` (or `main` when there is no remote), or none with no trunk to compare
           def changed(root)
             base = merge_base(root)
             return [] unless base
