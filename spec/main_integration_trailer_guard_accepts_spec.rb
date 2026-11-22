@@ -34,4 +34,16 @@ RSpec.describe "a landing accepts commits that name their run" do
     commit_file("a", "change")
     expect(refusal).to be_nil
   end
+
+  it "asks nothing before the cutoff names a moment" do
+    start(cutoff: nil)
+    commit_file("a", "change")
+    expect(refusal).to be_nil
+  end
+
+  it "does not ask a commit authored before the cutoff" do
+    start(cutoff: 2_000)
+    commit_file("a", "change", at: 1_500)
+    expect(refusal).to be_nil
+  end
 end

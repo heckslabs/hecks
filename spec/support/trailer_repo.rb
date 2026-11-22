@@ -17,17 +17,20 @@ module TrailerRepo
     out
   end
 
-  def commit_file(name, message)
+  def commit_file(name, message, at: nil)
     File.write(File.join(work, name), name)
     git("add", ".")
-    git("commit", "-q", "-m", message)
+    git("commit", "-q", "-m", message, *("--date=@#{at} +0000" if at))
   end
 
-  def start(hook: true)
+  # A repository whose hook writes the trailers when `hook` is true, and whose commits are asked
+  # for them from the epoch second `cutoff`, when one is given.
+  def start(hook: true, cutoff: 0)
     git("init", "-q", "-b", "main")
     FileUtils.mkdir_p(File.join(work, ".githooks"))
-    File.write(File.join(work, ".githooks", "commit-msg"), "#!/bin/sh\n") if hook
-    commit_file("base", "start")
+    File.write(File.join(work, ".githooks", "commit-msg"), "#!/bin/sh\n# Hecks-Run\n") if hook
+    File.write(File.join(work, ".githooks", "trailers_from"), "#{cutoff}\n") if cutoff
+    commit_file("base", "start", at: 1)
     git("update-ref", "refs/remotes/origin/main", "HEAD")
   end
 
