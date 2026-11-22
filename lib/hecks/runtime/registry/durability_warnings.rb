@@ -107,12 +107,10 @@ module Hecks
         end
 
         # A warning, not a refusal: running sagas on a store with no `save_saga` is
-        # legitimate on purpose in a fast in-memory test/dev boot. A domain whose aggregates are
-        # all in Memory, bound or by default, has chosen to keep nothing, so it has nothing to
-        # say; the one worth saying is a domain that keeps its records while its sagas are lost.
+        # legitimate on purpose in a fast in-memory test/dev boot.
         def warn_undurable_sagas!(hecksagon)
           undurable = undurable_sagas(hecksagon.domain)
-          return if undurable.empty? || memory_only?(hecksagon.domain)
+          return if undurable.empty?
 
           names = undurable.map(&:name).join(", ")
           warn "[hecks] #{hecksagon.domain} declares process_manager(s) #{names} but its resolved " \
@@ -120,18 +118,6 @@ module Hecks
                "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
                "Bind this domain to an adapter that implements save_saga if this process_manager " \
                "must survive a crash.#{kept_saga_note(hecksagon.domain, undurable)}"
-        end
-
-        # Whether every aggregate of the domain resolves to the Memory adapter, so nothing it holds
-        # survives a restart and its sagas are no worse off than its records.
-        def memory_only?(domain)
-          aggregates = bluebook(domain)&.aggregates || []
-          aggregates.all? do |aggregate|
-            Ports::Persistence::BindingPolicy.resolve(self, domain, aggregate).adapter.to_s ==
-              Ports::Persistence::DEFAULT_ADAPTER
-          end
-        rescue WiringError
-          false
         end
 
         # The process managers whose checkpoints no store keeps: each is held by its starting
