@@ -1,5 +1,7 @@
 require "spec_helper"
 require "tmpdir"
+require "json"
+require "digest"
 require "stringio"
 require "hecks/tools/agent_roles"
 
@@ -115,6 +117,36 @@ RSpec.describe Hecks::Tools::AgentRoles do
     it "names the six guarded roles of the checkout, the product owner among them" do
       guarded = Hecks::Tools::AgentRoles::Rows.guarded(InMemoryDomain::ROOT)
       expect(guarded).to eq(%w[orchestrator scrum-master staff-engineer planner product-owner architect])
+    end
+  end
+
+  describe "the guard rules file" do
+    let(:path) { File.join(dir, "guard_rules.json") }
+    let(:agents) { File.join(dir, "agents") }
+
+    def bluebook = File.join(agents, "agents.bluebook")
+
+    def run_rules(*argv)
+      described_class.main(argv, rows: [row], out: dir,
+                                 rules: { path: path, agents: agents, commands: { "scout" => ["git log"] } })
+    end
+
+    before do
+      FileUtils.mkdir_p(agents)
+      File.write(bluebook, "domain Agents\n")
+    end
+
+    it "holds each role's rows and the digest of the agents bluebooks", :aggregate_failures do
+      quietly { run_rules }
+      written = JSON.parse(File.read(path))
+      expect(written["roles"]).to eq("scout" => ["git log"])
+      expect(written["digest"]).to eq(Digest::SHA256.hexdigest("domain Agents\n"))
+    end
+
+    it "answers 1 under --check when the agents bluebooks changed since it was written" do
+      quietly { run_rules }
+      File.write(bluebook, "domain Agents2\n")
+      expect(hushed { run_rules("--check") }).to eq(1)
     end
   end
 
