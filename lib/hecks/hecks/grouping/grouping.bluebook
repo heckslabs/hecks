@@ -2,10 +2,8 @@ Hecks.bluebook "Hecks" do
   domain_module "ChangeGrouping" do
     vision "Changes that go together board and revert as one group. Evidence puts two branches in a group, never a title: they change the same file, one holds a derived output of the other's source, one waits on the other, or they are the tasks of one item."
 
-    # Two branches the evidence ties together. The facts of each branch arrive with the command (the
-    # files it changes, the derived-from edges, the waits and its item); the rule that they prove the
-    # tie is declared here, so no adapter decides what belongs together. Boarding and dropping a
-    # group as one train is the train's, in a later change.
+    # The facts of each branch arrive with the command; the bluebook decides the tie, so no adapter does.
+    # Boarding and dropping a group as one train is the train's, in a later change.
     aggregate "ChangeGroup" do
       description "Two branches tied by evidence that holds in both of their facts."
       created_by "ChangeGroup.Form"
@@ -28,18 +26,12 @@ Hecks.bluebook "Hecks" do
       end
 
       # One of derives, shares_files, waits_on, same_item.
-      value_object "Kind" do
-        attribute :value, String
-      end
+      value_object "Kind", String
 
       # What proves the tie: a file, a source file, a work item's name or an item's name.
-      value_object "Proof" do
-        attribute :value, String
-      end
+      value_object "Proof", String
 
-      value_object "Status" do
-        attribute :value, String
-      end
+      value_object "Status", String
 
       command "Form" do
         role "System"
