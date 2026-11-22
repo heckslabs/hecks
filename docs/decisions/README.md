@@ -198,7 +198,7 @@ The table is the store as `DecisionFiles` reads it, by number, written by `hecks
 | [0198](0198-adapters-are-wasm-components-on-wasip2-with-native-store.md) | Adapters are Wasm components on wasip2 with WIT, and the store stays native | draft |  |  |
 | [0199](0199-the-corpus-and-independent-properties-judge-the-kernel.md) | The corpus and independent properties judge the kernel, and nothing seeds the corpus from the kernel it judges | draft |  |  |
 | [0200](0200-assurance-placement-and-claims.md) | Assurance stays an example for now; a claim is a health reading, never a required check | draft |  |  |
-| [0201](0201-a-resident-per-checkout-holds-the-described-domain-and-forks-a-launcher-line.md) | A resident per checkout holds the described domain and forks a launcher line | accepted |  |  |
+| [0201](0201-a-resident-per-checkout-holds-the-described-domain-and-forks-a-launcher-line.md) | A resident per checkout holds the described domain and forks a launcher line | accepted |  | 0234 |
 | [0202](0202-a-write-from-a-worktree-to-a-shared-ledger-runs-in-the-main-checkout.md) | A write from a worktree to a shared ledger runs in the main checkout | accepted |  |  |
 | [0203](0203-layer-the-rust-build-kernel-crate-then-domain-crates.md) | Layer the Rust build: a kernel crate, then domain crates | draft |  |  |
 | [0204](0204-an-epic-is-an-aggregate-whose-state-comes-from-its-work.md) | An epic is an aggregate whose state comes from its work | accepted |  | 0206 |
@@ -229,4 +229,5 @@ The table is the store as `DecisionFiles` reads it, by number, written by `hecks
 | [0231](0231-hydrate-entity-list-widened-to-value-object-lists-adr-0047-root-cause-fixed.md) | `Value::Coercion#hydrate_entity_list` widened to value-object lists — ADR 0047's root cause fixed; `remove:`'s own Rust port still deliberately not attempted | accepted |  |  |
 | [0232](0232-postgres-era-vendored-bluebook-source-text.md) | PostgresEra's era-1 self-mint now finds a vendored bluebook's own real source text | accepted |  |  |
 | [0233](0233-roles-exist-where-they-limit-or-read-independently.md) | A role exists where it limits what an agent can touch or gives a read not anchored on the author's work | accepted |  |  |
+| [0234](0234-a-command-starts-no-process.md) | A command starts no process; a cold start is rare, counted and reported | accepted |  |  |
 <!-- generated:end -->
