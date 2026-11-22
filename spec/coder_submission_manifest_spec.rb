@@ -23,7 +23,8 @@ RSpec.describe "a submission that declares what it carries" do
   def handed_in = hecks.registry.event_log.reverse.find { |event| event.name == "WorkSubmitted" }.payload.to_s
 
   it "hands the manifest on in WorkSubmitted once the submitter is measured" do
-    allow(port).to receive(:measure_submitter).and_return(inbox: false, resuming: false, first_paths: "docs/a.md", first_spec: "none")
+    allow(port).to receive(:measure_submitter)
+      .and_return(inbox: false, resuming: false, first_paths: "docs/a.md", first_spec: "none")
     submit(*manifest)
     expect(handed_in).to include("run-7", "lib/a.rb|docs/a.md", "abc0001", "spec/a_spec.rb")
   end
@@ -34,7 +35,9 @@ RSpec.describe "a submission that declares what it carries" do
     expect(handed_in).to include("w-man", "run-7", "coder")
   end
 
-  it "refuses a submission whose Work item is empty" do
-    expect(submit("work.value=", "run.value=run-7")[1]).to eq(1)
+  it "hands in a submission that names no manifest, its fields empty" do
+    allow(port).to receive(:measure_submitter).and_raise(Hecks::Adapters::ConsoleCapture::Failure, "no run")
+    submit
+    expect(handed_in).to include("w-man")
   end
 end

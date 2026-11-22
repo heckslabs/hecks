@@ -194,6 +194,14 @@ Hecks.bluebook "Coder" do
     attribute :sha,      SubmissionSha
     attribute :checkout, SubmissionCheckout
 
+    # The manifest: what the submission carries, the same data as its commits' `Hecks-*` trailers.
+    attribute :work,      SubmissionWork, default: { value: "" }
+    attribute :run,       SubmissionRun, default: { value: "" }
+    attribute :role,      SubmissionRole, default: { value: "" }
+    attribute :reaches,   SubmissionReaches, default: { value: "" }
+    attribute :revert_of, SubmissionRevertOf, default: { value: "" }
+    attribute :covers,    SubmissionCovers, default: { value: "" }
+
     value_object "SubmissionBranch" do
       attribute :value, String, matches: :present
       invariant("a submission names its branch") { !value.to_s.empty? }
@@ -208,6 +216,31 @@ Hecks.bluebook "Coder" do
     value_object "SubmissionCheckout" do
       attribute :value, String, matches: :present
       invariant("a submission names the checkout it was made in") { !value.to_s.empty? }
+    end
+
+    # The Work item the submission is for (`Hecks-Work`) and the run that made it (`Hecks-Run`, an
+    # `AgentRun` key). Empty when the submitter names none; the landing's check refuses that.
+    value_object "SubmissionWork" do
+      attribute :value, String
+    end
+
+    value_object "SubmissionRun" do
+      attribute :value, String
+    end
+
+    # The role that made it (`Hecks-Role`), the generated outputs it reaches (`Hecks-Reaches`, paths
+    # joined by `|`), the commit it reverts (`Hecks-Revert-Of`) and the spec that covers it.
+    value_object "SubmissionRole" do
+      attribute :value, String
+    end
+    value_object "SubmissionReaches" do
+      attribute :value, String
+    end
+    value_object "SubmissionRevertOf" do
+      attribute :value, String
+    end
+    value_object "SubmissionCovers" do
+      attribute :value, String
     end
 
     # Whether the checkout held no uncommitted or untracked file when the branch was submitted.
@@ -236,6 +269,12 @@ Hecks.bluebook "Coder" do
       attribute :sha,      SubmissionSha
       attribute :checkout, SubmissionCheckout
       attribute :clean,    SubmissionClean
+      attribute :work,      SubmissionWork, default: { value: "" }
+      attribute :run,       SubmissionRun, default: { value: "" }
+      attribute :role,      SubmissionRole, default: { value: "" }
+      attribute :reaches,   SubmissionReaches, default: { value: "" }
+      attribute :revert_of, SubmissionRevertOf, default: { value: "" }
+      attribute :covers,    SubmissionCovers, default: { value: "" }
 
       given("a coder submits its own branch, never main or stable") do
         branch.value != "main" && branch.value != "stable"
@@ -254,6 +293,12 @@ Hecks.bluebook "Coder" do
       attribute :branch,   SubmissionBranch
       attribute :sha,      SubmissionSha
       attribute :checkout, SubmissionCheckout
+      attribute :work,      SubmissionWork, default: { value: "" }
+      attribute :run,       SubmissionRun, default: { value: "" }
+      attribute :role,      SubmissionRole, default: { value: "" }
+      attribute :reaches,   SubmissionReaches, default: { value: "" }
+      attribute :revert_of, SubmissionRevertOf, default: { value: "" }
+      attribute :covers,    SubmissionCovers, default: { value: "" }
 
       emits "WorkSubmitted"
     end
@@ -605,7 +650,9 @@ Hecks.bluebook "Coder" do
 
   policy "MeasureTheSubmitterWhenAsked" do
     on  "Submission.SubmissionAsked"
-    ask :measure_submitter, with: { branch: :branch, sha: :sha, checkout: :checkout }
+    ask :measure_submitter,
+        with: { branch: :branch, sha: :sha, checkout: :checkout,
+                work: :work, run: :run, role: :role, reaches: :reaches, revert_of: :revert_of, covers: :covers }
   end
 
   # Both clear by themselves: the PostToolUse hook hands the inbox over after the withheld call,
@@ -654,13 +701,17 @@ Hecks.bluebook "Coder" do
         ((first_spec != "none" && first_spec != "passed") ||
           first_paths.split("|").all? { |path| path.start_with?("docs/") || path.end_with?(".md") || path.include?("/translations/") })
     end
-    trigger Submission::Accept, with: { branch: :branch, sha: :sha, checkout: :checkout }
+    trigger Submission::Accept,
+            with: { branch: :branch, sha: :sha, checkout: :checkout,
+                    work: :work, run: :run, role: :role, reaches: :reaches, revert_of: :revert_of, covers: :covers }
   end
 
   # A branch no started coder run is named for, such as a hand submission, has no reader to wait on.
   policy "AcceptTheSubmissionThatCannotBeMeasured" do
     on      "Submission.SubmitterUnmeasured"
     root
-    trigger Submission::Accept, with: { branch: :branch, sha: :sha, checkout: :checkout }
+    trigger Submission::Accept,
+            with: { branch: :branch, sha: :sha, checkout: :checkout,
+                    work: :work, run: :run, role: :role, reaches: :reaches, revert_of: :revert_of, covers: :covers }
   end
 end

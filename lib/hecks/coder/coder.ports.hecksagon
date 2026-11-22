@@ -17,6 +17,12 @@ Hecks.hecksagon "Coder" do
       attribute :branch,   SubmissionBranch
       attribute :sha,      SubmissionSha
       attribute :checkout, SubmissionCheckout
+      attribute :work,      SubmissionWork,      default: { value: "" }
+      attribute :run,       SubmissionRun,       default: { value: "" }
+      attribute :role,      SubmissionRole,      default: { value: "" }
+      attribute :reaches,   SubmissionReaches,   default: { value: "" }
+      attribute :revert_of, SubmissionRevertOf,  default: { value: "" }
+      attribute :covers,    SubmissionCovers,    default: { value: "" }
       answers "SubmitterMeasured"
       refuses "SubmitterUnmeasured"
     end
