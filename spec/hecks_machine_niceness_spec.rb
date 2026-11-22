@@ -2,8 +2,8 @@ require "spec_helper"
 require "hecks/hecks/adapters/machine_sampling"
 require_relative "support/machine_beats"
 
-# A Claude session or the daemon running niced (nice 15 or more) or clamped to Background (priority
-# 4) runs on the efficiency cores. A beat counts them; the Delegate bluebook says when that is heard.
+# A Claude session or the daemon niced (nice 15 or more) or clamped to Background (priority 4)
+# runs on the efficiency cores. A beat counts them; the Delegate bluebook says when it is heard.
 RSpec.describe "the machine's niceness" do
   include MachineBeats
 
