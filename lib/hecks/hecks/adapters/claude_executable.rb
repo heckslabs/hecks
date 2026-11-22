@@ -15,8 +15,7 @@ module Hecks
       COMMAND = "claude"
 
       # Where `claude` is installed when the world names no places, in the order they are tried.
-      CANDIDATES = %w[~/.local/bin/claude ~/.claude/local/claude /opt/homebrew/bin/claude /usr/local/bin/claude
-                      /Applications/Claude.app/Contents/MacOS/claude].freeze
+      CANDIDATES = %w[~/.local/bin/claude ~/.claude/local/claude /opt/homebrew/bin/claude /usr/local/bin/claude].freeze
 
       # @param candidates [Array<String>] the places to look when `PATH` has no `claude`
       # @param path [String, nil] the `PATH` to search; the process's when nil
