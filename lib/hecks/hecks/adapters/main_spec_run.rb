@@ -9,8 +9,9 @@ module Hecks
   module Adapters
     # Runs the spec files a commit adds against `main`'s tree: a detached worktree of `main` gets
     # only those files from the commit, the launcher runs them, and the worktree is taken away
-    # again after the files it was given are deleted. It reports what happened and judges nothing;
-    # a run it cannot take, or that outlasts its time, is `unchecked`.
+    # again after the files it was given are deleted. It reports how the run ended: a spec that does
+    # not load or executes no example is `errored`; a run it cannot take, or that outlasts its
+    # time, is `unchecked`.
     class MainSpecRun
       # Seconds the run may take before it is reported unchecked.
       SECONDS = 150
@@ -23,6 +24,9 @@ module Hecks
 
       # The line that names a failed example, `rspec ./spec/a_spec.rb:2 # description`.
       FAILED_EXAMPLE = /^rspec \S+ # (.+)$/
+
+      # What a run reports when the spec did not run: it did not load, or no example executed.
+      ERRORED = { first_spec: "errored", first_example: "" }.freeze
 
       # What a run reports when it could not be taken.
       UNCHECKED = { first_spec: "unchecked", first_example: "" }.freeze
@@ -74,11 +78,17 @@ module Hecks
 
       def read(answer)
         text = answer.out
-        return { first_spec: "errored", first_example: "" } if text.match?(LOAD_ERROR)
+        return ERRORED if text.match?(LOAD_ERROR)
 
         counts = text.match(SUMMARY) or return UNCHECKED
-        failed = counts[2].to_i.positive?
-        { first_spec: failed ? "failed" : "passed", first_example: failed ? text[FAILED_EXAMPLE, 1].to_s : "" }
+        verdict(text, counts[1].to_i, counts[2].to_i, answer.ok?)
+      end
+
+      # A run with no examples, or that exits red with none failing, never ran the spec.
+      def verdict(text, examples, failures, clean)
+        return { first_spec: "failed", first_example: text[FAILED_EXAMPLE, 1].to_s } if failures.positive?
+
+        examples.zero? || !clean ? ERRORED : { first_spec: "passed", first_example: "" }
       end
     end
   end
