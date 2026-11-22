@@ -5,7 +5,8 @@ require_relative "agents_memory_boot"
 # {#recipients} names instead of the AgentRun ledger and `claude agents`.
 module AgentsMessageHelpers
   PORTS = [File.join(InMemoryDomain::ROOT, "lib/hecks/agents/agents.ports.hecksagon"),
-           File.join(InMemoryDomain::ROOT, "lib/hecks/agents/adapters/recipient_check.adapter")].freeze
+           File.join(InMemoryDomain::ROOT, "lib/hecks/agents/adapters/recipient_check.adapter"),
+           File.join(InMemoryDomain::ROOT, "lib/hecks/agents/adapters/role_rouser.adapter")].freeze
 
   # A run that is started and holds a session.
   def live_run = { status: "started", session: "5e55" }
@@ -35,7 +36,8 @@ module AgentsMessageHelpers
 
   def send_message(key: "m1", to: "run-a", sender: "orchestrator", **said)
     check = recipient_check
-    Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { check }) do
+    rouser = role_rouser
+    Hecks::Runtime::AdapterLookup.standing_in(->(port, _asked) { port.to_s == "Rousing" ? rouser : check }) do
       Hecks::Agents::Message.send!(**message_words(key, to, sender, said))
     end
     Hecks::Agents::Message.find(key)
@@ -45,6 +47,16 @@ module AgentsMessageHelpers
     Hecks::Adapters::RecipientCheck.new(registry: @agents_runtime&.registry, runs: -> { recipients },
                                         listed: ->(id) { listed_sessions.include?(id) },
                                         hand_runs: hand_runs && -> { hand_runs }, session: -> { sending_session })
+  end
+
+  # The sessions `claude agents` lists for the `Rousing` stand-in, as listing entries; none by default.
+  def role_sessions = []
+
+  # What the stand-in resume is told, one `[session id, prompt]` pair per wake.
+  def resumed = (@resumed ||= [])
+
+  def role_rouser
+    Hecks::Adapters::RoleRouser.new(listing: -> { role_sessions }, resume: ->(entry, prompt) { resumed << [entry["id"], prompt] })
   end
 
   def inbox(run) = Hecks::Agents::Message.inbox(recipient: { value: run }).map { |row| row[:message].value }
