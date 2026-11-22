@@ -74,12 +74,19 @@ RSpec.describe Hecks::Adapters::LedgerKeeping do
       expect(answer[:reason][:value]).to include("1 delivered outbox rows older than 24 hours")
     end
 
-    it "keeps a delivered row for the world's one hour, no longer", :aggregate_failures do
-      recent = (Time.now.utc - 1800).iso8601
-      SQLite3::Database.new(path).execute("UPDATE hecks_outbox SET settled_at = ? WHERE settled_at > ?", [recent, recent])
+    it "keeps a delivered row for the world's one hour, no longer" do
+      now = Time.now.utc
+      scratch_outbox(path, [["delivered", 1.001]], now: now)
 
-      expect(described_class::OutboxPurge.new(ledger_at(path)).purge!(hours: 1)).to eq(1)
-      expect(outbox_counts(path)["delivered"]).to eq(1)
+      expect(described_class::OutboxPurge.new(ledger_at(path)).purge!(hours: 1, now: now)).to eq(2)
+    end
+
+    it "keeps a delivered row settled exactly at the cutoff and purges one second older", :aggregate_failures do
+      now = Time.now.utc
+      scratch_outbox(path, [["delivered", 1], ["delivered", 1 + (1.0 / 3600)]], now: now)
+
+      expect(described_class::OutboxPurge.new(ledger_at(path)).purge!(hours: 1, now: now)).to eq(2)
+      expect(outbox_counts(path)["delivered"]).to eq(2)
     end
 
     it "names the vacuum's run after the beat" do
