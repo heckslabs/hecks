@@ -348,9 +348,9 @@ commands:
     RedWake.hear! RedWake.start! RedWake.decline! RedWake.weigh! PlainSession.refuse_retirement!
     PlainSession.discard! PlainSession.examine! PlainSession.withdraw! SessionCleanup.record!
     SessionCleanup.decline! SessionCleanup.reap! SessionCleanup.clean! SessionCleanup.mark!
-    SessionCleanup.sweep_plain! ReapTurn.open! ReapTurn.take! ReapTurn.free! Question.ask!
-    Question.seat! Question.close! Question.drop! Question.release! AnswerDesk.open!
-    AnswerDesk.take! AnswerDesk.free! ComputeMeter.open! ComputeMeter.read!
+    SessionCleanup.sweep_plain! ReapTurn.open! ReapTurn.take! ReapTurn.free! Stagger.open!
+    Stagger.admit! Question.ask! Question.seat! Question.close! Question.drop! Question.release!
+    AnswerDesk.open! AnswerDesk.take! AnswerDesk.free! ComputeMeter.open! ComputeMeter.read!
     ComputeMeter.work_session! ComputeMeter.waste_session! ComputeMeter.land! Restoration.record!
     Restoration.decline! Restoration.restore! ShallowCheck.pass! ShallowCheck.refuse!
     ShallowCheck.shallow_check! ShallowCheck.shallow_switch! EarlyCi.start! EarlyCi.open!
