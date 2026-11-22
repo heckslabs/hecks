@@ -2517,7 +2517,9 @@ Hecks.bluebook "Agents" do
 
     # The reason a registered session was lost: its listed state, or `unlisted` when `claude agents`
     # no longer lists it.
-    value_object "LostReason", String
+    value_object "LostReason" do
+      attribute :value, String, matches: :present
+    end
 
     # A registration is held until `HandRun.end!`; a replaced one, `<run>~<n>`, never is. One whose
     # session died is lost, then restarted when a session under its run key is listed again, or ended.
