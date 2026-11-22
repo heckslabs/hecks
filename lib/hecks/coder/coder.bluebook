@@ -220,28 +220,16 @@ Hecks.bluebook "Coder" do
 
     # The Work item the submission is for (`Hecks-Work`) and the run that made it (`Hecks-Run`, an
     # `AgentRun` key). Empty when the submitter names none; the landing's check refuses that.
-    value_object "SubmissionWork" do
-      attribute :value, String
-    end
+    value_object "SubmissionWork", String
 
-    value_object "SubmissionRun" do
-      attribute :value, String
-    end
+    value_object "SubmissionRun", String
 
     # The role that made it (`Hecks-Role`), the generated outputs it reaches (`Hecks-Reaches`, paths
     # joined by `|`), the commit it reverts (`Hecks-Revert-Of`) and the spec that covers it.
-    value_object "SubmissionRole" do
-      attribute :value, String
-    end
-    value_object "SubmissionReaches" do
-      attribute :value, String
-    end
-    value_object "SubmissionRevertOf" do
-      attribute :value, String
-    end
-    value_object "SubmissionCovers" do
-      attribute :value, String
-    end
+    value_object "SubmissionRole", String
+    value_object "SubmissionReaches", String
+    value_object "SubmissionRevertOf", String
+    value_object "SubmissionCovers", String
 
     # Whether the checkout held no uncommitted or untracked file when the branch was submitted.
     value_object "SubmissionClean", Boolean
