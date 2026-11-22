@@ -130,6 +130,14 @@ module Hecks
             Float(default)
           end
 
+          # @param name [String] a list the resident wrote for the launchers, one word to a line
+          # @return [Array<String>] its words; none when no resident has written it
+          def recall_words(name)
+            File.read(File.join(directory, name)).split
+          rescue SystemCallError
+            []
+          end
+
           # Removes a file, if it is there; the standard library's `FileUtils` is not loaded for it,
           # since a launcher that is served runs this and nothing else of the kind.
           #
