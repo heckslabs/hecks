@@ -26,6 +26,9 @@ module Hecks
       SUBSTITUTION = /`|\$\(/
       # An `Aggregate.verb` word of a launcher call, in either spelling.
       VERB_WORD = /\A[A-Za-z_]\w*\.\w/
+      SHELL_PATTERN = /\A(?:git|gh)\s/
+      # How many of a role's own verbs a refusal names.
+      VERB_LIST = 8
 
       # @param registry [Runtime::Registry, nil] the boot answering, whose `Script` records the
       #   script step keeps
@@ -129,9 +132,21 @@ module Hecks
         return false if unquoted(text).match?(CHAINING)
         return ShellReads.new(rules, rows("ShellFlagRule", name)).allowed?(text) if ShellReads.shell?(text)
         return false unless text.match?(LAUNCHER)
+        return true if read?(text)
 
         verb = verb_of(text.sub(LAUNCHER, ""))
         rules.any? { |rule| rule.end_with?(".*") ? verb.start_with?(rule.delete_suffix("*")) : verb == rule }
+      end
+
+      # Whether a launcher call only reads, for every role in every domain: it asks for `--help`, or
+      # names a query. The launcher refuses a command written without its `!`, so a verb with no
+      # `!` writes nothing.
+      def read?(text)
+        call = unquoted(text).sub(LAUNCHER, "")
+        return true if call.split.include?("--help")
+
+        word = call.split.find { |candidate| candidate.match?(VERB_WORD) }
+        !word.nil? && !word.end_with?("!")
       end
 
       # The text with each quoted span blanked, so a `;` the shell reads as literal is not chaining.
@@ -165,7 +180,15 @@ module Hecks
 
       def hint(name, text)
         found = rows("RefusalHint", name).find { |row| text.start_with?(row[:shape]) }
-        found ? found[:use] : "a verb on the #{name} routing list, or dispatch another role through Work.plan!"
+        found ? found[:use] : own_verbs(name)
+      end
+
+      # The verbs on the role's own routing list, as many as read well, or the way to hand the step on.
+      def own_verbs(name)
+        verbs = rows("RoutingRule", name).map { |row| row[:pattern] }.grep_v(SHELL_PATTERN).first(VERB_LIST)
+        return "dispatch another role through Work.plan!" if verbs.empty?
+
+        "#{verbs.join(", ")}, or dispatch another role through Work.plan!"
       end
 
       # A routing row of the same aggregate as the launcher call, to name beside the refusal.
