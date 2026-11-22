@@ -23,7 +23,7 @@ module Hecks
           #
           # @return [Boolean] whether the child began
           def await_start(pid, reader, seconds = START_SECONDS)
-            note = begun?(reader, seconds)
+            note = heard_begin(reader, seconds)
             signal_group("KILL", pid) if note.nil?
             note == true
           rescue SystemCallError, IOError
@@ -43,8 +43,8 @@ module Hecks
           # Looks once more after the wait, so a note written as the deadline passed counts.
           #
           # @return [Boolean, nil] whether a note came; nil when the child was silent to the end
-          def begun?(reader, seconds)
-            return nil unless reader.wait_readable(seconds) || reader.wait_readable(0)
+          def heard_begin(reader, seconds)
+            return unless reader.wait_readable(seconds) || reader.wait_readable(0)
 
             reader.read_nonblock(STARTED.bytesize, exception: false).is_a?(String)
           end

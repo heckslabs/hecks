@@ -11,17 +11,18 @@ RSpec.describe Hecks::Adapters::Driving::Resident::StartDeadline do
   let(:server) { resident::Server.new("/checkout", "/checkout/exe/hecks") }
   let(:pipe) { IO.pipe }
 
-  # Forks from a thread that is not the one holding a mutex, with a lock file held.
-  def fork_holding(&)
+  # Forks from a thread that is not the one holding a mutex, with a lock file held. The child
+  # blocks on a pipe nothing writes to.
+  def fork_holding
     Dir.mktmpdir do |dir|
-      lock = File.open(File.join(dir, "held.lock"), File::CREAT | File::RDWR)
-      lock.flock(File::LOCK_EX)
-      mutex = Mutex.new
-      holder = Thread.new { mutex.synchronize { sleep } }
-      sleep 0.05
-      pid = fork(&)
-      holder.kill
-      return pid
+      File.open(File.join(dir, "held.lock"), File::CREAT | File::RDWR) do |lock|
+        lock.flock(File::LOCK_EX)
+        mutex = Mutex.new
+        holder = Thread.new { mutex.synchronize { Thread.stop } }
+        ThreadParking.wait_until_parked(holder)
+        silent, = IO.pipe
+        return fork { silent.read }.tap { holder.kill }
+      end
     end
   end
 
@@ -39,7 +40,7 @@ RSpec.describe Hecks::Adapters::Driving::Resident::StartDeadline do
   end
 
   it "ends a child that stays silent past the deadline", :aggregate_failures do
-    pid = fork_holding { sleep }
+    pid = fork_holding
     reader, = pipe
     allow(server).to receive(:signal_group) { |signal, target| Process.kill(signal, target) }
     expect(server.send(:await_start, pid, reader, 0.2)).to be(false)
