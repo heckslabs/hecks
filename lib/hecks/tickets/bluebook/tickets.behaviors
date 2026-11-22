@@ -244,6 +244,20 @@ Hecks.behaviors "Tickets" do
     expect status: "planned", emits: ["WorkUnheld"]
   end
 
+  test "Unhold of a work item that is not held changes nothing and is not refused" do
+    tests "Unhold", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w33" }, title: { value: "Clean" }
+    input  work: { value: "w33" }
+    expect status: "planned"
+  end
+
+  test "A held work item stays in the undone list" do
+    tests "Hold", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w34" }, title: { value: "Misplaced" }
+    input  work: { value: "w34" }, held_reason: { value: "w34 area names nothing in the checkout: lib/nope" }
+    expect status: "planned", emits: ["WorkHeld"]
+  end
+
   test "WaitOn replaces the work items a planned work item waits on" do
     tests "WaitOn", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w18" }, title: { value: "Held" }, waits_on: [{ value: "w19" }]

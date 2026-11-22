@@ -1122,15 +1122,14 @@ Hecks.bluebook "Tickets" do
       emits "WorkHeld"
     end
 
-    # A work item whose area names the checkout again is no longer held.
+    # A work item whose area names the checkout again is no longer held; one that was never held
+    # is left as it is, so every plan of a clean area asks nothing refused of it.
     command "Unhold" do
       goal "Release a work item held for an area that named nothing"
 
       reference_to Work
 
       sets :held_reason, to: ""
-
-      given("only a held work item is released") { !held_reason.to_s.empty? }
 
       emits "WorkUnheld"
     end
