@@ -17,17 +17,17 @@ RSpec.describe "the Agents message to a name with no live session" do
   def listed_sessions = %w[1ead-full c0de-full]
 
   it "holds mail to orchestrator, naming the live lead seat and why", :aggregate_failures do
-    sent = send_message(to: "orchestrator")
+    sent = send_message(to: "orchestrator", sender: "run-a")
     expect(sent.status).to eq("held")
     expect(sent.held_for.value).to include("no live session").and include("live holders: lead")
   end
 
   it "refuses mail to a role, naming the live seats that fill it" do
-    expect(send_message(to: "coder").refusal.value).to end_with("live holders: coder-1")
+    expect(send_message(to: "coder", sender: "run-a").refusal.value).to end_with("live holders: coder-1")
   end
 
   it "names no holder when none is live", :aggregate_failures do
-    refused = send_message(to: "nobody")
+    refused = send_message(to: "nobody", sender: "run-a")
     expect(refused.status).to eq("refused")
     expect(refused.refusal.value).not_to include("live holders")
   end
