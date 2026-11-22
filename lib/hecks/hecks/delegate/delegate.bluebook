@@ -3257,6 +3257,16 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
     end
 
+    # A wake of a seat whose run is live answers that run: an idle session resumes under its id.
+    # Declared before the start, so a first wake finds no run to answer; the start is refused by
+    # name while the key is held. A root, past a sweep's reaction cap.
+    policy "ResumeTheStandingSeatWhenWoken" do
+      on      "Escalation.CoordinatorWoken"
+      root
+      where   { rule != "all-hands-on-red" && event == "StandingCoordinatorStarted" }
+      trigger AgentRun::Answer, with: { run: "orchestrator-seat", answer: :brief }
+    end
+
     # The seat is one run under its own key, its sweep the parent: a started run keeps its key, so
     # a second start is refused from any process until it ends (`RecordTheEndedSession` keeps an
     # idle seat read `done`, which a message resumes). A root, past a sweep's reaction cap.
@@ -3267,16 +3277,6 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch,
               with: { run: "orchestrator-seat", parent: :escalation, repo: :repo, brief: :brief, agent: :role,
                       works_as: "orchestrator-seat" }
-    end
-
-    # A wake of a seat whose run is live answers that run with the brief: an idle session resumes
-    # under its own id, a busy one takes it by inbox. The start above is refused by name while the
-    # key is held, and a first wake finds no run to answer. A root, past a sweep's reaction cap.
-    policy "ResumeTheStandingSeatWhenWoken" do
-      on      "Escalation.CoordinatorWoken"
-      root
-      where   { rule != "all-hands-on-red" && event == "StandingCoordinatorStarted" }
-      trigger AgentRun::Answer, with: { run: "orchestrator-seat", answer: :brief }
     end
 
     # A linked worktree keeps its runs in Memory, so a session it started would be reaped by
