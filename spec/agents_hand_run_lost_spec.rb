@@ -46,6 +46,15 @@ RSpec.describe "a hand-started run that dies" do
     expect(send_message(to: "lead").status).to eq("sent")
   end
 
+  it "does not take another stopped session under the run key for the restart" do
+    register_lead
+    lead_dead
+    beat("b1")
+    sessions << session_entry("1ead-zombie-full", "lead", "stopped")
+    beat("b2")
+    expect(hand("lead").status).to eq("lost")
+  end
+
   it "never reads a busy or idle session as dead" do
     register_lead
     sessions.replace([session_entry("1ead-old-full", "lead", "working")])
