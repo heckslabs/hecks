@@ -381,7 +381,7 @@ Hecks.behaviors "Agents" do
     setup  "Agents::HandRun.Register", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }
     setup  "Agents::HandRun.Lose", run: { value: "lead" }, session: { value: "1ead-old" }, role: { value: "orchestrator-owner" }, reason: "stopped"
     input  run: { value: "lead" }, session: { value: "1ead-new" }, role: { value: "orchestrator-owner" }
-    expect emits: ["HandRunRestarted"]
+    expect emits: ["HandRunRestarted", "HandRunRequested", "HandRunRegistered"]
   end
 
   test "Restart refuses a hand run that is still registered" do
