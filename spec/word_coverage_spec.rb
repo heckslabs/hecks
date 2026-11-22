@@ -202,11 +202,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "unresolved always raises Malformed) — a real declaration exists only to be " \
                                            "refused, the same structural-impossibility shape `inspect_query (Query)` above " \
                                            "already is, never to succeed and land in a corpus record.",
-    "policy_only (Command)"             =>
-                                           "nothing reads it until the dispatch check (Work item role-refuse-unstated) does, " \
-                                           "and its first real users are miette_tools' internal commands, outside this " \
-                                           "checkout (ADR 0216); hecks' own commands take it from the shadow report " \
-                                           "(role-migrate-hecks). Exercised by spec/role_unstated_vocabulary_spec.rb.",
     "creates_or_acts (Command)"         =>
                                            "its first real use is Interview.Record in lib/hecks/interviews/" \
                                            "interviews.bluebook (ADR 0194, decision 5), outside the scanned corpus. " \
