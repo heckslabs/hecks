@@ -1,6 +1,7 @@
 require "English"
 require "tempfile"
 require "hecks/adapters/driving/resident/outcome"
+require "hecks/adapters/driving/resident/start_deadline"
 require "hecks/adapters/driving/resident/stores"
 require "hecks/adapters/driving/resident/title"
 require "hecks/adapters/driving/resident/trace"
@@ -129,12 +130,19 @@ module Hecks
             take_over
             Trace.mark("child_took_over")
             install
+            announce_start
             report_loads
             run_line
             exit(0)
           end
 
           private
+
+          # Tells the resident the child has begun, before the line does ({StartDeadline}).
+          # A child that cannot say so ends, so its line never runs while its caller boots cold.
+          def announce_start
+            Worker.tolerating_closed_pipe { @notes.write(StartDeadline::STARTED) } || exit!(1)
+          end
 
           # Runs the launcher, and closes the stores the line opened the moment its command ends,
           # however it ends and before any exit handler runs: a child that then takes long to
