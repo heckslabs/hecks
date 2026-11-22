@@ -30,11 +30,14 @@ module DeclinedFollow
 
   def copy_head = git("rev-parse", "HEAD", dir: copy)
 
+  # Starts a process from the copy whose command names `word`, and answers once it is running.
   def run_from_copy(word)
-    pid = Process.spawn("ruby", "-e", "sleep 30", word, chdir: copy, %i[out err] => File::NULL)
-    sleep 0.1 until system("pgrep", "-f", "[a]dvance", out: File::NULL)
-    pid
+    ready, writer = IO.pipe
+    @pid = Process.spawn("ruby", "-e", "puts 1; $stdout.flush; sleep 30", word, chdir: copy, out: writer)
+    ready.gets
   end
+
+  def stop_copy_process = @pid && Process.kill("TERM", @pid) && Process.wait(@pid)
 end
 
 RSpec.describe "the beat copy that cannot be brought level with main" do
@@ -42,20 +45,25 @@ RSpec.describe "the beat copy that cannot be brought level with main" do
 
   before { behind_main }
 
+  after { stop_copy_process }
+
   it "says a copy on a branch is left alone" do
     git("checkout", "-q", "-b", "work", dir: copy)
     follow
     expect(said).to include(DeclinedFollow::FOLLOW::BRANCH)
   end
 
-  it "stays put and says so while an advance runs from it", :aggregate_failures do
-    pid = run_from_copy("advance")
+  it "stays put while an advance runs from it" do
+    run_from_copy("advance")
     stayed = copy_head
     follow
     expect(copy_head).to eq(stayed)
+  end
+
+  it "says so in the overrun log while an advance runs from it" do
+    run_from_copy("advance")
+    follow
     expect(said).to include(DeclinedFollow::FOLLOW::BUSY)
-  ensure
-    Process.kill("TERM", pid) && Process.wait(pid)
   end
 
   it "says when main cannot be found", :aggregate_failures do
