@@ -1,5 +1,6 @@
 require "spec_helper"
 require "json"
+require "hecks/hecks/adapters/main_integration"
 require_relative "support/closed_train_runs"
 
 # A train pull request closed unmerged releases its integration run, even when the run rode a
