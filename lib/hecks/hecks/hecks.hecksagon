@@ -398,8 +398,8 @@ Hecks.hecksagon "Hecks" do
       refuses "TendRefused"
     end
 
-    # The launchd job that beats the clock once a minute from outside the domain: written and
-    # loaded, or unloaded and removed. Unconfirmed, each answers what it would do.
+    # The launchd jobs from outside the domain (the beat once a minute, a Claude daemon at normal
+    # priority): written and loaded, or unloaded and removed. Unconfirmed, each answers what it would do.
     asks "Arrange", to: Integration do
       attribute :run,     RunKey
       attribute :confirm, Switch
@@ -675,6 +675,25 @@ Hecks.hecksagon "Hecks" do
       attribute :run, CareKey
       answers "LedgerCareDue"
       refuses "LedgerCareDeferred"
+    end
+  end
+
+  # The outside that keeps the pinned sessions working: a launchd job, in its own process tree apart
+  # from Hecks and Claude, that reads the declared roster and resumes any session that died. It is
+  # written and loaded, or unloaded and removed; unconfirmed, each answers what it would do.
+  Hecks::Watchdog.port "Guarding" do
+    asks "Guard", to: Watchdog do
+      attribute :run,     RunKey
+      attribute :confirm, Switch
+      answers "GuardAnswered"
+      refuses "GuardRefused"
+    end
+
+    asks "Release", to: Watchdog do
+      attribute :run,     RunKey
+      attribute :confirm, Switch
+      answers "ReleaseAnswered"
+      refuses "ReleaseRefused"
     end
   end
 

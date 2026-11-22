@@ -236,6 +236,16 @@ Hecks.bluebook "Hecks" do
                      "AgentRun.answer! that run naming the processes and asking it to end the processes its " \
                      "commands start and to bound how many it starts. Never kill a pid. If no pipeline " \
                      "session owns them, Work.plan! a work item with the process list as its detail and leave it to the owner."
+        # A Claude process (the daemon or a session) niced to 15 or more, or clamped to Background
+        # (priority 4), runs on the efficiency cores only. The beat's reading opens it; the first
+        # beat that finds none closes every opening before it.
+        member kind: "claude-niced", only_about: "launchd-", aggregate: "Hecks::Machine", opens: "ProcessesNiced",
+               closes: "ProcessesEased", closed_by: "any", minutes: 5, forgets: 1440, fixer: "orchestrator",
+               move: "A Claude process runs niced or in Background, so on the efficiency cores. Find it with " \
+                     "`ps -axo pid=,ni=,pri=,command=` for `claude`: a daemon or session at nice 15 or more, or priority 4. " \
+                     "Never kill a pid. If the daemon is niced, it was started from a niced process: " \
+                     "Integration.Schedule! confirm.value=true --confirm keeps one at normal priority " \
+                     "(dev.hecks.claude-daemon). Work.plan! a work item naming the process and its parent, and tell the owner."
         # A pressure beat left looked: its copy was refused clearance, so nothing was published.
         # A refusal writes no line; a later beat published or faulted closes the row.
         member kind: "beat-uncleared", only_about: "launchd-", aggregate: "Signalbox::Beat", opens: "BeatRecorded",

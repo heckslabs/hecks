@@ -301,6 +301,10 @@ commands:
   Dial:
     …
     turn!
+  Watchdog:
+    …
+    arm!
+    disarm!
 
 queries (nothing here changes anything):
   Build:
