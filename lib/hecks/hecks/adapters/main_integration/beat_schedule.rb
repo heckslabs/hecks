@@ -31,7 +31,7 @@ module Hecks
         # @param root [String] the checkout whose launcher each beat dispatches through; the push
         #   train's copy by default, the one whose records a beat reads
         # @param home [String] the home directory whose launch agents and log are used
-        # @param priority [JobPriority] how the job is scheduled: the world's declaration or defaults
+        # @param priority [JobPriority] how the job is scheduled: the world's setting or defaults
         # @param runner [#call, nil] runs `launchctl` from its argument list and answers
         #   `[output, success]`; a stand-in in specs
         def initialize(root: File.join(Dir.home, ".claude", "hecks-train"), home: Dir.home,
