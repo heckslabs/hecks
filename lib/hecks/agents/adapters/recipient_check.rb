@@ -58,7 +58,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `verified:` "true" when the sending session is registered
       #   under that name, otherwise "false"; never raises
       def sender(sender:, recipient: nil, **)
-        { sender: { value: plain(sender) }, recipient: recipient,
+        { sender: { value: plain(sender) }, recipient: seat_holder(recipient),
           verified: { value: (ledger? && @proof.verified?(plain(sender))).to_s } }
       end
 
@@ -88,6 +88,17 @@ module Hecks
         hecks ? hecks.aggregates.any? { |aggregate| aggregate.hecks_name == "AgentRun" } : false
       end
 
+      # A standing seat's name that no run answers is addressed to the one live session holding it.
+      def seat_holder(recipient)
+        id = plain(recipient)
+        return recipient unless ledger? && !answered?(id)
+
+        holder = @holders.sole(id)
+        holder ? { value: holder } : recipient
+      end
+
+      def answered?(id) = live?(runs[id]) || !@hand_runs.session(id).empty?
+
       def live?(run) = run && run[:status] == "started" && !run[:session].to_s.empty?
 
       # A name that has sent a message and is no run: its replies wait unread in its inbox.
@@ -102,7 +113,7 @@ module Hecks
         found = plain_refusal(id, run)
         return found if found.kind == "hand-unlisted"
 
-        Unaddressable.new(found.kind, found.message + @holders.hint(id))
+        Unaddressable.new(found.kind, found.message + @holders.hint(id) + @holders.waiting(id))
       end
 
       def plain_refusal(id, run)

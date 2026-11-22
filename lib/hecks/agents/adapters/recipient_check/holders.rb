@@ -30,6 +30,20 @@ module Hecks
           found.empty? ? "" : "; live holders: #{found.join(", ")}"
         end
 
+        # @param name [String] a recipient with no live session
+        # @return [String, nil] the one live seat that fills a standing seat's name, nil otherwise
+        def sole(name)
+          found = seat_role(name) ? self.for(name) : []
+          found.first if found.one?
+        end
+
+        # @param name [String] a recipient with no live session
+        # @return [String] `; held for <name> until <role> registers` for a standing seat, else empty
+        def waiting(name)
+          role = seat_role(name)
+          role ? "; held for #{name} until #{role} registers" : ""
+        end
+
         private
 
         def filling(wanted)
