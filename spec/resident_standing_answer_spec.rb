@@ -53,6 +53,22 @@ RSpec.describe Hecks::Adapters::Driving::Resident::StandingAnswer do
     expect(described_class.answer(["PipelineBoard.snapshot"])).to be_nil
   end
 
+  it "gives a slow board the answer window to write its panel, not the connect window" do
+    stub_const("#{described_class}::ANSWER_SECONDS", 4)
+    allow(described_class).to receive(:clock).and_return(0.0)
+    socket = instance_double(Socket, wait_readable: true, read_nonblock: nil)
+    described_class.read_all(socket)
+    expect(socket).to have_received(:wait_readable).with(4.0)
+  end
+
+  it "leaves the line to the launcher when the board holds the question past the answer window" do
+    stub_const("#{described_class}::ANSWER_SECONDS", 0.2)
+    stub_const("ENV", ENV.to_h.merge(described_class::PORT_VARIABLE => board.addr[1].to_s))
+    held = Thread.new { board.accept }
+    expect(described_class.answer(["PipelineBoard.snapshot"])).to be_nil
+    held.value.close
+  end
+
   it "asks the default port when the port variable is not a number" do
     stub_const("ENV", ENV.to_h.merge(described_class::PORT_VARIABLE => "board"))
     expect(described_class.port).to eq(described_class::PORT)
