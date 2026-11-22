@@ -27,7 +27,7 @@ module Hecks
       # @param session [Hash] the registered session
       # @return [Hash{Symbol => Object}] `state:` the session's listed state, or `unlisted`
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
-      def examine(run:, session:, role:, checkout: nil, **)
+      def read_session(run:, session:, role:, checkout: nil, **)
         entry = entries.find { |listed| ids(listed).any? { |id| id.start_with?(plain(session)) } }
         { run: run, session: session, role: role, checkout: checkout, state: entry ? entry["state"].to_s : UNLISTED }
       end
@@ -37,7 +37,7 @@ module Hecks
       # @return [Hash{Symbol => Object}] `found:` the other session listed under the key and
       #   `state:` its state, `unlisted` when none is
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
-      def seek(run:, session:, role:, checkout: nil, **)
+      def read_run_key(run:, session:, role:, checkout: nil, **)
         entry = entries.find { |listed| listed["name"].to_s == plain(run) && !ids(listed).include?(plain(session)) }
         { run: run, session: session, role: role, checkout: checkout, found: { value: entry ? full_id(entry) : "" },
           state: entry ? entry["state"].to_s : UNLISTED }
