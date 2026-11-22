@@ -3269,6 +3269,17 @@ Hecks.bluebook "Hecks" do
                       works_as: "orchestrator-seat" }
     end
 
+    # A wake of a seat whose run is live answers that run with the wake's brief: its session is
+    # looked at, an idle one resumed under its own id and a busy one handed the brief through its
+    # inbox. The start above is refused by name while the key is held, and a first wake finds no
+    # run to answer, so one of the pair acts. A root, past a sweep's reaction cap.
+    policy "ResumeTheStandingSeatWhenWoken" do
+      on      "Escalation.CoordinatorWoken"
+      root
+      where   { rule != "all-hands-on-red" && event == "StandingCoordinatorStarted" }
+      trigger AgentRun::Answer, with: { run: "orchestrator-seat", answer: :brief }
+    end
+
     # A linked worktree keeps its runs in Memory, so a session it started would be reaped by
     # nothing; declined there, the shared flag is the one signal left. One run stands per flag.
     aggregate "RedWake" do
