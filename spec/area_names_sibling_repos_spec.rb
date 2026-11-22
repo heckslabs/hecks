@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
+require "hecks/hecks/adapters/area_names"
 
 # A work item's area may name a path in a sibling checkout the store serves, such as Switchyard:
 # its first segment is the sibling directory beside this checkout.
