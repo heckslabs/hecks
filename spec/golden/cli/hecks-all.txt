@@ -63,6 +63,7 @@ commands:
     check_shape_ledger!
     check_command_names!
     check_workflow_pagination!
+    check_bluebook_extraction!
     argument_gate_matrix!
     report_role_shadow!
   StyleRun:
@@ -144,6 +145,7 @@ commands:
     unschedule!
     verify!
     board!
+    release!
     observe!
   ReviewRequest:
     …
@@ -358,55 +360,56 @@ commands:
     SendTrain.record_outcome! SendTrain.announce! SendTrain.leftovers! SendTrain.refresh!
     Shipment.stop! Shipment.judge! Integration.poll! Integration.summarize! Integration.pass!
     Integration.fail! Integration.fail_once! Integration.send! Integration.reject!
-    Integration.stall! Integration.green! Integration.red! Integration.close! Integration.probe!
-    Integration.merge! Integration.supersede! Integration.step! Integration.tend!
-    Integration.arrange! Integration.withdraw! Integration.check! Integration.bisect!
-    Integration.embark! Integration.watch! RedEpisode.revert! RedEpisode.park! RedEpisode.acquit!
-    RedEpisode.unfound! RedEpisode.undo! RedEpisode.restore! RedEpisode.mend! TrainPr.record!
-    TrainPr.rerun! TrainPr.exhaust! TrainPr.search! TrainPr.restart! TrainPr.restart_job!
-    TrainPrCi.await! TrainPrCi.start! TrainPrReopen.request! TrainPrReopen.reopen!
-    TrainPrReopen.decline! TrainPrReopen.cycle! ReviewRequest.sweep! ReviewRequest.swept!
-    ReviewRequest.record! ReviewRequest.confirm! ReviewRequest.queue! ReviewRequest.revise!
-    ReviewRequest.refuse! ReviewRequest.tidy! ReviewRequest.create! ReviewRequest.merge!
-    ReviewRequest.amend! ReviewRequest.shut! BoardingHold.settle! BoardingHold.decline!
-    BoardingHold.mark! BoardingRelease.settle! BoardingRelease.decline! BoardingRelease.clear!
-    BisectLog.settle! BisectLog.decline! BisectLog.record! LandingReview.await!
-    LandingReview.judge! LandingReview.clear! LandingReview.refuse! LandingReview.shadow!
-    Reading.take! Level.judge! Volume.rise! Volume.ease! Relief.settle! Relief.decline!
-    Cache.settle! Cache.decline! LanguageRun.accept! LanguageRun.complete! LanguageRun.fault!
-    LanguageRun.examine! LanguageRun.perform! SyntaxBootCache.record! SyntaxBootCache.invalidate!
-    SyntaxBootCache.rebuild! CodemodRun.accept! CodemodRun.complete! CodemodRun.fault!
-    CodemodRun.examine! CodemodRun.perform! ScriptRun.accept! ScriptRun.complete! ScriptRun.fault!
-    ScriptRun.examine! ScriptRun.perform! GithubWebhook.close! GithubWebhook.refuse!
-    GithubWebhook.listen! GithubEvent.record! LedgerCare.look! LedgerCare.hear!
-    LedgerCare.decline! LedgerCare.weigh! OutboxCare.look! OutboxCare.hear! OutboxCare.decline!
-    OutboxCare.purge! LedgerFile.settle! LedgerFile.decline! LedgerFile.vacuum!
-    SchemaRevision.permit! SchemaRevision.settle! SchemaRevision.abandon! SchemaRevision.examine!
-    SchemaRevision.apply! SchemaRevision.mint! SchemaRevision.mint_release!
-    SchemaRevision.capture! Seal.record! RehearsalRun.boot! RehearsalRun.audit!
-    RehearsalRun.judge! RehearsalRun.withhold! RehearsalRun.refuse! RehearsalRun.fail!
-    RehearsalRun.survey! RehearsalRun.examine! Operation.succeed! Operation.fail!
-    Operation.execute! Operation.refresh! Operation.redrive! Operation.abandon! Operation.verify!
-    Operation.smoke! Operation.bootstrap! Operation.open! Operation.probe! Host.observe!
-    Host.drift! Host.lose! Host.fetch! QaQuiesce.settle! QaQuiesce.decline! QaQuiesce.mark!
-    QaQuiesce.clear! RedFlag.raise! RedFlag.clear! RedFlag.admit! RedFlag.record! RedFlag.note!
-    RedFlag.welcome! RedFlag.lift! RedFlag.accept! RedFlag.settle! RedFlag.decline! RedFlag.hoist!
-    RedFlag.sign_in! RedFlag.lower! RedFlag.survey! RedFlag.pass! PushRehearsal.pass!
-    PushRehearsal.fail! PushRehearsal.decline! PushRehearsal.trial! Release.tag!
-    Release.mark_published! Release.verify! Release.close_findings! PublishingRun.accept!
-    PublishingRun.approve! PublishingRun.accept_gem! PublishingRun.complete! PublishingRun.fault!
-    PublishingRun.examine! PublishingRun.perform! PromotionRun.accept! PromotionRun.observe!
-    PromotionRun.complete! PromotionRun.lag! PromotionRun.fault! PromotionRun.examine!
-    PromotionRun.perform! Registry.complete! Registry.abandon! Registry.tag! Package.complete!
-    Package.abandon! Package.pin! Server.accept! Server.complete! Server.fault! Server.serve!
-    Server.examine! Server.perform! StallWatch.detect! Stall.file! Stall.abandon! ScrumWake.call!
-    HelpWanted.raise! HelpWanted.brief! HelpWanted.close! Launch.finish! Launch.stop!
-    Launch.write! Launch.scaffold! Launch.write_rails! TestSuiteRun.accept! TestSuiteRun.complete!
-    TestSuiteRun.fault! TestSuiteRun.examine! TestSuiteRun.perform! FuzzRun.conclude!
-    FuzzRun.halt! FuzzRun.sweep! FuzzRun.probe! FuzzRun.measure! Dial.settle! Dial.decline!
-    Dial.set! Probe.open! Probe.record! Probe.look! Probe.keep! Probe.revert! Probe.close!
-    Probe.strand! Probe.restore! Probe.measure! Probe.judge! WorkCap.open! WorkCap.count_calm!
-    WorkCap.count_pressed! WorkCap.count_strained! WorkCap.count_green_train!
+    Integration.stall! Integration.strand! Integration.green! Integration.red! Integration.close!
+    Integration.probe! Integration.merge! Integration.supersede! Integration.step!
+    Integration.tend! Integration.arrange! Integration.withdraw! Integration.check!
+    Integration.bisect! Integration.embark! Integration.watch! RedEpisode.revert! RedEpisode.park!
+    RedEpisode.acquit! RedEpisode.unfound! RedEpisode.undo! RedEpisode.restore! RedEpisode.mend!
+    TrainPr.record! TrainPr.rerun! TrainPr.exhaust! TrainPr.search! TrainPr.restart!
+    TrainPr.restart_job! TrainPrCi.await! TrainPrCi.start! TrainPrReopen.request!
+    TrainPrReopen.reopen! TrainPrReopen.decline! TrainPrReopen.cycle! TrainPrEnqueue.request!
+    TrainPrEnqueue.enqueue! TrainPrEnqueue.decline! TrainPrEnqueue.arm! ReviewRequest.sweep!
+    ReviewRequest.swept! ReviewRequest.record! ReviewRequest.confirm! ReviewRequest.queue!
+    ReviewRequest.revise! ReviewRequest.refuse! ReviewRequest.tidy! ReviewRequest.create!
+    ReviewRequest.merge! ReviewRequest.amend! ReviewRequest.shut! BoardingHold.settle!
+    BoardingHold.decline! BoardingHold.mark! BoardingRelease.settle! BoardingRelease.decline!
+    BoardingRelease.clear! BisectLog.settle! BisectLog.decline! BisectLog.record!
+    LandingReview.await! LandingReview.judge! LandingReview.clear! LandingReview.refuse!
+    LandingReview.shadow! Reading.take! Level.judge! Volume.rise! Volume.ease! Relief.settle!
+    Relief.decline! Cache.settle! Cache.decline! LanguageRun.accept! LanguageRun.complete!
+    LanguageRun.fault! LanguageRun.examine! LanguageRun.perform! SyntaxBootCache.record!
+    SyntaxBootCache.invalidate! SyntaxBootCache.rebuild! CodemodRun.accept! CodemodRun.complete!
+    CodemodRun.fault! CodemodRun.examine! CodemodRun.perform! ScriptRun.accept!
+    ScriptRun.complete! ScriptRun.fault! ScriptRun.examine! ScriptRun.perform!
+    GithubWebhook.close! GithubWebhook.refuse! GithubWebhook.listen! GithubEvent.record!
+    ChangeGroup.form! LedgerCare.look! LedgerCare.hear! LedgerCare.decline! LedgerCare.weigh!
+    OutboxCare.look! OutboxCare.hear! OutboxCare.decline! OutboxCare.purge! LedgerFile.settle!
+    LedgerFile.decline! LedgerFile.vacuum! SchemaRevision.permit! SchemaRevision.settle!
+    SchemaRevision.abandon! SchemaRevision.examine! SchemaRevision.apply! SchemaRevision.mint!
+    SchemaRevision.mint_release! SchemaRevision.capture! Seal.record! RehearsalRun.boot!
+    RehearsalRun.audit! RehearsalRun.judge! RehearsalRun.withhold! RehearsalRun.refuse!
+    RehearsalRun.fail! RehearsalRun.survey! RehearsalRun.examine! Operation.succeed!
+    Operation.fail! Operation.execute! Operation.refresh! Operation.redrive! Operation.abandon!
+    Operation.verify! Operation.smoke! Operation.bootstrap! Operation.open! Operation.probe!
+    Host.observe! Host.drift! Host.lose! Host.fetch! QaQuiesce.settle! QaQuiesce.decline!
+    QaQuiesce.mark! QaQuiesce.clear! RedFlag.raise! RedFlag.clear! RedFlag.admit! RedFlag.record!
+    RedFlag.note! RedFlag.welcome! RedFlag.lift! RedFlag.accept! RedFlag.settle! RedFlag.decline!
+    RedFlag.hoist! RedFlag.sign_in! RedFlag.lower! RedFlag.survey! RedFlag.pass!
+    PushRehearsal.pass! PushRehearsal.fail! PushRehearsal.decline! PushRehearsal.trial!
+    Release.tag! Release.mark_published! Release.verify! Release.close_findings!
+    PublishingRun.accept! PublishingRun.approve! PublishingRun.accept_gem! PublishingRun.complete!
+    PublishingRun.fault! PublishingRun.examine! PublishingRun.perform! PromotionRun.accept!
+    PromotionRun.observe! PromotionRun.complete! PromotionRun.lag! PromotionRun.fault!
+    PromotionRun.examine! PromotionRun.perform! Registry.complete! Registry.abandon! Registry.tag!
+    Package.complete! Package.abandon! Package.pin! Server.accept! Server.complete! Server.fault!
+    Server.serve! Server.examine! Server.perform! StallWatch.detect! Stall.file! Stall.abandon!
+    ScrumWake.call! HelpWanted.raise! HelpWanted.brief! HelpWanted.close! Launch.finish!
+    Launch.stop! Launch.write! Launch.scaffold! Launch.write_rails! TestSuiteRun.accept!
+    TestSuiteRun.complete! TestSuiteRun.fault! TestSuiteRun.examine! TestSuiteRun.perform!
+    FuzzRun.conclude! FuzzRun.halt! FuzzRun.sweep! FuzzRun.probe! FuzzRun.measure! Dial.settle!
+    Dial.decline! Dial.set! Probe.open! Probe.record! Probe.look! Probe.keep! Probe.revert!
+    Probe.close! Probe.strand! Probe.restore! Probe.measure! Probe.judge! WorkCap.open!
+    WorkCap.count_calm! WorkCap.count_pressed! WorkCap.count_strained! WorkCap.count_green_train!
     WorkCap.count_red_train! WorkCap.widen! WorkCap.halve_for_memory! WorkCap.halve_for_load!
     WorkCap.floor! WorkCap.ceil! Watchdog.record_guard! Watchdog.record_release! Watchdog.decline!
     Watchdog.guard! Watchdog.release!
@@ -530,6 +533,9 @@ queries (nothing here changes anything):
     docs
     project_diagrams
     glossary
+  Pace:
+    …
+    read
   QaQuiesce:
     …
     status
