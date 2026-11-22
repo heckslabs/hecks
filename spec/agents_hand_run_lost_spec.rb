@@ -28,19 +28,35 @@ RSpec.describe "a hand-started run that dies" do
     expect(shell.commands.first[:command]).to eq(%w[claude --bg --resume 1ead-old-full -n lead])
   end
 
-  it "registers the restarted run to its new session and delivers mail to lead", :aggregate_failures do
+  def restart_lead
     register_lead
     lead_dead
     beat("b1")
     lead_back
     beat("b2")
+  end
+
+  it "registers the restarted run to its new session" do
+    restart_lead
     expect(hand("lead").session.value).to eq("1ead-new-full")
+  end
+
+  it "delivers mail to lead once it is registered to its new session" do
+    restart_lead
     expect(send_message(to: "lead").status).to eq("sent")
   end
 
   it "never reads a busy or idle session as dead" do
     register_lead
     sessions.replace([session_entry("1ead-old-full", "lead", "working")])
+    beat("b1")
+    expect(hand("lead").status).to eq("registered")
+  end
+
+  it "leaves a replaced registration of a live run alone" do
+    register_lead
+    register_hand(run: "lead", session: "1ead-new-full", role: "orchestrator-owner")
+    lead_back
     beat("b1")
     expect(hand("lead").status).to eq("registered")
   end
