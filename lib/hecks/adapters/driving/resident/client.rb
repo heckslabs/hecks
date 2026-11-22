@@ -1,5 +1,6 @@
 require "socket"
 require "hecks/adapters/driving/resident/paths"
+require "hecks/adapters/driving/resident/control"
 require "hecks/adapters/driving/resident/wire"
 require "hecks/adapters/driving/resident/peer"
 require "hecks/adapters/driving/resident/outcome"
@@ -70,6 +71,7 @@ module Hecks
           def attempt(root, script)
             asked = Time.now
             status, why = ask(root, script)
+            status, why = Control.via_primary(self, root, why) unless status || why
             Stuck.after(root, why, asked: asked)
             return end_line(root, script, status) if status
 

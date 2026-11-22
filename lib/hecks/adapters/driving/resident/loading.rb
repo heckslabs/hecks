@@ -1,3 +1,4 @@
+require "hecks/adapters/driving/resident/control"
 require "hecks/adapters/driving/resident/crowd"
 require "hecks/adapters/driving/resident/persistence_guard"
 
@@ -142,6 +143,7 @@ module Hecks
           def settings
             world = @cache.fetch(File.join(@root, DOMAIN), ENVIRONMENTS.first)&.registry&.world("Hecks")
             declared = world ? world.for_verb("resident") : {}
+            Control.remember(world)
             read = DEFAULTS.merge(declared.slice(*DEFAULTS.keys, *OPTIONAL)).transform_values { |value| Float(value) }
             read.merge(idle_seconds: read[linked_worktree? ? :worktree_idle_seconds : :idle_seconds])
           end
