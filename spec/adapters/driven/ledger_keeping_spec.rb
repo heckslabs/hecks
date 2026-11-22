@@ -65,7 +65,9 @@ RSpec.describe Hecks::Adapters::LedgerKeeping do
   describe "the delivered outbox rows" do
     let(:rows) { [["delivered", 30], ["delivered", 1], ["pending", 30], ["failed", 30], ["refused", 30]] }
 
-    before { scratch_outbox(path, rows) }
+    let(:now) { Time.now.utc }
+
+    before { scratch_outbox(path, rows, now: now) }
 
     it "purges the delivered rows settled before the window and nothing else", :aggregate_failures do
       answer = purging_over(ledger_at(path), hours: 24).purge(run: { value: "beat-1" })
@@ -75,10 +77,17 @@ RSpec.describe Hecks::Adapters::LedgerKeeping do
     end
 
     it "keeps a delivered row for the world's one hour, no longer", :aggregate_failures do
-      recent = (Time.now.utc - 1800).iso8601
-      SQLite3::Database.new(path).execute("UPDATE hecks_outbox SET settled_at = ? WHERE settled_at > ?", [recent, recent])
+      purge = described_class::OutboxPurge.new(ledger_at(path))
 
-      expect(described_class::OutboxPurge.new(ledger_at(path)).purge!(hours: 1)).to eq(1)
+      expect(purge.purge!(hours: 1, now: now)).to eq(1)
+      expect(outbox_counts(path)["delivered"]).to eq(1)
+    end
+
+    it "keeps a delivered row settled exactly at the cutoff and purges one second older", :aggregate_failures do
+      older = (now - 3601).iso8601
+      SQLite3::Database.new(path).execute("INSERT INTO hecks_outbox (status, settled_at) VALUES ('delivered', ?)", [older])
+
+      expect(described_class::OutboxPurge.new(ledger_at(path)).purge!(hours: 1, now: now)).to eq(2)
       expect(outbox_counts(path)["delivered"]).to eq(1)
     end
 

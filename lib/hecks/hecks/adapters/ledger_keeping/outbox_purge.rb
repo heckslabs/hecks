@@ -24,10 +24,12 @@ module Hecks
         end
 
         # @param hours [Numeric] how long a delivered row is kept
+        # @param now [Time] the moment the window is counted back from; a row settled exactly
+        #   `hours` before it is kept, one second older is deleted
         # @return [Integer] how many rows were deleted
         # @raise [Held] when the write lock is not taken within the wait
-        def purge!(hours:)
-          cutoff = (Time.now.utc - (hours * 3600)).iso8601
+        def purge!(hours:, now: Time.now)
+          cutoff = (now.utc - (hours * 3600)).iso8601
           total = 0
           BATCHES.times do
             deleted = delete_batch(cutoff)
