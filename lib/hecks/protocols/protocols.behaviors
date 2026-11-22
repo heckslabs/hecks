@@ -113,8 +113,8 @@ Hecks.behaviors "Protocols" do
           touches_owner: { value: "no" }, owed: { value: 1 }
     setup "Protocols::Vote.Cast", agreement: { value: "WA-12" }, seat: { value: "coder-1" },
           gesture: { value: "no" }, message: { value: "m-7" }, now: { value: 100 }
-    input agreement: { value: "WA-12" }, seat: { value: "coder-1" }
-    expect emits: ["VoteReplaced"], status: "replaced"
+    input agreement: { value: "WA-12" }, seat: { value: "coder-1" }, held_against: { value: "WA-12" }
+    expect emits: %w[VoteReplaced ObjectionWithdrawn], status: "replaced"
   end
 
   test "A seat's later yes after its replaced no carries the agreement" do
@@ -124,7 +124,8 @@ Hecks.behaviors "Protocols" do
           touches_owner: { value: "no" }, owed: { value: 1 }
     setup "Protocols::Vote.Cast", agreement: { value: "WA-13" }, seat: { value: "coder-1" },
           gesture: { value: "no" }, message: { value: "m-8" }, now: { value: 100 }
-    setup "Protocols::Vote.Replace", agreement: { value: "WA-13" }, seat: { value: "coder-1" }
+    setup "Protocols::Vote.Replace", agreement: { value: "WA-13" }, seat: { value: "coder-1" },
+          held_against: { value: "WA-13" }
     input agreement: { value: "WA-13" }, seat: { value: "coder-1" }, gesture: { value: "yes" },
           message: { value: "m-9" }, now: { value: 200 }
     expect emits: %w[VoteCast AgreementAgreed AgreementAccepted]
@@ -137,7 +138,7 @@ Hecks.behaviors "Protocols" do
           touches_owner: { value: "no" }, owed: { value: 2 }
     setup "Protocols::Vote.Cast", agreement: { value: "WA-14" }, seat: { value: "coder-1" },
           gesture: { value: "yes" }, message: { value: "m-10" }, now: { value: 100 }
-    input agreement: { value: "WA-14" }, seat: { value: "coder-1" }
+    input agreement: { value: "WA-14" }, seat: { value: "coder-1" }, held_against: { value: "WA-14" }
     expect refused: "only a no can be replaced"
   end
 
@@ -148,7 +149,7 @@ Hecks.behaviors "Protocols" do
           touches_owner: { value: "no" }, owed: { value: 1 }
     input agreement: { value: "WA-15" }, seat: { value: "coder-1" }, gesture: { value: "no" },
           message: { value: "m-11" }, now: { value: 100 }
-    expect emits: ["VoteCast"]
+    expect emits: %w[VoteCast AgreementOpposed]
   end
 
   test "Close is refused while the deadline has not passed" do
