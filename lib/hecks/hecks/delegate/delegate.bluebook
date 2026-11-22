@@ -2695,10 +2695,9 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout, blocked_at: :blocked_at }
     end
 
-    # A job read `stopped` while an answer is on its way (`resuming`) is the stop that wakes the session,
-    # so it ends nothing. A fresh fork's job is its parent's copy (done) until it writes its own, so a
-    # `done` job listed `busy` ended nothing; a listing that is unreadable or empty keeps no run, and
-    # a session stuck busy is left to the stall report.
+    # A `stopped` job read while an answer is on its way (`resuming`) is the wake's own stop. A fresh
+    # fork's job is its parent's copy (`done`) until it writes its own: listed `busy`, it ended nothing,
+    # and an unreadable or empty listing keeps no run.
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
       root
