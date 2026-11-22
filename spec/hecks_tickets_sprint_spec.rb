@@ -25,6 +25,10 @@ RSpec.describe "the Tickets Sprint" do
 
   def schedule(key, day) = cli("work.schedule!", "to=#{key}", "into=#{day}")
 
+  def close(day) = cli("sprint.close!", "to=#{day}")
+
+  def sprints(*days) = days.each { |day| sprint(day) }
+
   def plain(value) = value.respond_to?(:value) ? value.value : value
 
   def aggregate(name) = hecks.registry.bluebook("Tickets").aggregates.find { |declared| declared.hecks_name == name }
@@ -40,20 +44,17 @@ RSpec.describe "the Tickets Sprint" do
   def items_in(day) = stored("Work").select { |row| plain(row.sprint) == day }.map { |row| plain(row.work) }.sort
 
   it "takes an item of epic A and one of epic B into the same upcoming sprint" do
-    sprint("2026-11-23")
+    sprints("2026-11-23")
     item("a1", epic: "epic-a")
     item("b1", epic: "epic-b")
-    schedule("a1", "2026-11-23")
-    schedule("b1", "2026-11-23")
+    %w[a1 b1].each { |key| schedule(key, "2026-11-23") }
     expect(items_in("2026-11-23")).to eq(%w[a1 b1])
   end
 
   it "refuses an item already in an open sprint a place in a second" do
-    sprint("2026-11-23")
-    sprint("2026-11-24")
+    sprints("2026-11-23", "2026-11-24")
     item("a1")
-    schedule("a1", "2026-11-23")
-    schedule("a1", "2026-11-24")
+    %w[2026-11-23 2026-11-24].each { |day| schedule("a1", day) }
     expect(sprint_of("a1")).to eq("2026-11-23")
   end
 
@@ -65,18 +66,16 @@ RSpec.describe "the Tickets Sprint" do
   end
 
   it "frees the items of a closed sprint for another sprint" do
-    sprint("2026-11-23")
-    sprint("2026-11-24")
+    sprints("2026-11-23", "2026-11-24")
     item("a1")
-    schedule("a1", "2026-11-23")
-    cli("sprint.close!", "to=2026-11-23")
+    schedule("a1", "2026-11-23").then { close("2026-11-23") }
     schedule("a1", "2026-11-24")
     expect(sprint_of("a1")).to eq("2026-11-24")
   end
 
   it "frees an item scheduled into a sprint already closed" do
-    sprint("2026-11-23")
-    cli("sprint.close!", "to=2026-11-23")
+    sprints("2026-11-23")
+    close("2026-11-23")
     item("a1")
     schedule("a1", "2026-11-23")
     expect(sprint_of("a1").to_s).to eq("")
