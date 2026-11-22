@@ -4,6 +4,8 @@ require "fileutils"
 require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
+require_relative "heavy_commands"
+require_relative "holder_mark"
 require_relative "memory_wait"
 require_relative "response_wait"
 require_relative "slot_queue"
@@ -28,6 +30,8 @@ module Hecks
       # by RuboCop, unless set). A job does not wait in CI or when `HELD` says a parent started it,
       # or once it gave up; a rejoining waiter keeps its place ({SlotWait}).
       class HeavySlots
+        extend HeavyCommands
+
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
 
@@ -76,32 +80,6 @@ module Hecks
           "not started: #{e.message}"
         end
 
-        # The verb of the Tickets world that names the commands that are heavy.
-        COMMANDS_VERB = "heavy_commands"
-
-        # @param root [String] the hecks checkout whose world declares the heavy commands
-        # @param verb [String] a command's verb, as the world's `heavy_commands` line spells it
-        # @return [String, nil] the job class the command takes a place as, nil when the world
-        #   does not declare it heavy (a wait on a remote run is not)
-        def self.job_of(root, verb)
-          job = RustBuild::WorldRows.row(root, COMMANDS_VERB)[verb.to_sym]
-          job&.to_s
-        end
-
-        # Runs a command in a place when the world declares it heavy, and at once when not: the one
-        # way a declared command is admitted, however many files or calls it makes inside.
-        #
-        # @param root [String] the hecks checkout whose world declares the heavy commands
-        # @param verb [String] the command's verb
-        # @yieldreturn [Object] the command's answer
-        # @return [Object] what the block returned
-        def self.command(root, verb, &)
-          job = job_of(root, verb)
-          return yield unless job
-
-          held(root, job, &).first
-        end
-
         # Runs a job of a checkout in a place, for a job whose answer is not a report.
         #
         # @param root [String] the hecks checkout whose world sets the cap
@@ -143,7 +121,7 @@ module Hecks
         # @return [Array(Object, String)] what the block returned, and the wait to name in the
         #   run's report: empty when it took a place at once
         def hold(job, &)
-          return [yield, ""] if bypass?
+          return [yield, ""] if HolderMark.covers?(@base)
 
           memory = @memory ? @memory.wait(job) : ""
           place, slot = acquire(job)
@@ -156,17 +134,6 @@ module Hecks
         end
 
         private
-
-        def bypass? = held_by_parent? || holder_thread? || !@base["CI"].to_s.empty?
-
-        # A parent process's mark; this process's own mark covers only the threads that hold a place,
-        # so a second command of one process still takes its own.
-        def held_by_parent?
-          mark = @base[HELD].to_s
-          !mark.empty? && mark != Process.pid.to_s
-        end
-
-        def holder_thread? = Thread.current[:heavy_slot_held] == true
 
         # @return [Array(File, String), Array(nil, String)] the place taken and the wait's note;
         #   no place when the places cannot be opened or the wait gave up
@@ -216,10 +183,10 @@ module Hecks
           before = ENV.values_at(HELD, WORKERS)
           ENV[HELD] = Process.pid.to_s
           ENV[WORKERS] ||= @workers.to_s if @workers
-          Thread.current[:heavy_slot_held] = true
+          HolderMark.set(true)
           yield
         ensure
-          Thread.current[:heavy_slot_held] = false
+          HolderMark.set(false)
           ENV[HELD], ENV[WORKERS] = before
         end
 
@@ -236,9 +203,8 @@ module Hecks
         end
 
         def gave_up(job)
-          note = "no longer waiting for a stalled heavy-job line after #{GIVE_UP_AFTER} s; #{job} runs anyway"
-          @err.puts("hecks: #{note}")
-          note
+          "no longer waiting for a stalled heavy-job line after #{GIVE_UP_AFTER} s; #{job} runs anyway"
+            .tap { |note| @err.puts("hecks: #{note}") }
         end
       end
     end

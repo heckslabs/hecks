@@ -13,6 +13,8 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots, ".command" do
 
   around do |example|
     saved = ENV.values_at("HECKS_CACHE_DIR", "CI", held)
+    holder = Thread.current[:heavy_slot_held]
+    Thread.current[:heavy_slot_held] = false
     ENV["HECKS_CACHE_DIR"] = cache
     ENV["CI"] = ENV[held] = nil
     write_world
@@ -20,14 +22,17 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots, ".command" do
     example.run
   ensure
     ENV["HECKS_CACHE_DIR"], ENV["CI"], ENV[held] = saved
+    Thread.current[:heavy_slot_held] = holder
     FileUtils.rm_rf([root, cache])
   end
 
   def write_world
     FileUtils.mkdir_p(File.join(root, "lib/hecks/hecks"))
     File.write(File.join(root, Hecks::RustBuild::WorldRows::WORLD), <<~WORLD)
-      heavy_jobs "HeavyJobs", cap: 2
-      heavy_commands "HeavyCommands", run_behaviors: "behaviors", run_spec_files: "spec_batch"
+      Hecks.world "Tickets" do
+        heavy_jobs "HeavyJobs", cap: 2
+        heavy_commands "HeavyCommands", run_behaviors: "behaviors", run_spec_files: "spec_batch"
+      end
     WORLD
   end
 
@@ -35,7 +40,7 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots, ".command" do
     FileUtils.mkdir_p(described_class.directory)
     Array.new(count) do |index|
       File.new(File.join(described_class.directory, "slot-#{index}.lock"), File::CREAT | File::RDWR, 0o600)
-           .tap { |file| file.flock(File::LOCK_EX) }
+          .tap { |file| file.flock(File::LOCK_EX) }
     end
   end
 
@@ -51,20 +56,17 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots, ".command" do
     places&.each(&:close)
   end
 
-  it "makes a third heavy command wait for a place and say so", :aggregate_failures do
+  it "makes a third heavy command wait for a place and say so" do
     places = hold_places(2)
-    err = StringIO.new
-    slots = described_class.new(cap: 2, dir: described_class.directory, err: err, pause: ->(_) { places.shift&.close })
-    expect(slots.hold("behaviors") { :ran }.first).to eq(:ran)
-    expect(err.string).to include("2 of 2 taken")
+    slots = described_class.new(cap: 2, err: (err = StringIO.new), pause: ->(_) { places.shift&.close })
+    expect([slots.hold("behaviors") { :ran }.first, err.string]).to match([:ran, /2 of 2 taken/])
   ensure
     places&.each(&:close)
   end
 
-  it "takes one place for a command over many files, not one per file", :aggregate_failures do
-    taken = []
-    allow(described_class).to receive(:held).and_wrap_original { |m, *args, &blk| taken << args[1] && m.call(*args, &blk) }
+  it "takes one place for a command over many files, not one per file" do
+    allow(described_class).to receive(:held).and_call_original
     described_class.command(root, "run_behaviors") { 38.times { :file } }
-    expect(taken).to eq(["behaviors"])
+    expect(described_class).to have_received(:held).with(root, "behaviors").once
   end
 end
