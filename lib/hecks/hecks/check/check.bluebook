@@ -239,7 +239,7 @@ Hecks.bluebook "Hecks" do
 
       command "ModelCheck" do
         role "Operator"
-        goal "Check domains for dead states and unreachable steps, and keep the verdict"
+        goal "Check domains for dead states and unreachable steps, and keep the verdict; without --wait it returns at status requested, so pass --wait to read the verdict"
 
         attribute :run,     RunKey, sets: true
         attribute :domains, DomainList,  optional: true, sets: true
