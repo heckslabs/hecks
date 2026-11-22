@@ -17,9 +17,12 @@ module Hecks
         DEFAULTS = { process_type: "Standard", nice: 10, low_priority_io: false }.freeze
 
         # @param registry [Runtime::Registry, nil] the booted registry whose Hecks world is read
-        # @return [JobPriority] the declared priority, the defaults when none is declared
-        def self.from(registry)
-          new(**(registry&.world("Hecks")&.for_verb(VERB) || {}).slice(*DEFAULTS.keys))
+        # @param verb [String] the world verb that declares the job (`launchd_job` for the beat)
+        # @param fallback [Hash] what holds for this job when the world declares less than the defaults
+        # @return [JobPriority] the declared priority, the fallback and defaults when none is declared
+        def self.from(registry, verb: VERB, **fallback)
+          declared = registry&.world("Hecks")&.for_verb(verb) || {}
+          new(**fallback, **declared.slice(*DEFAULTS.keys))
         end
 
         # @param process_type [String] launchd's ProcessType; never Background

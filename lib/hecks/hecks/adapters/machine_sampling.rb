@@ -8,6 +8,7 @@ require_relative "machine_sampling/readings"
 require_relative "machine_sampling/history"
 require_relative "machine_sampling/process_classes"
 require_relative "machine_sampling/cap_bounds"
+require_relative "machine_sampling/niceness"
 require_relative "dispatching/meter_switch"
 
 module Hecks
@@ -36,7 +37,8 @@ module Hecks
       # @param registry [Runtime::Registry, nil] the booted registry whose world is read
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins: `readings:` answers the gauges, `clock:` answers seconds,
-      #   `processes:` answers the process classes ({ProcessClasses} when absent), `meter:` answers
+      #   `processes:` answers the process classes ({ProcessClasses} when absent), `niceness:` answers how many
+      #   Claude processes run niced (none beside stand-in `readings:`; {Niceness} otherwise), `meter:` answers
       #   Roundhouse's load (none beside stand-in `readings:`, the live meter otherwise), `stamp:`
       #   answers when a reading is taken (ISO-8601 UTC from the wall clock when absent)
       # @param root [String, nil] unused
@@ -46,6 +48,7 @@ module Hecks
         @clock = settings.fetch(:clock, MONOTONIC)
         @stamp = settings.fetch(:stamp, WALL)
         @processes = settings[:processes] || ProcessClasses.new
+        @niceness = niceness_in(settings)
         @meter = settings.fetch(:meter) { settings.key?(:readings) ? -> {} : -> { Dispatching::MeterSwitch.load } }
       end
 
@@ -61,12 +64,17 @@ module Hecks
       def read(**held)
         marks = Marks.of(@registry)
         refuse_a_repeat(marks[:interval], held)
-        gauges = metered(@readings.call)
+        gauges = metered(@readings.call).merge(niced: @niceness.call)
         states = States.new(gauges, marks, History.new(@registry).states).to_h
         gauges.merge(states, CapBounds.of(@registry), taken_at: @stamp.call)
       end
 
       private
+
+      # Counts the niced Claude processes from `ps`; beside stand-in `readings:` none is read.
+      def niceness_in(settings)
+        settings.fetch(:niceness) { settings.key?(:readings) ? -> {} : -> { Niceness.new.count(Marks.of(@registry)) } }
+      end
 
       # The gauges with Roundhouse's load beside the sampler's, and, with the switch on and a
       # metered load read, the metered load as the one judged and recorded.

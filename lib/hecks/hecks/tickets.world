@@ -26,6 +26,9 @@
 # `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
 # off: a run finding stays a work item and no GitHub call is made. `enabled: true` turns it back on.
 #
+# `machine_marks` also carries `nice_high` and `priority_low`: a Claude process niced to `nice_high` or more, or at priority
+# `priority_low` or less (4 is macOS's Background clamp, the efficiency cores only), is heard as niced.
+#
 # `machine_marks` are the marks the Machine's readings are judged against (Delegate `Machine`, read through
 # the `Sampling` port). Each state has two marks with a gap between them, so a gauge near one does not flap:
 # the load has risen at CPU idle `cpu_idle_low` percent or under (or at a load average over `load_high` with
@@ -41,7 +44,7 @@ Hecks.world "Tickets" do
   machine_marks "Machine", load_low: 10.0, load_high: 10.0, cpu_idle_low: 0.0, cpu_idle_high: 100.0,
                            swap_used_mb: 4096.0, swap_recovered_mb: 2048.0, compressor_gb: 12.0,
                            free_gb_low: 3.0, free_gb_recovered: 6.0, lane_busy: 4.0, lane_idle: 1.0,
-                           interval: 60.0
+                           interval: 60.0, nice_high: 15.0, priority_low: 4.0
   github_issues "GitHubIssues", enabled: false
   # `area_names` reads each word of a planned or rescoped work item's area against the checkout
   # (`Hecks::Adapters::AreaNames`); a planned item whose area names nothing is dropped by name.

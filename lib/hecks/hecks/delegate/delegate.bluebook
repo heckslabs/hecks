@@ -1713,6 +1713,9 @@ Hecks.bluebook "Hecks" do
       attribute :compressor_gb, Gauge, optional: true
       attribute :load,          Gauge, optional: true
       attribute :lane_waiting,  Gauge, optional: true
+      # How many Claude processes (the daemon and its sessions) run niced or clamped to Background,
+      # which macOS runs on the efficiency cores only; read by the Sampling port.
+      attribute :niced,         Gauge, optional: true
       attribute :load_state,    Standing, optional: true
       attribute :memory_state,  Standing, optional: true
       attribute :lane_state,    Standing, optional: true
@@ -1780,6 +1783,7 @@ Hecks.bluebook "Hecks" do
         attribute :compressor_gb, Gauge, optional: true, sets: true
         attribute :load,          Gauge, optional: true, sets: true
         attribute :lane_waiting,  Gauge, optional: true, sets: true
+        attribute :niced,         Gauge, optional: true, sets: true
         attribute :load_state,    Standing, sets: true
         attribute :memory_state,  Standing, sets: true
         attribute :lane_state,    Standing, sets: true
@@ -1853,6 +1857,24 @@ Hecks.bluebook "Hecks" do
 
         emits TestLaneIdle
       end
+
+      command "Strain" do
+        role "System"
+        goal "Hear that a Claude process runs niced or clamped to Background, so on the efficiency cores only"
+
+        reference_to Machine
+
+        emits ProcessesNiced
+      end
+
+      command "Ease" do
+        role "System"
+        goal "Hear that no Claude process runs niced or clamped to Background"
+
+        reference_to Machine
+
+        emits ProcessesEased
+      end
     end
 
     policy "SampleOnHeartbeat" do
@@ -1878,7 +1900,7 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheMachine" do
       on      "Machine.MachineSampled"
       trigger Machine::Record, with: { cpu_idle: :cpu_idle, swap_used: :swap_used, compressor_gb: :compressor_gb,
-                                       load: :load, lane_waiting: :lane_waiting, load_state: :load_state,
+                                       load: :load, lane_waiting: :lane_waiting, niced: :niced, load_state: :load_state,
                                        memory_state: :memory_state, lane_state: :lane_state, source: :source,
                                        metered_load: :metered_load, taken_at: :taken_at }
     end
@@ -1992,6 +2014,20 @@ Hecks.bluebook "Hecks" do
       root
       where   { memory_state == "ok" && memory_before == "low" }
       trigger Machine::Recover, with: { machine: :id }
+    end
+
+    policy "HearClaudeProcessesNiced" do
+      on      "Machine.MachineSampled"
+      root
+      where   { niced && niced > 0 }
+      trigger Machine::Strain, with: { machine: :id }
+    end
+
+    policy "HearClaudeProcessesEased" do
+      on      "Machine.MachineSampled"
+      root
+      where   { niced == 0.0 }
+      trigger Machine::Ease, with: { machine: :id }
     end
 
     policy "HearTheLaneBusy" do

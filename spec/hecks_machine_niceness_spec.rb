@@ -20,7 +20,10 @@ RSpec.describe "the machine's niceness" do
   let(:shell) { instance_double(Hecks::Adapters::Shell, capture: result) }
   let(:marks) { Hecks::Adapters::MachineSampling::Marks::DEFAULTS }
 
-  def heard(counts) = beat_through(Array.new(counts.size) { gauge(60.0) }, niceness: counts)[:names].grep(/Processes(Niced|Eased)/)
+  def heard(counts)
+    names = beat_through(Array.new(counts.size) { gauge(60.0) }, niceness: counts)[:names]
+    names.grep(/Processes(Niced|Eased)/)
+  end
 
   it "counts Claude processes at nice 15 or priority 4, and no others" do
     expect(Hecks::Adapters::MachineSampling::Niceness.new(shell: shell).count(marks)).to eq(2.0)

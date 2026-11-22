@@ -84,6 +84,10 @@ Hecks.world "Hecks" do
   # and every process they start; Background QoS pins a job and its children to the efficiency cores and is refused.
   # `nice` is the increment; `low_priority_io: true` would throttle the job's disk IO and is left off.
   launchd_job "Beat", process_type: "Standard", nice: 10, low_priority_io: false
+  # The job that keeps a Claude daemon up. The daemon and every session it hosts inherit its scheduling, so it runs at
+  # normal priority: Standard, nice 0, no throttled IO. A daemon started from a niced or Background process stays on the
+  # efficiency cores for good.
+  claude_daemon_job "ClaudeDaemon", process_type: "Standard", nice: 0, low_priority_io: false
   # The free space, in gigabytes, below which the board's Disk free tile asks for attention and then fails.
   disk_health "PipelineBoard", attention_gb: 20, failed_gb: 5
   # How the board is kept small: it reads its state every `refresh_seconds`, and restarts itself, as the

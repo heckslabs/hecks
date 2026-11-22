@@ -1250,7 +1250,7 @@ Hecks.bluebook "Hecks" do
       # request records nothing about the job; the port answers or refuses it.
       command "Schedule" do
         role "Operator"
-        goal "Ask for the launchd job that beats the clock once a minute to be written and loaded; unconfirmed, it says what it would write"
+        goal "Ask for the launchd jobs (the beat once a minute, and a Claude daemon kept up at normal priority) to be written and loaded; unconfirmed, it says what it would write"
 
         attribute :run,     RunKey, sets: true
         attribute :confirm, Switch, optional: true, sets: true
@@ -1260,7 +1260,7 @@ Hecks.bluebook "Hecks" do
 
       command "Unschedule" do
         role "Operator"
-        goal "Ask for the launchd job that beats the clock to be unloaded and removed; unconfirmed, it says what it would remove"
+        goal "Ask for the launchd jobs (the beat and the Claude daemon) to be unloaded and removed; unconfirmed, it says what it would remove"
 
         attribute :run,     RunKey, sets: true
         attribute :confirm, Switch, optional: true, sets: true
