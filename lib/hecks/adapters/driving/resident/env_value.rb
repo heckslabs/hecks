@@ -6,11 +6,13 @@ module Hecks
         # resident's. Most values count as they are; three are cleaned of what changes nothing the
         # code loads: `RUBYLIB` of the rbenv hook directory and a Bundler gem's library, `RUBYOPT`
         # when it holds only Bundler's setup (which the resident has run), its library and warning
-        # levels, and `BUNDLE_GEMFILE` when it names the served checkout's own Gemfile. A line's
-        # child runs under the line's own environment, so a cleaned value still reaches its
-        # subprocesses. Anything else keeps the whole value and is refused on a difference;
-        # `GEM_HOME` and `GEM_PATH` are never cleaned. It uses only the standard library: the
-        # client runs before anything loads.
+        # levels, `BUNDLE_GEMFILE` when it names the served checkout's own Gemfile, and `GEM_HOME`
+        # when it names the directory gems resolve to without it (compared by real path, so a
+        # symlink to it counts). A line's child runs under the line's own environment, so a
+        # cleaned value still reaches its subprocesses. Anything else keeps the whole value and
+        # is refused on a difference; `GEM_PATH` is never cleaned, since it adds to the gem set
+        # whatever `GEM_HOME` is. It uses only the standard library: the client runs before
+        # anything loads.
         module EnvValue
           # The variable whose value is cleaned.
           LIBRARY_PATH = "RUBYLIB".freeze
@@ -35,6 +37,7 @@ module Hecks
             when LIBRARY_PATH then library_path(value)
             when "RUBYOPT" then options(value)
             when "BUNDLE_GEMFILE" then gemfile(value, root)
+            when "GEM_HOME" then gem_home(value)
             else value
             end
           end
@@ -53,6 +56,12 @@ module Hecks
           # @return [String, nil] nil when the Gemfile is the checkout's own, the value otherwise
           def gemfile(value, root)
             root && canonical(value) == canonical(File.join(root, "Gemfile")) ? nil : value
+          end
+
+          # @return [String, nil] nil when `GEM_HOME` is the directory gems resolve to without it,
+          #   the value otherwise
+          def gem_home(value)
+            canonical(value) == canonical(Gem.default_dir) ? nil : value
           end
 
           # @return [String] the real path, or the expanded one when nothing is there
