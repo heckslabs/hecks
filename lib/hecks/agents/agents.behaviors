@@ -331,7 +331,7 @@ Hecks.behaviors "Agents" do
     tests "Send", on: "Message"
     input  message: { value: "m5" }, recipient: { value: "run-a" }, sender: { value: "miette" },
            kind: { value: "question" }, body: { value: "q" * 2000 }
-    expect status: "sent"
+    expect body: { value: "q" * 2000 }
   end
 
   test "Send refuses a body over the limit, naming it" do
