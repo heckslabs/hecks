@@ -8,8 +8,8 @@ module Hecks
         # The launcher's answer to `PipelineBoard.snapshot` when the board is running: it asks the
         # board's `/api/snapshot` on 127.0.0.1, which draws the panel from the state it already
         # holds, prints it and ends the line, so the question costs no boot and no reads. A board
-        # that is down, slow or not yet holding a state answers nothing, and the line goes on to
-        # the resident or the boot as it always has.
+        # that is down, silent past {ANSWER_SECONDS} or not yet holding a state answers nothing, and
+        # the line goes on to the resident or the boot as it always has.
         #
         # It asks the one board on `HECKS_BOARD_PORT` from whatever checkout it runs in, so a line
         # run from a linked worktree or the train copy gets the primary checkout's board. The panel
@@ -30,8 +30,11 @@ module Hecks
           PORT_VARIABLE = "HECKS_BOARD_PORT".freeze
           # The board's route for the panel.
           ROUTE = "/api/snapshot".freeze
-          # Seconds the board has to connect, and again to answer.
-          SECONDS = 2
+          # Seconds the board has to accept the connection: a board that is down refuses at once.
+          CONNECT_SECONDS = 2
+          # Seconds the board has to write its panel once connected. A loaded machine holds a
+          # board's answer for several seconds, and the boot it spares costs minutes.
+          ANSWER_SECONDS = 15
           # Control characters stripped from the board's answer: all but tab, newline and escape.
           CONTROL = /[\x00-\x08\x0B-\x1A\x1C-\x1F\x7F]/
           # A field's value the launcher passes on: letters, digits and underscores only.
@@ -100,16 +103,16 @@ module Hecks
 
           # @return [String, nil] the body of a 200 answer, nil for any other
           def fetch(port, target)
-            Socket.tcp("127.0.0.1", port, connect_timeout: SECONDS) do |socket|
+            Socket.tcp("127.0.0.1", port, connect_timeout: CONNECT_SECONDS) do |socket|
               socket.write("GET #{target} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
               body_of(read_all(socket))
             end
           end
 
           # @return [String, nil] everything the board wrote before it closed, nil when it took
-          #   longer than the seconds it is given
+          #   longer than the answer window
           def read_all(socket)
-            deadline = clock + SECONDS
+            deadline = clock + ANSWER_SECONDS
             out = +""
             loop do
               left = deadline - clock
