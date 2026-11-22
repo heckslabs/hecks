@@ -21,8 +21,8 @@ RSpec.describe "the Agents message body limit" do
       .to raise_error(Hecks::Runtime::GivenNotMet, /at most 2000 characters; split it/)
   end
 
-  it "leaves a refused body out of the inbox" do
-    send_message(body: "q" * 2001) rescue nil
+  it "leaves a refused body out of the inbox", :aggregate_failures do
+    expect { send_message(body: "q" * 2001) }.to raise_error(Hecks::Runtime::GivenNotMet)
     expect(inbox("run-a")).to be_empty
   end
 end
