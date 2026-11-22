@@ -4,10 +4,10 @@ module Hecks
   module Adapters
     module Driving
       module Resident
-        # Which lines a launcher in a linked worktree may ask the primary checkout's resident to run,
-        # and where that checkout is. A control command acts on the primary's shared stores (work
-        # items, messages, settings, the red flag), so the primary's code serving it is correct; a
-        # line about the worktree's own files or code is never one.
+        # Which lines a launcher in a linked worktree may ask the primary checkout's resident
+        # to run, and where that checkout is. A control command acts on the primary's shared
+        # stores (work items, messages, settings, the red flag), so the primary's code serving it
+        # is correct; a line about the worktree's own files or code is never one.
         #
         # The words are the world's `resident "Launcher", control: ...`, which a resident writes to
         # the cache directory for the launchers, so none of this loads the domain. With no words
@@ -21,8 +21,8 @@ module Hecks
           module_function
 
           # @param argv [Array<String>] the line's words
-          # @param words [Array<String>] the control words: an aggregate (`work`) or an aggregate and
-          #   verb (`redflag.status`), spelled as {Client.plain} spells a command
+          # @param words [Array<String>] the control words: an aggregate (`work`) or an
+          #   aggregate and verb (`redflag.status`), spelled as {Client.plain} spells a command
           # @return [Boolean] whether the line is a control command
           def line?(argv, words = Paths.recall_words(WORDS))
             argv.first(2).map { |word| plain(word) }.any? do |word|
@@ -63,8 +63,8 @@ module Hecks
           end
 
           # @param root [String] a checkout
-          # @return [String, nil] the primary checkout when `root` is a linked worktree of it and the
-          #   primary has a launcher; nil for a checkout of its own or one whose layout is not known
+          # @return [String, nil] the primary checkout when `root` is a linked worktree of it and
+          #   the primary has a launcher; nil for a checkout of its own or an unknown layout
           def primary_root(root)
             common = common_dir(root)
             primary = common && File.dirname(common)
@@ -73,7 +73,7 @@ module Hecks
             nil
           end
 
-          # @return [String, nil] the repository's `.git` directory a linked worktree's `.git` file names
+          # @return [String, nil] the repository's `.git` directory the worktree's file names
           def common_dir(root)
             file = File.join(root, ".git")
             return unless File.file?(file)
