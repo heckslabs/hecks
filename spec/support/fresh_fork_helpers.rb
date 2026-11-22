@@ -22,4 +22,10 @@ module FreshForkHelpers
     File.write(File.join(scratch, "sessions.json"), JSON.generate(entries))
     launch("agent_run.check!", "to=#{work}", "--wait")
   end
+
+  # @return [Boolean] whether the run is still listed started
+  def run_started?(work)
+    out, = launch("agent_run.running")
+    out.to_s.include?("\"#{work}\"")
+  end
 end

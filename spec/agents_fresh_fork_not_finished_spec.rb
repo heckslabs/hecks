@@ -31,11 +31,11 @@ RSpec.describe "a freshly forked coder session" do
     expect(finishes_after_check("w-fork-unlisted", listing: nil)).to eq(1)
   end
 
-  it "records working, not finished, once the fork writes its own state", :aggregate_failures do
+  it "stays started once the fork writes its own working state", :aggregate_failures do
     finishes_after_check("w-fork-own", listing: "busy")
-    worked = count("SessionWorking")
+    finished = count("SessionFinished")
     list_and_check("w-fork-own", { state: "working" }, "busy")
-    expect(count("SessionWorking")).to eq(worked + 1)
-    expect(count("SessionFinished")).to eq(0)
+    expect(count("SessionFinished")).to eq(finished)
+    expect(run_started?("w-fork-own")).to be(true)
   end
 end
