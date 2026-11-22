@@ -55,4 +55,14 @@ RSpec.describe Hecks::Adapters::Dispatching::Dependencies do
   it "waits on a declared work item that has not landed" do
     expect(described_class.new(facts).reason(item("", waits_on: %w[dep open]))).to eq("skipped: waits on open")
   end
+
+  it "lets an item whose declared keys are all done start" do
+    expect(described_class.new(facts).reason(item("", waits_on: %w[dep late]))).to be_nil
+  end
+
+  it "waits on a declared key that names no work item" do
+    reason = described_class.new(facts).reason(item("", waits_on: %w[dep nobody]))
+
+    expect(reason).to eq("skipped: waits on nobody (no such work item)")
+  end
 end
