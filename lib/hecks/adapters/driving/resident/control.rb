@@ -57,14 +57,14 @@ module Hecks
             [status, why && "via-primary:#{why}"]
           end
 
-          # Asks the control process, the primary checkout's resident, to run a control line from a
-          # linked worktree, before any resident of the worktree's own. With none answering it says so
-          # on stderr and the line goes on cold.
+          # Asks the control process, the primary checkout's resident, to run a control line from
+          # a linked worktree, before any resident of the worktree's own. With none answering it
+          # says so on stderr and the line goes on cold.
           #
           # @param client [#ask] the launcher's client
           # @param root [String] the worktree
-          # @return [Array(Integer, nil), Array(nil, String), nil] as `ask`; nil when the line is not
-          #   a control line or `root` has no primary
+          # @return [Array(Integer, nil), Array(nil, String), nil] as `ask`; nil when the line
+          #   is not a control line or `root` has no primary
           def direct(client, root)
             primary = line?(ARGV) && primary_root(root)
             return unless primary
