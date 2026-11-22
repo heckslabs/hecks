@@ -147,13 +147,9 @@ Hecks.world "Tickets" do
   # `spec_bounds`: seconds a spec file, a check and a landing's impacted specs may take;
   # `impacted_workers` caps those specs run at once, held to the room under `dispatch_max_load`.
   spec_bounds "Specs", file_seconds: 600, check_seconds: 2400, impacted_seconds: 600, impacted_workers: 4
-  # `triggered_specs`: a change to `paths` (File.fnmatch patterns) runs `specs` in every impacted
-  # run (about 25 s for the behaviors; the Ruby runtime's files stay out, CI runs them on every
-  # push). `always` runs for any change outside `docs/`, ahead of the limit, unless the skip rules
-  # drop one: the specs that broke trains #1507, #1511, #1516 and #1523 after an impact-only
-  # verification, 1 to 3 s each, about 12 s in all. The CLI help goldens (about 130 s), the
-  # board's socket spec and the guides wait for a slower pass. A world that cannot be read takes
-  # the path rule of `GitRehearsal::SpecMap::Triggers::DEFAULTS`, without `always`.
+  # `triggered_specs`: a change to `paths` runs `specs`; `always` runs for any change outside `docs/`,
+  # ahead of the limit, the 1 to 3 s specs that broke trains #1507, #1511, #1516 and #1523 (about
+  # 12 s in all). The CLI help goldens (130 s) wait for a slower pass; no `always` in the defaults.
   triggered_specs "Specs", paths: ["lib/hecks/**/*.bluebook", "lib/hecks/**/*.hecksagon", "**/*.behaviors",
                                    "lib/hecks/hecks/tickets.world"],
                            specs: ["spec/behaviors_examples_spec.rb", "spec/ir_golden_spec.rb"],
