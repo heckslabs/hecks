@@ -52,7 +52,7 @@ RSpec.describe "a launcher through its resident" do
 
   it "keeps a resident standing that is too slow to answer in time but keeps taking callers", :aggregate_failures do
     pid = start_resident
-    too_slow_to_answer { 3.times { launch("RedFlag.status") } }
+    too_slow_to_answer { 3.times { launch_until_taken("RedFlag.status") } }
     expect(resident_pid).to eq(pid), -> { why_ended(pid) }
     expect(File.socket?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT))).to be(true)
   end
