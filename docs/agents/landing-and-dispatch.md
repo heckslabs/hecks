@@ -36,4 +36,5 @@ as the Work item `stall-<kind>-<subject>`, which the fill starts after red; a la
 branch finishes the Work item of the same name (or the same name without a leading `qa/`). The Tickets
 world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
 checks `command_names` and `workflow_pagination` (in the quick gate and CI) keep the names in docs, workflows and guides
-resolvable and lists paged; the spec suite holds the meta-domain covered.
+resolvable and lists paged. The check `tools_doc` (also in both) refuses a change that reaches `docs/tools.md` or the
+cli guides without their regenerated text: run `regeneration_run.project_tools_doc! --confirm` and commit it. The spec suite holds the meta-domain covered.
