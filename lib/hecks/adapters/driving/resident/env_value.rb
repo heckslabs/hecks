@@ -4,15 +4,16 @@ module Hecks
   module Adapters
     module Driving
       module Resident
-        # What a variable's value comes to when a line's environment is compared with the resident's.
-        # Most values count as they are; some are cleaned of what changes nothing the code loads: `RUBYLIB`
-        # of the rbenv hook directory and a Bundler gem's library, `RUBYOPT` holding only Bundler's setup
-        # and warning levels, `BUNDLE_GEMFILE` naming the checkout's own Gemfile or a copy whose Gemfile and
-        # `Gemfile.lock` hold the same bytes (the gems are the lock's), and `GEM_HOME` naming the directory
-        # gems resolve to without it (by real path). A line's child runs under the line's own environment.
-        # Anything else keeps the whole value and is refused on a difference; `GEM_PATH` is never cleaned,
-        # since it adds to the gem set. It uses only the standard library: the client runs before anything
-        # loads.
+        # What a variable's value comes to when a line's environment is compared with the
+        # resident's. Most values count as they are; some are cleaned of what changes nothing
+        # the code loads: `RUBYLIB` of the rbenv hook directory and a Bundler gem's library,
+        # `RUBYOPT` holding only Bundler's setup and warning levels, `BUNDLE_GEMFILE` naming the
+        # checkout's own Gemfile or a copy whose Gemfile and `Gemfile.lock` hold the same bytes
+        # (the gems are the lock's), and `GEM_HOME` naming the directory gems resolve to without
+        # it (by real path). A line's child runs under the line's own environment. Anything else
+        # keeps the whole value and is refused on a difference; `GEM_PATH` is never cleaned,
+        # since it adds to the gem set. It uses only the standard library: the client runs
+        # before anything loads.
         module EnvValue
           # The variable whose value is cleaned.
           LIBRARY_PATH = "RUBYLIB".freeze
