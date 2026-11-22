@@ -10,6 +10,11 @@ module Hecks
     # train's copy last pushed, and whether `stable` has caught up with main. It reads refs and
     # never fetches, so it writes nothing, not even a remote-tracking ref.
     class PipelineGit
+      # The blank line between two worktrees in `git worktree list --porcelain`.
+      BLOCK_BREAK = /\n\n+/
+      # A commit `git cherry` says the other side lacks by content: its short sha.
+      UNLANDED = /\A\+ (\h{1,10})/
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `git:` stands in for the program (a callable taking a directory
       #   and the arguments, answering standard output), `train:` for the train's checkout,
@@ -76,7 +81,7 @@ module Hecks
       # @return [Array<Hash>] `subject`, `branch`, `path`, `lacks_origin`, `lacks_main`, `dirty`
       # @raise [PipelineBoard::Unavailable] when git cannot answer
       def standings
-        trees = ask(@root, "worktree", "list", "--porcelain").split(/\n\n+/).drop(1)
+        trees = ask(@root, "worktree", "list", "--porcelain").split(BLOCK_BREAK).drop(1)
         trees.map { |block| standing_facts(block.lines.to_h { |line| line.strip.split(" ", 2) }) }
       end
 
@@ -90,7 +95,7 @@ module Hecks
           dirty: ask(fields["worktree"], "status", "--porcelain").lines.size }
       end
 
-      def lacking(base, ref) = ask(@root, "cherry", base, ref).lines.filter_map { |line| line[/\A\+ (\h{1,10})/, 1] }
+      def lacking(base, ref) = ask(@root, "cherry", base, ref).lines.filter_map { |line| line[UNLANDED, 1] }
 
       # `green` only when the finish marker names the commit main stands on now.
       def gate_verdict

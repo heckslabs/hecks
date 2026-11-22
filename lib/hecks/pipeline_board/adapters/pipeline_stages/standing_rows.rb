@@ -20,7 +20,9 @@ module Hecks
           fact.slice(:subject, :branch, :path, :dirty).merge(standing: standing, say: says(standing), shas: shas(fact, standing))
         end
 
-        def says(standing) = Rules.rows("StandingSays").find { |row| row[:standing] == standing }&.fetch(:says).to_s
+        def says(standing) = words(standing)&.fetch(:says).to_s
+
+        def words(standing) = Rules.rows("StandingSays").find { |row| row[:standing] == standing }
 
         def shas(fact, standing)
           held = { "worktree" => fact[:lacks_main], "local_main" => fact[:lacks_origin] }.fetch(standing, [])

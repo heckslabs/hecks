@@ -30,11 +30,8 @@ RSpec.describe "PipelineBoard Standing" do
   end
 
   it "reads a rebased landing under another sha as landed" do
-    path = world.worktree("delta")
-    world.commit(world.root, "m.txt", "m")
-    world.commit(path, "d.txt", "d")
-    world.pick("delta")
-    world.push
+    world.commit(world.worktree("delta"), "d.txt", "d")
+    world.land_rebased("delta")
     expect(world.standing_of("delta")[:standing]).to eq("origin_main")
   end
 
