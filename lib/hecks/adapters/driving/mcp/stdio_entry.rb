@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../mcp_stdio_guard"
+require_relative "thin"
 
 module Hecks
   module Adapters
@@ -8,14 +9,14 @@ module Hecks
       # The stdio entry of the MCP server onto the storehouse bus, behind `hecks mcp` and the
       # project's `.mcp.json`.
       #
-      # This file loads nothing but `McpStdioGuard`, so the transport check runs before the
-      # framework does.
+      # This file loads nothing but `McpStdioGuard` and `Thin`, so the transport check runs and
+      # the control process is asked before the framework loads.
       module Mcp
         # The server name the guard's refusals and warnings carry.
         SERVER = "hecks-mcp"
 
-        # Refuses any transport but stdio, then serves JSON-RPC requests from stdin until it
-        # closes.
+        # Refuses any transport but stdio, then has the control process serve JSON-RPC requests
+        # from stdin until it closes, or serves them itself when none answers.
         #
         # @param argv [Array<String>] the arguments after the command; only `--stdio` is accepted
         # @return [void]
@@ -23,6 +24,7 @@ module Hecks
         #   stdio
         def self.serve_stdio(argv)
           McpStdioGuard.enforce_stdio!(server: SERVER, argv: argv)
+          Thin.serve(argv)
           require_relative "../mcp"
           serve
         end
