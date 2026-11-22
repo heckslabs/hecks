@@ -9,6 +9,13 @@
 # before any hecks command since its last one is refused once with the `script` hint, and every
 # script it runs is recorded. The rule is the Agents bluebook's; this hook names no interpreter.
 #
+# Before it asks, the hook decides what the projected rules (.claude/hooks/guard_rules.json) settle
+# with no Hecks process: a call made by a subagent, a role with no routing rows, and a `git` or `gh`
+# call that is exactly one of the role's rows. The file holds the digest of the Agents bluebooks it
+# was projected from; a missing file or a digest that no longer matches turns this off, and the call
+# goes to Role.guard, which reads the bluebooks and stays the one authority. Every launcher call and
+# every other shape (a branch name after `git branch`, a pipe, a script) goes to Role.guard too.
+#
 # When Hecks cannot answer (the launcher fails, gives no verdict, or takes longer than the limit), a
 # role listed in .claude/hooks/guarded_roles (projected from the RoutingRule rows) is refused with the
 # reason, except for exactly `exe/hecks agents Role.guard` and `git status`, so a session can always
@@ -40,6 +47,22 @@ unanswered() {
     "error, repair the guard, or ask the owner. Refused: $command" >&2
   exit 2
 }
+
+rules="$dir/.claude/hooks/guard_rules.json"
+
+# Whether the projected rules, still current for this checkout's bluebooks, allow the call.
+decided_by_rules() {
+  [ -r "$rules" ] || return 1
+  have="$(cd "$dir/lib/hecks/agents" 2>/dev/null && LC_ALL=C cat ./*.bluebook | shasum -a 256 | cut -d' ' -f1)"
+  [ -n "$have" ] || return 1
+  verdict="$(jq -r --arg have "$have" --arg role "$role" --arg command "$command" --arg agent "$agent" '
+    if .digest != $have then "ask"
+    elif $agent != "" or (.roles | has($role) | not) or ((.roles[$role] | index($command)) != null) then "allow"
+    else "ask" end' "$rules" 2>/dev/null)"
+  [ "$verdict" = "allow" ]
+}
+
+decided_by_rules && exit 0
 
 cd "$dir" 2>/dev/null || unanswered "cannot enter $dir"
 out="$(HECKS_CALLER=hook:orchestrator_guard perl -e 'alarm shift; exec @ARGV or exit 127' "$limit" \
