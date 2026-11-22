@@ -16,7 +16,7 @@ module Hecks
       DEFAULT_PATH = "~/.claude/hecks-dev/mail/spool.jsonl"
 
       # The fields a spool line carries, each answered as `{ value: }`.
-      FIELDS = %w[message recipient sender kind body in_reply_to].freeze
+      FIELDS = %w[message recipient sender kind body in_reply_to asker_role].freeze
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `path:` the spool file (default {DEFAULT_PATH})

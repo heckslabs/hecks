@@ -12,7 +12,8 @@ RSpec.describe "a reply to a hand-started sender" do
 
   def hear_from(sender)
     Hecks::Agents::Message.send!(message: { value: "q1" }, recipient: { value: "run-a" }, sender: { value: sender },
-                                 kind: { value: "question" }, body: { value: "which?" }, in_reply_to: { value: "" })
+                                 kind: { value: "question" }, body: { value: "which?" }, in_reply_to: { value: "" },
+                                 now: { value: 1_000 })
   end
 
   it "is held for the sender, not refused", :aggregate_failures do
