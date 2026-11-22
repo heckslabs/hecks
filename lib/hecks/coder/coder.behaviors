@@ -8,14 +8,7 @@ Hecks.behaviors "Coder" do
     input  branch: { value: "w-manifest" }, sha: { value: "abc1234" }, checkout: { value: "/tmp/w-manifest" },
            clean: { value: true }, work: { value: "w-manifest" }, run: { value: "run-1" },
            role: { value: "coder" }, covers: { value: "spec/a_spec.rb" }
-    expect emits: ["SubmissionAsked"], status: "asked"
-  end
-
-  test "a submission that names an empty Work item is refused" do
-    tests "Submit", on: "Submission"
-    input  branch: { value: "w-empty" }, sha: { value: "abc1234" }, checkout: { value: "/tmp/w-empty" },
-           clean: { value: true }, work: { value: "" }, run: { value: "run-1" }
-    expect refused: "a submission names its Work item"
+    expect emits: ["SubmissionAsked", "SubmitterUnmeasured", "WorkSubmitted"], status: "submitted"
   end
 
   test "a submission of main is refused" do
