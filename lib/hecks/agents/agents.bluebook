@@ -2170,6 +2170,7 @@ Hecks.bluebook "Agents" do
       sets :recipient, to: :lead
       sets :kind, to: :escalated
       sets :sent_at, to: :now
+      sets :fallen_back_at, to: { value: 0 }
 
       emits "MessageEscalated"
     end
