@@ -55,8 +55,12 @@ module AgentsMessageHelpers
   # What the stand-in resume is told, one `[session id, prompt]` pair per wake.
   def resumed = (@resumed ||= [])
 
+  # The listing entries the stand-in resume was handed, one per wake.
+  def resumed_entries = (@resumed_entries ||= [])
+
   def role_rouser
-    Hecks::Adapters::RoleRouser.new(listing: -> { role_sessions }, resume: ->(entry, prompt) { resumed << [entry["id"], prompt] })
+    wake = ->(entry, prompt) { resumed << [entry["id"], prompt] and resumed_entries << entry }
+    Hecks::Adapters::RoleRouser.new(listing: -> { role_sessions }, resume: wake)
   end
 
   def inbox(run) = Hecks::Agents::Message.inbox(recipient: { value: run }).map { |row| row[:message].value }
