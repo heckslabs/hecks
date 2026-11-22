@@ -1,7 +1,7 @@
 require "hecks"
 
-# Interviews is a task module of the one Hecks context (ADR 0194, decision 6), kept in Memory by the
-# committed world (decision 7): a SQLite hecksagon is a local overlay's, never the committed world's.
+# Interviews is a task module of the one Hecks context (ADR 0194, decision 6), kept in Memory by
+# the committed world (decision 7): a SQLite hecksagon is for a local overlay only.
 RSpec.describe "the Hecks domain attaching Interviews" do
   let(:directory) { File.expand_path("../lib/hecks/hecks", __dir__) }
   let(:registry) { Hecks.describe(directory).registry.tap(&:apply_world_names!) }
