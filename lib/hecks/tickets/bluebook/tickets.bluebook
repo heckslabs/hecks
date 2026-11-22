@@ -1880,6 +1880,13 @@ Hecks.bluebook "Tickets" do
     ask     :check_wait_keys, with: { work: :work }
   end
 
+  # A planned work item that names what it waits on is checked the same way, so a key no work item
+  # has holds it at the plan and it never waits unseen.
+  policy "CheckWaitKeysWhenPlanned" do
+    on      "Work.WorkPlanned"
+    ask     :check_wait_keys, with: { work: :work }
+  end
+
   policy "HoldWhenWaitKeyUnknown" do
     on      "Work.WaitKeyUnknown"
     trigger Work::Hold, with: { held_reason: :refusal }
