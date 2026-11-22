@@ -162,7 +162,8 @@ RSpec.describe "the Tickets bluebook" do
 
     expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted",
                                                       "CheckAreaNamesWhenPlanned", "CheckAreaNamesWhenRescoped",
-                                                      "CheckWaitKeysWhenNamed", "CheckExpediteWhenExpedited",
+                                                      "CheckWaitKeysWhenNamed", "CheckWaitKeysWhenPlanned",
+                                                      "CheckExpediteWhenExpedited",
                                                       "ComposeNoteWhenNoteRequested")
   end
 
