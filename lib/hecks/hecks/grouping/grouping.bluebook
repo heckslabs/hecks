@@ -1,0 +1,81 @@
+Hecks.bluebook "Hecks" do
+  domain_module "ChangeGrouping" do
+    vision "Changes that go together board and revert as one group. Evidence puts two branches in a group, never a title: they change the same file, one holds a derived output of the other's source, one waits on the other, or they are the tasks of one item."
+
+    # The facts of each branch arrive with the command; the bluebook decides the tie, so no adapter does.
+    # Boarding and dropping a group as one train is the train's, in a later change.
+    aggregate "ChangeGroup" do
+      description "Two branches tied by evidence that holds in both of their facts."
+      created_by "ChangeGroup.Form"
+      acknowledges :key_by_value, "a group is named by its two branches, which may be local branches no record holds", of: :group
+
+      attribute :group, GroupKey
+      attribute :branch, Word
+      attribute :with, Word
+      attribute :kind, Kind
+      attribute :proof, Proof
+      attribute :status, Status
+      identified_by :group
+
+      value_object "GroupKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      # One of derives, shares_files, waits_on, same_item.
+      value_object "Kind", String
+
+      # What proves the tie: a file, a source file, a work item's name or an item's name.
+      value_object "Proof", String
+
+      value_object "Status", String
+
+      command "Form" do
+        role "System"
+        goal "Group two branches whose facts hold the evidence of one tie"
+
+        attribute :group,       GroupKey, sets: true
+        attribute :branch,      Word, sets: true
+        attribute :with,        Word, sets: true
+        attribute :kind,        Kind, sets: true
+        attribute :proof,       Proof, sets: true
+        attribute :status,      Status, sets: true, default: { value: "formed" }
+        # The derived file, for derives evidence.
+        attribute :output,      String, optional: true
+        # The facts of the two branches: the files each changes, the sources the output derives
+        # from, the work items the branch waits on, and the item of each branch's task.
+        attribute :files,       list_of(String), optional: true, default: []
+        attribute :other_files, list_of(String), optional: true, default: []
+        attribute :sources,     list_of(String), optional: true, default: []
+        attribute :waits_on,    list_of(String), optional: true, default: []
+        attribute :work_item,       String, optional: true
+        attribute :other_work_item,  String, optional: true
+
+        given("a group joins two different branches") { branch.value != with.value }
+        given("the evidence is one of derives, shares_files, waits_on, same_item") do
+          ["derives", "shares_files", "waits_on", "same_item"].include?(kind.value)
+        end
+        given("the evidence names its proof") { proof.value != "" }
+        given("a shared file is changed by both branches") do
+          kind.value != "shares_files" || (files.include?(proof.value) && other_files.include?(proof.value))
+        end
+        given("a derived output is changed beside its source") do
+          kind.value != "derives" || (sources.include?(proof.value) &&
+            ((files.include?(proof.value) && other_files.include?(output)) ||
+             (other_files.include?(proof.value) && files.include?(output))))
+        end
+        given("a wait names the work item the branch waits on") do
+          kind.value != "waits_on" || waits_on.include?(proof.value)
+        end
+        given("one item holds both tasks") do
+          kind.value != "same_item" || (work_item == proof.value && other_work_item == proof.value)
+        end
+
+        emits GroupFormed
+      end
+    end
+  end
+end
