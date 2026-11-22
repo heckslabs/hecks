@@ -413,4 +413,53 @@ Hecks.behaviors "Agents" do
     input  run: { value: "ev-r8" }, work: { value: "ev-w8" }, hard: "again", surprise: "none", sources: "AgentRunRetried:ev-r8"
     expect refused: "Record creates a Evidence that already exists — run.value \"ev-r8\""
   end
+  test "Ingest asks the spool for its next line" do
+    tests "Ingest", on: "MailSpool"
+    input  pass: { value: "beat-1" }
+    expect status: "requested"
+  end
+
+  test "Ingest refuses a pass that already ran" do
+    tests "Ingest", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-2" }
+    input  pass: { value: "beat-2" }
+    expect refused: "Ingest creates a MailSpool that already exists"
+  end
+
+  test "Take keeps a line the spool held" do
+    tests "Take", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-3" }
+    input  pass: { value: "beat-3" }
+    expect status: "taken"
+  end
+
+  test "Take refuses a pass that is no longer requested" do
+    tests "Take", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-4" }
+    setup  "Agents::MailSpool.Finish", pass: { value: "beat-4" }
+    input  pass: { value: "beat-4" }
+    expect refused: "Take refused — status is \"dry\", and Take moves it only from \"requested\""
+  end
+
+  test "Finish records a spool with no line past the cursor" do
+    tests "Finish", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-5" }
+    input  pass: { value: "beat-5" }
+    expect status: "dry"
+  end
+
+  test "Decline records why the spool could not be read" do
+    tests "Decline", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-6" }
+    input  pass: { value: "beat-6" }, refusal: { value: "the spool cannot be read" }
+    expect status: "refused"
+  end
+
+  test "Settle ends a pass whose line was kept and acknowledged" do
+    tests "Settle", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-7" }
+    setup  "Agents::MailSpool.Take", pass: { value: "beat-7" }
+    input  pass: { value: "beat-7" }
+    expect status: "settled"
+  end
 end
