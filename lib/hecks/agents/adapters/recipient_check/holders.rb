@@ -38,7 +38,7 @@ module Hecks
         end
 
         # @param name [String] a recipient with no live session
-        # @return [String] `; held for <name> until <role> registers` for a standing seat, else empty
+        # @return [String] `; held for <name> until <role> registers` for a standing seat, else ""
         def waiting(name)
           role = seat_role(name)
           role ? "; held for #{name} until #{role} registers" : ""
