@@ -169,7 +169,7 @@ module Hecks
 
         def yielded(record)
           { yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
-            yield_count: field(record, :yield_count).to_i }
+            yield_count: field(record, :yield_count).to_i, held: field(record, :held_reason).to_s }
         end
 
         # A run key reused after its run ended keeps the ended record under another id with the
