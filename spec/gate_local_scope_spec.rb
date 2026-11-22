@@ -32,7 +32,8 @@ RSpec.describe "the local gate scope" do
   end
 
   it "keeps every quick-stage check local", :aggregate_failures do
-    %w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words io_spec_list].each do |name|
+    %w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words io_spec_list
+       bluebook_extraction].each do |name|
       expect(stage_checks("quick")).to include(name)
     end
   end

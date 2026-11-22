@@ -74,6 +74,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "check_workflow_pagination", verbs: %w[check_workflow_pagination],
                note: "no bin script: it refuses a workflow that counts or waits on a GitHub list call " \
                      "returning only its first page"),
+    AdrRow.new(script: "check_bluebook_extraction", verbs: %w[check_bluebook_extraction],
+               note: "no bin script: it boots each bluebook the branch changed and refuses any rule whose " \
+                     "source did not survive extraction into the IR"),
     AdrRow.new(script: "report_role_shadow", verbs: %w[report_role_shadow],
                note: "no bin script: it lists, for a domain directory, each role-gated command and each " \
                      "reaction to one that a caller stating no role would be refused, and never refuses"),
