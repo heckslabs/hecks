@@ -32,14 +32,12 @@ RSpec.describe GitIdentityFree do
     _out, status = commit("-c", "user.name=t", "-c", "user.email=t@t")
     expect(status).to be_success
   end
-end
 
-RSpec.describe GitIdentityFree, "across a sandbox re-arm" do
-  it "still names an existing empty global configuration after the run's tmp is emptied", :aggregate_failures do
+  it "still names an existing empty configuration after the run's tmp is emptied", :aggregate_failures do
     path = described_class.apply!({})["GIT_CONFIG_GLOBAL"]
     RunSandbox.disarm!
     RunSandbox.arm!
     expect(File.exist?(path)).to be(true)
-    expect(File.zero?(path)).to be(true)
+    expect(File.read(path)).to eq("")
   end
 end
