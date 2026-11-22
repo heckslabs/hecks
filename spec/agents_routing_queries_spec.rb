@@ -24,7 +24,7 @@ RSpec.describe "the routing guard on queries" do
     end
   end
 
-  it "refuses a command written without its bang's help-less spelling by chaining" do
+  it "refuses a query chained to another command" do
     expect(refusal("architect", "Work.show; rm x")).to include("architect routes only")
   end
 
