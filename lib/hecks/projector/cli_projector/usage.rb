@@ -50,9 +50,10 @@ module Hecks
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
         end
 
-        # The tables of commands and queries, or the modules in their place for a brief help.
+        # The tables of commands and queries, or the modules in their place for a brief help. A
+        # bluebook with no modules has nothing to list in their place, so it keeps its tables.
         def help_body(bluebook, shown, options, program)
-          return brief_lines(bluebook, program) if options[:brief]
+          return brief_lines(bluebook, program) if options[:brief] && module_names(bluebook).any?
 
           tables(*shown, all: options[:all], notes: aggregate_notes(bluebook))
         end
