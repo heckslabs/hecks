@@ -33,9 +33,10 @@ module Hecks
           # @return [Verdict]
           def decide(held:, bluebook:, edge_source:, watermark:, rows:)
             latest = held.last
-            edges = leading(edge_source[:translations], bluebook, latest[:label])
+            from = held_label_of(latest)
+            edges = leading(edge_source[:translations], bluebook, from)
             found = if edges.empty?
-                      implicit(latest, bluebook, watermark)
+                      implicit(latest, bluebook, watermark, from)
                     else
                       written(edges, latest, bluebook, watermark)
                     end
@@ -98,12 +99,12 @@ module Hecks
 
           # The implicit empty edge: the change must qualify as additive by
           # `Translation::ImplicitEdge.qualifies?`, and nothing else is recorded for it.
-          def implicit(latest, bluebook, watermark)
+          def implicit(latest, bluebook, watermark, from)
             diff = diff_of(latest, bluebook)
             to = label_of(bluebook)
             return verdict_of("needs_edge", diff, watermark, reason: :non_qualifying) unless additive?(diff, latest, bluebook)
 
-            edge = Translation::ImplicitEdge.new(domain: bluebook.name, from: latest[:label], to: to)
+            edge = Translation::ImplicitEdge.new(domain: bluebook.name, from: from, to: to)
             verdict_of("would_mint", diff, watermark, edge: edge, edges: [], source: "implicit")
           end
 

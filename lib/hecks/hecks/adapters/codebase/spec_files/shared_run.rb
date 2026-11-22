@@ -8,8 +8,9 @@ module Hecks
   module Adapters
     module Codebase
       class SpecFiles
-        # Every file in one test-runner process; the JSON formatter says which file each example
-        # belongs to, and the runner's own message which file did not load.
+        # Every file in one test-runner process of its own, ended at its bound (one file's bound
+        # for each file) with the file and example it was in named. The JSON formatter says which
+        # file each example belongs to, and the runner's own message which file did not load.
         class SharedRun
           LOAD_ERROR = /error occurred while loading (.+?)\.?$/
 
@@ -27,7 +28,7 @@ module Hecks
           def call(names, options, env)
             Tempfile.create(["spec-files", ".json"]) do |json|
               args = ["--format", "documentation", "--format", "json", "--out", json.path, *options, *names]
-              status, printed = @runner.outcome(args, env: env)
+              status, printed = @runner.outcome(args, env: env, fresh: true, files: names.size)
               by_file = examples_by_file(json.path)
               endings = names.map { |name| ending(name, by_file.fetch(key(name), [])) }
               blame_load_errors(endings, status, printed)
