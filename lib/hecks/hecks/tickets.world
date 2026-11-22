@@ -147,17 +147,16 @@ Hecks.world "Tickets" do
   # `spec_bounds`: seconds a spec file, a check and a landing's impacted specs may take;
   # `impacted_workers` caps those specs run at once, held to the room under `dispatch_max_load`.
   spec_bounds "Specs", file_seconds: 600, check_seconds: 2400, impacted_seconds: 600, impacted_workers: 4
-  # `triggered_specs` is the rule that a change to `paths` (File.fnmatch patterns from the root)
-  # runs `specs` in every impacted-spec run: `run_impacted_specs!`, a deep rehearsal and a landed
-  # commit's verification. A `.behaviors` file expects an exact list of events, so a policy, event
-  # or command added to any bluebook can break one that no name or path points at, and
-  # spec/behaviors_examples_spec.rb runs every such file in about 25 s. A change outside the
-  # paths adds no time. The Ruby runtime's own files are left out on purpose: nearly every change
-  # touches one, and CI runs the behaviors on every push. A world that cannot be read takes the
-  # same rule (`GitRehearsal::SpecMap::Triggers::DEFAULTS`).
+  # `triggered_specs`: a change to `paths` runs `specs`; `always` runs for any change outside `docs/`,
+  # ahead of the limit, the 1 to 3 s specs that broke trains #1507, #1511, #1516 and #1523 (about
+  # 12 s in all). The CLI help goldens (130 s) wait for a slower pass; no `always` in the defaults.
   triggered_specs "Specs", paths: ["lib/hecks/**/*.bluebook", "lib/hecks/**/*.hecksagon", "**/*.behaviors",
                                    "lib/hecks/hecks/tickets.world"],
-                           specs: ["spec/behaviors_examples_spec.rb", "spec/ir_golden_spec.rb"]
+                           specs: ["spec/behaviors_examples_spec.rb", "spec/ir_golden_spec.rb"],
+                           always: ["spec/mcp_argument_policy_spec.rb", "spec/codebase_heavy_slots_spec.rb",
+                                    "spec/resident_persistence_guard_spec.rb",
+                                    "spec/adapters/driven/journal_store/mint_plan_spec.rb",
+                                    "spec/adapters/driven/journal_store/mint_plan_agreement_spec.rb"]
   # `ledger_care`: a beat compacts the AgentRun journal once `entries` are compactable, waiting
   # at most `wait_seconds` for the file's lock and deferring by name when another holds it. A beat
   # also purges the outbox rows delivered more than `outbox_hours` ago.
