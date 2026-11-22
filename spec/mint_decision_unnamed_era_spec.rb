@@ -11,7 +11,7 @@ RSpec.describe "the mint decision over an era held before it was named" do
 
   def decide_from(current, edges)
     MintDecisionSupport::Decision.decide(held: [unnamed], bluebook: declared(current),
-                    edge_source: { translations: edges }, watermark: 1, rows: [])
+                                         edge_source: { translations: edges }, watermark: 1, rows: [])
   end
 
   it "leads on the edge written from the era's shape, as a named era does", :aggregate_failures do

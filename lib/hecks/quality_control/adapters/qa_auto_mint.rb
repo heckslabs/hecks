@@ -33,7 +33,7 @@ module Hecks
           latest, bluebook: held.bluebook, translations: registry.translations, watermark: watermark
         )
         { watermark: watermark, held: held_bluebook(latest), current: held.bluebook, verdict: verdict }
-          .merge(edge_facts(held, ledger, latest[:label]))
+          .merge(edge_facts(held, ledger, PostgresEra::LineageManager::MintDecision.held_label_of(latest)))
       end
 
       # @return [Array(Hash, Integer)] the latest held era and the live watermark, read from its
