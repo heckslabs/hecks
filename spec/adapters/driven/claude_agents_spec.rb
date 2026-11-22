@@ -91,14 +91,16 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     it "starts it in the directory, with the agent and its caller name, in the background, brief after --", :aggregate_failures do
       start(agent: { value: "miette" })
 
-      expect(asked).to eq(["--agent", "miette", "--settings", %({"env":{"HECKS_CALLER":"miette"}}), "--bg", "--", "say ok"])
+      expect(asked).to eq(["--agent", "miette", "--settings", %({"env":{"HECKS_CALLER":"miette","HECKS_ROLE":"miette"}}), "--bg",
+                           "--", "say ok"])
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
     end
 
-    it "names the run in the settings env block, so its commands are logged under it" do
+    it "names the run in the settings env block, so its commands and commits carry it" do
       start(run: { value: "fix-it" }, agent: { value: "coder" })
 
-      expect(JSON.parse(settings_asked).fetch("env")).to eq("HECKS_CALLER" => "coder:fix-it")
+      expect(JSON.parse(settings_asked).fetch("env")).to eq("HECKS_CALLER" => "coder:fix-it", "HECKS_RUN_KEY" => "fix-it",
+                                                            "HECKS_ROLE" => "coder")
     end
 
     it "adds a Stop and a SessionEnd hook that check the run through the launcher", :aggregate_failures do
