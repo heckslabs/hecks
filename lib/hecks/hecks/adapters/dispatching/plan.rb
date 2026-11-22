@@ -106,16 +106,12 @@ module Hecks
         end
 
         # What holds an item whatever room there is; such an item does not count against the cap.
-        def held_reason(item)
-          hold_reason(item) || rethink_reason(item) || dependency_reason(item) || parked_reason(item) || storm_reason(item)
-        end
+        def held_reason(item) = rethink_reason(item) || dependency_reason(item) || parked_reason(item) || storm_reason(item)
 
-        # An item waits until each work item it names has landed, a red one included: it is never
-        # chosen, so it is never started and yielded for a dependency.
-        def dependency_reason(item) = @limits[:waits]&.call(item)
-
-        # A work item whose area names nothing waits until a rescope gives it one.
-        def hold_reason(item) = ("skipped: held: #{item.held}" unless item.held.to_s.empty?)
+        # An item waits while its area names nothing (until a rescope gives it one), and until each
+        # work item it names has landed, a red one included: it is never chosen, so it is never
+        # started and yielded for a dependency.
+        def dependency_reason(item) = ("skipped: held: #{item.held}" unless item.held.to_s.empty?) || @limits[:waits]&.call(item)
 
         # A work item the architect said to rethink too often waits for a person.
         def rethink_reason(item) = @limits[:rethinks]&.call(item.key)
