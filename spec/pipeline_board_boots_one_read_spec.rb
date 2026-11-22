@@ -1,7 +1,8 @@
 require "spec_helper"
 
 # The Boot hours reading over a large day: the usage record is read once for the whole reading,
-# never once for each signal, so the snapshot answers in seconds however many launcher runs a day holds.
+# never once for each signal, so the snapshot answers in seconds however many launcher runs a
+# day holds.
 RSpec.describe "the Boot hours reading over a large day" do
   let(:now) { Time.utc(2026, 11, 22, 12, 0, 0) }
   let(:reads) { [] }
