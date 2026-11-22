@@ -5,7 +5,7 @@ Hecks.hecksagon "Hecks" do
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
   # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
-     Coder Fixer PipelineBoard Pipeline Agents Triage]
+     Coder Fixer PipelineBoard Pipeline Agents Triage Interviews]
     .each { |declaration| attaches declaration }
   # Signalbox shares the Hecks bus (ADR 0222, phase 3b), so the clock's beat begins its pressure beat
   # and the settled pressure is posted as the machine's one signal. It persists in Memory, as the

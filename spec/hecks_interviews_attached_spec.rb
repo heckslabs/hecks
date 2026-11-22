@@ -11,7 +11,7 @@ RSpec.describe "the Hecks domain attaching Interviews" do
   end
 
   it "lists Interview.record! among the commands of the Hecks context" do
-    expect(registry.bluebook("Interviews").aggregate("Interview").commands.map(&:name)).to include("Record")
+    expect(registry.bluebook("Interviews").aggregate("Interview").commands.map(&:hecks_name)).to include("Record")
   end
 
   it "names no SQLite for Interviews in the committed world" do
