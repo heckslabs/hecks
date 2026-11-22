@@ -54,6 +54,16 @@ module Hecks
             "waited #{waited} minutes since it opened"
         end
 
+        # @param landed [String] the boarded commit
+        # @param unread [String, nil] the replaced runs whose checks could not be read
+        # @return [String] the report of an open pull request not merged yet
+        def progress(landed, unread)
+          return "#{landed[0, 10]}: #{report}" if unstarted?
+
+          text = "#{landed[0, 10]}: PR #{@pull["number"]} not merged yet (#{counts})"
+          unread ? "#{text}; replaced runs unread: #{unread}" : text
+        end
+
         private
 
         # Whole minutes since the pull request opened; 0 when GitHub gave no time.
