@@ -7,14 +7,15 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 # connection, says so once, and goes on serving when descriptors free up.
 RSpec.describe Hecks::Adapters::PipelineBoard::AcceptLoop do
   let(:logged) { [] }
-  let(:served) { [] }
+  let(:served) { Queue.new }
   let(:time) { [0] }
+  let(:limit) { instance_double(Hecks::Adapters::PipelineBoard::DescriptorLimit.singleton_class, raise!: nil) }
 
   # A listener that answers each accept with the next of its outcomes, then reports itself closed.
   let(:listener) do
     Class.new do
       def initialize(outcomes) = @outcomes = outcomes
-      def wait_readable(_seconds) = true
+      def wait_readable(_seconds) = self
 
       def accept_nonblock(exception: true)
         outcome = @outcomes.shift or raise IOError, "closed stream"
@@ -25,19 +26,18 @@ RSpec.describe Hecks::Adapters::PipelineBoard::AcceptLoop do
 
   def run_loop(*outcomes)
     accepting = described_class.new(listener.new(outcomes), pause: 0, clock: -> { time.first },
-                                    log: ->(line) { logged << line }) { |socket| served << socket }
+                                    log: ->(line) { logged << line }, limit: limit) { |socket| served << socket }
     accepting.start.join
-    sleep 0.05
   end
 
   it "serves the next connection after the descriptor table was full" do
     run_loop(Errno::EMFILE, :socket)
-    expect(served).to eq([:socket])
+    expect(served.pop(timeout: 2)).to eq(:socket)
   end
 
   it "treats a full system table the same way" do
     run_loop(Errno::ENFILE, :socket)
-    expect(served).to eq([:socket])
+    expect(served.pop(timeout: 2)).to eq(:socket)
   end
 
   it "logs a full table once however many accepts fail within the window" do
