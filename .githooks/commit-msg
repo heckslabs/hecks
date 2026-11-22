@@ -1,25 +1,47 @@
 #!/bin/sh
 #
-# commit-msg — strips Claude attribution trailers from the message, then lets the commit go.
+# commit-msg — strips Claude attribution trailers, then names who made the commit.
 #
 # It removes `Co-Authored-By: ... Claude ...` and `Claude-Session: ...` lines and the blank lines
-# they leave at the end. It strips and never refuses: a refusal would make an agent loop. A message
-# without those lines is left untouched. This is imperative glue on a git hook, not domain
-# behaviour, so it lives here beside pre-push and not in a bluebook. `git commit --no-verify` skips
-# it; the push train's range guard still refuses these trailers before main is pushed.
+# they leave at the end. Then, for a commit that is not a merge, it adds the trailers a landing
+# reads, each only when the message does not already carry it:
+#   Hecks-Run:     $HECKS_RUN_KEY, the run that is committing; `owner` only when $HECKS_OWNER is set
+#                  (the owner says so; an absent key is never read as the owner)
+#   Hecks-Role:    $HECKS_ROLE, when set
+#   Hecks-Work:    $HECKS_WORK, else the branch name (a branch is named for its work item); not for
+#                  an owner's commit
+#   Hecks-Reaches: $HECKS_REACHES, the generated outputs the change touches, when set
+# It never refuses: a refusal would make an agent loop, and the push train's TrailerGuard is the
+# check. The author is never touched. `git commit --no-verify` skips it. This is imperative glue
+# on a git hook, not domain behaviour, so it lives here beside pre-push and not in a bluebook.
 #
 # Install:  git config core.hooksPath .githooks
 
 MSG="$1"
+[ -n "$2" ] && [ "$2" = "merge" ] && exit 0
 
-grep -qi -e '^Co-Authored-By:.*Claude' -e '^Claude-Session:' "$MSG" 2>/dev/null || exit 0
+if grep -qi -e '^Co-Authored-By:.*Claude' -e '^Claude-Session:' "$MSG" 2>/dev/null; then
+  WORK=$(mktemp) || exit 0
+  grep -vi -e '^Co-Authored-By:.*Claude' -e '^Claude-Session:' "$MSG" | awk '{ lines[NR] = $0 } END {
+    last = NR
+    while (last > 0 && lines[last] ~ /^[ \t]*$/) last--
+    for (i = 1; i <= last; i++) print lines[i]
+  }' > "$WORK" && cat "$WORK" > "$MSG"
+  rm -f "$WORK"
+fi
 
-WORK=$(mktemp) || exit 0
-trap 'rm -f "$WORK"' EXIT
+if [ -n "$HECKS_RUN_KEY" ]; then RUN="$HECKS_RUN_KEY"
+elif [ -n "$HECKS_OWNER" ]; then RUN="owner"
+fi
+[ -n "$RUN" ] || exit 0
 
-grep -vi -e '^Co-Authored-By:.*Claude' -e '^Claude-Session:' "$MSG" | awk '{ lines[NR] = $0 } END {
-  last = NR
-  while (last > 0 && lines[last] ~ /^[ \t]*$/) last--
-  for (i = 1; i <= last; i++) print lines[i]
-}' > "$WORK" && cat "$WORK" > "$MSG"
+BRANCH=$(git symbolic-ref --short -q HEAD 2>/dev/null)
+case "$BRANCH" in main|master) BRANCH="" ;; esac
+[ "$RUN" = "owner" ] && WORKITEM="" || WORKITEM="${HECKS_WORK:-$BRANCH}"
+
+set -- --if-exists doNothing --trailer "Hecks-Run: $RUN"
+[ -n "$HECKS_ROLE" ] && set -- "$@" --trailer "Hecks-Role: $HECKS_ROLE"
+[ -n "$WORKITEM" ] && set -- "$@" --trailer "Hecks-Work: $WORKITEM"
+[ -n "$HECKS_REACHES" ] && set -- "$@" --trailer "Hecks-Reaches: $HECKS_REACHES"
+git interpret-trailers --in-place "$@" "$MSG" 2>/dev/null
 exit 0
