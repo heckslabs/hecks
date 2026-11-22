@@ -34,18 +34,11 @@ module Hecks
 
           # The answer to a line that is only a request for usage, or nil.
           def usage_answer(scope, name)
-            return { answer: [brief_usage(scope), ExitStatus::ANSWERED] } if name.nil? || HELP_WORDS.include?(name)
+            return { answer: [scope[:cli][:usage], ExitStatus::ANSWERED] } if name.nil? || HELP_WORDS.include?(name)
             return unless %w[--all --maintainer].include?(name)
 
             shown = scope.values_at(:runtime, :bluebook, :launcher, :options)
             { answer: [name == "--all" ? all_usage(*shown) : maintainer_usage(*shown), ExitStatus::ANSWERED] }
-          end
-
-          # The short help a bare line or `help` gets: the everyday lines and the modules, with the
-          # full tables behind `--all`. A line the runner could not read still prints the full help.
-          def brief_usage(scope)
-            options = scope[:shown].merge(program: scope[:program], brief: true)
-            Projector.call(:cli, bluebook: scope[:bluebook], options: options)[:usage]
           end
 
           # The help of the module a line is only the word of, or nil. A module groups aggregates of

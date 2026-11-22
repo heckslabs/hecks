@@ -36,26 +36,16 @@ module Hecks
           pool[key] || questions[key]
         end
 
-        # The whole help: the everyday lines, the two tables, the bluebooks, then the hints. A
-        # `brief` help swaps the two tables for the bluebook's modules, one line each, and says
-        # where the tables are.
+        # The whole help: the everyday lines, the two tables, the bluebooks, then the hints.
         def full_usage(bluebook, commands, questions, options, program)
           shown = [commands, questions].map do |specs|
             in_module(bluebook, CliAudience.audience_specs(specs, options), options[:module])
           end
           [header_for(bluebook, program, options[:module]),
            everyday_lines(*shown, options),
-           help_body(bluebook, shown, options, program),
+           tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)),
            CliAudience.bluebook_lines(program, options[:declarations]),
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
-        end
-
-        # The tables of commands and queries, or the modules in their place for a brief help. A
-        # bluebook with no modules has nothing to list in their place, so it keeps its tables.
-        def help_body(bluebook, shown, options, program)
-          return brief_lines(bluebook, program) if options[:brief] && module_names(bluebook).any?
-
-          tables(*shown, all: options[:all], notes: aggregate_notes(bluebook))
         end
 
         # How many commands and queries the audience's `hide` list left out of `shown`.
