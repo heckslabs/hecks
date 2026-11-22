@@ -2387,9 +2387,7 @@ Hecks.bluebook "Tickets" do
     # The retro that owes this agreement a mark, and none once it is marked.
     attribute :owed_in,   OwedIn, optional: true
 
-    value_object "OwedIn" do
-      attribute :value, String
-    end
+    value_object "OwedIn", String
 
     value_object "ReviewMark" do
       attribute :value, String, one_of: %w[kept folded dropped]
