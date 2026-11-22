@@ -9,7 +9,10 @@ require "hecks/hecks/adapters/codebase/bluebook_extraction"
 RSpec.describe Hecks::Adapters::Codebase::BluebookExtraction do
   let(:root) { Dir.mktmpdir("bluebook-extraction") }
   let(:tree) { Hecks::Adapters::Codebase::Tree.new(root: root) }
-  let(:good) { "Hecks.bluebook \"Fine\" do\n  aggregate(\"Thing\") { command(\"Do\") { emits \"Done\" } }\nend\n" }
+  let(:good) do
+    "Hecks.bluebook \"Fine\" do\n  aggregate(\"Thing\") do\n    attribute :name, Name\n" \
+      "    identified_by :name\n    value_object(\"Name\", String)\n    command(\"Do\") { emits \"Done\" }\n  end\nend\n"
+  end
   let(:bad) do
     "Hecks.bluebook \"Broken\" do\n  aggregate(\"Thing\") do\n" \
       "    command(\"Do\") { given(\"unreadable\", &eval(\"proc { 1 < 2 }\")) }\n  end\nend\n"
