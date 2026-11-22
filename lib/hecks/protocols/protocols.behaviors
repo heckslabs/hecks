@@ -168,4 +168,16 @@ Hecks.behaviors "Protocols" do
     input agreement: "WA-17", now: { value: 600 }
     expect emits: ["AgreementClosed"], status: "closed", closed_at: { value: 600 }
   end
+
+  test "Another seat's yes does not carry an agreement while a thumbs-down is open" do
+    tests "Cast", on: "Vote"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-18" }, text: { value: "Open no" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
+          touches_owner: { value: "no" }, owed: { value: 1 }
+    setup "Protocols::Vote.Cast", agreement: { value: "WA-18" }, seat: { value: "coder-1" },
+          gesture: { value: "no" }, message: { value: "m-12" }, now: { value: 100 }
+    input agreement: { value: "WA-18" }, seat: { value: "coder-2" }, gesture: { value: "yes" },
+          message: { value: "m-13" }, now: { value: 101 }
+    expect emits: %w[VoteCast AgreementAgreed]
+  end
 end
