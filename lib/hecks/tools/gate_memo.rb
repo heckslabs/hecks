@@ -139,7 +139,7 @@ module Hecks
       # @param local [Boolean] whether the checkout's local worlds are read too
       # @return [String] one digest of each file's path and content, in path order
       def fingerprint(root, globs, local: false)
-        rows = files(root, globs).map { |rel| "#{rel} #{sha(root, rel)}" }
+        rows = toolchain(root) + files(root, globs).map { |rel| "#{rel} #{sha(root, rel)}" }
         rows += LocalFiles.files(root).map { |rel| "#{rel} #{sha(root, rel)}" } if local
         Digest::SHA256.hexdigest(rows.join("\n"))
       end
@@ -168,12 +168,37 @@ module Hecks
         nil
       end
 
+      # The tools every check ran under: the Ruby version and the bundle's lock, whose gems are the
+      # tool versions, so a change to either reruns every check.
+      #
+      # @param root [String] the checkout
+      # @return [Array<String>] one row for the Ruby version and one for the lock's content
+      def toolchain(root)
+        lock = File.file?(File.join(root, "Gemfile.lock")) ? sha(root, "Gemfile.lock") : "none"
+        ["ruby #{RUBY_VERSION}", "lock #{lock}"]
+      end
+
+      # @param root [String] the checkout
+      # @return [String, nil] the short sha of HEAD when the checkout has no uncommitted change, so
+      #   a green run on it passed on that commit; nil when the tree is dirty or not a checkout
+      def clean_commit(root)
+        status, ok = Open3.capture2("git", "-C", root, "status", "--porcelain", err: File::NULL)
+        return nil unless ok.success? && status.empty?
+
+        head, = Open3.capture2("git", "-C", root, "rev-parse", "--short=7", "HEAD", err: File::NULL)
+        head.strip.then { |sha| sha.empty? ? nil : sha }
+      rescue SystemCallError
+        nil
+      end
+
       # @param inputs [String] the digest of the command, the environment and the files
       # @param tree [String, nil] the digest of the files alone, which a standalone run of the same
       #   check compares with
+      # @param commit [String, nil] the commit the check ran on, when the tree was clean
       # @return [Hash] a green entry for a check that ran on these inputs
-      def green(inputs, tree = nil)
-        { "result" => "green", "at" => Time.now.utc.iso8601, "inputs" => inputs }.merge(tree ? { "tree" => tree } : {})
+      def green(inputs, tree = nil, commit = nil)
+        { "result" => "green", "at" => Time.now.utc.iso8601, "inputs" => inputs }
+          .merge(tree ? { "tree" => tree } : {}).merge(commit ? { "commit" => commit } : {})
       end
     end
   end

@@ -25,7 +25,7 @@ module Hecks
       # Prints the plan's notes and the checks the memo skipped.
       def print_notes(name, plan, notes)
         (plan.notes + notes).each { |note| puts "[gate #{name}] #{note}" }
-        plan.skipped.each { |check, since| print_skipped(name, check, since) }
+        plan.skipped.each { |check, since, commit| print_skipped(name, check, since, commit) }
       end
 
       # A stage with no check that ran or was recorded green has proved nothing, so it is not green.
@@ -41,8 +41,9 @@ module Hecks
       end
 
       # @return [void] prints a check the memo skipped, as skipped and never as passed
-      def print_skipped(name, check, since)
-        puts "[gate #{name}] #{check["id"]}: unchanged, skipped (green as of #{since})"
+      def print_skipped(name, check, since, commit = nil)
+        passed = commit ? "passed on #{commit}, " : ""
+        puts "[gate #{name}] #{check["id"]}: unchanged, skipped (#{passed}green as of #{since})"
       end
 
       # @return [Integer] the given status, after printing the stage's verdict, the checks that ran

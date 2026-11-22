@@ -7,7 +7,7 @@ require "hecks/tools/gate_memo/session"
 require "hecks/tools/gate_report"
 
 # A temporary git checkout, a memo file and the helpers that run a gate session over them.
-RSpec.shared_context "a checkout with a gate memo" do
+RSpec.shared_context "with a checkout and a gate memo" do
   let(:root) { Dir.mktmpdir("gate-passed-root") }
   let(:memo_file) { File.join(Dir.mktmpdir("gate-passed-file"), "memo.json") }
   let(:shape) { { "id" => "shape_ledger", "run" => %w[true] } }

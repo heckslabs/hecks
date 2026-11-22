@@ -6,7 +6,7 @@ require_relative "support/gate_passed_on_context"
 # A gate check that already passed on the same file contents and the same tools is skipped; a
 # check that read a changed file, or ran under other tools, runs again.
 RSpec.describe "Hecks::Tools::GateMemo reuse" do
-  include_context "a checkout with a gate memo"
+  include_context "with a checkout and a gate memo"
 
   it "runs nothing on a repeated run over unchanged files" do
     pass([shape, fmt])
