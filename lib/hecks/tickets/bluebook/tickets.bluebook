@@ -2337,6 +2337,346 @@ Hecks.bluebook "Tickets" do
     trigger Sighting::Record, with: { sighting: :sighting, kind: :kind, run: :run, commit: :commit }
   end
 
+  # A principle: what several working agreements fold into, so the agreements shrink over the retros
+  # and the principles stay. Every role reads them.
+  aggregate "Principle" do
+    description "One principle: a short statement that working agreements are folded into."
+    created_by "Principle.declare!"
+
+    identified_by :principle
+
+    attribute :principle, PrincipleKey
+    attribute :text,      PrincipleText
+
+    value_object "PrincipleKey" do
+      attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
+    end
+
+    value_object "PrincipleText" do
+      attribute :value, String, matches: :present
+    end
+
+    query "All" do
+      description "Every principle, by key."
+      order_by :principle
+    end
+
+    command "Declare" do
+      role "Maintainer"
+      goal "Write down a principle that agreements can be folded into"
+
+      attribute :principle, PrincipleKey, sets: true
+      attribute :text,      PrincipleText, sets: true
+
+      emits "PrincipleDeclared"
+    end
+  end
+
+  # A working agreement the team keeps. It is in force until a retro folds it into a principle (and it
+  # names the principle) or drops it; a retired agreement is kept as a record and is no longer in force.
+  aggregate "WorkingAgreement" do
+    description "One working agreement: its text and kind, in force until a retro folds it into a principle or drops it."
+    created_by "WorkingAgreement.declare!"
+
+    identified_by :agreement
+
+    attribute :agreement, AgreementKey
+    attribute :text,      AgreementText
+    attribute :kind,      AgreementKind
+    attribute :principle, PrincipleKey, optional: true
+    # The retro that owes this agreement a mark, and none once it is marked.
+    attribute :owed_in,   OwedIn, optional: true
+
+    value_object "OwedIn", String
+
+    value_object "ReviewMark" do
+      attribute :value, String, one_of: %w[kept folded dropped]
+    end
+
+    value_object "AgreementKey" do
+      attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
+    end
+
+    value_object "AgreementText" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "AgreementKind" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "PrincipleKey" do
+      attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
+    end
+
+    value_object "RetroDay" do
+      attribute :value, String, pattern: '\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z'
+    end
+
+    lifecycle :status, default: "in_force" do
+      transition "Fold" => "retired", from: "in_force"
+      transition "Drop" => "retired", from: "in_force"
+    end
+
+    query "InForce" do
+      description "Every working agreement in force, by key."
+      where(status: "in_force")
+      order_by :agreement
+    end
+
+    query "All" do
+      description "Every working agreement, in force or retired, by key."
+      order_by :agreement
+    end
+
+    command "Declare" do
+      role "Maintainer"
+      goal "Put a working agreement in force"
+
+      attribute :agreement, AgreementKey, sets: true
+      attribute :text,      AgreementText, sets: true
+      attribute :kind,      AgreementKind, sets: true
+
+      emits "AgreementDeclared"
+    end
+
+    command "Fold" do
+      role "Maintainer"
+      goal "Retire an agreement because a principle now holds it, and name the principle"
+
+      reference_to WorkingAgreement
+      attribute :principle, PrincipleKey, sets: true
+
+      emits "AgreementFolded"
+    end
+
+    command "Present" do
+      role "System"
+      policy_only
+      goal "Owe an agreement in force a mark in a retro that opened, once"
+
+      reference_to WorkingAgreement
+      attribute :retro, RetroDay
+      sets :owed_in, to: :retro
+
+      given("only an agreement in force is reviewed") { status == "in_force" }
+      given("an agreement is owed a mark once a retro") { owed_in.nil? || owed_in.value != retro.value }
+
+      emits "AgreementPresented"
+    end
+
+    command "Answer" do
+      role "System"
+      policy_only
+      goal "Take the scrum master's mark of an agreement a retro owes, and only one it owes"
+
+      reference_to WorkingAgreement
+      attribute :retro,     RetroDay
+      attribute :mark,      ReviewMark
+      attribute :principle, FoldedInto, optional: true
+
+      sets :owed_in, to: ""
+
+      given("only an agreement a retro owes is marked") { !owed_in.nil? && owed_in.value == retro.value }
+
+      emits "AgreementAnswered"
+    end
+
+    command "Drop" do
+      role "Maintainer"
+      goal "Retire an agreement that no longer earns its place"
+
+      reference_to WorkingAgreement
+
+      emits "AgreementDropped"
+    end
+  end
+
+  # A retro. It opens by owing a review of every working agreement in force; the scrum master records
+  # each one's mark, and the retro cannot reach its main round until none is owed.
+  aggregate "Retro" do
+    description "One retro: opening with a review of the agreements in force, then its main round."
+    created_by "Retro.open!"
+
+    identified_by :retro
+
+    attribute :retro,      RetroDay
+    attribute :unreviewed, Unreviewed
+
+    value_object "RetroDay" do
+      attribute :value, String, pattern: '\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z'
+    end
+
+    # How many agreements in force still wait on a mark.
+    value_object "Unreviewed" do
+      attribute :value, Integer, default: 0
+      invariant("a count of agreements is not negative") { !value.negative? }
+    end
+
+    lifecycle :status, default: "opening" do
+      transition "CompleteReview" => "reviewed",   from: "opening"
+      transition "Proceed"        => "main_round", from: "reviewed"
+      transition "Close"          => "closed",     from: "main_round"
+    end
+
+    command "Open" do
+      role "Maintainer"
+      goal "Open a retro, which owes a review of the agreements in force"
+
+      attribute :retro, RetroDay, sets: true
+
+      emits "RetroOpened"
+    end
+
+    command "Owe" do
+      role "System"
+      policy_only
+      goal "Count one more agreement in force that the review owes a mark"
+
+      reference_to Retro
+
+      given("a review is owed only while the retro is opening") { status == "opening" }
+
+      sets :unreviewed, increment: { value: 1 }
+
+      emits "ReviewOwed"
+    end
+
+    command "CountReview" do
+      role "System"
+      policy_only
+      goal "Count one agreement marked"
+
+      reference_to Retro
+
+      given("a mark is counted only while the retro is opening and owes one") { status == "opening" && unreviewed.value.positive? }
+
+      sets :unreviewed, decrement: { value: 1 }
+
+      emits "ReviewCounted"
+    end
+
+    command "CompleteReview" do
+      role "Maintainer"
+      goal "Record that every agreement in force was reviewed"
+
+      reference_to Retro
+
+      given("every agreement in force is reviewed") { unreviewed.value.zero? }
+
+      emits "ReviewCompleted"
+    end
+
+    command "Proceed" do
+      role "Maintainer"
+      goal "Move a reviewed retro to its main round"
+
+      reference_to Retro
+
+      emits "RetroProceeded"
+    end
+
+    command "Close" do
+      role "Maintainer"
+      goal "End the retro"
+
+      reference_to Retro
+
+      emits "RetroClosed"
+    end
+  end
+
+  # The scrum master's mark on one agreement in one retro, keyed `<retro>@<agreement>`, so an agreement
+  # is marked once a retro. A folded mark names its principle.
+  aggregate "AgreementReview" do
+    description "One agreement's mark in one retro: kept, folded into a principle, or dropped."
+    created_by "AgreementReview.record!"
+
+    identified_by :review
+
+    attribute :review,    ReviewKey
+    attribute :retro,     RetroDay
+    attribute :agreement, AgreementKey
+    attribute :mark,      ReviewMark
+    attribute :principle, FoldedInto, optional: true
+
+    value_object "ReviewKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "RetroDay" do
+      attribute :value, String, pattern: '\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z'
+    end
+
+    value_object "AgreementKey" do
+      attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
+    end
+
+    # The principle a folded mark names; empty for a kept or dropped one.
+    value_object "FoldedInto" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "ReviewMark" do
+      attribute :value, String, one_of: %w[kept folded dropped]
+    end
+
+    command "Record" do
+      role "Maintainer"
+      goal "Mark one agreement in force kept, folded into a principle, or dropped"
+
+      attribute :review,    ReviewKey, sets: true
+      attribute :retro,     RetroDay, sets: true
+      attribute :agreement, AgreementKey, sets: true
+      attribute :mark,      ReviewMark, sets: true
+      attribute :principle, FoldedInto, optional: true
+
+      given("a folded agreement names its principle") { mark.value != "folded" || !principle.value.to_s.empty? }
+
+      emits "AgreementReviewed"
+    end
+  end
+
+  policy "OweReviewWhenRetroOpened" do
+    on       "Retro.RetroOpened"
+    for_each "WorkingAgreement.InForce"
+    trigger  WorkingAgreement::Present, with: { agreement: :agreement, retro: :retro }
+  end
+
+  policy "OweReviewWhenAgreementPresented" do
+    on      "WorkingAgreement.AgreementPresented"
+    trigger Retro::Owe, with: { retro: :retro }
+  end
+
+  policy "AnswerAgreementWhenMarkedFolded" do
+    on      "AgreementReview.AgreementReviewed"
+    where   { mark.value == "folded" }
+    trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark, principle: :principle }
+  end
+
+  policy "AnswerAgreementWhenMarkedKeptOrDropped" do
+    on      "AgreementReview.AgreementReviewed"
+    where   { mark.value != "folded" }
+    trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark }
+  end
+
+  policy "CountReviewWhenAgreementAnswered" do
+    on      "WorkingAgreement.AgreementAnswered"
+    trigger Retro::CountReview, with: { retro: :retro }
+  end
+
+  policy "FoldAgreementWhenReviewedFolded" do
+    on      "WorkingAgreement.AgreementAnswered"
+    where   { mark.value == "folded" }
+    trigger WorkingAgreement::Fold, with: { agreement: :agreement, principle: :principle }
+  end
+
+  policy "DropAgreementWhenReviewedDropped" do
+    on      "WorkingAgreement.AgreementAnswered"
+    where   { mark.value == "dropped" }
+    trigger WorkingAgreement::Drop, with: { agreement: :agreement }
+  end
+
   read_model "WorkByStatus" do
     description "How many work items stand in each status."
     include Work
