@@ -477,7 +477,7 @@ Hecks.behaviors "Tickets" do
   test "Open refuses a sprint named by something other than a day" do
     tests "Open", on: "Sprint"
     input sprint: { value: "monday" }, goal: { value: "A goal" }
-    expect refused: "sprint"
+    expect refused: "SprintDay"
   end
 
   test "Schedule puts a work item in a sprint" do
