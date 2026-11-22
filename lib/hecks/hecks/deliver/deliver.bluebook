@@ -2416,6 +2416,97 @@ Hecks.bluebook "Hecks" do
       trigger TrainPrReopen::Decline, with: { refusal: :refusal }
     end
 
+    # A dropped train pull request (open, green, auto-merge gone) is armed again once per observation;
+    # a refusal is recorded and the run stays watched; a conflicted one parks its run.
+    aggregate "TrainPrEnqueue" do
+      description "One enqueue again of a train pull request the merge queue dropped when main moved (open, every check green, auto-merge gone), by turning its auto-merge on. Keyed by the observation that found it dropped, so one dropped twice is enqueued twice. A refusal is recorded and the run stays watched, its stage bound ending one that never clears; a pull request whose mergeability GitHub has not computed is read again."
+
+      attribute :run,     Word
+      attribute :pr,      PrNumber
+      attribute :landed,  Word,   optional: true
+      attribute :report,  Report, optional: true
+      attribute :refusal, Report, optional: true
+      identified_by :run
+
+      # A pull request number.
+      value_object "PrNumber" do
+        attribute :value, String, pattern: '\A[0-9]+\z'
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Enqueue" => "enqueued", from: "requested"
+        transition "Decline" => "declined", from: "requested"
+      end
+
+      command "Request" do
+        role "System"
+        goal "Ask for a train pull request the merge queue dropped to be enqueued again"
+
+        attribute :run,    Word, sets: true
+        attribute :pr,     PrNumber, sets: true
+        attribute :landed, Word, optional: true, sets: true
+
+        emits TrainPrEnqueueRequested
+      end
+
+      command "Enqueue" do
+        role "System"
+        goal "Record that a dropped train pull request had its auto-merge turned on again"
+
+        reference_to TrainPrEnqueue
+        attribute :report, Report, sets: true
+
+        emits TrainPrEnqueued
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a dropped train pull request was not enqueued again"
+
+        reference_to TrainPrEnqueue
+        attribute :refusal, Report, sets: true
+
+        emits TrainPrEnqueueDeclined
+      end
+    end
+
+    policy "EnqueueTheDroppedTrainPr" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "dropped" }
+      trigger TrainPrEnqueue::Request, with: { run: :run, pr: :pr, landed: :landed }
+    end
+
+    policy "ArmWhenEnqueueRequested" do
+      on      "TrainPrEnqueue.TrainPrEnqueueRequested"
+      ask     :arm, with: { pr: :pr }
+    end
+
+    policy "RecordTheEnqueue" do
+      on      "TrainPrEnqueue.ArmAnswered"
+      trigger TrainPrEnqueue::Enqueue, with: { report: :report }
+    end
+
+    policy "RecordTheDeclinedEnqueue" do
+      on      "TrainPrEnqueue.ArmRefused"
+      trigger TrainPrEnqueue::Decline, with: { refusal: :refusal }
+    end
+
+    # A train pull request that does not merge cleanly now is closed out of the run, which parks it.
+    policy "ParkTheConflictedTrainPr" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "conflicted" }
+      trigger Integration::Close, with: { landed: :landed, report: :report }
+    end
+
     aggregate "ReviewRequest" do
       description "One pull request opened or merged on GitHub, and what GitHub answered."
 

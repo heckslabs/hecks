@@ -11,7 +11,8 @@ RSpec.describe Hecks::Adapters::CiRuns, "#watch" do
   include ReplacedRunsFixtures
 
   def watch(runs)
-    pull = { "number" => 1353, "state" => "OPEN", "commits" => [{ "oid" => tip }], "statusCheckRollup" => [ghost, check(2)] }
+    pull = { "number" => 1353, "state" => "OPEN", "autoMergeRequest" => { "enabled" => true },
+             "commits" => [{ "oid" => tip }], "statusCheckRollup" => [ghost, check(2)] }
     described_class.runner = lambda do |argv, **|
       [true, RestPullView.api?(argv) ? RestPullView.answer(argv, pull) : JSON.generate(runs)]
     end
