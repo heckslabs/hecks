@@ -98,7 +98,7 @@ Hecks.world "Tickets" do
   load_shed "Dispatch", min_coders: 2, at_once: 1
   dispatch_roll_forward "Dispatch", roll_forward: false
   frozen_shapes "PersistedShapes", areas: []
-  session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
+  session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 5
   session_grace "Sessions", seconds: 120
   # `run_gone_after`: minutes a started run may show no process, commit or changed file before it is
   # gone, when `claude` cannot list sessions. `claude_executable`: where `claude` is when PATH lacks it.
