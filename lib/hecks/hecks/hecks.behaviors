@@ -32,13 +32,14 @@ Hecks.behaviors "Hecks" do
     expect refused: "state"
   end
 
-  # A promotion or watch that could not read the checks because GitHub rate limited it is not a
-  # fault: it ends deferred, saying why, and the next run tries again.
-  test "Defer ends a rate-limited promotion as deferred, not faulted" do
+  # A promotion or watch that could not read the checks because GitHub rate limited it ends
+  # deferred, not faulted; spec/hecks_promotion_spec.rb runs it through the launcher. Here, the
+  # examiner is a port with no stub, so a run is already examined and Defer refuses it.
+  test "Defer refuses a promotion that was already examined" do
     tests "Defer", on: "PromotionRun"
     setup  "Hecks::PromotionRun.Promote", run: { value: "rl-1" }, lane: { value: "stable" }
-    input  refusal: { value: "not promoted: rate limited" }
-    expect state: "deferred"
+    input  run: { value: "rl-1" }, refusal: { value: "not promoted: rate limited" }
+    expect refused: "Defer moves it only from"
   end
 
   # A revert of a named culprit: the episode refuses by name when the failure also reproduces on
