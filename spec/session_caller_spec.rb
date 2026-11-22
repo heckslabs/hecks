@@ -24,4 +24,21 @@ RSpec.describe Hecks::Adapters::SessionCaller do
     expect(name.length).to eq(64)
     expect(name).not_to match(/[ $]/)
   end
+
+  it "exports the run, role and work item a commit's trailers name", :aggregate_failures do
+    held = { agent: { value: "coder" }, run: { value: "fix-it" }, work: { value: "the-item" } }
+    expect(described_class.environment(base, held)).to include(
+      "HECKS_RUN_KEY" => "fix-it", "HECKS_ROLE" => "coder", "HECKS_WORK" => "the-item"
+    )
+  end
+
+  it "exports no run, role or work for a caller that names none", :aggregate_failures do
+    env = described_class.environment(base, {})
+    expect(env.keys).not_to include("HECKS_RUN_KEY", "HECKS_ROLE", "HECKS_WORK")
+  end
+
+  it "exports only what the record names" do
+    env = described_class.environment(base, { run: "fix-it" })
+    expect(env.keys).not_to include("HECKS_ROLE", "HECKS_WORK")
+  end
 end
