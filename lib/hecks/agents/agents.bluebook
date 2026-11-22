@@ -3909,14 +3909,10 @@ Hecks.bluebook "Agents" do
 
   # The pruner removes finished sessions. The bluebook gives: a pruner is woken only from rest, so a
   # second wake while one works is refused by the lifecycle, and the end of its run rests it again.
-  # The policies state: a feature landing wakes it (the Landing's LandedWorkFound, once per landed
-  # branch that names an open Work item); a run that ends without landing (a yield, a stop, a
-  # rethink) wakes nothing, and the pruner's own finish only rests it. A landing wakes it while the
-  # landing session still works, so that session is removed at a later landing, not this one; a
-  # session that ends without landing waits for the next feature to land. The delegate bluebook
-  # starts a woken pruner as a run of the `pruner` agent, since a policy here cannot reach
-  # AgentRun; the reaction mints the run key. A
-  # role's `starts` field would replace the literals in the first policy. The brief sends the pruner
+  # The policies state: a landing wakes nothing here (the delegate bluebook's ReapWhenWorkLands
+  # reaps finished sessions instead); a summoned pruner is woken, and the pruner's own finish only
+  # rests it. The delegate bluebook starts a woken pruner as a run of the `pruner` agent, since a
+  # policy here cannot reach AgentRun; the reaction mints the run key. The brief sends the pruner
   # through `SessionCleanup.RemoveSafe` (delegate bluebook), which removes only the sessions of
   # dispatched runs that finished done, so the safety rule holds whatever the session reads.
   aggregate "Pruning" do
@@ -3942,7 +3938,7 @@ Hecks.bluebook "Agents" do
       transition "Resume" => "resting", from: "paused"
     end
 
-    # The first landed feature seats the pruner; a seat that exists is refused, which is its answer.
+    # The manual path to a seat; a seat that exists is refused, which is its answer. No landing seats it.
     command "Seat" do
       role "System"
       goal "Seat the pruner so it can be woken"
@@ -4024,12 +4020,6 @@ Hecks.bluebook "Agents" do
     policy "PauseTheHeldPruner" do
       on      "Pruning.PrunerHeld"
       trigger Pruning::Pause, with: { pruning: :role }
-    end
-
-    policy "SeatThePrunerWhenWorkLands" do
-      on      "Landing.LandedWorkFound"
-      root
-      trigger Pruning::Seat, with: { role: "pruner" }
     end
 
     policy "WakeTheSummonedPruner" do

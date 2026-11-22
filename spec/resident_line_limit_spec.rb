@@ -78,10 +78,17 @@ RSpec.describe Hecks::Adapters::Driving::Resident::LineLimit do
     expect(world_declaring({ idle_seconds: 600 })).not_to have_key(:line_seconds)
   end
 
+  # @return [IO] the resident's end of a child's notes pipe, holding the child's note that it began
+  def begun_reader
+    reader, writer = IO.pipe
+    writer.write("S\n")
+    reader
+  end
+
   it "lets go of the kept stream, and reports the status, when the child leaves first", :aggregate_failures do
     limit(30.0)
     caller_end, client = UNIXSocket.pair
-    server.send(:monitor, fork { exit!(3) }, client, StringIO.new, said)
+    server.send(:monitor, fork { exit!(3) }, client, begun_reader, said)
     expect(caller_end.gets).to eq("status:3\n")
     expect(said).to be_closed
   end

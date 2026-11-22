@@ -122,10 +122,31 @@ module ResidentLaunch
 
   # Stops the resident and the lines it forked, and clears its files, so a launch finds none.
   def stop_resident
-    pid = resident_pid
-    ProcessTree.end_tree(pid) if pid
-    ThreadParking.wait_for { resident_pid.nil? } if pid
+    while (pid = resident_pid || booting_pid)
+      ProcessTree.end_tree(pid)
+      ThreadParking.wait_for { resident_pid.nil? }
+    end
     FileUtils.rm_f([PATHS.socket(ROOT), PATHS.pid(ROOT)])
+  end
+
+  # A resident holds the checkout's lock from the moment it starts, before it writes its pid file.
+  # When the lock is held and no pid is written, waits for the pid file, so a replacement that is
+  # still loading is ended too and not left behind.
+  #
+  # @return [Integer, nil] the booting resident's process id, nil when none holds the lock
+  # @raise [ThreadParking::NeverReached] when a resident holds the lock and never writes its pid
+  def booting_pid
+    return unless lock_held?
+
+    ThreadParking.wait_for(timeout: STARTUP) { resident_pid || !lock_held? }
+    resident_pid
+  end
+
+  # @return [Boolean] whether a resident of this group's cache holds the checkout's lock
+  def lock_held?
+    File.open(PATHS.lock(ROOT), File::RDWR) { |lock| !lock.flock(File::LOCK_EX | File::LOCK_NB) }
+  rescue SystemCallError
+    false
   end
 
   # Starts a resident with one cold launch and waits for it.

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "hecks/hecks/adapters/architect_verdict"
 
 # An architect's closing text that says nothing was checked is never read as sound.
 RSpec.describe Hecks::Adapters::ArchitectVerdict do
