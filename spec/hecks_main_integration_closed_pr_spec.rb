@@ -34,4 +34,11 @@ RSpec.describe Hecks::Adapters::MainIntegration do
     observe
     expect(runs.in_flight).to eq([])
   end
+
+  it "holds the next verified run for confirmation only, not behind the closed run" do
+    seed(stuck, "ci_running")
+    seed("b" * 40, "verified")
+    report = described_class.new(registry: @hecks.registry).step[:report][:value]
+    expect(report).to include("waiting: advance with --confirm")
+  end
 end
