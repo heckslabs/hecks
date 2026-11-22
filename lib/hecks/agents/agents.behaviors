@@ -320,6 +320,14 @@ Hecks.behaviors "Agents" do
     expect refused: "Receive refused — status is \"refused\", and Receive moves it only from \"sent\""
   end
 
+  test "Release refuses a message that is not held" do
+    tests "Release", on: "Message"
+    setup  "Agents::Message.Send", message: { value: "m5" }, recipient: { value: "orchestrator" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "are you there" }
+    input  message: { value: "m5" }
+    expect refused: "Release refused — status is \"refused\", and Release moves it only from \"held\""
+  end
+
   test "Send refuses a message kind it does not know" do
     tests "Send", on: "Message"
     input  message: { value: "m4" }, recipient: { value: "run-a" }, sender: { value: "miette" },
