@@ -27,6 +27,7 @@ require_relative "cli_runner/suggestions"
 require_relative "cli_runner/verb_names"
 require_relative "cli_runner/renamed_names"
 require_relative "cli_runner/verbosity"
+require_relative "cli_runner/since"
 require_relative "cli_runner/name_index"
 
 module Hecks
@@ -38,6 +39,7 @@ module Hecks
       module CliRunner
         include ExitStatus
         extend Verbosity
+        extend Since
 
         # The class an adapter raises when the tool it wraps refuses.
         TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze
@@ -77,7 +79,8 @@ module Hecks
           level, argv = split_verbosity(argv)
           return [Verbosity::CONFLICT, USAGE] if level == :conflict
 
-          with_verbosity(level) { answer_line(runtime, argv, program, usage_log, err) }
+          since, argv = split_since(argv)
+          with_verbosity(level) { answer_line(runtime, argv, program, { usage_log: usage_log, since: since }, err) }
         rescue Interrupt
           [interrupted(argv), ExitStatus::REFUSED]
         end
@@ -86,7 +89,7 @@ module Hecks
         #
         # @api private
         # @return [Array(String, Integer)] the text and the `ExitStatus`
-        def answer_line(runtime, argv, program, usage_log, err)
+        def answer_line(runtime, argv, program, options, err)
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
@@ -96,14 +99,15 @@ module Hecks
 
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
-          finish_line(answer, plan, started, { argv: argv, usage_log: usage_log, err: err })
+          finish_line(answer, plan, started, options.merge(argv: argv, err: err))
         end
 
         # Records a line that ran and prints its details when `-v` asked for them.
         #
         # @api private
-        # @return [Array(String, Integer)] the answer, unchanged
+        # @return [Array(String, Integer)] the answer, a repeated query's as `--since` asks
         def finish_line(answer, plan, started, details)
+          answer = answer_since(answer, details[:since]) if plan[:asking] && details[:since][:given]
           UsageLog.record(argv: details[:argv], resolved: plan[:name], status: answer[1], started: started) if details[:usage_log]
           verbose_details(details[:err], plan[:name], started) if verbose?
           answer
