@@ -41,6 +41,20 @@ RSpec.describe Hecks::Adapters::ClaudeExecutable do
     expect(executable.found?).to be(false)
   end
 
+  it "never lists the Claude desktop app among the places `claude` is installed", :aggregate_failures do
+    expect(described_class::CANDIDATES).not_to include(a_string_matching(/Claude\.app/))
+    expect(described_class::CANDIDATES).to all(end_with("/claude"))
+  end
+
+  it "refuses by name under an empty home with no claude on the path" do
+    Dir.mktmpdir do |home|
+      places = described_class::CANDIDATES.map { |place| place.sub("~", home) }.reject { |p| p.start_with?("/") && !p.start_with?(home) }
+
+      expect { described_class.new(candidates: places, path: "/nowhere").resolve }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /claude is not on the path/)
+    end
+  end
+
   describe Hecks::Adapters::ClaudeResolvingShell do
     let(:shell) { instance_double(Hecks::Adapters::Shell, capture: :said) }
     let(:executable) { instance_double(Hecks::Adapters::ClaudeExecutable, resolve: "/home/.local/bin/claude") }
