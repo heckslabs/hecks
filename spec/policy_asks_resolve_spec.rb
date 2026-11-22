@@ -6,9 +6,11 @@ require "spec_helper"
 # every event at run time.
 RSpec.describe "every policy's ask and trigger" do
   # Bluebook directories the walk leaves out, with the reason each one is left out.
+  DELIVERY_DIR = "lib/hecks/vendor/embryonaut_bluebooks/delivery/bluebook".freeze
   WALK_SKIPS = {
     "lib/hecks/catcher"        => "its boot opens the live ledger, which no spec may do",
-    "lib/hecks/forms/examples" => "an example that needs Hecks::Forms configured, not a domain"
+    "lib/hecks/forms/examples" => "an example that needs Hecks::Forms configured, not a domain",
+    DELIVERY_DIR               => "vendored; the Hecks boot attaches it with Governance, so it is walked there"
   }.freeze
 
   before(:all) do
@@ -76,6 +78,10 @@ RSpec.describe "every policy's ask and trigger" do
 
   it "finds no ask or trigger that its domain does not declare, in any walked bluebook" do
     expect(registries.flat_map { |registry| problems(registry) }).to eq([])
+  end
+
+  it "walks Delivery inside the Hecks boot, where its roles have Governance" do
+    expect(registries.first.bluebooks.keys).to include("Delivery")
   end
 
   it "finds a declared command for a trigger, so the check above is not vacuous" do
