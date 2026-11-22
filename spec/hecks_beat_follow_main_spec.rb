@@ -30,18 +30,10 @@ RSpec.describe "the beat job's follow step" do
     expect(git("rev-parse", "HEAD", dir: copy)).to eq(git("rev-parse", "HEAD~1"))
   end
 
-  it "leaves a copy ahead of main where it is" do
-    commit("ahead", dir: copy)
-    ahead = git("rev-parse", "HEAD", dir: copy)
-    follow
-    expect(git("rev-parse", "HEAD", dir: copy)).to eq(ahead)
-  end
-
-  it "leaves a diverged copy where it is" do
+  it "moves a clean diverged copy to main, which holds no work of the copy's" do
     commit("other", dir: copy)
-    other = git("rev-parse", "HEAD", dir: copy)
     follow
-    expect(git("rev-parse", "HEAD", dir: copy)).to eq(other)
+    expect(git("rev-parse", "HEAD", dir: copy)).to eq(git("rev-parse", "main"))
   end
 
   it "ends well when the copy is on a branch" do
