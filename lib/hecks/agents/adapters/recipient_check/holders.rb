@@ -7,7 +7,7 @@ module Hecks
       # role a `StandingSeat` row of the Message aggregate says holds it, and whose session
       # `claude agents` lists. It only reads.
       class Holders
-        # @param registry [Runtime::Registry, nil] whose Agents bluebook holds the `StandingSeat` rows
+        # @param registry [Runtime::Registry, nil] whose Agents bluebook holds the seat rows
         # @param hand_runs [HandRuns] the registered sessions
         # @param listed [#call] answers whether `claude agents` lists a session id
         def initialize(registry, hand_runs, listed)
