@@ -2695,15 +2695,14 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout, blocked_at: :blocked_at }
     end
 
-    # Resuming an idle session with an answer stops it and wakes it again, and the stop runs the
-    # session's own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
-    # reading carries beside `previous`) is that stop, so it ends nothing; the next check reads the
-    # woken session, or the stopped one once the answer was refused.
+    # A `stopped` job read while an answer is on its way (`resuming`) is the wake's own stop. A fresh
+    # fork's job is its parent's copy (`done`) until it writes its own: listed `busy`, it ended nothing,
+    # and an unreadable or empty listing keeps no run.
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
       root
       where   do
-        ((state == "done" && run != "orchestrator-seat") || (state == "stopped" && resuming != true)) &&
+        ((state == "done" && listed != "busy" && run != "orchestrator-seat") || (state == "stopped" && resuming != true)) &&
           reviewing != true && previous != state
       end
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
