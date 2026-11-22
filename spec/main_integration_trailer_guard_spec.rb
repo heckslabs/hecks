@@ -3,7 +3,7 @@
 require "spec_helper"
 require_relative "support/trailer_repo"
 
-# The landing refuses a range whose own commits do not name the run and the work item that made them.
+# The landing refuses a range whose commits do not name the run and work item behind them.
 RSpec.describe "a landing refuses commits that do not name their run" do
   include TrailerRepo
 

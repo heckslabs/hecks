@@ -124,7 +124,7 @@ module Hecks
         # @return [Array<String>] the message of every commit in the range
         def messages(base, tip) = read("log", "--format=%B%x1e", "#{base}..#{tip}").split("\x1e").map(&:strip)
 
-        # The log format of `authored`: the commit, its subject and the two trailers a landing needs.
+        # The log format of `authored`: the commit, its subject and the trailers a landing needs.
         AUTHORED_FORMAT = "%H%x09%s%x09%(trailers:key=Hecks-Run,valueonly,unfold)" \
                           "%x09%(trailers:key=Hecks-Work,valueonly,unfold)%x1e"
 
