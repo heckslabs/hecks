@@ -398,8 +398,8 @@ Hecks.hecksagon "Hecks" do
       refuses "TendRefused"
     end
 
-    # The launchd job that beats the clock once a minute from outside the domain: written and
-    # loaded, or unloaded and removed. Unconfirmed, each answers what it would do.
+    # The launchd jobs from outside the domain (the beat once a minute, a Claude daemon at normal
+    # priority): written and loaded, or unloaded and removed. Unconfirmed, each answers what it would do.
     asks "Arrange", to: Integration do
       attribute :run,     RunKey
       attribute :confirm, Switch

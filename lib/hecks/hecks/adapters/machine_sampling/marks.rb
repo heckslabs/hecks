@@ -22,6 +22,8 @@ module Hecks
         #   which memory is low, and at or under which it can recover.
         # - `lane_busy`, `lane_idle`: test lane waiting count at or over, and at or under;
         #   `interval`: seconds between two readings.
+        # - `nice_high`, `priority_low`: a Claude process niced to at least `nice_high`, or whose priority
+        #   is at most `priority_low` (4 is macOS's Background clamp), runs on the efficiency cores.
         DEFAULTS = {
           load_low:           8.0,
           load_high:          10.0,
@@ -36,7 +38,9 @@ module Hecks
           pressure_level_ok:  1.0,
           lane_busy:          4.0,
           lane_idle:          1.0,
-          interval:           60.0
+          interval:           60.0,
+          nice_high:          15.0,
+          priority_low:       4.0
         }.freeze
 
         # @param registry [Runtime::Registry, nil] the booted registry whose Tickets world is read
