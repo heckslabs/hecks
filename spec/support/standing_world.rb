@@ -41,6 +41,13 @@ class StandingWorld
 
   def push = git(@root, "push", "origin", "main")
 
+  # Main moves on first, so the branch's commit lands under another sha, then origin has it.
+  def land_rebased(branch)
+    commit(@root, "moved.txt", "moved")
+    pick(branch)
+    push
+  end
+
   def pick(branch) = git(@root, "cherry-pick", git(@root, "rev-parse", branch).strip)
 
   def git(dir, *args)
