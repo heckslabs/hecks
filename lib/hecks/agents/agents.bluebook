@@ -1953,6 +1953,7 @@ Hecks.bluebook "Agents" do
     attribute :in_reply_to, MessageRef, optional: true
     attribute :reader, ReaderName, optional: true
     attribute :refusal, RefusalText, optional: true
+    attribute :held_for, HeldFor, optional: true
     attribute :verified, VerifiedSender, optional: true
 
     value_object "MessageKey" do
@@ -1994,6 +1995,24 @@ Hecks.bluebook "Agents" do
     # Why the message was not sent: the recipient is no run with a live session, said by name.
     value_object "RefusalText" do
       attribute :value, String, matches: :present
+    end
+
+    # Why the message is held: the recipient has no live session, and the live holders to address.
+    value_object "HeldFor" do
+      attribute :value, String, matches: :present
+    end
+
+    # The names a hand starts and registers by seat, and the role whose live session holds each: a
+    # message to one before it registers waits, and a refusal or a hold names the live holders.
+    value_object "StandingSeat" do
+      attribute :name,    String
+      attribute :held_by, String
+
+      member name: "miette", held_by: "miette"
+      member name: "orchestrator", held_by: "lead"
+      member name: "orchestrator-owner", held_by: "orchestrator-owner"
+      member name: "staff-engineer", held_by: "staff-engineer"
+      member name: "scrum-master", held_by: "scrum-master"
     end
 
     lifecycle :status, default: "addressed" do
@@ -2061,6 +2080,7 @@ Hecks.bluebook "Agents" do
       goal "Keep a message for a standing seat that has not registered yet, until its registration releases it"
 
       reference_to Message
+      attribute :held_for, HeldFor, sets: true
 
       emits "MessageHeld"
     end
@@ -2156,7 +2176,7 @@ Hecks.bluebook "Agents" do
     policy "HoldForTheStandingSeat" do
       on      "Message.RecipientMissing"
       where   { recipient.value == "miette" || recipient.value == "orchestrator" || recipient.value == "orchestrator-owner" || recipient.value == "staff-engineer" || recipient.value == "scrum-master" }
-      trigger Message::Hold, with: { message: :message }
+      trigger Message::Hold, with: { message: :message, held_for: :refusal }
     end
 
     policy "ReleaseOnRegistration" do
