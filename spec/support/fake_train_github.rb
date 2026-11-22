@@ -70,9 +70,11 @@ class FakeTrainGithub
     rest_answer(argv.last.to_s) || listed_answer(argv)
   end
 
-  # The REST calls only this fake answers: the pull request's files and a rerun of one job.
+  # The REST calls only this fake answers: the pull request's files, a rerun of one job, and the
+  # origin train branches and closed pull requests a sweep reads (none).
   def rest_answer(path)
     return files_answer if path.match?(%r{/pulls/\d+/files})
+    return [[]].to_json if path.match?(/matching-refs|state=closed/)
 
     "{}" if path.match?(%r{actions/jobs/\d+/rerun})
   end

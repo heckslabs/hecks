@@ -32,6 +32,6 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
 
   it "leaves a pull request alone that nothing supersedes" do
     github.pulls = [pull(1340, "e" * 40, "11", "FAILURE")]
-    expect(sweep).to eq("no train pull request to close")
+    expect(sweep).to eq("nothing to close or delete")
   end
 end
