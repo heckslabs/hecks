@@ -43,23 +43,30 @@ module Hecks
 
           # @param table [ProcessTable] the process table
           # @param entries [Array<ProcessTable::Entry>] its processes
-          def initialize(table:, entries:)
+          # @param held [Array<String>] the branches an open item or a live run holds
+          def initialize(table:, entries:, held: [])
             @table = table
             @entries = entries
+            @held = held
           end
 
           # @return [Array<ProcessTable::Entry>] the launchers and pushes that are leftovers
-          def leftovers = launchers + fixtures
+          def leftovers = launchers + fixtures + strays
 
           # @return [Array<ProcessTable::Entry>] what a sweep stops: each leftover and what runs
           #   below it
           def stoppable
-            launchers.flat_map { |entry| [entry] + below(entry, keeping: true) }.concat(
-              fixtures.flat_map { |entry| [entry] + below(entry, keeping: false) }
-            ).uniq(&:pid)
+            (launcher_trees + fixture_trees + strays).uniq(&:pid)
           end
 
+          # @return [Array<ProcessTable::Entry>] the strays: a named shape, unbound, past its age
+          def strays = Strays.new(entries: @entries, held: @held).found.reject { |entry| mine.include?(entry.pid) }
+
           private
+
+          def launcher_trees = launchers.flat_map { |entry| [entry] + below(entry, keeping: true) }
+
+          def fixture_trees = fixtures.flat_map { |entry| [entry] + below(entry, keeping: false) }
 
           def launchers
             alive = @entries.map(&:pid)
