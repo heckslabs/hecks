@@ -8,7 +8,7 @@ require_relative "support/fake_dropped_github"
 require_relative "support/stall_watch_looks"
 
 # A train pull request the merge queue dropped when main moved (open, every check green, its
-# auto-merge gone) is enqueued again by the pipeline. One that no longer merges cleanly parks its
+# auto-merge gone) is enqueued again by the pipeline. One that does not merge cleanly parks its
 # run, so verifying it again rebuilds it on the new tip. Each beat is a process of its own.
 RSpec.describe "a train pull request the merge queue dropped" do
   include_context "with a stall watch tap"

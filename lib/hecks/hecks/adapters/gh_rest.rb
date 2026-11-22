@@ -30,10 +30,18 @@ module Hecks
 
       # @param branch [String] a pull request's head branch
       # @return [Hash, nil] `number`, `url`, `state` (`OPEN`, `CLOSED`, `MERGED`), `mergeCommit`,
-      #   `createdAt`, `commits`, `comments` and `statusCheckRollup`; nil when the branch has none
+      #   `createdAt`, `autoMergeRequest` (nil when auto-merge is off), `commits`, `comments` and
+      #   `statusCheckRollup`; nil when the branch has none
       def pull(branch)
         found = listed("repos/{owner}/{repo}/pulls?state=all&head={owner}:#{branch}&per_page=#{PAGE}").first
         found && shaped(found).merge(detail(found))
+      end
+
+      # @param number [Integer, String] a pull request's number
+      # @return [String] GitHub's mergeability of it (`clean`, `dirty`, `blocked`, ...); empty when
+      #   GitHub has not computed it yet
+      def mergeable_state(number)
+        @gh.call("api", "repos/{owner}/{repo}/pulls/#{number}")["mergeable_state"].to_s
       end
 
       # The pull request under `prefix` whose commits hold `sha`, found by the commit, not by its
@@ -94,7 +102,8 @@ module Hecks
         { "number" => pull["number"], "url" => pull["html_url"], "headRefName" => pull.dig("head", "ref"),
           "headRefOid" => pull.dig("head", "sha"), "createdAt" => pull["created_at"],
           "state" => merged ? "MERGED" : pull["state"].to_s.upcase,
-          "mergeCommit" => (merged ? { "oid" => pull["merge_commit_sha"] } : nil) }
+          "mergeCommit" => (merged ? { "oid" => pull["merge_commit_sha"] } : nil),
+          "autoMergeRequest" => pull["auto_merge"] }
       end
 
       def detail(pull)

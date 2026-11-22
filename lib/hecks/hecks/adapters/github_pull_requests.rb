@@ -5,6 +5,7 @@ require "open3"
 require_relative "console_capture"
 require_relative "github_pull_requests/train_sweep"
 require_relative "github_pull_requests/train_reopen"
+require_relative "github_pull_requests/train_arm"
 require_relative "github_pull_requests/check_failures"
 require_relative "github_pull_requests/closing"
 
@@ -114,6 +115,14 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the pull request is not open, has checks, or GitHub
       #   refuses
       def cycle(**held) = { report: { value: TrainReopen.new(method(:gh!)).run(pull_request_number(held[:pr], "reopen")) } }
+
+      # Turns auto-merge on again for a train pull request the merge queue dropped, which enqueues
+      # it, once the bluebook has decided to.
+      #
+      # @param held [Hash] the `TrainPrEnqueue` record: `pr` (required)
+      # @return [Hash{Symbol => Hash}] `report:`
+      # @raise [ConsoleCapture::Failure] when GitHub refuses
+      def arm(**held) = { report: { value: TrainArm.new(method(:gh!)).run(pull_request_number(held[:pr], "enqueue")) } }
 
       # The state of one pull request, as text: its number, state, URL and checks.
       #
