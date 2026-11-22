@@ -235,8 +235,15 @@ Hecks.behaviors "Tickets" do
 
   test "Plan takes the work items a work item waits on" do
     tests "Plan", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w17" }, title: { value: "Earlier" }
     input  work: { value: "w16" }, title: { value: "Later" }, waits_on: [{ value: "w17" }]
-    expect status: "planned", emits: ["WorkPlanned", "AreaNamed", "WorkUnheld"]
+    expect status: "planned", emits: ["WorkPlanned", "AreaNamed", "WaitKeysNamed", "WorkUnheld"]
+  end
+
+  test "Plan holds a work item that waits on a key no item has" do
+    tests "Plan", on: "Work"
+    input  work: { value: "w16b" }, title: { value: "Lost" }, waits_on: [{ value: "no-such-item" }]
+    expect status: "planned", emits: ["WorkPlanned", "WaitKeyUnknown", "WorkHeld"]
   end
 
   test "Hold keeps a planned work item planned and records why" do
