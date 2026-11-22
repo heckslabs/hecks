@@ -11,8 +11,10 @@ RSpec.describe Hecks::Adapters::MainIntegration::Adoption do
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-level-main")) }
   let(:repo) { File.join(dir, "repo") }
   let(:other) { File.join(dir, "other") }
-  let(:registry) { Struct.new(:saga_instances).new({ "MainIntegration" => { "old" => { state: "green", memory: { checkout: repo } } } }) }
+  let(:registry) { Struct.new(:saga_instances).new({ "MainIntegration" => { "old" => old_run } }) }
   let(:dispatcher) { instance_double(Hecks::Runtime::Dispatcher, dispatch_flat: nil) }
+
+  def old_run = { state: "green", memory: { checkout: repo } }
 
   before do
     open_repositories
@@ -48,7 +50,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::Adoption do
     git("pull", "-q", "origin", "main", chdir: other)
   end
 
-  # The train merged on origin in a merge commit local main lacks, and a tip was made on the old base.
+  # The train merged on origin; a tip was made on local main's old base.
   def merge_train_then_tip(file: "train.txt", tip_file: "tip.txt", tip_content: "tip")
     commit(other, file, "train")
     git("push", "-q", "origin", "main", chdir: other)
@@ -65,16 +67,24 @@ RSpec.describe Hecks::Adapters::MainIntegration::Adoption do
   it "opens the run for the merged tip" do
     merge_train_then_tip
     described_class.new(registry).open_run
-    expect(dispatcher).to have_received(:dispatch_flat).with("Delivery::Landing.Adopt", hash_including(landed: git("rev-parse", "main")))
+    expect(dispatcher).to have_received(:dispatch_flat)
+      .with("Delivery::Landing.Adopt", hash_including(landed: git("rev-parse", "main")))
   end
 
-  it "parks the run in needs_human naming the files when the merge conflicts", :aggregate_failures do
+  def conflict_with_origin
     commit(repo, "same.txt", "mine")
     commit(other, "same.txt", "theirs")
     git("push", "-q", "origin", "main", chdir: other)
-    before = git("rev-parse", "main")
+  end
+
+  it "leaves main where it was when the merge conflicts" do
+    conflict_with_origin
+    expect { described_class.new(registry).open_run }.not_to(change { git("rev-parse", "main") })
+  end
+
+  it "parks the run in needs_human naming the files when the merge conflicts" do
+    conflict_with_origin
     described_class.new(registry).open_run
-    expect(git("rev-parse", "main")).to eq(before)
     expect(dispatcher).to have_received(:dispatch_flat)
       .with("Hecks::Integration.Strand", hash_including(refusal: a_string_including("same.txt")))
   end
