@@ -17,4 +17,13 @@ RSpec.describe "the reap started by a landed feature" do
     expect(reactions("ReapWhenWorkLands").size).to eq(1)
     expect(pruners_started).to eq(0)
   end
+
+  # A seat that stands is not met by a landing: no policy tries to seat the pruner again.
+  describe "a landing while the pruner is seated" do
+    it "still starts the reap" do
+      launch!("agents", "pruning.seat!", "role.value=pruner", "--wait")
+      land("w-seated")
+      expect(reactions("ReapWhenWorkLands").size).to eq(1)
+    end
+  end
 end
