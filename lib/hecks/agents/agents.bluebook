@@ -2494,6 +2494,7 @@ Hecks.bluebook "Agents" do
     attribute :session, SessionId
     attribute :role, RunRole
     attribute :checkout, HandCheckout, optional: true
+    attribute :reason, LostReason, optional: true
 
     # The checkout the session works in, when it has one; the orchestrator has none, so only its
     # session is held.
@@ -2514,12 +2515,19 @@ Hecks.bluebook "Agents" do
       attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
     end
 
-    # A registration is held until `HandRun.end!`; a replaced one, `<run>~<n>`, never is.
+    # The reason a registered session was lost: its listed state, or `unlisted` when `claude agents`
+    # no longer lists it.
+    value_object "LostReason", String
+
+    # A registration is held until `HandRun.end!`; a replaced one, `<run>~<n>`, never is. One whose
+    # session died is lost, then restarted when a session under its run key is listed again, or ended.
     lifecycle :status, default: "registering" do
       transition "Record" => "registered", from: "registering"
-      transition "End" => "ended", from: "registered"
+      transition "Lose" => "lost", from: "registered"
+      transition "Restart" => "restarted", from: "lost"
+      transition "End" => "ended", from: %w[registered lost]
       mark :terminal, "ended"
-      mark :reusable, "registered", "ended"
+      mark :reusable, "registered", "ended", "restarted"
     end
 
     command "Register" do
@@ -2548,7 +2556,7 @@ Hecks.bluebook "Agents" do
       trigger HandRun::Record, with: { run: :run }
     end
 
-    command "End", from: "registered" do
+    command "End", from: %w[registered lost] do
       role "Operator"
       goal "End a hand-started session's registration (to=<run>), which releases its session and checkout to the reapers"
 
@@ -2557,9 +2565,163 @@ Hecks.bluebook "Agents" do
       emits "HandRunEnded"
     end
 
+    command "Look", from: "registered" do
+      role "System"
+      goal "Ask whether a registered hand run's session is still listed, and in what state"
+
+      reference_to HandRun
+      attribute :seen, SessionId
+      attribute :role, RunRole
+      attribute :checkout, HandCheckout, optional: true
+
+      # A replaced registration is stored under `<run>~<n>` with its fields, so a look at one names
+      # a session that is not the one now registered under the key, and is refused.
+      given("the session looked at is the one registered under the key") { session.value == seen.value }
+
+      emits "HandRunLooked"
+    end
+
+    command "Lose", from: "registered" do
+      role "System"
+      goal "Record that a registered hand run's session is gone or stopped or failed"
+
+      reference_to HandRun
+      attribute :session, SessionId, sets: true
+      attribute :role, RunRole, sets: true
+      attribute :reason, LostReason, sets: true
+
+      emits "HandRunLost"
+    end
+
+    command "Seek", from: "lost" do
+      role "System"
+      goal "Ask whether a session is listed under a lost hand run's run key again"
+
+      reference_to HandRun
+      attribute :session, SessionId
+      attribute :role, RunRole
+      attribute :checkout, HandCheckout, optional: true
+
+      emits "HandRunSeeked"
+    end
+
+    command "Restart", from: "lost" do
+      role "System"
+      goal "Record the session now listed under a lost hand run's run key, which frees the key to be registered again"
+
+      reference_to HandRun
+      attribute :session, SessionId, sets: true
+      attribute :role, RunRole, sets: true
+      attribute :checkout, HandCheckout, sets: true, optional: true
+
+      emits "HandRunRestarted"
+    end
+
     query "Registered" do
       description "Every hand-started session registration, with its run key, session and role; a replaced one is keyed `<run>~<n>`."
       order_by :run
+    end
+
+    # The registrations a beat looks at.
+    query "Standing" do
+      description "Every hand-started session registration still registered, by run key."
+      where(status: "registered")
+      order_by :run
+    end
+
+    query "Lost" do
+      description "Every hand-started session registration recorded lost and not yet restarted or ended, by run key."
+      where(status: "lost")
+      order_by :run
+    end
+
+    # A beat looks at each registered hand run once, in the chain the heartbeat starts: a listed
+    # session that is working, busy or idle between turns is never read as dead.
+    policy "LookAtTheStandingHandRuns" do
+      on       "HandRunWatch.HandRunsWatched"
+      for_each "HandRun.Standing"
+      trigger  HandRun::Look, with: { run: :run, seen: :session, role: :role, checkout: :checkout }
+    end
+
+    policy "SeekTheLostHandRuns" do
+      on       "HandRunWatch.HandRunsWatched"
+      for_each "HandRun.Lost"
+      trigger  HandRun::Seek, with: { run: :run, session: :session, role: :role, checkout: :checkout }
+    end
+
+    policy "ExamineTheHandRunSession" do
+      on  "HandRun.HandRunLooked"
+      ask :examine, with: { run: :run, session: :seen, role: :role, checkout: :checkout }
+    end
+
+    policy "ReadTheHandRunKey" do
+      on  "HandRun.HandRunSeeked"
+      ask :seek, with: { run: :run, session: :session, role: :role, checkout: :checkout }
+    end
+
+    policy "LoseTheHandRunWhoseSessionEnded" do
+      on      "HandRun.HandRunExamined"
+      root
+      where   { state == "stopped" || state == "failed" || state == "unlisted" }
+      trigger HandRun::Lose, with: { run: :run, session: :session, role: :role, reason: :state }
+    end
+
+    # The same Fleet path the watchdog resumes by: a stopped or failed session is resumed under its
+    # run key, which lists the new session by that name for the next beat to find.
+    policy "RestartThePinnedLostRun" do
+      on      "HandRun.HandRunLost"
+      root
+      where   { reason != "unlisted" && (role.value == "lead" || role.value == "orchestrator" || role.value == "orchestrator-owner" || role.value == "staff-engineer" || role.value == "scrum-master") }
+      trigger Fleet::Resume, with: { session: :session, name: :run }
+    end
+
+    # A run that is not pinned, or whose session is no longer listed to resume, is ended; the
+    # impediment view shows its loss once, naming the run.
+    policy "EndTheLostRunNothingResumes" do
+      on      "HandRun.HandRunLost"
+      root
+      where   { reason == "unlisted" || !(role.value == "lead" || role.value == "orchestrator" || role.value == "orchestrator-owner" || role.value == "staff-engineer" || role.value == "scrum-master") }
+      trigger HandRun::End, with: { run: :run }
+    end
+
+    policy "RestartTheLostRunItsNewSession" do
+      on      "HandRun.HandRunSought"
+      root
+      where   { state != "unlisted" }
+      trigger HandRun::Restart, with: { run: :run, session: :found, role: :role, checkout: :checkout }
+    end
+
+    policy "RegisterTheRestartedRun" do
+      on      "HandRun.HandRunRestarted"
+      trigger HandRun::Register, with: { run: :run, session: :session, role: :role, checkout: :checkout }
+    end
+  end
+
+  # One look at the registered hand runs per beat of the clock, keyed by the beat.
+  aggregate "HandRunWatch" do
+    description "One beat's look at the hand-started runs: each registered one is asked whether its session is still listed, and each lost one whether its run key is listed again."
+
+    identified_by :pass
+
+    attribute :pass, WatchPass
+
+    value_object "WatchPass" do
+      attribute :value, String, matches: :present
+    end
+
+    command "Watch" do
+      role "System"
+      goal "Look at every registered hand run once, for the beat"
+
+      attribute :pass, WatchPass, sets: true
+
+      emits "HandRunsWatched"
+    end
+
+    policy "WatchTheHandRunsOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger HandRunWatch::Watch, with: { pass: :beat }
     end
   end
 

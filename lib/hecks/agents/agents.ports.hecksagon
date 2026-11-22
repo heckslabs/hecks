@@ -70,6 +70,30 @@ Hecks.hecksagon "Agents" do
     end
   end
 
+  # The sessions `claude agents` lists, read for each registered or lost hand run. `Examine` answers
+  # the listed state of the registered session (`unlisted` when none matches); `Seek` answers the
+  # session listed under the run key that is not the lost one, with its state. Bound by
+  # adapters/hand_run_watch, which judges nothing.
+  Agents::HandRun.port "HandRunWatching" do
+    asks "Examine", to: HandRun do
+      attribute :run,     RunKey
+      attribute :session, SessionId
+      attribute :role,    RunRole
+      attribute :checkout, HandCheckout, optional: true
+      answers "HandRunExamined"
+      refuses "HandRunUnread"
+    end
+
+    asks "Seek", to: HandRun do
+      attribute :run,     RunKey
+      attribute :session, SessionId
+      attribute :role,    RunRole
+      attribute :checkout, HandCheckout, optional: true
+      answers "HandRunSought"
+      refuses "HandRunUnread"
+    end
+  end
+
   # Whether a session holds the role a sent message is addressed to, and the wake of it. Bound by
   # adapters/role_rouser, which resumes an idle holder and leaves a busy one to its inbox hook.
   Agents::Message.port "Rousing" do
