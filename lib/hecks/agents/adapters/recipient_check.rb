@@ -57,9 +57,10 @@ module Hecks
       # @param recipient [Hash, nil] the run the message is for, passed back for the next step
       # @return [Hash{Symbol => Hash}] `verified:` "true" when the sending session is registered
       #   under that name, otherwise "false"; never raises
-      def sender(sender:, recipient: nil, **)
+      def sender(sender:, recipient: nil, asker_role: nil, kind: nil, **)
         { sender: { value: plain(sender) }, recipient: seat_holder(recipient),
-          verified: { value: (ledger? && @proof.verified?(plain(sender))).to_s } }
+          verified: { value: (ledger? && @proof.verified?(plain(sender))).to_s },
+          asker_role: { value: plain(asker_role) }, kind: { value: plain(kind) } }
       end
 
       # @param recipient [Hash, String] the run the message is for
