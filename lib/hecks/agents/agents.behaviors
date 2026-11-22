@@ -429,7 +429,7 @@ Hecks.behaviors "Agents" do
   test "Take keeps a line the spool held" do
     tests "Take", on: "MailSpool"
     setup  "Agents::MailSpool.Ingest", pass: { value: "beat-3" }
-    input  pass: { value: "beat-3" }
+    input  pass: { value: "beat-3" }, line: { value: 1 }
     expect status: "taken"
   end
 
@@ -437,7 +437,7 @@ Hecks.behaviors "Agents" do
     tests "Take", on: "MailSpool"
     setup  "Agents::MailSpool.Ingest", pass: { value: "beat-4" }
     setup  "Agents::MailSpool.Finish", pass: { value: "beat-4" }
-    input  pass: { value: "beat-4" }
+    input  pass: { value: "beat-4" }, line: { value: 1 }
     expect refused: "Take refused — status is \"dry\", and Take moves it only from \"requested\""
   end
 
@@ -458,7 +458,7 @@ Hecks.behaviors "Agents" do
   test "Settle ends a pass whose line was kept and acknowledged" do
     tests "Settle", on: "MailSpool"
     setup  "Agents::MailSpool.Ingest", pass: { value: "beat-7" }
-    setup  "Agents::MailSpool.Take", pass: { value: "beat-7" }
+    setup  "Agents::MailSpool.Take", pass: { value: "beat-7" }, line: { value: 1 }
     input  pass: { value: "beat-7" }
     expect status: "settled"
   end
