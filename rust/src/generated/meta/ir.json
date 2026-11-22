@@ -35741,7 +35741,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait"
+                "bundle exec exe/hecks regeneration_run.project_tools_doc! check.value=true --wait"
               ],
               [
                 "script",
@@ -35749,7 +35749,7 @@
               ],
               [
                 "blocked",
-                "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`."
+                "this change reaches docs/tools.md and the cli guides: a command's goal or arguments changed with no regenerated doc. Run `hecks regeneration_run.project_tools_doc! --confirm` and commit them."
               ]
             ],
             [
@@ -35936,7 +35936,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,remedy_names,workflow_pagination,role_files,role_world_list"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,remedy_names,workflow_pagination,role_files,role_world_list,tools_doc"
               ]
             ],
             [
