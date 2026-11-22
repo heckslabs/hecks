@@ -9,6 +9,7 @@ require "hecks/adapters/driving/resident/fingerprint"
 require "hecks/adapters/driving/resident/described_cache"
 require "hecks/adapters/driving/resident/fork_warmup"
 require "hecks/adapters/driving/resident/loading"
+require "hecks/adapters/driving/resident/start_deadline"
 require "hecks/adapters/driving/resident/forking"
 require "hecks/adapters/driving/resident/line_limit"
 require "hecks/adapters/driving/resident/overdue"
@@ -33,6 +34,7 @@ module Hecks
         #   ruby -I lib lib/hecks/adapters/driving/resident/server.rb <checkout> <launcher script>
         class Server
           include Loading
+          include StartDeadline
           include Forking
           include LineLimit
           include Overdue

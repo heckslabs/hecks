@@ -52,10 +52,12 @@ module Hecks
           # caller goes or the line's time limit passes ({LineLimit}).
           def monitor(pid, client, reader, said = nil)
             watchers = [Thread.new { stop_when_gone(client, pid) }, Thread.new { end_when_overdue(pid, said) }]
+            starter = Thread.new { await_start(pid, reader) }
             _, status = Process.wait2(pid)
             watchers.each(&:kill)
-            finish_line(client, status)
-            remember(reader)
+            began = starter.value || started_late?(reader)
+            finish_line(client, status, began)
+            remember(reader) if began
           rescue SystemCallError, IOError
             nil
           ensure
@@ -71,9 +73,11 @@ module Hecks
           end
 
           # Marks the end of a line as use, so the resident is not idle the moment a long line ends,
-          # and tells the caller the line's status.
-          def finish_line(client, status)
+          # and tells the caller the line's status, or that the child never began.
+          def finish_line(client, status, began = true)
             @active = Time.now
+            return Wire.reply(client, StartDeadline::UNSTARTED) unless began
+
             Wire.reply(client, "#{Wire::STATUS}#{status.exitstatus || (128 + status.termsig)}")
           end
 

@@ -5,6 +5,7 @@ require "hecks/adapters/driving/resident/peer"
 require "hecks/adapters/driving/resident/outcome"
 require "hecks/adapters/driving/resident/stuck"
 require "hecks/adapters/driving/resident/trace"
+require "hecks/adapters/driving/resident/start_deadline"
 require "hecks/adapters/driving/resident/waiting"
 require "hecks/adapters/driving/resident/standing_answer"
 
@@ -134,7 +135,8 @@ module Hecks
             return [nil, refusal(word)] unless word == Wire::READY
 
             Wire.reply(socket, Wire::GO)
-            [finish(socket), nil]
+            status = finish(socket)
+            status == StartDeadline::UNSTARTED ? [nil, status] : [status, nil]
           end
 
           # @return [String] the resident's first word on the request: `fds`, `stale:<reason>`,
@@ -167,9 +169,11 @@ module Hecks
           # that goes away while the line runs leaves its status unknown: that is said on stderr
           # and the status is 1. The line is not run again, since it has begun.
           #
-          # @return [Integer] the line's exit status; 1 if the resident vanishes
+          # @return [Integer, String] the line's exit status; 1 if the resident vanishes; `unstarted`
+          #   when its child never began, so the line has not run
           def finish(socket)
             reply = Waiting.status(socket, Peer.pid(socket)).to_s
+            return StartDeadline::UNSTARTED if reply == StartDeadline::UNSTARTED
             return Integer(reply.delete_prefix(Wire::STATUS)) if reply.start_with?(Wire::STATUS)
 
             gone
