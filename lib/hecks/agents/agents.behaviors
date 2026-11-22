@@ -327,6 +327,20 @@ Hecks.behaviors "Agents" do
     expect refused: "MessageKind admits"
   end
 
+  test "Send accepts a body of exactly the limit" do
+    tests "Send", on: "Message"
+    input  message: { value: "m5" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "q" * 2000 }
+    expect status: "sent"
+  end
+
+  test "Send refuses a body over the limit, naming it" do
+    tests "Send", on: "Message"
+    input  message: { value: "m6" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "q" * 2001 }
+    expect refused: "a message body is at most 2000 characters; split it"
+  end
+
   test "Stamp refuses a message that is no longer addressed" do
     tests "Stamp", on: "Message"
     setup  "Agents::Message.Send", message: { value: "m3" }, recipient: { value: "run-a" }, sender: { value: "miette" },
