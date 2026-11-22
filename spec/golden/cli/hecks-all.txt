@@ -383,10 +383,11 @@ commands:
     CodemodRun.fault! CodemodRun.examine! CodemodRun.perform! ScriptRun.accept!
     ScriptRun.complete! ScriptRun.fault! ScriptRun.examine! ScriptRun.perform!
     GithubWebhook.close! GithubWebhook.refuse! GithubWebhook.listen! GithubEvent.record!
-    ChangeGroup.form! LedgerCare.look! LedgerCare.hear! LedgerCare.decline! LedgerCare.weigh!
-    OutboxCare.look! OutboxCare.hear! OutboxCare.decline! OutboxCare.purge! LedgerFile.settle!
-    LedgerFile.decline! LedgerFile.vacuum! SchemaRevision.permit! SchemaRevision.settle!
-    SchemaRevision.abandon! SchemaRevision.examine! SchemaRevision.apply! SchemaRevision.mint!
+    GithubRest.read_pull! GithubRest.read_check_run! GithubRest.read_rate_limit! ChangeGroup.form!
+    LedgerCare.look! LedgerCare.hear! LedgerCare.decline! LedgerCare.weigh! OutboxCare.look!
+    OutboxCare.hear! OutboxCare.decline! OutboxCare.purge! LedgerFile.settle! LedgerFile.decline!
+    LedgerFile.vacuum! SchemaRevision.permit! SchemaRevision.settle! SchemaRevision.abandon!
+    SchemaRevision.examine! SchemaRevision.apply! SchemaRevision.mint!
     SchemaRevision.mint_release! SchemaRevision.capture! Seal.record! RehearsalRun.boot!
     RehearsalRun.audit! RehearsalRun.judge! RehearsalRun.withhold! RehearsalRun.refuse!
     RehearsalRun.fail! RehearsalRun.survey! RehearsalRun.examine! Operation.succeed!
