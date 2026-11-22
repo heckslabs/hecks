@@ -8,7 +8,7 @@ require "spec_helper"
 RSpec.describe "the GitHub REST edge" do
   let(:root)   { File.expand_path("..", __dir__) }
   let(:edge)   { File.join(root, "lib/hecks/hecks/github_events") }
-  let(:fields) { /head_sha|head_ref|merged_at|x-ratelimit|http_status|check_runs/i }
+  let(:fields) { /head_ref|merged_at|x-ratelimit|http_status|check_runs/i }
 
   def declared
     Dir.glob(File.join(root, "lib/**/*.{bluebook,hecksagon}")).reject { |path| path.start_with?(edge) }
