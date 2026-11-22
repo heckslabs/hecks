@@ -5,7 +5,8 @@ require_relative "support/closed_train_runs"
 
 # A train pull request closed unmerged releases its integration run, even when the run rode a
 # train named for a later commit: the run leaves ci_running for needs_human and the line it held
-# is free for the next verified landing.
+# is free for the next verified landing. Each example resets the booted registry's runtime state and
+# holds the code watch's fingerprint fixed, so the spec passes alone and in a shard.
 RSpec.describe Hecks::Adapters::MainIntegration do
   include ClosedTrainRuns
 
