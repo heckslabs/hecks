@@ -218,7 +218,7 @@ Hecks.behaviors "Tickets" do
   test "Plan takes the work items a work item waits on" do
     tests "Plan", on: "Work"
     input  work: { value: "w16" }, title: { value: "Later" }, waits_on: [{ value: "w17" }]
-    expect status: "planned", emits: ["WorkPlanned", "AreaNamed"]
+    expect status: "planned", emits: ["WorkPlanned", "AreaNamed", "WorkUnheld"]
   end
 
   test "Hold keeps a planned work item planned and records why" do
