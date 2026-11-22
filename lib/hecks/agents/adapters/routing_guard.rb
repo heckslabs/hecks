@@ -4,6 +4,7 @@ require "hecks"
 require_relative "shell_reads"
 require_relative "role_server_env"
 require_relative "routing_guard/script_gate"
+require_relative "routing_guard/reads"
 require "hecks/role_server_cache"
 
 module Hecks
@@ -13,19 +14,19 @@ module Hecks
     # list of its own; a change to what a role may run is a change to `agents.bluebook`. A refusal
     # is raised, so the launcher exits non-zero and prints the reason.
     class RoutingGuard
+      include Reads
+
       # A command the role may not run itself, with the verb or role to use instead.
       class Refused < StandardError; end
 
       BLUEBOOK_DIR = File.expand_path("..", __dir__)
       LAUNCHER = %r{\A(?:\./)?(?:exe/)?hecks\s+}
       CHAINING = /[;&|<>`\n]|\$\(/
-      # A span the chaining check reads past, scanned left to right: a backslash pair outside
-      # quotes first, so an escaped quote opens no span, then a single- or double-quoted span.
-      QUOTED = /\\.|'[^']*'|"(?:\\.|[^"\\])*"/m
-      # What the shell still runs inside double quotes; `${x:-$(y)}` is caught by its `$(`.
-      SUBSTITUTION = /`|\$\(/
       # An `Aggregate.verb` word of a launcher call, in either spelling.
       VERB_WORD = /\A[A-Za-z_]\w*\.\w/
+      SHELL_PATTERN = /\A(?:git|gh)\s/
+      # How many of a role's own verbs a refusal names.
+      VERB_LIST = 8
 
       # @param registry [Runtime::Registry, nil] the boot answering, whose `Script` records the
       #   script step keeps
@@ -129,20 +130,10 @@ module Hecks
         return false if unquoted(text).match?(CHAINING)
         return ShellReads.new(rules, rows("ShellFlagRule", name)).allowed?(text) if ShellReads.shell?(text)
         return false unless text.match?(LAUNCHER)
+        return true if read?(text)
 
         verb = verb_of(text.sub(LAUNCHER, ""))
         rules.any? { |rule| rule.end_with?(".*") ? verb.start_with?(rule.delete_suffix("*")) : verb == rule }
-      end
-
-      # The text with each quoted span blanked, so a `;` the shell reads as literal is not chaining.
-      # A backslash pair stays, a double-quoted span holding a substitution stays, and an unclosed
-      # quote matches no span and so stays too.
-      def unquoted(text)
-        text.gsub(QUOTED) do |span|
-          next span unless span.start_with?("'", '"')
-
-          span.start_with?('"') && span.match?(SUBSTITUTION) ? span : span[0] * 2
-        end
       end
 
       # The `Aggregate.verb` a launcher call names, past an optional domain word.
@@ -165,7 +156,15 @@ module Hecks
 
       def hint(name, text)
         found = rows("RefusalHint", name).find { |row| text.start_with?(row[:shape]) }
-        found ? found[:use] : "a verb on the #{name} routing list, or dispatch another role through Work.plan!"
+        found ? found[:use] : own_verbs(name)
+      end
+
+      # The verbs on the role's own routing list, as many as read well, or how to hand the step on.
+      def own_verbs(name)
+        verbs = rows("RoutingRule", name).map { |row| row[:pattern] }.grep_v(SHELL_PATTERN).first(VERB_LIST)
+        return "dispatch another role through Work.plan!" if verbs.empty?
+
+        "#{verbs.join(", ")}, or dispatch another role through Work.plan!"
       end
 
       # A routing row of the same aggregate as the launcher call, to name beside the refusal.
