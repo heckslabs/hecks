@@ -4,6 +4,7 @@ require "digest"
 require "fileutils"
 require_relative "../checkout_slug"
 require_relative "build_policy"
+require_relative "compiler_cache"
 require_relative "toolchain"
 require_relative "world_rows"
 
@@ -48,11 +49,16 @@ module Hecks
       # @param base [#[]] the environment the child would otherwise inherit
       # @param binary [Boolean] whether the build's binary is run or published afterwards
       # @return [Hash{String => String}] the variables to add: `PATH` with rustup's `cargo` first,
-      #   the job cap, and the target directory, none of it when the caller already named a target
-      #   directory, so `CARGO_TARGET_DIR` set by hand still wins
+      #   the job cap, the compiler cache wrapper, and the target directory, none of it when the
+      #   caller already named a target directory, so `CARGO_TARGET_DIR` set by hand still wins
       def environment(root: ROOT, base: ENV, binary: false)
-        Toolchain.environment(base).merge(BuildPolicy.environment(root: root, base: base))
-                 .merge(target_environment(root, base, binary))
+        tools_environment(root, base).merge(target_environment(root, base, binary))
+      end
+
+      # @return [Hash{String => String}] the toolchain, job cap and compiler cache variables
+      def tools_environment(root, base)
+        [Toolchain.environment(base), BuildPolicy.environment(root: root, base: base),
+         CompilerCache.environment(base)].reduce(:merge)
       end
 
       # @return [Hash{String => String}] the target directory part of `environment`
