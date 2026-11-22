@@ -63,6 +63,7 @@ commands:
     check_shape_ledger!
     check_command_names!
     check_workflow_pagination!
+    check_bluebook_extraction!
     argument_gate_matrix!
     report_role_shadow!
   StyleRun:
