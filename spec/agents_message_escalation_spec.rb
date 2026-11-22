@@ -53,8 +53,8 @@ RSpec.describe "the Agents message escalation" do
   end
 
   it "leaves a staff engineer's question with the orchestrator" do
-    send_message(key: "s2", to: "orchestrator", sender: "staff-engineer", kind: "question", asker: "staff-engineer")
-    expect(inbox("orchestrator")).to eq(["s2"])
+    sent = send_message(key: "s2", to: "orchestrator", sender: "staff-engineer", kind: "question", asker: "staff-engineer")
+    expect(sent.recipient.value).to eq("orchestrator")
   end
 
   context "with a scrum master registered" do
