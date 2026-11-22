@@ -986,9 +986,9 @@ Hecks.bluebook "Bluebook" do
              blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`."
       member name: "tools_doc", id: "tools_doc",
              title: "tools doc, docs/tools.md must match the RetiredScript rows",
-             argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait",
+             argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! check.value=true --wait",
              script: "",
-             blocked: "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`."
+             blocked: "this change reaches docs/tools.md and the cli guides: a command's goal or arguments changed with no regenerated doc. Run `hecks regeneration_run.project_tools_doc! --confirm` and commit them."
       member name: "rust_coverage", id: "rust_coverage",
              title: "rust coverage, every generated module",
              argv: "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait",
@@ -1039,7 +1039,7 @@ Hecks.bluebook "Bluebook" do
 
       member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
-      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,remedy_names,workflow_pagination,role_files,role_world_list"
+      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,remedy_names,workflow_pagination,role_files,role_world_list,tools_doc"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
