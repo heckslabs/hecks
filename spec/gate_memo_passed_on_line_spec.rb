@@ -5,7 +5,7 @@ require_relative "support/gate_passed_on_context"
 
 # The line a skipped check prints names the commit it passed on, only when the tree was clean.
 RSpec.describe "Hecks::Tools::GateMemo skip line" do
-  include_context "a checkout with a gate memo"
+  include_context "with a checkout and a gate memo"
 
   it "names the commit a check passed on when the tree was clean" do
     sha = commit_all
