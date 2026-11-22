@@ -2,11 +2,8 @@ Hecks.bluebook "Hecks" do
   domain_module "EventPace" do
     vision "Pace is the domain's raw generation: events an hour, read beside what finished, so a busy hour that finished nothing shows as lost work."
 
-    # Read from the event tap and never written. `LandingPace` measures landings from the Landing
-    # ledger; this reads every event the tap carries. Gross is the events an hour that are not noise,
-    # net is the finished items an hour, and efficiency is the finished items per thousand events.
-    # The `Pace` port's adapter reads the tap as the `Feed` query does, so it boots no domain; where
-    # the world keeps no tap every figure reads zero.
+    # Read from the event tap and never written; where the world keeps no tap every figure reads zero.
+    # Gross is non-noise events an hour, net the finished items an hour, efficiency finished per 1,000 events.
     aggregate "Pace" do
       description "A reading of the event tap over a window: gross events an hour, finished items an hour, and finished items per 1,000 events."
       acknowledges :no_command_surface, "a reading of a tap already recorded: it changes nothing"
@@ -22,7 +19,7 @@ Hecks.bluebook "Hecks" do
         attribute :text, String
       end
 
-      # A window a reading may name, by its label, and the seconds it covers. The first is the default.
+      # A window a reading may name and the seconds it covers; the first is the default.
       value_object "Window" do
         attribute :label,   String
         attribute :seconds, Integer
@@ -33,8 +30,7 @@ Hecks.bluebook "Hecks" do
         member label: "week", seconds: 604_800
       end
 
-      # An event that is the system watching itself, not generating work: a poll, a read, a beat. It is
-      # left out of gross.
+      # An event that is the system watching itself (a poll, a read, a beat); gross leaves it out.
       value_object "Noise" do
         attribute :event, String
 
