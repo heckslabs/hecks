@@ -9,7 +9,9 @@ module Hecks
         # The rule that a change to some paths runs named specs no file name or text points at: the
         # Tickets world's `triggered_specs` row (`paths` are `File.fnmatch` patterns relative to the
         # root, `specs` the spec files they run). A world that names no such row, or cannot be
-        # read, takes `DEFAULTS`, the rule `tickets.world` sets, so it is never silently off.
+        # read, takes `DEFAULTS` (the path rule only; the `always` list lives in the world alone).
+        # A row may also carry `always`: specs that run for every change outside `docs/`, as the
+        # `:repo_scan` specs do, but unlike them they obey the skip rules.
         class Triggers
           # The Tickets world verb that carries the rule.
           VERB = "triggered_specs"
@@ -30,14 +32,20 @@ module Hecks
 
           # @param changed [Array<String>] changed paths relative to the root
           # @return [Array<String>] the rule's specs present in the tree when a changed path matches
-          #   a pattern, else none
+          #   a pattern, and the `always` specs when a path lies outside `docs/`
           def specs(changed)
-            return [] unless changed.any? { |path| patterns.any? { |pattern| File.fnmatch?(pattern, path, FLAGS) } }
-
-            Array(rule[:specs]).map(&:to_s).select { |spec| File.file?(File.join(@root, spec)) }
+            triggered = matched?(changed) ? Array(rule[:specs]) : []
+            always = outside_docs?(changed) ? Array(rule[:always]) : []
+            present(triggered) | present(always)
           end
 
           private
+
+          def matched?(changed) = changed.any? { |path| patterns.any? { |pattern| File.fnmatch?(pattern, path, FLAGS) } }
+
+          def outside_docs?(changed) = changed.any? { |path| !path.start_with?("docs/") }
+
+          def present(specs) = specs.map(&:to_s).select { |spec| File.file?(File.join(@root, spec)) }
 
           def patterns = Array(rule[:paths]).map(&:to_s)
 
