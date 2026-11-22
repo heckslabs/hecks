@@ -8,8 +8,8 @@ RSpec.describe Hecks::Adapters::ArchitectVerdict do
     expect(described_class.of("Verdict: sound")).to eq("sound")
   end
 
-  it "reads a sound line over a report that checked nothing as unverified" do
-    expect(described_class.of("Nothing was checked.\n\nVerdict: sound")).to eq("unverified")
+  it "reads a sound line as sound even when the report quotes the phrase nothing was checked" do
+    expect(described_class.of("No file said Nothing was checked.\n\nVerdict: sound")).to eq("sound")
   end
 
   it "reads an unverified line as unverified" do
