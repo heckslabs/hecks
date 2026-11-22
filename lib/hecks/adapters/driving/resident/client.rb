@@ -169,8 +169,8 @@ module Hecks
           # that goes away while the line runs leaves its status unknown: that is said on stderr
           # and the status is 1. The line is not run again, since it has begun.
           #
-          # @return [Integer, String] the line's exit status; 1 if the resident vanishes; `unstarted`
-          #   when its child never began, so the line has not run
+          # @return [Integer, String] the line's exit status; 1 if the resident vanishes;
+          #   `unstarted` when its child never began, so the line has not run
           def finish(socket)
             reply = Waiting.status(socket, Peer.pid(socket)).to_s
             return StartDeadline::UNSTARTED if reply == StartDeadline::UNSTARTED
