@@ -55,9 +55,7 @@ module Hecks
             starter = Thread.new { await_start(pid, reader) }
             _, status = Process.wait2(pid)
             watchers.each(&:kill)
-            began = starter.value || started_late?(reader)
-            finish_line(client, status, began)
-            remember(reader) if began
+            conclude(client, status, reader, starter.value || started_late?(reader))
           rescue SystemCallError, IOError
             nil
           ensure
@@ -72,9 +70,15 @@ module Hecks
             end
           end
 
+          # Tells the caller how its line ended, and remembers what the line loaded if it began.
+          def conclude(client, status, reader, began)
+            finish_line(client, status, began)
+            remember(reader) if began
+          end
+
           # Marks the end of a line as use, so the resident is not idle the moment a long line ends,
           # and tells the caller the line's status, or that the child never began.
-          def finish_line(client, status, began = true)
+          def finish_line(client, status, began)
             @active = Time.now
             return Wire.reply(client, StartDeadline::UNSTARTED) unless began
 
