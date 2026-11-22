@@ -179,8 +179,8 @@ module Hecks
       end
 
       # @param root [String] the checkout
-      # @return [String, nil] the short sha of `HEAD` when the checkout has no uncommitted change, so
-      #   a green run on it passed on that commit; nil when the tree is dirty or not a checkout
+      # @return [String, nil] the short sha of `HEAD` when the checkout has no uncommitted change, so a
+      #   green run on it passed on that commit; nil when the tree is dirty or not a checkout
       def clean_commit(root)
         status, ok = Open3.capture2("git", "-C", root, "status", "--porcelain", err: File::NULL)
         return nil unless ok.success? && status.empty?
