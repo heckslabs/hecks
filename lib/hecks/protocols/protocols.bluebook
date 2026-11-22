@@ -20,6 +20,9 @@ Hecks.bluebook "Protocols" do
     attribute :veto_reason,   Text, optional: true
     # Each flagged break adds one, for the scrum master's retrospective.
     attribute :breaks,        Tally
+    # The instant after which an absent seat no longer holds the agreement, and when it closed.
+    attribute :deadline,      Instant, optional: true
+    attribute :closed_at,     Instant, optional: true
 
     value_object "Reference" do
       attribute :value, String, matches: :present
@@ -42,6 +45,11 @@ Hecks.bluebook "Protocols" do
       attribute :value, String, one_of: %w[yes no]
     end
 
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
     value_object "Tally" do
       attribute :value, Integer, default: 0
       invariant("a tally is not negative") { !value.negative? }
@@ -51,8 +59,9 @@ Hecks.bluebook "Protocols" do
       transition "Accept"   => "accepted",      from: "proposed"
       transition "Veto"     => "vetoed",        from: "proposed"
       transition "Escalate" => "owner_pending", from: "proposed"
+      transition "Close"    => "closed",        from: "proposed"
       # An owner-pending agreement ends here for the roles: the owner settles it outside this domain.
-      mark :terminal, "accepted", "vetoed", "owner_pending"
+      mark :terminal, "accepted", "vetoed", "owner_pending", "closed"
     end
 
     command "Propose" do
@@ -65,6 +74,7 @@ Hecks.bluebook "Protocols" do
       attribute :affects,       Roles
       attribute :touches_owner, Flag
       attribute :owed,          Tally
+      attribute :deadline,      Instant, optional: true
 
       given("an agreement affects at least one role") { owed.value.positive? }
 
@@ -72,8 +82,9 @@ Hecks.bluebook "Protocols" do
     end
 
     command "Agree" do
-      role "Maintainer"
-      goal "One affected role says a quick yes"
+      role "System"
+      policy_only
+      goal "Count one seat's standing yes against the roles still owing an answer"
 
       reference_to Agreement
 
@@ -107,6 +118,22 @@ Hecks.bluebook "Protocols" do
       emits "AgreementAccepted"
     end
 
+    # The deadline passing frees the agreement from a seat that never answered: it closes without it.
+    command "Close" do
+      role "Maintainer"
+      goal "Close an agreement whose deadline passed, recording when, whatever seat still owes an answer"
+
+      reference_to Agreement
+      attribute :now, Instant
+      needs :now
+
+      given("an agreement closes only after its deadline") { deadline.value.positive? && now.value > deadline.value }
+
+      sets :closed_at, to: :now
+
+      emits "AgreementClosed"
+    end
+
     command "Escalate" do
       role "System"
       policy_only
@@ -135,6 +162,97 @@ Hecks.bluebook "Protocols" do
 
       emits "ProtocolFlagged"
     end
+  end
+
+  # One seat's answer to one agreement, kept as evidence: identified by agreement and seat (the run
+  # key, never the session), so one standing vote per seat holds by identity. A no that the seat
+  # resolves is replaced and kept, its key freed for the yes; the tally is read from these records.
+  aggregate "Vote" do
+    description "One seat's vote on one agreement: its gesture, the message that carried it and when it was cast; a replaced no stays as evidence."
+
+    identified_by :agreement, :seat
+
+    attribute :agreement, Reference
+    attribute :seat,      Seat
+    attribute :role,      Seat, optional: true
+    attribute :gesture,   Gesture
+    attribute :message,   MessageId
+    attribute :voted_at,  Instant
+
+    value_object "Reference" do
+      attribute :value, String, matches: :present
+    end
+
+    # The run key of the voting session: two sessions of one seat are one seat.
+    value_object "Seat" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Gesture" do
+      attribute :value, String, one_of: %w[yes no]
+    end
+
+    # The id of the Message that carried the vote; Message stays the transport.
+    value_object "MessageId" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Cast"    => "cast",     from: "open"
+      transition "Replace" => "replaced", from: "cast"
+      mark :terminal, "replaced"
+      mark :reusable, "replaced"
+    end
+
+    command "Cast" do
+      role "Maintainer"
+      goal "A seat votes yes or no on an agreement, naming the message that carried it"
+
+      attribute :agreement, Reference, sets: true
+      attribute :seat,      Seat, sets: true
+      attribute :role,      Seat, sets: true, optional: true
+      attribute :gesture,   Gesture, sets: true
+      attribute :message,   MessageId, sets: true
+      # `now:` is filled from the clock port; an explicit value wins.
+      attribute :now,       Instant
+      needs :now
+
+      sets :voted_at, to: :now
+
+      emits "VoteCast"
+    end
+
+    command "Replace" do
+      role "Maintainer"
+      goal "A seat resolves its earlier no, freeing its place for a new vote while the no stays as evidence"
+
+      reference_to Vote
+
+      given("only a no can be replaced") { gesture.value == "no" }
+
+      emits "VoteReplaced"
+    end
+  end
+
+  # How many votes stand in each gesture: the tally, read over the votes and never stored beside
+  # them. A replaced no is evidence, not a standing vote, so it is left out.
+  read_model "VotesByGesture" do
+    description "How many standing votes were cast in each gesture."
+    include Vote
+    where(status: "cast")
+    group_by :gesture
+    count
+  end
+
+  policy "CountTheYes" do
+    on      "Vote.VoteCast"
+    where   { gesture.value == "yes" }
+    trigger Agreement::Agree, with: { agreement: :agreement }
   end
 
   policy "AcceptWhenEveryRoleAgreed" do

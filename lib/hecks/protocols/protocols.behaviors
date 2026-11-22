@@ -24,7 +24,7 @@ Hecks.behaviors "Protocols" do
           text: { value: "A reviewer answers in 10 minutes" }, proposer: { value: "scrum-master" },
           affects: { value: "|reviewer|" }, touches_owner: { value: "no" }, owed: { value: 1 }
     input agreement: { value: "WA-3" }, seat: { value: "reviewer-1" }, role: { value: "reviewer" },
-          gesture: { value: "yes" }, message: { value: "msg-31" }, repeat: { value: "no" }, now: { value: 1000 }
+          gesture: { value: "yes" }, message: { value: "msg-31" }, now: { value: 1000 }
     expect emits: %w[VoteCast AgreementAgreed AgreementAccepted]
   end
 
@@ -64,14 +64,14 @@ Hecks.behaviors "Protocols" do
     expect emits: %w[AgreementProposed AgreementEscalated], status: "owner_pending"
   end
 
-  test "An agreement touching the owner is not accepted by the roles" do
+  test "A yes on an agreement that touches the owner is recorded but not counted" do
     tests "Cast", on: "Vote"
     setup "Protocols::Agreement.Propose", reference: { value: "WA-8" },
           text: { value: "A release waits a day" }, proposer: { value: "scrum-master" },
           affects: { value: "|coder|" }, touches_owner: { value: "yes" }, owed: { value: 1 }
     input agreement: { value: "WA-8" }, seat: { value: "coder-1" }, gesture: { value: "yes" },
           message: { value: "m-3" }, now: { value: 100 }
-    expect refused: "a yes is counted only while the agreement waits on roles"
+    expect emits: ["VoteCast"]
   end
 
   test "Flag records a break of an accepted agreement" do
@@ -103,7 +103,7 @@ Hecks.behaviors "Protocols" do
           gesture: { value: "yes" }, message: { value: "m-5" }, now: { value: 100 }
     input agreement: { value: "WA-11" }, seat: { value: "coder-1" }, gesture: { value: "yes" },
           message: { value: "m-6" }, now: { value: 101 }
-    expect refused: "one vote per seat"
+    expect refused: "Cast creates a Vote that already exists"
   end
 
   test "A no is replaced by a later yes from the same seat and both are kept" do
@@ -117,7 +117,7 @@ Hecks.behaviors "Protocols" do
     expect emits: ["VoteReplaced"], status: "replaced"
   end
 
-  test "A seat's later yes after its no carries the agreement and the no stays as evidence" do
+  test "A seat's later yes after its replaced no carries the agreement" do
     tests "Cast", on: "Vote"
     setup "Protocols::Agreement.Propose", reference: { value: "WA-13" }, text: { value: "Carry" },
           proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
@@ -127,7 +127,7 @@ Hecks.behaviors "Protocols" do
     setup "Protocols::Vote.Replace", agreement: { value: "WA-13" }, seat: { value: "coder-1" }
     input agreement: { value: "WA-13" }, seat: { value: "coder-1" }, gesture: { value: "yes" },
           message: { value: "m-9" }, now: { value: 200 }
-    expect emits: %w[VoteCast AgreementAgreed AgreementAccepted], status: "accepted"
+    expect emits: %w[VoteCast AgreementAgreed AgreementAccepted]
   end
 
   test "A yes stands and is not replaced" do
@@ -148,7 +148,7 @@ Hecks.behaviors "Protocols" do
           touches_owner: { value: "no" }, owed: { value: 1 }
     input agreement: { value: "WA-15" }, seat: { value: "coder-1" }, gesture: { value: "no" },
           message: { value: "m-11" }, now: { value: 100 }
-    expect emits: ["VoteCast"], status: "proposed"
+    expect emits: ["VoteCast"]
   end
 
   test "Close is refused while the deadline has not passed" do
