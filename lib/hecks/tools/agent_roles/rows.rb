@@ -20,6 +20,12 @@ module Hecks
         def guarded(root) = table(root, "RoutingRule").map { |row| row[:role] }.uniq
 
         # @param root [String] the checkout
+        # @return [Hash{String => Array<String>}] each role's `RoutingRule` patterns, in row order
+        def commands(root)
+          table(root, "RoutingRule").group_by { |row| row[:role] }.transform_values { |rows| rows.map { |row| row[:pattern] } }
+        end
+
+        # @param root [String] the checkout
         # @param name [String] a value object of the `Role` aggregate
         # @return [Array<Hash>] its rows
         def table(root, name)
