@@ -171,12 +171,20 @@ module Hecks
       # @param fresh [String] the document the rows give
       # @return [Integer] 0 when current, else 1 with the stale sections on stderr
       def report(text, fresh)
-        return 0 if text == fresh
+        return current if text == fresh
 
         stale = SECTIONS.reject { |section| section_text(text, section) == section_text(fresh, section) }
         warn "tools_doc: #{DOCUMENT} differs from the RetiredScript rows in: #{stale.join(", ")} " \
              "(run hecks regeneration_run.project_tools_doc! --confirm)"
         1
+      end
+
+      # Says the tables are current, so a check that finds nothing wrong still has a report.
+      #
+      # @return [Integer] 0
+      def current
+        puts "tools_doc: #{rows.size} rows, every table current"
+        0
       end
 
       # @return [String, nil] the marked table of one section
