@@ -172,11 +172,12 @@ Hecks.bluebook "Hecks" do
                closes: "AgentRunStarted,AgentRunAnswered", minutes: 0, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the refusal on the event, so the " \
                      "fill restarts it with the review in its brief."
-        # A blocked run tidied afterwards (a reviewer whose worktree went at its landing) waits on
-        # nothing: its `ends` abandons a filed stall and a look files none, so the move plans no item.
+        # A blocked run tidied or finished afterwards (a reviewer whose worktree went at its landing, a
+        # run that ended stopped) waits on nothing: its `ends` abandons a filed stall and a look files
+        # none, so the move plans no item.
         member kind: "agent-run-blocked", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
                named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
-               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
+               ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 15, forgets: 1440, fixer: "orchestrator",
