@@ -106,6 +106,7 @@ One step of integrating main (verify, board, observe CI) or one advance of the o
 - `hecks Integration.unschedule! --confirm`: Ask for the launchd jobs (the beat and the Claude daemon) to be unloaded and removed; unconfirmed, it says what it would remove
 - `hecks Integration.verify! <landed> [checkout=] [--retried] [--revert]`: Verify a landed commit in a clean detached copy of local main: the quick gate, the specs its changes touch, the command names, the CI pipeline and the generated corpus
 - `hecks Integration.board! <landed> [checkout=] --confirm`: Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval
+- `hecks Integration.release! <landed> report=`: Release a run stuck in CI, found by its landed commit alone, so it waits for a person and frees the line
 - `hecks Integration.observe! <landed> [checkout=] [--pulled]`: Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running
 
 ### RedEpisode
