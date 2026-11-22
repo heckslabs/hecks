@@ -48,7 +48,7 @@ One run of a stage's checks: every check of the stage, or the ones named.
 
 One static analysis over domains' models, and what it found: a check's history.
 
-- `hecks ModelCheckRun.model_check! [<domains>] [profile=] [--strict]`: Check domains for dead states and unreachable steps, and keep the verdict
+- `hecks ModelCheckRun.model_check! [<domains>] [profile=] [--strict]`: Check domains for dead states and unreachable steps, and keep the verdict; without --wait it returns at status requested, so pass --wait to read the verdict
 
 ### BehaviorsCoverage
 

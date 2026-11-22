@@ -187,7 +187,7 @@ Hecks.bluebook "Hecks" do
 
       command "RunBehaviors" do
         role "Operator"
-        goal "Run a domain's behavior tests and keep the verdict"
+        goal "Run a domain's behavior tests and keep the verdict; without --wait it returns at status requested, so pass --wait to read the verdict"
 
         attribute :run,     OperationKey, sets: true
         attribute :subject, Subject, sets: true
