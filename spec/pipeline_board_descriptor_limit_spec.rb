@@ -7,7 +7,7 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 # and a limit it cannot raise is logged, not fatal.
 RSpec.describe Hecks::Adapters::PipelineBoard::DescriptorLimit do
   let(:logged) { [] }
-  let(:process) { double("process", getrlimit: [256, 100_000], setrlimit: nil) }
+  let(:process) { class_double(Process, getrlimit: [256, 100_000], setrlimit: nil) }
 
   def raise_limit = described_class.raise!(log: ->(line) { logged << line }, process: process)
 
@@ -36,6 +36,6 @@ RSpec.describe Hecks::Adapters::PipelineBoard::DescriptorLimit do
   it "logs a refusal and goes on" do
     allow(process).to receive(:setrlimit).and_raise(Errno::EPERM)
     raise_limit
-    expect(logged.first).to match(/could not raise/)
+    expect(logged.first).to include("could not raise")
   end
 end
