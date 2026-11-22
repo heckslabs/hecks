@@ -397,6 +397,34 @@ Hecks.bluebook "PipelineBoard" do
       attribute :holds,         list_of(Reading)
     end
 
+    # Where one worktree's change stands: `worktree` (commits main lacks, by content),
+    # `local_main` (on local main, not yet on origin) or `origin_main`. A rebased or cherry-picked
+    # landing counts as landed. `say` is the `StandingSays` row's words, `dirty` the uncommitted
+    # files, `shas` the commits behind the standing.
+    value_object "ChangeStanding" do
+      attribute :subject,  String
+      attribute :branch,   String, default: ""
+      attribute :path,     String
+      attribute :standing, String
+      attribute :say,      String
+      attribute :dirty,    Integer, default: 0
+      attribute :shas,     String, default: ""
+
+      invariant("a standing is worktree, local_main or origin_main") do
+        standing == "worktree" || standing == "local_main" || standing == "origin_main"
+      end
+    end
+
+    # The words of each standing, the same words the landing and the pruner's report use.
+    value_object "StandingSays" do
+      attribute :standing, String
+      attribute :says,     String
+
+      member standing: "worktree",    says: "in a worktree, not landed"
+      member standing: "local_main",  says: "on local main, not yet on origin"
+      member standing: "origin_main", says: "on origin/main"
+    end
+
     # The words of Signalbox's one signal, a band each, and the state the strip draws it in. `load`
     # is the 1-minute load, `mark` Signalbox's short mark as a load (never the Tickets
     # dispatch_max_load), `since` when the band was entered.
@@ -559,6 +587,11 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Commits not pushed", position: 1, measure: "ahead",     op: ">=",     than: "commits", scale: 1, state: "attention"
       member stage: "Commits not pushed", position: 2, measure: "age_hours", op: ">=",     than: "hours",   scale: 1, state: "attention"
       member stage: "Commits not pushed", position: 3, measure: "",          op: "always", than: "",        scale: 1, state: "ok"
+
+      # Where a change stands, read from the commits origin/main and main each lack of it by content.
+      member stage: "Standing", position: 1, measure: "lacks_origin", op: "<=",     than: "0", scale: 1, state: "origin_main"
+      member stage: "Standing", position: 2, measure: "lacks_main",   op: "<=",     than: "0", scale: 1, state: "local_main"
+      member stage: "Standing", position: 3, measure: "",             op: "always", than: "",  scale: 1, state: "worktree"
 
       # Dispatched sessions press at the cap, or when any session waits on a person.
       member stage: "Dispatched sessions", position: 1, measure: "dispatched", op: ">=",     than: "session_cap", scale: 1, state: "attention"
@@ -1077,6 +1110,11 @@ Hecks.bluebook "PipelineBoard" do
     query "Epics" do
       description "The ranked epics, one Reading each: the measure, its state (met, missed, unread or unstated) and the members done of all, asked of Epic.Outcomes. It reads only."
       returns list_of(Reading)
+    end
+
+    query "Standing" do
+      description "Where each worktree's change stands, one ChangeStanding each: in a worktree (commits main lacks by content), on local main and not yet on origin, or on origin/main, with the uncommitted files and the shas behind it. A rebased landing counts as landed. The Git adapter reads the commits each branch lacks; the Standing Verdict rows decide. It reads only."
+      returns list_of(ChangeStanding)
     end
 
     query "Holds" do

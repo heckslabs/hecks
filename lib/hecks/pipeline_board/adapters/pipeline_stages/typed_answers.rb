@@ -10,6 +10,7 @@ require_relative "glance_tap"
 require_relative "../pipeline_status"
 require_relative "board_reads"
 require_relative "read_facts"
+require_relative "standing_rows"
 
 module Hecks
   module Adapters
@@ -55,6 +56,11 @@ module Hecks
 
         # @return [Array<Hash>] one `Reading` per hold on boarding
         def holds = board[:holds]
+
+        # @return [Array<Hash>] one `ChangeStanding` row per worktree, its standing decided by the
+        #   `Standing` Verdict rows from the commits git says origin/main and main lack of it
+        # @raise [Unavailable] when git cannot say
+        def standing = StandingRows.build(@git.standings)
 
         # @return [Array<Hash>] one `Stage` row per node of the strip, left to right
         def stages = board[:stages]
