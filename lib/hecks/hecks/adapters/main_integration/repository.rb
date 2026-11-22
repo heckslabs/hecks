@@ -124,6 +124,32 @@ module Hecks
         # @return [Array<String>] the message of every commit in the range
         def messages(base, tip) = read("log", "--format=%B%x1e", "#{base}..#{tip}").split("\x1e").map(&:strip)
 
+        # The log format of `authored`: the commit, its subject and the trailers a landing needs.
+        AUTHORED_FORMAT = "%H%x09%s%x09%at%x09%(trailers:key=Hecks-Run,valueonly,unfold)" \
+                          "%x09%(trailers:key=Hecks-Work,valueonly,unfold)%x1e"
+
+        # @return [Array<Hash>] each non-merge commit in the range: `sha:`, `subject:`, `time:`
+        #   authored (epoch seconds), and the `run:` and `work:` its trailers name, "" when none
+        def authored(base, tip)
+          read("log", "--no-merges", "--format=#{AUTHORED_FORMAT}", "#{base}..#{tip}").split("\x1e").filter_map do |line|
+            sha, subject, time, run, work = line.strip.split("\t", 5)
+            { sha: sha, subject: subject.to_s, time: time.to_i, run: run.to_s.strip, work: work.to_s.strip } if sha
+          end
+        end
+
+        # @param merge [String] a landing
+        # @return [String] the `Hecks-Run` of the first commit the landing brought that names one,
+        #   "" when none does
+        def run_of(merge)
+          first_value(read("log", "--no-merges", "--format=%(trailers:key=Hecks-Run,valueonly,unfold)", "#{merge}^1..#{merge}^2"))
+        end
+
+        # @return [String] the first line of a log that holds text, "" when none does
+        def first_value(log)
+          named = log.split("\n").find { |line| !line.strip.empty? }
+          named.to_s.strip
+        end
+
         # Yields a clean detached copy of a commit, holding only what the commit tracks, and
         # removes it once the block ends. The copy sits at one path for this checkout, under the
         # cache directory, so a Rust build keyed by the copy's path (a binary build's slot) finds
