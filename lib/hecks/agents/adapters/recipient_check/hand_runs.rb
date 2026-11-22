@@ -19,7 +19,30 @@ module Hecks
         # @return [String] the session registered under the key, empty when none is
         def session(run) = (@stand_in ? (@stand_in.call[run] || {})[:session] : read(run)).to_s
 
+        # @return [Array<Hash{Symbol => String}>] each current registration's `run:`, `session:` and
+        #   `role:`; a replaced one, archived as `<run>~<n>`, is left out
+        def registered
+          rows = @stand_in ? standing_rows : stored_rows
+          rows.reject { |row| row[:run].include?("~") }
+        end
+
         private
+
+        def standing_rows
+          @stand_in.call.map { |run, row| { run: run.to_s, session: row[:session].to_s, role: row[:role].to_s } }
+        end
+
+        def stored_rows
+          aggregate = hand_run
+          return [] unless aggregate
+
+          @registry.repository("Agents", aggregate).all.map { |row| entry(row) }
+        end
+
+        def entry(row)
+          { run: StartedWork.value(row, :run).to_s, session: StartedWork.value(row, :session).to_s,
+            role: StartedWork.value(row, :role).to_s }
+        end
 
         # The registration held under the key itself; an earlier one is archived as `<run>~<n>`.
         def read(run)
