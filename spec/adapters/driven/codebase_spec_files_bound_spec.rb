@@ -13,7 +13,8 @@ RSpec.describe "a shared spec run's time bound", :io do
   after { FileUtils.rm_rf(dir) }
 
   def sleeper(name, seconds)
-    File.write(File.join(dir, name), "RSpec.describe #{name.inspect} do\n  it(\"waits\") { sleep #{seconds}; expect(1).to eq(1) }\nend\n")
+    example = "it(\"waits\") { sleep #{seconds}; expect(1).to eq(1) }"
+    File.write(File.join(dir, name), "RSpec.describe #{name.inspect} do\n  #{example}\nend\n")
   end
 
   def refusal(*names)
@@ -25,7 +26,7 @@ RSpec.describe "a shared spec run's time bound", :io do
   it "ends a hung shared run at its bound and names the file it was in", :aggregate_failures do
     sleeper("hung_spec.rb", 600)
     message = refusal("hung_spec.rb")
-    expect(message).to include("ran past the 4-second bound", "hung_spec.rb  FAILED")
+    expect(message).to include("ran past the 4-second bound", "failed: hung_spec.rb (1 of 1 files)")
   end
 
   it "gives a batch the bound of each of its files, so slow files together are not read as a hang" do
