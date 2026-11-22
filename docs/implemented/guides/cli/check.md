@@ -65,6 +65,7 @@ One check that the engines, the reference docs and the argument gates agree with
 - `hecks ConformanceRun.check_shape_ledger! --confirm`: Check that no bluebook's storage shape moved in a way that is neither additive nor covered by a translation edge, and rewrite the ledger when confirmed
 - `hecks ConformanceRun.check_command_names!`: Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
 - `hecks ConformanceRun.check_workflow_pagination!`: Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
+- `hecks ConformanceRun.check_bluebook_extraction! [<base>]`: Check that every rule of each bluebook the branch changed survives extraction into the IR, as the push requires
 - `hecks ConformanceRun.argument_gate_matrix! --confirm`: Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
 - `hecks ConformanceRun.report_role_shadow! <domain>`: List each role-gated command and each policy or saga reaction to one in a domain, which a caller that states no role would be refused once refusal is on
 

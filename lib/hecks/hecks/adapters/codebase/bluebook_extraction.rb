@@ -32,10 +32,13 @@ module Hecks
           "#{files.size} changed bluebook(s) booted, every rule extracted"
         end
 
+        # A checkout with no `base` (a shallow clone) has nothing to compare with, so only what the
+        # working tree changed since the head commit counts.
+        #
         # @return [Array<String>] the bluebooks that differ from the merge-base with `base`
         def changed(tree, base)
           merge, status = Open3.capture2e("git", "-C", tree.root, "merge-base", "HEAD", base)
-          ref = status.success? ? merge.strip : base
+          ref = status.success? ? merge.strip : "HEAD"
           bluebooks = ChangedSpecs.changed_files(tree, ref).grep(BLUEBOOK)
           bluebooks.select { |file| File.file?(File.join(tree.root, file)) }.sort
         end
