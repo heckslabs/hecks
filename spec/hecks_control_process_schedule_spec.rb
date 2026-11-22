@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/main_integration"
+require "hecks/hecks/adapters/main_integration/control_process_schedule"
 
 # The control process is kept up by a launchd job Hecks writes, as it keeps the Claude daemon: the
 # primary checkout's resident, started in control mode, restarted by launchd when it exits.
