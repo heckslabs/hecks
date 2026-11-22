@@ -83,12 +83,4 @@ Hecks.behaviors "Hecks" do
     input  heartbeat: "never-beat", steps: []
     expect refused: "never-beat"
   end
-
-  # The saga leg that parks the run (ci_running to needs_human) is held in
-  # spec/hecks_integration_release_by_landed_spec.rb.
-  test "Release records a run released by its landed commit alone" do
-    tests "Release", on: "Integration"
-    input run: { value: "release-1" }, landed: { value: "a1b2c3" }, report: { value: "train closed" }
-    expect emits: %w[RunReleased]
-  end
 end
