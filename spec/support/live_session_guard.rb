@@ -20,6 +20,9 @@ module LiveSessionGuard
   # The flag that starts or resumes a session in the background.
   BACKGROUND = "--bg"
 
+  # The word that lists sessions, which starts the real program as surely as `--bg` does.
+  LISTING = "agents"
+
   @refused = []
 
   class << self
@@ -37,7 +40,7 @@ module LiveSessionGuard
   # @return [String, nil] why the command is refused, or nil to let it run
   def refusal(command, env)
     program = program_of(command)
-    return unless program && command.include?(BACKGROUND)
+    return unless program && session_command?(command)
 
     found = located(program, env)
     return if found && temporary?(found)
@@ -45,6 +48,9 @@ module LiveSessionGuard
     "a spec started a real #{COMMAND} session (#{found || program}); include the \"with a stand-in claude\" " \
       "context or stand in for the shell"
   end
+
+  # @return [Boolean] whether the command starts, resumes or lists sessions
+  def session_command?(command) = command.include?(BACKGROUND) || command.include?(LISTING)
 
   # @return [String, nil] the `claude` the command runs, past a `nice -n N` prefix
   def program_of(command)
