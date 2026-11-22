@@ -3,7 +3,7 @@
 require "json"
 
 # A stand-in for `gh api` over one commit's check runs: it answers every `RequiredCheck` green,
-# after rate limiting the first `limited` reads of the check runs. It records the paths it was asked.
+# after rate limiting the first `limited` reads of the check runs. It records the paths asked.
 class StandInGithub
   GITHUB_ACTIONS = 15_368
 
