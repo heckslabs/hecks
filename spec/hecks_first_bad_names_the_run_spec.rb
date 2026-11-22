@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "hecks/hecks/adapters/main_integration/bisecting"
 require_relative "support/trailer_repo"
 
 # A first-bad report names the run that made the culprit merge, read from its commits' trailers.
