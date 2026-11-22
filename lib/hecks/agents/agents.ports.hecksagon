@@ -45,6 +45,8 @@ Hecks.hecksagon "Agents" do
       attribute :message, MessageKey
       attribute :sender,  SenderName
       attribute :recipient, RunKey
+      attribute :asker_role, AskerRole
+      attribute :kind, MessageKind
       answers "SenderChecked"
       refuses "SenderUnchecked"
     end
