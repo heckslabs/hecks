@@ -91,6 +91,8 @@ module Hecks
 
           # Whether no caller is being served, no line is running, and the idle time has passed.
           def idle?
+            return false if @control
+
             return false if @guard.synchronize { @held.any? || @monitors.any?(&:alive?) }
 
             Time.now - @active > @settings[:idle_seconds]

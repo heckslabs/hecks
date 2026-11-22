@@ -230,4 +230,5 @@ The table is the store as `DecisionFiles` reads it, by number, written by `hecks
 | [0232](0232-postgres-era-vendored-bluebook-source-text.md) | PostgresEra's era-1 self-mint now finds a vendored bluebook's own real source text | accepted |  |  |
 | [0233](0233-roles-exist-where-they-limit-or-read-independently.md) | A role exists where it limits what an agent can touch or gives a read not anchored on the author's work | accepted |  |  |
 | [0234](0234-a-command-starts-no-process.md) | A command starts no process; a cold start is rare, counted and reported | accepted |  |  |
+| [0235](0235-one-control-process-serves-control-commands-from-any-worktree.md) | One control process serves control commands from any worktree | accepted |  |  |
 <!-- generated:end -->

@@ -17,6 +17,9 @@ module Hecks
           WORDS = "control".freeze
           # The line a linked worktree's `.git` file names its administrative directory on.
           GITDIR = /\Agitdir:\s*(.+)$/
+          # The variables that say which gems a process loads: the control process serves its
+          # control lines from its own gems, whatever the caller carries.
+          GEM_ENV = %w[GEM_HOME GEM_PATH BUNDLE_GEMFILE RUBYOPT RUBYLIB].freeze
 
           module_function
 
@@ -52,6 +55,35 @@ module Hecks
             status, why = client.ask(primary, File.join(primary, "exe", "hecks"))
             warn("hecks: served by the primary checkout's resident") if status
             [status, why && "via-primary:#{why}"]
+          end
+
+          # Asks the control process, the primary checkout's resident, to run a control line from a
+          # linked worktree, before any resident of the worktree's own. With none answering it says so
+          # on stderr and the line goes on cold.
+          #
+          # @param client [#ask] the launcher's client
+          # @param root [String] the worktree
+          # @return [Array(Integer, nil), Array(nil, String), nil] as `ask`; nil when the line is not
+          #   a control line or `root` has no primary
+          def direct(client, root)
+            primary = line?(ARGV) && primary_root(root)
+            return unless primary
+
+            status, why = client.ask(primary, File.join(primary, "exe", "hecks"))
+            warn("hecks: control process down, running cold") unless status || why
+            warn("hecks: served by the primary checkout's resident") if status
+            [status, why && "via-primary:#{why}"]
+          end
+
+          # Asks the control process for a control line from a worktree, else the checkout's own
+          # resident, and the primary's when a worktree's own had none to ask.
+          #
+          # @return [Array] whether the control process was asked, then the status and the reason
+          def answer(client, root, script)
+            direct = direct(client, root)
+            status, why = direct || client.ask(root, script)
+            status, why = via_primary(client, root, why) unless direct || status || why
+            [direct, status, why]
           end
 
           # Writes the world's control words where the launchers read them.
