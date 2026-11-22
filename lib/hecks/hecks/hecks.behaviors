@@ -32,6 +32,20 @@ Hecks.behaviors "Hecks" do
     expect refused: "state"
   end
 
+  # A revert of a named culprit: the episode refuses by name when the failure also reproduces on
+  # origin/main, since reverting the merge would not clear it; the fact is the port's, not a guess.
+  test "Revert of a culprit that reproduces on origin/main is refused" do
+    tests "Revert", on: "RedEpisode"
+    input run: { value: "rv-1" }, base: "b0", culprit: "m1", reproduced: true, now: { value: 100 }
+    expect refused: "origin/main does not share the failure"
+  end
+
+  test "Revert of a named culprit decides the episode is reverting" do
+    tests "Revert", on: "RedEpisode"
+    input run: { value: "rv-2" }, base: "b0", culprit: "m1", landed: "l1", now: { value: 100 }
+    expect emits: ["EpisodeReverting"]
+  end
+
   # The ReleaseCut saga: a release is examined, accepted, approved, then carried out. The examiner
   # is a port with no stub here, so the full cut and the wait for approval are specified through the
   # launcher in spec/hecks_publishing_spec.rb; these scenarios hold what needs no examiner.

@@ -43,17 +43,18 @@ module Hecks
           held!(merge)
           result = @git.capture("revert", "-m", "1", "--no-edit", merge, chdir: @checkout)
           refuse!(merge, result) unless result.ok?
-          record!(spec, example)
+          record!(merge, spec, example)
           { reverted: @guard.head, report: report(merge, reason.to_s.strip) }
         end
 
         private
 
-        # Adds the spec and example to the revert commit's message as trailers, so a search of the
-        # range reads them from git. The commit is this process's own and not yet pushed.
-        def record!(spec, example)
-          held = { "Hecks-Reverted-Spec" => spec, "Hecks-Reverted-Example" => example }.reject { |_, v| v.to_s.strip.empty? }
-          return if held.empty?
+        # Adds the merge it undoes (`Hecks-Revert-Of`), the spec and the example to the revert
+        # commit's message as trailers, so a search of the range reads them from git. The commit
+        # is this process's own and not yet pushed.
+        def record!(merge, spec, example)
+          held = { "Hecks-Revert-Of" => merge, "Hecks-Reverted-Spec" => spec, "Hecks-Reverted-Example" => example }
+                 .reject { |_, v| v.to_s.strip.empty? }
 
           args = held.flat_map { |key, value| ["--trailer", "#{key}: #{value.to_s.strip.tr("\n", " ")}"] }
           @git.capture("commit", "--amend", "--no-edit", *args, chdir: @checkout)
