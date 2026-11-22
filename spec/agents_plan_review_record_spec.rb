@@ -4,7 +4,7 @@ require "spec_helper"
 # verdict is a fact on the change and not a lookup. Booted in Memory, one registry per run.
 RSpec.describe "the Agents plan review of an unasked run" do
   let(:root) { File.join(InMemoryDomain::ROOT, "lib/hecks/agents") }
-  let(:verdict_given) { /verdict is sound, changes or rethink/ }
+  let(:verdict_given) { /verdict is sound, changes, rethink or unverified/ }
 
   before do
     registry = Hecks::Runtime::Registry.new
