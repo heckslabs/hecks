@@ -75,9 +75,26 @@ RSpec.describe "a train pull request the merge queue dropped" do
   end
 
   it "records a refused enqueue and keeps the run watched", :aggregate_failures do
-    github.merge_refusal = "Pull request is in clean status"
+    github.merge_refusal = "Pull request is not mergeable"
     beat
     expect(names).to include("ArmRefused", "TrainPrEnqueueDeclined")
     expect(names).not_to include("PullRequestClosed")
+  end
+
+  context "when GitHub refuses auto-merge because the pull request is already clean" do
+    before { github.merge_refusal = "GraphQL: Pull request is in clean status (enablePullRequestAutoMerge)" }
+
+    it "merges it at once, never as an admin", :aggregate_failures do
+      beat
+      expect(github.merges).to eq(["gh pr merge #{github.number} --auto --merge", "gh pr merge #{github.number} --merge"])
+      expect(names).to include("TrainPrEnqueued")
+    end
+
+    it "records the refusal of that merge too and keeps the run watched", :aggregate_failures do
+      github.direct_refusal = "Base branch policy prohibits the merge"
+      beat
+      expect(names).to include("ArmRefused", "TrainPrEnqueueDeclined")
+      expect(names).not_to include("PullRequestClosed")
+    end
   end
 end
