@@ -16,4 +16,12 @@ Hecks.behaviors "StallWatch" do
     input run: "look-1"
     expect count: 0
   end
+
+  # A finished run abandons the stall of its block, and a tap is needed to show it:
+  # spec/hecks_stall_watch_finished_block_spec.rb holds it.
+  test "Abandoned answers nothing where the world keeps no tap" do
+    tests "Abandoned", on: "StallWatch", kind: :query
+    input run: "look-1"
+    expect count: 0
+  end
 end
