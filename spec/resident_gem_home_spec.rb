@@ -43,14 +43,16 @@ RSpec.describe "a resident and a caller's gem environment" do
     expect(refusal({ "BUNDLE_GEMFILE" => link, "GEM_HOME" => default_dir })).to be_nil
   end
 
-  it "refuses a GEM_HOME that names another directory, a symlink to one or a missing one",
-     :aggregate_failures do
+  def other_homes
     other = File.join(@dir, "other")
     FileUtils.mkdir_p(other)
     File.symlink(other, File.join(@dir, "other-link"))
-    [other, File.join(@dir, "other-link"), File.join(@dir, "missing")].each do |home|
-      expect(refusal({ "GEM_HOME" => home })).to eq("env:GEM_HOME")
-    end
+    [other, File.join(@dir, "other-link"), File.join(@dir, "missing")]
+  end
+
+  it "refuses a GEM_HOME that names another directory, a symlink to one or a missing one",
+     :aggregate_failures do
+    other_homes.each { |home| expect(refusal({ "GEM_HOME" => home })).to eq("env:GEM_HOME") }
   end
 
   it "still refuses a GEM_PATH, since it adds to the gem set whatever GEM_HOME is" do
