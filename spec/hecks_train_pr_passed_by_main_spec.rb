@@ -23,10 +23,10 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
   end
 
   it "keeps a red pull request whose tip is local main itself" do
-    expect(sweep("9" * 40, "FAILURE", { "9" * 40 => ["main"], "main" => ["9" * 40] })).to eq("no train pull request to close or branch to delete")
+    expect(sweep("9" * 40, "FAILURE", { "9" * 40 => ["main"], "main" => ["9" * 40] })).to eq("nothing to close or delete")
   end
 
   it "keeps a green pull request that local main has moved past" do
-    expect(sweep("8" * 40, "SUCCESS", { "8" * 40 => ["main"] })).to eq("no train pull request to close or branch to delete")
+    expect(sweep("8" * 40, "SUCCESS", { "8" * 40 => ["main"] })).to eq("nothing to close or delete")
   end
 end

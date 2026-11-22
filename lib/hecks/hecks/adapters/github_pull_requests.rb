@@ -97,8 +97,8 @@ module Hecks
           report: { value: "edited the #{changes.keys.join(" and ")} of ##{number}" } }
       end
 
-      # Closes the open train pull requests that main already holds or that a newer one supersedes, and
-      # deletes the origin train branches of pull requests that are merged or long closed.
+      # Closes the open train pull requests that main already holds or that a newer one supersedes,
+      # and deletes the origin train branches of pull requests that are merged or long closed.
       #
       # @param _held [Hash] the `ReviewRequest` record, unused
       # @return [Hash{Symbol => Hash}] `report:` one line per pull request closed or branch deleted,
@@ -107,7 +107,7 @@ module Hecks
       def tidy(**_held)
         git = @git_runner || method(:run_git)
         closed = TrainSweep.new(method(:gh!), git).run
-        { report: { value: closed.empty? ? "no train pull request to close or branch to delete" : closed.join("\n") } }
+        { report: { value: closed.empty? ? "nothing to close or delete" : closed.join("\n") } }
       end
 
       # Closes and reopens a train pull request whose CI never started, once the bluebook has
