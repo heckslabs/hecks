@@ -2,7 +2,6 @@
 
 require "spec_helper"
 
-# A retro opens by reviewing the working agreements in force: it cannot reach its main round until the
 # scrum master has marked each one kept, folded into a principle, or dropped.
 RSpec.describe "the Tickets Retro" do
   let(:hecks) { boot_hecks_in_memory }
@@ -11,9 +10,9 @@ RSpec.describe "the Tickets Retro" do
     Hecks::Adapters::Driving::CliRunner.call(runtime: hecks, program: "hecks", argv: ["tickets", *argv]).first
   end
 
-  def agreement(key) = cli("working_agreement.declare!", "agreement.value=#{key}", "text.value=Rule #{key}", "kind.value=practice")
-
-  def principle(key) = cli("principle.declare!", "principle.value=#{key}", "text.value=Principle #{key}")
+  def agreement(key)
+    cli("working_agreement.declare!", "agreement.value=#{key}", "text.value=Rule #{key}", "kind.value=practice")
+  end
 
   def open_retro(day = "2026-11-22") = cli("retro.open!", "retro.value=#{day}")
 
@@ -47,20 +46,26 @@ RSpec.describe "the Tickets Retro" do
 
   it "retires a folded agreement under the principle it names" do
     agreement("a1")
-    principle("fix-together")
     open_retro
     review("2026-11-22", "a1", "folded", ["principle.value=fix-together"])
     row = stored("WorkingAgreement").first
     expect([plain(row.status), plain(row.principle)]).to eq(%w[retired fix-together])
   end
 
-  it "keeps a kept agreement in force and lets the retro proceed once all are reviewed" do
+  def reviewed_retro
     agreement("a1")
     open_retro
     review("2026-11-22", "a1", "kept")
-    cli("retro.complete_review!", "to=2026-11-22")
-    cli("retro.proceed!", "to=2026-11-22")
-    expect([status_of("WorkingAgreement", :agreement, "a1"), status_of("Retro", :retro, "2026-11-22")])
-      .to eq(%w[in_force main_round])
+    %w[retro.complete_review! retro.proceed!].each { |verb| cli(verb, "to=2026-11-22") }
+  end
+
+  it "lets the retro proceed once every agreement is reviewed" do
+    reviewed_retro
+    expect(status_of("Retro", :retro, "2026-11-22")).to eq("main_round")
+  end
+
+  it "keeps a kept agreement in force" do
+    reviewed_retro
+    expect(status_of("WorkingAgreement", :agreement, "a1")).to eq("in_force")
   end
 end
