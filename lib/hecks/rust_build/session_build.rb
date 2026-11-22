@@ -52,9 +52,13 @@ module Hecks
       #   the job cap, the compiler cache wrapper, and the target directory, none of it when the caller already named a target
       #   directory, so `CARGO_TARGET_DIR` set by hand still wins
       def environment(root: ROOT, base: ENV, binary: false)
-        Toolchain.environment(base).merge(BuildPolicy.environment(root: root, base: base))
-                 .merge(CompilerCache.environment(base))
-                 .merge(target_environment(root, base, binary))
+        tools_environment(root, base).merge(target_environment(root, base, binary))
+      end
+
+      # @return [Hash{String => String}] the toolchain, job cap and compiler cache variables
+      def tools_environment(root, base)
+        [Toolchain.environment(base), BuildPolicy.environment(root: root, base: base),
+         CompilerCache.environment(base)].reduce(:merge)
       end
 
       # @return [Hash{String => String}] the target directory part of `environment`
