@@ -1,0 +1,13 @@
+Hecks.behaviors "Pace" do
+  vision "A reading of the event tap says how fast the domain generates events and what finished, and where no tap is kept it reads zero."
+
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon", "environments/memory.world", modules: :all
+
+  # The windows, the noise list and the finished events are rows of the bluebook; the counts over a
+  # tap file are in spec/pace_reading_spec.rb, since a behavior has no tap to write.
+  test "Read answers one reading where the world keeps no tap" do
+    tests "Read", on: "Pace", kind: :query
+    input run: "pace-1"
+    expect count: 1
+  end
+end

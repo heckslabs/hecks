@@ -425,6 +425,9 @@ queries (nothing here changes anything):
     docs
     project_diagrams
     glossary
+  Pace:
+    …
+    read
   QaQuiesce:
     …
     status
