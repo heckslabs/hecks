@@ -70,12 +70,9 @@ Hecks.hecksagon "Agents" do
     end
   end
 
-  # The sessions `claude agents` lists, read for each registered or lost hand run. `Examine` answers
-  # the listed state of the registered session (`unlisted` when none matches); `Seek` answers the
-  # session listed under the run key that is not the lost one, with its state. Bound by
-  # adapters/hand_run_watch, which judges nothing.
+  # The sessions `claude agents` lists, as each hand run's session and run key find them (adapters/hand_run_watch).
   Agents::HandRun.port "HandRunWatching" do
-    asks "Examine", to: HandRun do
+    asks "ReadSession", to: HandRun do
       attribute :run,     RunKey
       attribute :session, SessionId
       attribute :role,    RunRole
@@ -84,7 +81,7 @@ Hecks.hecksagon "Agents" do
       refuses "HandRunUnread"
     end
 
-    asks "Seek", to: HandRun do
+    asks "ReadRunKey", to: HandRun do
       attribute :run,     RunKey
       attribute :session, SessionId
       attribute :role,    RunRole
