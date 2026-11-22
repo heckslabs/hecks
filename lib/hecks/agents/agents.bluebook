@@ -861,7 +861,7 @@ Hecks.bluebook "Agents" do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink" || verdict.value == "unverified"
       end
       given("a review that checked nothing is not judged sound, changes or rethink") do
-        verdict.value == "unverified" || findings == nil || !findings.value.include?("Nothing was checked")
+        verdict.value == "unverified" || findings == nil || !findings.value.start_with?("Nothing was checked")
       end
       given("the review did not end without a verdict") { ended_at == nil || ended_at.value == 0 }
 
@@ -901,7 +901,7 @@ Hecks.bluebook "Agents" do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink" || verdict.value == "unverified"
       end
       given("a review that checked nothing is not judged sound, changes or rethink") do
-        verdict.value == "unverified" || findings == nil || !findings.value.include?("Nothing was checked")
+        verdict.value == "unverified" || findings == nil || !findings.value.start_with?("Nothing was checked")
       end
 
       emits "PlanReviewRecorded"
@@ -1399,7 +1399,7 @@ Hecks.bluebook "Agents" do
 
       given("the verdict is one the architect gives") { verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink" || verdict.value == "unverified" }
       given("a review that checked nothing is not judged sound, changes or rethink") do
-        verdict.value == "unverified" || findings == nil || !findings.value.include?("Nothing was checked")
+        verdict.value == "unverified" || findings == nil || !findings.value.start_with?("Nothing was checked")
       end
 
       emits "ChangeReviewed"
@@ -1563,9 +1563,8 @@ Hecks.bluebook "Agents" do
       where   { work.to_s != "" }
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", word: "unverified",
                                       answer: "Your change's design review is unverified: the architect checked nothing, so it " \
-                                              "counts as no review and the change is held. Ask again once: " \
-                                              "exe/hecks agents PlanReview.request! with the main checkout's launcher; if it " \
-                                              "ends unverified again, say in your report that the design was not reviewed." }
+                                              "counts as no review and the change is held. Its design was not reviewed: say so in your report. " \
+                                              "Read the diff through the main checkout launcher, not your worktree's." }
     end
 
     # The findings go to the coder as a verdict keyed by the architect's run: a waiting coder is
