@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "hecks/hecks/adapters/started_work"
+require_relative "started_work"
 
 module Hecks
   module Adapters

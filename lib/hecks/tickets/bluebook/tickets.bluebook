@@ -1199,7 +1199,7 @@ Hecks.bluebook "Tickets" do
     # past the epic limit and boot budget, held by load only above the CPU count (ADR 0224).
     command "Expedite" do
       role "Orchestrator"
-      goal "Put one open work item ahead of the queue, so it starts without anyone changing the cap; its claim, step and area stay"
+      goal "Put one open work item ahead of the queue, so it starts without anyone changing the cap; its claim, step and area stay; a third item in a full lane is put back, not refused"
 
       reference_to Work
       # Declared as Prioritize declares it, so WorkExpedited says the priority it set.
@@ -1214,7 +1214,7 @@ Hecks.bluebook "Tickets" do
 
     # Sent by UnexpediteWhenExpediteRead with the holders the ExpediteLimits port read and the lane's limit:
     # a `given` sees its own arguments, not the Work items. A caller who dispatches it by hand vouches
-    # for the numbers.
+    # for the numbers, so the guard is advisory: the policy is the one trusted caller.
     command "Unexpedite" do
       role "System"
       goal "Put an expedited work item back to now when the priority lane already holds its limit, naming the holders"
