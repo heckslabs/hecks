@@ -8,8 +8,8 @@ RSpec.describe "a bisect report names the run" do
   include TrailerRepo
 
   let(:work) { Dir.mktmpdir("hecks-first-bad-run") }
-  let(:repository) { MAIN_INTEGRATION::Repository.new(work) }
-  let(:bisecting) { MAIN_INTEGRATION::Bisecting }
+  let(:repository) { TrailerRepo::MAIN_INTEGRATION::Repository.new(work) }
+  let(:bisecting) { TrailerRepo::MAIN_INTEGRATION::Bisecting }
 
   before do
     start
@@ -23,7 +23,7 @@ RSpec.describe "a bisect report names the run" do
   end
 
   it "says the run in the line a refusal carries" do
-    facts = { culprit: "a" * 40, subject: "Merge branch 'x'", run: "run-42", reason: "" }
+    facts = { culprit: "a" * 40, subject: "Merge branch 'x'", run_of_culprit: "run-42", reason: "" }
     expect(bisecting.line(facts)).to include("run run-42")
   end
 end
