@@ -1,0 +1,62 @@
+Hecks.behaviors "ChangeGroup" do
+  vision "Changes that go together are one group, by evidence and never by title: a shared file, a derived output with its source, a wait, or one item's tasks."
+
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon", "environments/memory.world", modules: :all
+
+  test "Form groups two branches that change the same file" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+b" }, branch: { value: "a" }, with: { value: "b" }, kind: { value: "shares_files" },
+          proof: { value: "lib/x.rb" }, files: [{ value: "lib/x.rb" }], other_files: [{ value: "lib/x.rb" }]
+    expect status: "formed"
+  end
+
+  test "Form groups a source with the branch that changes its derived output" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+b" }, branch: { value: "a" }, with: { value: "b" }, kind: { value: "derives" },
+          proof: { value: "lib/x.bluebook>docs/x.md" }, files: [{ value: "lib/x.bluebook" }],
+          other_files: [{ value: "docs/x.md" }], derives: [{ value: "lib/x.bluebook>docs/x.md" }]
+    expect status: "formed"
+  end
+
+  test "Form groups a work item with the item it waits on" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+b" }, branch: { value: "a" }, with: { value: "b" }, kind: { value: "waits_on" },
+          proof: { value: "b" }, waits_on: [{ value: "b" }]
+    expect status: "formed"
+  end
+
+  test "Form groups the tasks of one item" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+b" }, branch: { value: "a" }, with: { value: "b" }, kind: { value: "same_item" },
+          proof: { value: "item-1" }, item: { value: "item-1" }, other_item: { value: "item-1" }
+    expect status: "formed"
+  end
+
+  test "Form refuses two branches whose files do not meet" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+b" }, branch: { value: "a" }, with: { value: "b" }, kind: { value: "shares_files" },
+          proof: { value: "lib/x.rb" }, files: [{ value: "lib/x.rb" }], other_files: [{ value: "lib/y.rb" }]
+    expect refused: "the evidence holds in the facts of both branches"
+  end
+
+  test "Form refuses a kind of evidence the group does not know" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+b" }, branch: { value: "a" }, with: { value: "b" }, kind: { value: "similar_titles" },
+          proof: { value: "x" }
+    expect refused: "the evidence is one of derives, shares_files, waits_on, same_item"
+  end
+
+  test "Form refuses evidence that names no proof" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+b" }, branch: { value: "a" }, with: { value: "b" }, kind: { value: "same_item" },
+          proof: { value: "" }
+    expect refused: "the evidence names its proof"
+  end
+
+  test "Form refuses a branch grouped with itself" do
+    tests "Form", on: "ChangeGroup"
+    input group: { value: "a+a" }, branch: { value: "a" }, with: { value: "a" }, kind: { value: "same_item" },
+          proof: { value: "i" }, item: { value: "i" }, other_item: { value: "i" }
+    expect refused: "a group joins two different branches"
+  end
+end
