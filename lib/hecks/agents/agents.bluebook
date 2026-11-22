@@ -1958,6 +1958,7 @@ Hecks.bluebook "Agents" do
     attribute :asker_role, AskerRole, optional: true
     attribute :findings, FindingsText, optional: true
     attribute :sent_at, MessageInstant, optional: true
+    attribute :fallen_back_at, MessageInstant, optional: true
     attribute :settled, SettledFlag, default: { value: "false" }
 
     value_object "MessageKey" do
@@ -1996,6 +1997,12 @@ Hecks.bluebook "Agents" do
     value_object "MessageInstant" do
       attribute :value, Integer, default: 0
       invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # How many seconds a sent message may sit unheard before it falls back to Claude messaging.
+    value_object "UnreadWindow" do
+      attribute :value, Integer
+      invariant("a window is not negative") { !value.negative? }
     end
 
     # How many seconds a routed question may wait with the scrum master before it reaches the lead.
@@ -2050,6 +2057,8 @@ Hecks.bluebook "Agents" do
       transition "Hold" => "held", from: "addressed"
       transition "Release" => "sent", from: "held"
       transition "Receive" => "delivered", from: "sent"
+      # An unread message stays sent: the fallback only records that Claude messaging resumed its holder.
+      transition "FallBack" => "sent", from: "sent"
       transition "Read" => "read", from: %w[sent delivered]
       # A question the scrum master heard and did not settle goes on to the lead, so a read message
       # is not final until it is settled or handed on.
@@ -2160,6 +2169,7 @@ Hecks.bluebook "Agents" do
 
       sets :recipient, to: :lead
       sets :kind, to: :escalated
+      sets :sent_at, to: :now
 
       emits "MessageEscalated"
     end
@@ -2212,6 +2222,35 @@ Hecks.bluebook "Agents" do
       emits "MessageDelivered"
     end
 
+    # Measured from the moment the message last became sent, so a released or escalated one is not
+    # taken for unread the instant it is roused.
+    command "FallBack", from: "sent" do
+      role "System"
+      goal "Resume the session holding an unread message's role through Claude messaging, once it waited its window"
+
+      reference_to Message
+      attribute :now,    MessageInstant
+      attribute :window, UnreadWindow, default: 300
+      needs :now
+
+      given("the message has waited its window unread") { sent_at.value + window.value <= now.value }
+      given("it has not fallen back yet") { fallen_back_at.nil? || fallen_back_at.value.zero? }
+
+      emits "MessageFellBack"
+    end
+
+    command "Resumed", from: "sent" do
+      role "System"
+      goal "Record that Claude messaging resumed the holder of an unread message, so it falls back once"
+
+      reference_to Message
+      attribute :now, MessageInstant
+
+      sets :fallen_back_at, to: :now
+
+      emits "FallBackRecorded"
+    end
+
     command "Read", from: %w[sent delivered] do
       role "Operator"
       goal "Record that a session read a message (to=<message>), so it leaves the run's inbox"
@@ -2226,6 +2265,12 @@ Hecks.bluebook "Agents" do
       description "The unread messages for one run, sent or delivered, each with its sender, whether that sender is verified, kind, body and the message it answers."
       attribute :recipient, RunKey
       where(status: { in: %w[sent delivered] }, recipient: :recipient)
+      order_by :message
+    end
+
+    query "Unread" do
+      description "The sent messages no session has heard and Claude messaging has not yet resumed a holder for: what a sweep falls back on once their window passes."
+      where(status: "sent", "fallen_back_at.value": 0)
       order_by :message
     end
 
@@ -2316,6 +2361,24 @@ Hecks.bluebook "Agents" do
     policy "ReadWhatWasHandedOver" do
       on      "Message.MessageDelivered"
       trigger Message::Read, with: { message: :message, reader: :reader }
+    end
+
+    # Each sweep falls back on every sent message nobody heard; one inside its window refuses by its given.
+    policy "FallBackOnWhatWentUnread" do
+      on       "SessionSweep.SweepRequested"
+      for_each "Message.Unread"
+      trigger  Message::FallBack, with: { message: :message }
+    end
+
+    # The fallback resumes an idle holder; a working one is never stopped, so it is tried again.
+    policy "MessageTheHolderViaClaude" do
+      on      "Message.MessageFellBack"
+      ask     :resume, with: { message: :message, now: :now }
+    end
+
+    policy "RecordTheFallBack" do
+      on      "Message.MessageResumed"
+      trigger Message::Resumed, with: { message: :message, now: :now }
     end
 
     policy "SendToTheRun" do

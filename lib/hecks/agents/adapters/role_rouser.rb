@@ -40,6 +40,21 @@ module Hecks
         { recipient: { value: role } }
       end
 
+      # The unread fallback: resumes the holder when it is idle, and refuses by name when it works,
+      # since a working session is never stopped; the next sweep tries again.
+      #
+      # @param recipient [Hash, String] the role the message is addressed to
+      # @return [Hash{Symbol => Object}] `recipient:` the role, passed back for the policy
+      # @raise [Unreachable] naming the role no idle session holds
+      def resume(recipient:, **)
+        role = recipient.is_a?(Hash) ? recipient[:value].to_s : recipient.to_s
+        entry = holder(role) or raise Unreachable, "no session holds the role #{role}"
+        raise Unreachable, "the session holding #{role} is working" unless idle?(entry)
+
+        wake(entry, role)
+        { recipient: { value: role } }
+      end
+
       private
 
       def holder(role)
@@ -53,10 +68,10 @@ module Hecks
 
       def wake(entry, role)
         prompt = "You have mail for #{role}: read it with exe/hecks agents Message.inbox recipient.value=#{role}"
-        @resume ? @resume.call(entry, prompt) : resume(entry, prompt)
+        @resume ? @resume.call(entry, prompt) : resume_session(entry, prompt)
       end
 
-      def resume(entry, prompt)
+      def resume_session(entry, prompt)
         shell = ClaudeResolvingShell.new(executable: ClaudeExecutable.new(candidates: ClaudeExecutable::CANDIDATES))
         ClaudeResumption.new(ClaudeExecutable::COMMAND, shell)
                         .call(entry["id"].to_s, entry, prompt, env: {}, chdir: Dir.pwd)
