@@ -31,9 +31,7 @@ RSpec.describe "a policy's ask reaches its port" do
   end
 
   it "reaches Dispatching.Choose for a filling with no only=, and is not refused",
-     :aggregate_failures,
-     pending: "regression 2026-11-03: ChooseWhenFilling reads :only, which an unnamed " \
-              "filling omits" do
+     :aggregate_failures do
     refused, fired = dispatched("Hecks::Dispatch.Fill", run: key("fill"), repo: repo)
 
     expect(refused).not_to include("ChooseWhenFilling")
@@ -51,7 +49,7 @@ RSpec.describe "a policy's ask reaches its port" do
      :aggregate_failures do
     stub_findings_repo
     refused, fired = dispatched("Tickets::Finding.ReportFailedRun",
-                                finding: key("run"), body: "body text")
+                                finding: key("run"), title: "a title", body: "body text")
 
     expect(refused).not_to include("OpenIssueWhenRunReported")
     expect(fired).to include("Tickets::Finding::GitHubIssues.OpenIssue")
