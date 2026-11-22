@@ -72,6 +72,43 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # A landing job that ended with neither BranchLanded nor LandingRefused recorded: the delivery
+    # package's `Landing` has nothing to refuse then, so the fault is recorded here, naming the branch
+    # and the last line of the job's log. The Work item the branch names is planned again from it.
+    aggregate "LandingJobFault" do
+      description "A landing job that ended without recording a landing or a refusal: the branch and the last line of its log."
+
+      attribute :run,      RunKey
+      attribute :branch,   Word
+      attribute :checkout, Word, optional: true
+      attribute :refusal,  Report
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
+
+      command "Report" do
+        role "System"
+        goal "Record that a landing job ended with no outcome, so a branch submitted and never landed is not left silent"
+
+        attribute :run,      RunKey, sets: true
+        attribute :branch,   Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :refusal,  Report, sets: true
+
+        emits LandingJobFaulted
+      end
+    end
+
     # The changed files of a checkout that already match `origin/main`, put back so the checkout can take a pull:
     # asked of the git port, then recorded or declined. A file that differs from `origin/main` is never touched.
     aggregate "Restoration" do
@@ -430,6 +467,14 @@ Hecks.bluebook "Hecks" do
     # Main itself is not a branch to push as ci/<branch>: a tip no run covers, which the integration
     # adopts (`Landing.Adopt`, from `Integration::Adoption`), is recorded as landed on main and
     # starts no early CI.
+    # A job that gave up waiting on a queue or a red main is not the branch's fault: only the other
+    # ends plan the Work item again.
+    policy "FindWorkWhenALandingJobIsFaulted" do
+      on      "LandingJobFault.LandingJobFaulted"
+      where   { !refusal.value.include?("queue busy: ") && !refusal.value.include?("main is red:") }
+      ask     :find_faulted_work, with: { branch: :branch, refusal: :refusal }
+    end
+
     policy "StartEarlyCiWhenBranchLanded" do
       on      "Landing.BranchLanded"
       where   { branch.value != "main" }
