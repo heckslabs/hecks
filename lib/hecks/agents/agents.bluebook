@@ -2527,7 +2527,7 @@ Hecks.bluebook "Agents" do
       transition "Restart" => "restarted", from: "lost"
       transition "End" => "ended", from: %w[registered lost]
       mark :terminal, "ended"
-      mark :reusable, "registered", "ended", "restarted"
+      mark :reusable, "registered", "lost", "ended", "restarted"
     end
 
     command "Register" do
