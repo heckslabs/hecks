@@ -460,4 +460,55 @@ Hecks.behaviors "Tickets" do
     input  work: { value: "w12" }, epic: "e1"
     expect refused: "a done work item joins no epic"
   end
+
+  test "Open starts a sprint open, one per day" do
+    tests "Open", on: "Sprint"
+    input sprint: { value: "2026-11-23" }, goal: { value: "Land the sprint aggregate" }
+    expect status: "open"
+  end
+
+  test "Open refuses a second sprint for the same day" do
+    tests "Open", on: "Sprint"
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "First" }
+    input  sprint: { value: "2026-11-23" }, goal: { value: "Second" }
+    expect refused: "Sprint"
+  end
+
+  test "Open refuses a sprint named by something other than a day" do
+    tests "Open", on: "Sprint"
+    input sprint: { value: "monday" }, goal: { value: "A goal" }
+    expect refused: "sprint"
+  end
+
+  test "Schedule puts a work item in a sprint" do
+    tests "Schedule", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "s1" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    input  work: { value: "s1" }, sprint: "2026-11-23"
+    expect status: "planned"
+  end
+
+  test "Schedule refuses a work item already in a sprint" do
+    tests "Schedule", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "s2" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-24" }, goal: { value: "Another" }
+    setup  "Tickets::Work.Schedule", work: { value: "s2" }, sprint: "2026-11-23"
+    input  work: { value: "s2" }, sprint: "2026-11-24"
+    expect refused: "a work item in an open sprint joins no other"
+  end
+
+  test "Schedule refuses a sprint nobody opened" do
+    tests "Schedule", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "s3" }, title: { value: "An item" }
+    input  work: { value: "s3" }, sprint: "2026-11-30"
+    expect refused: "Sprint"
+  end
+
+  test "Close ends a sprint" do
+    tests "Close", on: "Sprint"
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    input  sprint: "2026-11-23"
+    expect status: "closed"
+  end
 end
