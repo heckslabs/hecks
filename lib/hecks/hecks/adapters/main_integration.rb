@@ -62,9 +62,8 @@ module Hecks
         { report: { value: lines.join("\n") } }
       end
 
-      # Writes and loads the launchd jobs the domain keeps: the job that beats the clock once a minute
-      # (`BeatSchedule`) and the one that keeps a Claude daemon up at normal priority
-      # (`ClaudeDaemonSchedule`).
+      # Writes and loads the launchd jobs the domain keeps: the beat once a minute
+      # (`BeatSchedule`) and a Claude daemon at normal priority (`ClaudeDaemonSchedule`).
       #
       # @param held [Hash] the `Integration` record: `confirm` lets the launch agents be written
       # @return [Hash{Symbol => Hash}] `report:` what was done, or would be

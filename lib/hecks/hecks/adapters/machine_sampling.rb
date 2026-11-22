@@ -37,8 +37,9 @@ module Hecks
       # @param registry [Runtime::Registry, nil] the booted registry whose world is read
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins: `readings:` answers the gauges, `clock:` answers seconds,
-      #   `processes:` answers the process classes ({ProcessClasses} when absent), `niceness:` answers how many
-      #   Claude processes run niced (none beside stand-in `readings:`; {Niceness} otherwise), `meter:` answers
+      #   `processes:` answers the process classes ({ProcessClasses} when absent), `niceness:`
+      #   answers how many Claude processes run niced (none beside stand-in `readings:`;
+      #   {Niceness} otherwise), `meter:` answers
       #   Roundhouse's load (none beside stand-in `readings:`, the live meter otherwise), `stamp:`
       #   answers when a reading is taken (ISO-8601 UTC from the wall clock when absent)
       # @param root [String, nil] unused

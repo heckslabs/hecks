@@ -5,7 +5,8 @@ module Hecks
     class MachineSampling
       # The marks a reading is judged against: the Tickets world's `machine_marks` line laid over
       # these defaults. Each state has two marks with a gap between them, so a reading inside the
-      # gap changes nothing and a gauge that hovers near one mark does not flap.
+      # gap changes nothing and a gauge that hovers near one mark does not flap. `nice_high` and
+      # `priority_low` (4, the Background clamp) mark a Claude process as on the efficiency cores.
       class Marks
         # The world verb that carries the marks.
         VERB = "machine_marks"
@@ -22,8 +23,6 @@ module Hecks
         #   which memory is low, and at or under which it can recover.
         # - `lane_busy`, `lane_idle`: test lane waiting count at or over, and at or under;
         #   `interval`: seconds between two readings.
-        # - `nice_high`, `priority_low`: a Claude process niced to at least `nice_high`, or whose priority
-        #   is at most `priority_low` (4 is macOS's Background clamp), runs on the efficiency cores.
         DEFAULTS = {
           load_low:           8.0,
           load_high:          10.0,
