@@ -144,6 +144,7 @@ commands:
     unschedule!
     verify!
     board!
+    release!
     observe!
   ReviewRequest:
     …
