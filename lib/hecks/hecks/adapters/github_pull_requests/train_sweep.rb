@@ -14,7 +14,8 @@ module Hecks
       # request carries, or that local main has moved past. Each is closed with a comment naming
       # why. It then deletes the origin train branches whose pull requests are settled (see
       # `TrainBranchPrune`). It reads facts (ancestry, check results, pull request states) and acts;
-      # a closed pull request and a deleted branch are not listed again, so a second sweep repeats nothing.
+      # a closed pull request and a deleted branch are not listed again, so a second sweep repeats
+      # nothing.
       class TrainSweep
         # The branch prefix of a train pull request.
         PREFIX = "train/main-"

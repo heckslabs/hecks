@@ -73,7 +73,8 @@ module Hecks
       # @param prefix [String] a branch prefix
       # @return [Array<String>] the names of the origin branches under `prefix`
       def train_refs(prefix)
-        listed("repos/{owner}/{repo}/git/matching-refs/heads/#{prefix}").map { |ref| ref["ref"].to_s.delete_prefix("refs/heads/") }
+        refs = listed("repos/{owner}/{repo}/git/matching-refs/heads/#{prefix}")
+        refs.map { |ref| ref["ref"].to_s.delete_prefix("refs/heads/") }
       end
 
       # @param prefix [String] a branch prefix
