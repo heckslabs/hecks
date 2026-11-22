@@ -1104,6 +1104,8 @@ Hecks.bluebook "Hecks" do
       transition Integration::IntegrationSuperseded => "superseded", from: %w[verifying reverifying boarding]
 
       transition Integration::MainVerificationFailed => "needs_human", from: %w[verifying reverifying]
+      # origin/main merged a train the tip was not made on, and merging it into main conflicts: a person mends it.
+      transition Integration::MainLevelRefused => "needs_human", from: "landed"
       transition Integration::MainPushRefused => "needs_human", from: "boarding"
 
       # A run that stood in one stage past that stage's bound (the Tickets world's `integration_bound`)
@@ -1381,6 +1383,17 @@ Hecks.bluebook "Hecks" do
         given("a run stalls only past its stage's bound") { age.value >= bound.value }
 
         emits RunStalled
+      end
+
+      command "Strand" do
+        role "System"
+        goal "Park a landed tip that origin/main could not be merged into, naming the files in conflict"
+
+        attribute :run,     RunKey, sets: true
+        attribute :landed,  Word,   sets: true
+        attribute :refusal, Report, sets: true
+
+        emits MainLevelRefused
       end
 
       command "Observe" do
