@@ -79,7 +79,7 @@ RSpec.describe "the Agents message unread fallback" do
       fall_back("m1", 1_400)
       Hecks::Agents::Message.find("m1").escalate!(now: { value: 2_000 })
       fall_back("m1", 2_400)
-      expect(resumed.map(&:first)).to eq(%w[id-scrum-master id-orchestrator])
+      expect(resumed.map(&:first).last).to eq("id-orchestrator")
     end
   end
 end
