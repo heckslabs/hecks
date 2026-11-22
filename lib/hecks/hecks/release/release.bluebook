@@ -461,6 +461,7 @@ Hecks.bluebook "Hecks" do
       attribute :behind_hours, Hours, optional: true
       attribute :limit_hours,  Hours, optional: true
       attribute :promoted,   Switch, optional: true
+      attribute :rate_limited, Switch, optional: true
       attribute :reason,     Report, optional: true
       attribute :report,     Report, optional: true
       attribute :refusal,    Report, optional: true
@@ -497,7 +498,8 @@ Hecks.bluebook "Hecks" do
         transition "Complete" => "completed", from: %w[accepted observed]
         transition "Fault"    => "faulted",   from: %w[requested accepted]
         transition "Lag"      => "faulted",   from: "observed"
-        mark :terminal, "completed", "faulted"
+        transition "Defer"    => "deferred",  from: "requested"
+        mark :terminal, "completed", "faulted", "deferred"
       end
 
       # Looks at a lane and moves nothing: faults when it has stood behind the lane it follows for
@@ -597,6 +599,18 @@ Hecks.bluebook "Hecks" do
         emits LaneLagged
       end
 
+      # GitHub rate limited the read of the checks for longer than the run may wait: nothing was
+      # judged and nothing moved, so the run ends deferred, not faulted, and the next run asks again.
+      command "Defer" do
+        role "System"
+        goal "Record that the checks could not be read for a rate limit, so the run was put off and nothing was judged"
+
+        reference_to PromotionRun
+        attribute :refusal, Report, sets: true
+
+        emits PromotionDeferred
+      end
+
       command "Fault" do
         role "System"
         goal "Record that the promotion was refused or could not be carried out, and why"
@@ -634,7 +648,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ObserveWhenWatchExamined" do
       on      "PromotionRun.PromotionExamined"
-      where   { operation.value == "watch" }
+      where   { operation.value == "watch" && !rate_limited.value }
       trigger PromotionRun::Observe, with: { checkout: :checkout, lane_known: :lane_known, behind_hours: :behind_hours,
                                              limit_hours: :limit_hours, promoted: :promoted,
                                              reason: :reason }
@@ -642,7 +656,7 @@ Hecks.bluebook "Hecks" do
 
     policy "FaultWhenWatchCannotBeJudged" do
       on      "PromotionRun.PromotionExamined"
-      where   { operation.value == "watch" && (!checkout.value || !lane_known.value) }
+      where   { operation.value == "watch" && !rate_limited.value && (!checkout.value || !lane_known.value) }
       trigger PromotionRun::Fault, with: { refusal: :reason }
     end
 
@@ -658,16 +672,22 @@ Hecks.bluebook "Hecks" do
       trigger PromotionRun::Complete, with: { report: :reason, promoted: :promoted }
     end
 
+    policy "DeferWhenRateLimited" do
+      on      "PromotionRun.PromotionExamined"
+      where   { rate_limited.value }
+      trigger PromotionRun::Defer, with: { refusal: :reason }
+    end
+
     policy "AcceptPromotionWhenExamined" do
       on      "PromotionRun.PromotionExamined"
-      where   { operation.value == "promote" }
+      where   { operation.value == "promote" && !rate_limited.value }
       trigger PromotionRun::Accept, with: { checkout: :checkout, lane_known: :lane_known, green: :green,
                                             descends: :descends, commit: :commit, head: :head }
     end
 
     policy "FaultPromotionWhenNotAccepted" do
       on      "PromotionRun.PromotionExamined"
-      where   { operation.value == "promote" && (!checkout.value || !lane_known.value || !green.value || !descends.value) }
+      where   { operation.value == "promote" && !rate_limited.value && (!checkout.value || !lane_known.value || !green.value || !descends.value) }
       trigger PromotionRun::Fault, with: { refusal: :reason }
     end
 

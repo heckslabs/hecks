@@ -254,4 +254,39 @@ RSpec.describe "promoting a lane" do
     expect(promote("away")).to include(faulted, "needs a hecks checkout")
     expect(fake.moved).to be_empty
   end
+
+  # GitHub itself stands in: it answers `gh api` paths, rate limited for the first reads.
+  describe "when GitHub rate limits the read of the checks" do
+    def through(limited)
+      stand_in = StandInGithub.new(limited)
+      @napped = []
+      @quiet = StringIO.new
+      limit = Hecks::Adapters::GithubChecks::RateLimit.new(sleeper: ->(secs) { @napped << secs }, out: @quiet)
+      ready
+      Hecks::Adapters::Codebase::Promotion.checks = Hecks::Adapters::GithubChecks.new(github: stand_in, limit: limit)
+      stand_in
+    end
+
+    it "waits for the reset, says so, and promotes without a fault", :aggregate_failures do
+      through(1)
+
+      expect(promote("limited-once")).to include(completed, "fast-forwarded stable")
+      expect([@quiet.string, @napped.size]).to match([/waiting for rate limit: until/, 1])
+    end
+
+    it "reads the checks of a commit with one paged call", :aggregate_failures do
+      stand_in = through(0)
+      promote("one-call")
+
+      expect(stand_in.paths.grep(/check-runs/).size).to eq(1)
+      expect(stand_in.paths.first).to include("per_page=100")
+    end
+
+    it "ends deferred, not faulted, and moves nothing, when the limit outlasts the wait", :aggregate_failures do
+      through(99)
+
+      expect(promote("limited-always")).to include('"status": "deferred"', "not promoted: rate limited")
+      expect(promote("limited-always")).not_to include(faulted)
+    end
+  end
 end
