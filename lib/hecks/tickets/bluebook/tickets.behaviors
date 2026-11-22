@@ -279,8 +279,10 @@ Hecks.behaviors "Tickets" do
   test "WaitOn replaces the work items a planned work item waits on" do
     tests "WaitOn", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w18" }, title: { value: "Held" }, waits_on: [{ value: "w19" }]
+    setup  "Tickets::Work.Plan", work: { value: "w20" }, title: { value: "First" }
+    setup  "Tickets::Work.Plan", work: { value: "w21" }, title: { value: "Second" }
     input  work: { value: "w18" }, waits_on: [{ value: "w20" }, { value: "w21" }]
-    expect status: "planned", emits: ["WorkWaitsOnNamed"]
+    expect status: "planned", emits: ["WorkWaitsOnNamed", "WaitKeysNamed"]
   end
 
   test "WaitOn refuses a done work item" do
@@ -289,6 +291,28 @@ Hecks.behaviors "Tickets" do
     setup  "Tickets::Work.Close", work: { value: "w22" }, no_change: { value: "a verify" }
     input  work: { value: "w22" }, waits_on: [{ value: "w23" }]
     expect refused: "done"
+  end
+
+  test "WaitOn stores a key an item has" do
+    tests "WaitOn", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w24" }, title: { value: "Held" }
+    setup  "Tickets::Work.Plan", work: { value: "w25" }, title: { value: "Target" }
+    input  work: { value: "w24" }, waits_on: [{ value: "w25" }]
+    expect status: "planned", emits: ["WorkWaitsOnNamed", "WaitKeysNamed"]
+  end
+
+  test "WaitOn refuses a key no item has" do
+    tests "WaitOn", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w26" }, title: { value: "Held" }
+    input  work: { value: "w26" }, waits_on: [{ value: "no-such-item" }]
+    expect status: "planned", emits: ["WorkWaitsOnNamed", "WaitKeyUnknown", "WorkHeld"]
+  end
+
+  test "WaitOn refuses a comma-joined value" do
+    tests "WaitOn", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w27" }, title: { value: "Held" }
+    input  work: { value: "w27" }, waits_on: [{ value: "w28,w29" }]
+    expect refused: "one key at a time"
   end
 
   test "ClearArea empties the area and keeps the claim" do

@@ -912,6 +912,7 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, matches: :present
 
       invariant("a piece of work is named") { !value.to_s.empty? }
+      invariant("a work key is one key at a time, with no comma or whitespace") { !value.to_s.match?(/[, \t\n\r]/) }
     end
 
     value_object "WorkTitle" do
@@ -1080,11 +1081,10 @@ Hecks.bluebook "Tickets" do
       emits "WorkRescoped"
     end
 
-    # An open work item names the work items it waits on: the whole list is replaced, and an empty
-    # list waits on none. Dispatch starts it only once each has landed. A coder that yields because
-    # one has not landed names it here first, since Yield leaves the list as it is.
+    # An open work item names the work items it waits on, the whole list replaced; each key stands
+    # alone (`WorkKey` refuses a comma or space), and one no work item has holds the item.
     command "WaitOn" do
-      goal "Replace the work items an open work item waits on; a key no item has, or a cycle, waits forever"
+      goal "Replace the work items an open work item waits on; a key no item has holds the item, and a cycle waits forever"
 
       reference_to Work
       attribute :waits_on, list_of(WorkKey), sets: true
@@ -1756,6 +1756,18 @@ Hecks.bluebook "Tickets" do
   policy "UnholdWhenAreaNamed" do
     on      "Work.AreaNamed"
     trigger Work::Unhold, with: { work: :work }
+  end
+
+  # A work item that names what it waits on asks the WorkAreas port whether each key names a work
+  # item; one that names none is held with the key in its reason, so it never waits unseen.
+  policy "CheckWaitKeysWhenNamed" do
+    on      "Work.WorkWaitsOnNamed"
+    ask     :check_wait_keys, with: { work: :work }
+  end
+
+  policy "HoldWhenWaitKeyUnknown" do
+    on      "Work.WaitKeyUnknown"
+    trigger Work::Hold, with: { held_reason: :refusal }
   end
 
   # A started work item asks the WorkLimits port whether it is one too many for the concurrency cap.
