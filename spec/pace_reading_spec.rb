@@ -7,8 +7,8 @@ require "hecks/hecks/adapters/pace_reading"
 # A reading of the event tap: gross events an hour with the bluebook's noise left out, finished
 # items an hour, and the finished per 1,000 events.
 RSpec.describe Hecks::Adapters::PaceReading do
-  let(:bluebook)  { Hecks::FrameworkBluebooks.load("Hecks") }
-  let(:aggregate) { bluebook.aggregates.find { |found| found.hecks_name == "Pace" } }
+  let(:registry)  { boot_hecks_in_memory.registry }
+  let(:aggregate) { registry.bluebook("Hecks").aggregate("Pace") }
   let(:dir)       { Dir.mktmpdir }
   let(:tap)       { File.join(dir, "events.jsonl") }
 
@@ -18,7 +18,7 @@ RSpec.describe Hecks::Adapters::PaceReading do
     { kind: "event", at: (Time.now.utc - age).iso8601, aggregate: "Hecks::X", id: "i", event: event, seq: seq }
   end
 
-  def write(lines) = File.write(tap, lines.map(&:to_json).join("\n") + "\n")
+  def write(lines) = File.write(tap, "#{lines.map(&:to_json).join("\n")}\n")
 
   def text(window = nil)
     described_class.new(aggregate: aggregate, tap: tap).read(run: "r", window: window)[:text]
