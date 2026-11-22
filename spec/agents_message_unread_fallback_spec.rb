@@ -19,6 +19,8 @@ RSpec.describe "the Agents message unread fallback" do
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { rouser }, &block)
   end
 
+  def escalate(key, now) = rouser_standing { Hecks::Agents::Message.find(key).escalate!(now: { value: now }) }
+
   def go_idle = role_sessions.first.merge!("status" => "idle", "state" => "idle")
 
   it "resumes an idle holder once the unread message has waited its window", :aggregate_failures do
@@ -56,7 +58,7 @@ RSpec.describe "the Agents message unread fallback" do
 
   it "measures an escalated question's window from its escalation" do
     send_message(to: "orchestrator", sender: "coder-a", kind: "question", asker: "coder")
-    Hecks::Agents::Message.find("m1").escalate!(now: { value: 2_000 })
+    escalate("m1", 2_000)
     expect { fall_back("m1", 2_200) }.to raise_error(Hecks::Runtime::GivenNotMet, /waited/)
   end
 
@@ -77,7 +79,7 @@ RSpec.describe "the Agents message unread fallback" do
     it "lets the lead's own window pass after the question already fell back with the scrum master" do
       send_message(to: "scrum-master", sender: "coder-a", kind: "question", asker: "coder")
       fall_back("m1", 1_400)
-      Hecks::Agents::Message.find("m1").escalate!(now: { value: 2_000 })
+      escalate("m1", 2_000)
       fall_back("m1", 2_400)
       expect(resumed.map(&:first).last).to eq("id-orchestrator")
     end
