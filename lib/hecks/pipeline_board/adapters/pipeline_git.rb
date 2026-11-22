@@ -10,6 +10,11 @@ module Hecks
     # train's copy last pushed, and whether `stable` has caught up with main. It reads refs and
     # never fetches, so it writes nothing, not even a remote-tracking ref.
     class PipelineGit
+      # The blank line between two worktrees in `git worktree list --porcelain`.
+      BLOCK_BREAK = /\n\n+/
+      # A commit `git cherry` says the other side lacks by content: its short sha.
+      UNLANDED = /\A\+ (\h{1,10})/
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `git:` stands in for the program (a callable taking a directory
       #   and the arguments, answering standard output), `train:` for the train's checkout,
@@ -69,7 +74,28 @@ module Hecks
         { sha: short("origin/stable"), behind: ask(@root, "rev-list", "--count", "origin/stable..origin/main").to_i }
       end
 
+      # What git says of each linked worktree's change, as facts only: the short shas of its commits
+      # that origin/main lacks and that local main lacks, by content (`git cherry`, so a rebased
+      # landing counts as landed), and the uncommitted files. The standing is decided by the board.
+      #
+      # @return [Array<Hash>] `subject`, `branch`, `path`, `lacks_origin`, `lacks_main`, `dirty`
+      # @raise [PipelineBoard::Unavailable] when git cannot answer
+      def standings
+        trees = ask(@root, "worktree", "list", "--porcelain").split(BLOCK_BREAK).drop(1)
+        trees.map { |block| standing_facts(block.lines.to_h { |line| line.strip.split(" ", 2) }) }
+      end
+
       private
+
+      def standing_facts(fields)
+        branch = fields["branch"].to_s.delete_prefix("refs/heads/")
+        ref = branch.empty? ? fields["HEAD"] : branch
+        { subject: branch.empty? ? ref[0, 10] : branch, branch: branch, path: fields["worktree"],
+          lacks_origin: lacking("origin/main", ref), lacks_main: lacking("main", ref),
+          dirty: ask(fields["worktree"], "status", "--porcelain").lines.size }
+      end
+
+      def lacking(base, ref) = ask(@root, "cherry", base, ref).lines.filter_map { |line| line[UNLANDED, 1] }
 
       # `green` only when the finish marker names the commit main stands on now.
       def gate_verdict

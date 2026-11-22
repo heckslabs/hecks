@@ -51,6 +51,7 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "Measures"
     answers_query "Epics"
     answers_query "Holds"
+    answers_query "Standing"
     answers_query "Readings"
     answers_query "Snapshot"
     answers_query "Cycles"
