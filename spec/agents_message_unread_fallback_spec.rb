@@ -59,4 +59,27 @@ RSpec.describe "the Agents message unread fallback" do
     Hecks::Agents::Message.find("m1").escalate!(now: { value: 2_000 })
     expect { fall_back("m1", 2_200) }.to raise_error(Hecks::Runtime::GivenNotMet, /waited/)
   end
+
+  it "lists a freshly sent message as unread" do
+    send_message(to: "orchestrator")
+    expect(Hecks::Agents::Message.unread.map { |row| row[:message].value }).to eq(["m1"])
+  end
+
+  context "with a scrum master registered" do
+    def recipients = { "scrum-master" => live_run, "orchestrator" => live_run }
+
+    def role_sessions
+      @role_sessions ||= %w[scrum-master orchestrator].map do |role|
+        { "id" => "id-#{role}", "name" => role, "status" => "idle", "state" => "idle" }
+      end
+    end
+
+    it "lets the lead's own window pass after the question already fell back with the scrum master" do
+      send_message(to: "scrum-master", sender: "coder-a", kind: "question", asker: "coder")
+      fall_back("m1", 1_400)
+      Hecks::Agents::Message.find("m1").escalate!(now: { value: 2_000 })
+      fall_back("m1", 2_400)
+      expect(resumed.map(&:first)).to eq(%w[id-scrum-master id-orchestrator])
+    end
+  end
 end
