@@ -2188,7 +2188,7 @@ Hecks.bluebook "Agents" do
 
       given("a coder asks") { asker_role.value == "coder" }
       given("it is for the orchestrator") { recipient.value == "orchestrator" }
-      given("it is a question or a call for help") { kind.value == "question" || kind.value == "blocked" }
+      given("it is a question or a call for help") { kind.value == "question" || kind.value == "help" }
 
       sets :recipient, to: :seat
 
@@ -2230,7 +2230,7 @@ Hecks.bluebook "Agents" do
       attribute :now,       MessageInstant
       attribute :window,    SettleWindow, default: 900
       attribute :lead,      RunKey, default: "orchestrator"
-      attribute :escalated, MessageKind, default: "blocked"
+      attribute :escalated, MessageKind, default: "help"
       needs :now
 
       given("the scrum master holds the question") { recipient.value == "scrum-master" }
@@ -2386,7 +2386,7 @@ Hecks.bluebook "Agents" do
     # stated here and negated in `CheckTheRecipient`, and a behavior covers both sides.
     policy "RouteACoderQuestionToTheScrumMaster" do
       on      "Message.MessageStamped"
-      where   { asker_role.value == "coder" && recipient.value == "orchestrator" && (kind.value == "question" || kind.value == "blocked") }
+      where   { asker_role.value == "coder" && recipient.value == "orchestrator" && (kind.value == "question" || kind.value == "help") }
       trigger Message::Route, with: { message: :message }
     end
 
@@ -2419,7 +2419,7 @@ Hecks.bluebook "Agents" do
     # The recipient is checked after the stamp lands, so a message is never heard unstamped.
     policy "CheckTheRecipient" do
       on      "Message.MessageStamped"
-      where   { !(asker_role.value == "coder" && recipient.value == "orchestrator" && (kind.value == "question" || kind.value == "blocked")) }
+      where   { !(asker_role.value == "coder" && recipient.value == "orchestrator" && (kind.value == "question" || kind.value == "help")) }
       ask     :recipient, with: { message: :message, recipient: :recipient }
     end
 
