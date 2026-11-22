@@ -2687,7 +2687,7 @@ Hecks.bluebook "Agents" do
     policy "RestartTheLostRunItsNewSession" do
       on      "HandRun.HandRunSought"
       root
-      where   { state != "unlisted" }
+      where   { state != "unlisted" && state != "stopped" && state != "failed" }
       trigger HandRun::Restart, with: { run: :run, session: :found, role: :role, checkout: :checkout }
     end
 
