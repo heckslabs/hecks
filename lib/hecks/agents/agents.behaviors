@@ -413,4 +413,45 @@ Hecks.behaviors "Agents" do
     input  run: { value: "ev-r8" }, work: { value: "ev-w8" }, hard: "again", surprise: "none", sources: "AgentRunRetried:ev-r8"
     expect refused: "Record creates a Evidence that already exists — run.value \"ev-r8\""
   end
+  # These run against a clean machine, where the spool holds no line: a read answers none, so the
+  # pass finishes at once and the later steps of a pass are refused by name.
+  test "Ingest finishes a pass at once when the spool holds no line" do
+    tests "Ingest", on: "MailSpool"
+    input  pass: { value: "beat-1" }
+    expect status: "dry"
+  end
+
+  test "Ingest refuses a pass that already ran" do
+    tests "Ingest", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-2" }
+    input  pass: { value: "beat-2" }
+    expect refused: "Ingest creates a MailSpool that already exists"
+  end
+
+  test "Take refuses a pass that found no line" do
+    tests "Take", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-3" }
+    input  pass: { value: "beat-3" }, line: { value: 1 }
+    expect refused: "Take refused — status is \"dry\", and Take moves it only from \"requested\""
+  end
+
+  test "Decline refuses a pass that already finished" do
+    tests "Decline", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-4" }
+    input  pass: { value: "beat-4" }, refusal: { value: "the spool cannot be read" }
+    expect refused: "Decline refused — status is \"dry\", and Decline moves it only from \"requested\""
+  end
+
+  test "Settle refuses a pass whose line was never taken" do
+    tests "Settle", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-5" }
+    input  pass: { value: "beat-5" }
+    expect refused: "Settle refused — status is \"dry\", and Settle moves it only from \"taken\""
+  end
+
+  test "Take refuses a line number that is not positive" do
+    tests "Take", on: "MailSpool"
+    input  pass: { value: "beat-6" }, line: { value: 0 }
+    expect refused: "a line number is positive"
+  end
 end
