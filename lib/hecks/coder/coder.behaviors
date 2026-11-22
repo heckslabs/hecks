@@ -1,0 +1,27 @@
+Hecks.behaviors "Coder" do
+  vision "A submission declares what it carries: its Work item, its run, its role, what it reaches, what it reverts and the spec that covers it."
+
+  loads "coder.bluebook", "coder.hecksagon", "coder.ports.hecksagon"
+
+  test "a submission that names its manifest is asked" do
+    tests "Submit", on: "Submission"
+    input  branch: { value: "w-manifest" }, sha: { value: "abc1234" }, checkout: { value: "/tmp/w-manifest" },
+           clean: { value: true }, work: { value: "w-manifest" }, run: { value: "run-1" },
+           role: { value: "coder" }, covers: { value: "spec/a_spec.rb" }
+    expect emits: ["SubmissionAsked"], status: "asked"
+  end
+
+  test "a submission that names an empty Work item is refused" do
+    tests "Submit", on: "Submission"
+    input  branch: { value: "w-empty" }, sha: { value: "abc1234" }, checkout: { value: "/tmp/w-empty" },
+           clean: { value: true }, work: { value: "" }, run: { value: "run-1" }
+    expect refused: "a submission names its Work item"
+  end
+
+  test "a submission of main is refused" do
+    tests "Submit", on: "Submission"
+    input  branch: { value: "main" }, sha: { value: "abc1234" }, checkout: { value: "/tmp/main" },
+           clean: { value: true }
+    expect refused: "never main or stable"
+  end
+end
