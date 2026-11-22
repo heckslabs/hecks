@@ -3,6 +3,7 @@
 require "open3"
 require_relative "tree"
 require_relative "changed_specs"
+require "hecks/corpus"
 require "hecks/tools/model_check"
 
 module Hecks
@@ -25,7 +26,7 @@ module Hecks
         # @raise [ConsoleCapture::Failure] with each changed bluebook that was refused
         def call(tree, base: "origin/main")
           files = changed(tree, base)
-          problems = files.filter_map { |file| refusal(tree, file) }
+          problems = sources(tree, files).filter_map { |source, named| refusal(source, named) }
           raise ConsoleCapture::Failure, problems.join("\n") unless problems.empty?
 
           "#{files.size} changed bluebook(s) booted, every rule extracted"
@@ -39,12 +40,27 @@ module Hecks
           bluebooks.select { |file| File.file?(File.join(tree.root, file)) }.sort
         end
 
-        # @return [String, nil] the file and what refused it; nil when it booted
-        def refusal(tree, file)
-          Tools::ModelCheck.boot(File.join(tree.root, file))
+        # A bluebook of a domain that loads as a directory (the Hecks domain's modules share one
+        # namespace) boots with its directory, as the corpus boots it; any other boots alone.
+        #
+        # @return [Hash{String => Array<String>}] each path to boot, with the changed files it holds
+        def sources(tree, files)
+          members = Corpus.members(root: tree.root)
+          files.group_by { |file| source_of(members, File.join(tree.root, file)) }
+        end
+
+        # @return [String] the corpus source holding the file, or the file itself
+        def source_of(members, path)
+          owner = members.find { |member| path == member.path || path.start_with?("#{member.path}/") }
+          (owner && Corpus.source_of(owner)) || path
+        end
+
+        # @return [String, nil] the changed files and what refused their source; nil when it booted
+        def refusal(source, named)
+          Tools::ModelCheck.boot(source)
           nil
         rescue StandardError => e
-          "#{file}: #{first_line(e.message)}"
+          "#{named.join(", ")}: #{first_line(e.message)}"
         end
 
         # @return [String] the first line of a refusal, which names the rule
