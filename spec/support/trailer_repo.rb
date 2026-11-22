@@ -3,6 +3,7 @@
 require "fileutils"
 require "open3"
 require "tmpdir"
+require "hecks/hecks/adapters/main_boarding"
 
 # A repository where origin/main is one commit behind a branch, built in a temporary directory,
 # and the trailer guard read over it.
