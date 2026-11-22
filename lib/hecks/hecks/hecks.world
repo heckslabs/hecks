@@ -93,11 +93,9 @@ Hecks.world "Hecks" do
   # How the board is kept small: it reads its state every `refresh_seconds`, and restarts itself, as the
   # command that started it, above `rss_mb` megabytes resident or after `age_hours` hours up.
   board_restart "PipelineBoard", refresh_seconds: 30, rss_mb: 1024, age_hours: 24
-  # A resident (ADR 0201) exits after `idle_seconds` with nothing to run (`worktree_idle_seconds` in a
-  # linked worktree); past `max_residents` a checkout boots each line cold. A launcher waits
-  # `ready_wait_ms` for its first word, then boots on its own; it takes `workers` callers at once.
-  # `control` names the commands a launcher in a linked worktree with no resident of its own asks the
-  # primary checkout's resident to run: they act on its shared stores, and it says so when it serves one.
+  # A resident (ADR 0201) exits after `idle_seconds` idle (`worktree_idle_seconds` in a linked worktree); past
+  # `max_residents` a checkout boots cold. A launcher waits `ready_wait_ms` for its first word; it takes `workers`
+  # callers at once; a worktree with no resident asks the primary's for the `control` commands.
   resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, max_residents: 8, ready_wait_ms: 400, workers: 8,
            control: "work message dial redflag.status"
   # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
