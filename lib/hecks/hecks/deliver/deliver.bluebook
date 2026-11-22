@@ -1165,9 +1165,6 @@ Hecks.bluebook "Hecks" do
       # A fact the search could not read is empty.
       attribute :base,             Report, optional: true
       attribute :culprit,          Report, optional: true
-      # The run that made the culprit merge, read from the `Hecks-Run` trailer of its commits, so the
-      # session that owns the break is the one told.
-      attribute :run_of_culprit,   Report, optional: true
       attribute :branch,           Report, optional: true
       attribute :subject,          Report, optional: true
       attribute :spec,             Report, optional: true

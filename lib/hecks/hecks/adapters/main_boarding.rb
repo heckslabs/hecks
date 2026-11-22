@@ -4,7 +4,6 @@ require_relative "console_capture"
 require_relative "main_integration"
 require_relative "main_integration/repository"
 require_relative "main_integration/range_guard"
-require_relative "main_integration/trailer_guard"
 require_relative "main_integration/standing"
 require_relative "main_integration/train"
 require_relative "main_integration/command_runner"
@@ -49,18 +48,11 @@ module Hecks
         standing = MainIntegration::Standing.new(repository, landed, head)
         return superseded(landed, head) unless standing.boardable?
 
-        guard!(repository, landed)
+        MainIntegration::RangeGuard.new(repository).check!(repository.remote_main, landed)
         push(landed, checkout_of(held), standing.newer)
       end
 
       private
-
-      # Refuses a range that carries a forbidden line or a commit that does not name its run.
-      def guard!(repository, landed)
-        [MainIntegration::RangeGuard, MainIntegration::TrailerGuard].each do |guard|
-          guard.new(repository).check!(repository.remote_main, landed)
-        end
-      end
 
       def checkout_of(held) = plain(held[:checkout]) || Dir.pwd
 
