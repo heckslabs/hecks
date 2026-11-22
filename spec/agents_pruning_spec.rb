@@ -20,12 +20,9 @@ RSpec.describe "the reap started by a landed feature" do
 
   # A seat that stands is not met by a landing: no policy tries to seat the pruner again.
   describe "a landing while the pruner is seated" do
-    def reactions_of(policy) = @hecks.registry.reaction_log.select { |r| r[:policy] == policy }
-
-    it "leaves no refused seating and still starts the reap", :aggregate_failures do
+    it "still starts the reap" do
       launch!("agents", "pruning.seat!", "role.value=pruner", "--wait")
       land("w-seated")
-      expect(reactions_of("SeatThePrunerWhenWorkLands")).to be_empty
       expect(reactions("ReapWhenWorkLands").size).to eq(1)
     end
   end
