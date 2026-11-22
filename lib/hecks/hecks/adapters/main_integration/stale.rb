@@ -13,8 +13,7 @@ module Hecks
       # event tap, the durable record a restarted process still holds (the in-process event log is
       # empty then), and the bound from the Tickets world's `integration_bound`. This class reports
       # the two facts to `Integration.Stall`, whose given decides whether the run has stalled; a
-      # run with no tap line for its stage is taken for stale by the age of its landed commit
-      # (`CommitAge`), and only when the tap itself was read.
+      # run with no tap line for its stage is never taken for stale.
       class Stale
         # The world verb that carries each stage's bound, in minutes.
         VERB = "integration_bound"
@@ -39,20 +38,16 @@ module Hecks
           #
           # @param lines [#call, nil] answers the tap's event lines
           # @param clock [#call, nil] answers the current Time
-          # @param committed [#call, nil] answers when a run's landed commit was committed
           # @return [void]
-          def stand_in(lines: nil, clock: nil, committed: nil)
+          def stand_in(lines: nil, clock: nil)
             @lines = lines
             @clock = clock
-            @committed = committed
           end
 
           # @return [#call] answers the tap's event lines
           def lines_source = @lines
           # @return [#call] answers the current Time
           def clock = @clock || -> { Time.now }
-          # @return [#call] answers when a run's landed commit was committed
-          def committed = @committed || CommitAge.new.method(:committed)
         end
 
         # @param registry [Runtime::Registry] the booted registry whose world and dispatch are used
@@ -72,32 +67,27 @@ module Hecks
         private
 
         def stall(run, events)
-          at = began(run, events)
-          basis = at ? "stage" : "landed commit"
-          age = minutes_since(at || committed(run, events))
+          age = age_of(run, events)
           bound = bound_of(run.state)
           return nil if age.nil? || age < bound
 
-          record(run, age, bound, basis)
+          record(run, age, bound)
         end
 
-        def minutes_since(at) = at && ((self.class.clock.call - at) / 60).floor
-
-        # The landed commit's time, asked only when the tap was read and has no line for the stage.
-        def committed(run, events) = events.nil? ? nil : self.class.committed.call(run)
+        def age_of(run, events)
+          at = began(run, events)
+          at && ((self.class.clock.call - at) / 60).floor
+        end
 
         def began(run, events)
-          return nil if events.nil?
-
           mine = events.select { |e| e["event"] == SINCE[run.state] && e.dig("links", "landed") == run.landed }
           mine.map { |e| Time.parse(e["at"]) }.max
         end
 
         def bound_of(state) = Integer(@registry.world("Tickets")&.for_verb(VERB).to_h[state.to_sym] || DEFAULT_MINUTES)
 
-        def record(run, age, bound, basis)
-          since = basis == "stage" ? "" : " (age of its landed commit)"
-          reason = "stalled in #{run.state} for #{age} min#{since} (bound #{bound}): waiting for #{WAITING_FOR[run.state]}"
+        def record(run, age, bound)
+          reason = "stalled in #{run.state} for #{age} min (bound #{bound}): waiting for #{WAITING_FOR[run.state]}"
           args = { run: SecureRandom.uuid, landed: run.landed, age: age, bound: bound, refusal: reason }
           Runtime::Dispatcher.new(@registry).dispatch_flat("Hecks::Integration.Stall", args)
           "#{run.short} #{run.state} -> needs_human: #{reason}"
@@ -109,7 +99,7 @@ module Hecks
           return self.class.lines_source.call if self.class.lines_source
 
           path = tap_path
-          path ? Runtime::EventFeed.new(path: path).read(since: 0, limit: 10**9)[:events] : nil
+          path ? Runtime::EventFeed.new(path: path).read(since: 0, limit: 10**9)[:events] : []
         end
 
         def tap_path

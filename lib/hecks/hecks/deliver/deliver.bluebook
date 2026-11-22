@@ -1109,10 +1109,6 @@ Hecks.bluebook "Hecks" do
       # A run that stood in one stage past that stage's bound (the Tickets world's `integration_bound`)
       # is parked with its stage, its age and what it waited for, so the line is free for the next run.
       transition Integration::RunStalled => "needs_human", from: %w[verifying reverifying boarding pushed ci_running merged]
-
-      # An operator released a run stuck in ci_running, naming its landed commit: it parks for a
-      # person, as it would on `PullRequestClosed`, and frees the line.
-      transition Integration::RunReleased => "needs_human", from: "ci_running"
     end
 
     # One step of integrating main, or one advance of every open run: what was asked, and how it
@@ -1385,19 +1381,6 @@ Hecks.bluebook "Hecks" do
         given("a run stalls only past its stage's bound") { age.value >= bound.value }
 
         emits RunStalled
-      end
-
-      # Close and Release park a run alike; Close records a closed pull request on an existing
-      # Integration record, Release needs none, since a run is keyed by its landed commit.
-      command "Release" do
-        role "Operator"
-        goal "Release a run stuck in CI, found by its landed commit alone, so it waits for a person and frees the line"
-
-        attribute :run,    RunKey, sets: true
-        attribute :landed, Word,   sets: true
-        attribute :report, Report, sets: true
-
-        emits RunReleased
       end
 
       command "Observe" do
