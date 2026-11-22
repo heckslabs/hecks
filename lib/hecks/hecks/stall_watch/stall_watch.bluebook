@@ -99,8 +99,8 @@ Hecks.bluebook "Hecks" do
         # hand run) stands lost, and mail to its key is held or refused.
         member kind: "hand-run-lost", not_about: "stall-", aggregate: "Agents::HandRun", opens: "HandRunLost",
                closes: "HandRunRestarted,HandRunEnded", minutes: 5, forgets: 1440, fixer: "orchestrator",
-               move: "Read the lost run's last session with HandRun.registered, then resume it by hand " \
-                     "(Fleet.resume! session=<its session> name=<run>) or end it with HandRun.end! to=<run>."
+               move: "Start its session again under the run key, then register it with HandRun.register! " \
+                     "run=<run> session=<id>, or end the registration with HandRun.end! run=<run>."
         # A rerun does not close the line; an exhaust or a search does, and any later merge settles it
         # (`TrainPr` records no pass), even an unrelated one. A failed rerun exhausts or is searched
         # under a new key, so this line still files and its move stops.
