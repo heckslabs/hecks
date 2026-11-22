@@ -1,0 +1,39 @@
+Hecks.behaviors "ComputeMeter" do
+  vision "The meter counts sessions, productive or wasted, and landings, and reads the machine's load as its pressure."
+
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon", "environments/memory.world", modules: :all
+
+  test "Open starts the one meter of a store" do
+    tests "Open", on: "ComputeMeter"
+    input meter: { value: "meter" }
+    expect emits: ["ComputeMeterOpened"]
+  end
+
+  test "Read takes the load of a reading as the pressure" do
+    tests "Read", on: "ComputeMeter"
+    setup  "Hecks::ComputeMeter.Open", meter: { value: "meter" }
+    input  compute_meter: "meter", pressure: { value: 7.5 }
+    expect emits: ["PressureRead"]
+  end
+
+  test "WorkSession counts a productive session" do
+    tests "WorkSession", on: "ComputeMeter"
+    setup  "Hecks::ComputeMeter.Open", meter: { value: "meter" }
+    input  compute_meter: "meter"
+    expect emits: ["SessionCountedProductive"]
+  end
+
+  test "WasteSession counts a wasted session" do
+    tests "WasteSession", on: "ComputeMeter"
+    setup  "Hecks::ComputeMeter.Open", meter: { value: "meter" }
+    input  compute_meter: "meter"
+    expect emits: ["SessionCountedWasted"]
+  end
+
+  test "Land counts a landing" do
+    tests "Land", on: "ComputeMeter"
+    setup  "Hecks::ComputeMeter.Open", meter: { value: "meter" }
+    input  compute_meter: "meter"
+    expect emits: ["LandingCounted"]
+  end
+end
