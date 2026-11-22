@@ -65,6 +65,8 @@ spec/check_era_spec.rb
 spec/cli_help_descriptions_spec.rb
 spec/cli_help_snapshot_spec.rb
 spec/cli_session_spec.rb
+spec/commit_msg_keeps_the_run_spec.rb
+spec/commit_msg_names_the_run_spec.rb
 spec/commit_msg_strips_claude_trailers_spec.rb
 spec/deploy_bluebook_spec.rb
 spec/deploy_lint_spec.rb
