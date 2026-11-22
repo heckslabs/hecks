@@ -156,7 +156,8 @@ Hecks.behaviors "Tickets" do
     tests "Unexpedite", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w35" }, title: { value: "Third" }
     setup  "Tickets::Work.Expedite", work: { value: "w35" }
-    input  work: { value: "w35" }, holders: { value: "w30, w33" }, held: { value: 2 }, limit: { value: 2 }
+    input  work: { value: "w35" }, holders: { value: "w30, w33" }, held: { value: 2 }, limit: { value: 2 },
+          expedite_refusal: { value: "w30, w33" }
     expect priority: { value: "now" }, expedite_refusal: { value: "w30, w33" }
   end
 
@@ -164,7 +165,8 @@ Hecks.behaviors "Tickets" do
     tests "Unexpedite", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w36" }, title: { value: "Second" }
     setup  "Tickets::Work.Expedite", work: { value: "w36" }
-    input  work: { value: "w36" }, holders: { value: "w30" }, held: { value: 1 }, limit: { value: 2 }
+    input  work: { value: "w36" }, holders: { value: "w30" }, held: { value: 1 }, limit: { value: 2 },
+          expedite_refusal: { value: "w30" }
     expect refused: "a lane under its limit keeps the work item"
   end
 
