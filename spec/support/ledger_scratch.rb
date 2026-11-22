@@ -28,13 +28,13 @@ module LedgerScratch
   end
 
   # Adds a `hecks_outbox` table to the file, one row per `[status, hours_ago]` pair; the hours are
-  # the age of the row's `settled_at`.
-  def scratch_outbox(path, rows)
+  # the age of the row's `settled_at`, counted back from `now`.
+  def scratch_outbox(path, rows, now: Time.now.utc)
     db = SQLite3::Database.new(path)
     db.execute("CREATE TABLE hecks_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, status TEXT, settled_at TEXT)")
     rows.each do |status, hours_ago|
       db.execute("INSERT INTO hecks_outbox (status, settled_at) VALUES (?, ?)",
-                 [status, (Time.now.utc - (hours_ago * 3600)).iso8601])
+                 [status, (now - (hours_ago * 3600)).iso8601])
     end
     db.close
   end
