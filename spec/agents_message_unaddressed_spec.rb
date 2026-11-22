@@ -19,7 +19,7 @@ RSpec.describe "the Agents message to a name with no live session" do
   it "holds mail to orchestrator, naming the live lead seat and why", :aggregate_failures do
     sent = send_message(to: "orchestrator", sender: "run-a")
     expect(sent.status).to eq("held")
-    expect(sent.held_for.value).to include("no live session").and include("live holders: lead")
+    expect(sent.held_for.value).to include("no run has that id: orchestrator").and include("live holders: lead")
   end
 
   it "refuses mail to a role, naming the live seats that fill it" do
