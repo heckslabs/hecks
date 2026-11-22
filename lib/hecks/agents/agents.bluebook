@@ -2076,6 +2076,7 @@ Hecks.bluebook "Agents" do
       needs :now
 
       given("the message says something") { !body.value.to_s.strip.empty? }
+      given("a message body is at most 2000 characters; split it") { body.value.to_s.length <= 2000 }
 
       sets :sent_at, to: :now
 
