@@ -36,6 +36,13 @@ Hecks.hecksagon "Tickets" do
       answers "AreaNamed"
       refuses "AreaUnnamed"
     end
+    # Whether each key a work item waits on names a work item, so a mistyped or comma-joined key
+    # is held by name instead of waiting forever.
+    asks "CheckWaitKeys", to: Work do
+      attribute :work, WorkKey
+      answers "WaitKeysNamed"
+      refuses "WaitKeyUnknown"
+    end
   end
 
 # Whether a landing of a work item's branch is on main, which reads the Landing records and git

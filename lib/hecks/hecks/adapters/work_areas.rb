@@ -3,6 +3,7 @@
 require_relative "area_overlap"
 require_relative "area_names"
 require_relative "started_work"
+require_relative "wait_keys"
 require_relative "console_capture"
 require_relative "dispatching/shared_sections"
 
@@ -54,6 +55,19 @@ module Hecks
         raise ConsoleCapture::Failure, "#{key} area names nothing in the checkout: #{unnamed.join(", ")}" if unnamed.any?
 
         { output: { value: "#{key} area names the checkout" } }
+      end
+
+      # Checks that each key a work item waits on names a work item.
+      #
+      # @param held [Hash] the Work item: `work` and `waits_on`
+      # @return [Hash{Symbol => Hash}] `output:` the line that says every key names a work item
+      # @raise [ConsoleCapture::Failure] naming each key no work item has, and its nearest
+      def check_wait_keys(**held)
+        key = plain(held[:work])
+        unknown = WaitKeys.unknown(@registry, held[:waits_on])
+        raise ConsoleCapture::Failure, "#{key} waits on #{unknown.join("; ")}" if unknown.any?
+
+        { output: { value: "#{key} waits on work items that exist" } }
       end
 
       private
