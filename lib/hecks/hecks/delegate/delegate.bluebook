@@ -3686,6 +3686,63 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # A burst of quick gates or launcher boots is a peak, and peaks, not averages, trip the machine.
+    # One record per kind of start (a gate, a boot) holds when the last was admitted; a start is
+    # admitted only once its spacing has passed, so starts of a kind come in a line. The callers and
+    # the spacing's world line are the wiring's; this is the rule.
+    aggregate "Stagger" do
+      description "The spacing between the starts of one kind (a quick gate, a launcher boot): a start is admitted only when the spacing has passed since the last one of its kind."
+
+      attribute :kind,       StartKind
+      attribute :started_at, StartedAt
+      identified_by :kind
+
+      value_object "StartKind" do
+        attribute :value, String, matches: :present
+      end
+
+      # When the last start of the kind was admitted, in epoch seconds; zero before the first.
+      value_object "StartedAt" do
+        attribute :value, Integer, default: 0
+        invariant("a time is not before the epoch") { !value.negative? }
+      end
+
+      # Seconds a start of the kind waits after the last one.
+      value_object "Spacing" do
+        attribute :value, Integer, default: 30
+        invariant("a spacing is positive") { value.positive? }
+      end
+
+      command "Open" do
+        role "System"
+        goal "Open the record of one kind of start, never admitted"
+
+        attribute :kind, StartKind, sets: true
+
+        emits StaggerOpened
+      end
+
+      # `+` because a rule has no `-`: the sum stands for `now - started_at >= spacing`.
+      command "Admit" do
+        role "System"
+        goal "Admit one start of the kind, refused inside the spacing since the last"
+
+        reference_to Stagger
+        attribute :spacing, Spacing
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now, StartedAt
+        needs :now
+
+        given("the last start of the kind was at least its spacing ago") do
+          started_at.value + spacing.value <= now.value
+        end
+
+        sets :started_at, to: :now
+
+        emits StartAdmitted
+      end
+    end
+
     policy "MarkTheStartOfTheReap" do
       on      "SessionCleanup.ReapRequested"
       ask     :mark, with: { run: :run }
