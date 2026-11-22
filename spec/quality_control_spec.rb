@@ -45,7 +45,7 @@ RSpec.describe "QualityControl" do
     end
 
     # Memory has no `save_saga`, on purpose: the ledger boots in-process, so BugCiWatch and
-    # ImprovementCiWatch are lost on restart. A domain wholly in Memory chose that, so verify! says nothing.
+    # ImprovementCiWatch are lost on restart. A domain wholly in Memory chose that, so no warning.
     expect { registry.verify! }.not_to output(/no save_saga/).to_stderr
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
