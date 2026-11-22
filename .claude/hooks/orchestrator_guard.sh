@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PreToolUse hook for Bash: forwards the session's role and the command to the Agents bluebook's
-# Role.guard query and relays its verdict. It decides nothing: the routing rows live in
-# lib/hecks/agents/agents.bluebook, and a role with no rows is allowed by the query. A refusal exits
+# Role.guard query and relays its verdict, except for the calls its projected rules settle (below).
+# The routing rows live in lib/hecks/agents/agents.bluebook, and a role with no rows is allowed by the query. A refusal exits
 # 2, which hands the reason (the verb or role to use instead) back to the agent. A session with no
 # role (the owner's) is never blocked.
 #
@@ -11,10 +11,12 @@
 #
 # Before it asks, the hook decides what the projected rules (.claude/hooks/guard_rules.json) settle
 # with no Hecks process: a call made by a subagent, a role with no routing rows, and a `git` or `gh`
-# call that is exactly one of the role's rows. The file holds the digest of the Agents bluebooks it
-# was projected from; a missing file or a digest that no longer matches turns this off, and the call
-# goes to Role.guard, which reads the bluebooks and stays the one authority. Every launcher call and
-# every other shape (a branch name after `git branch`, a pipe, a script) goes to Role.guard too.
+# call that is exactly one of the role's rows. Every launcher call and every other shape (a branch
+# name after `git branch`, a pipe, a script) is a check that needs live state, and goes to Role.guard.
+# The file holds the digest of the Agents bluebooks it was projected from. A guarded role is refused
+# when the file is missing or the digest no longer matches, so the hook never passes a call on old
+# rules; only `exe/hecks agents Role.guard`, `git status` and the projection command itself run, so
+# a session can always repair the file. A role that is not guarded is let through.
 #
 # When Hecks cannot answer (the launcher fails, gives no verdict, or takes longer than the limit), a
 # role listed in .claude/hooks/guarded_roles (projected from the RoutingRule rows) is refused with the
@@ -49,20 +51,34 @@ unanswered() {
 }
 
 rules="$dir/.claude/hooks/guard_rules.json"
+projection="exe/hecks regeneration_run.project_agent_roles!"
 
-# Whether the projected rules, still current for this checkout's bluebooks, allow the call.
-decided_by_rules() {
-  [ -r "$rules" ] || return 1
+# Prints allow, ask, missing or stale: what the projected rules say of this call.
+rules_say() {
+  [ -r "$rules" ] || { echo missing; return; }
   have="$(cd "$dir/lib/hecks/agents" 2>/dev/null && LC_ALL=C cat ./*.bluebook | shasum -a 256 | cut -d' ' -f1)"
-  [ -n "$have" ] || return 1
-  verdict="$(jq -r --arg have "$have" --arg role "$role" --arg command "$command" --arg agent "$agent" '
-    if .digest != $have then "ask"
+  [ -n "$have" ] || { echo missing; return; }
+  jq -r --arg have "$have" --arg role "$role" --arg command "$command" --arg agent "$agent" '
+    if .digest != $have then "stale"
     elif $agent != "" or (.roles | has($role) | not) or ((.roles[$role] | index($command)) != null) then "allow"
-    else "ask" end' "$rules" 2>/dev/null)"
-  [ "$verdict" = "allow" ]
+    else "ask" end' "$rules" 2>/dev/null || echo missing
 }
 
-decided_by_rules && exit 0
+# Refuses a guarded role's call, for rules that are not current, naming how to project them.
+refuse_old_rules() {
+  [ -r "$guarded" ] && ! grep -qxF -- "$role" "$guarded" && return 0
+  case "$command" in "exe/hecks agents Role.guard" | "git status" | "$projection" | "$projection "*) return 0 ;; esac
+  echo "orchestrator_guard: guard_rules.json is $1, so $role runs only \`exe/hecks agents Role.guard\`," \
+    "\`git status\` and \`$projection\` until it is projected again: run the last." \
+    "Refused: $command" >&2
+  exit 2
+}
+
+case "$(rules_say)" in
+  allow) exit 0 ;;
+  missing) refuse_old_rules missing; exit 0 ;;
+  stale) refuse_old_rules stale; exit 0 ;;
+esac
 
 cd "$dir" 2>/dev/null || unanswered "cannot enter $dir"
 out="$(HECKS_CALLER=hook:orchestrator_guard perl -e 'alarm shift; exec @ARGV or exit 127' "$limit" \
