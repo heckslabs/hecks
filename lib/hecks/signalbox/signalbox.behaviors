@@ -1048,21 +1048,21 @@ Hecks.behaviors "Signalbox" do
   test "the beat: a quiet machine's look from main is cleared, published and ruled on" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-quiet" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded WritesOverBudget WritesOverBudget WritesOverBudget WritesOverBudget ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead
                      PressureEased PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
   test "the beat: the helper storm's look puts the machine in the short band" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-storm" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead PressureFellShort StandingFellShort
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded WritesOverBudget WritesOverBudget WritesOverBudget WritesOverBudget ClearanceGranted BeatPublished PressureOpened StandingOpened PressureRead PressureFellShort StandingFellShort
                      PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
   test "the beat: a look from a copy behind main is not cleared, so nothing is published" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-worktree" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded]
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskWritesRecorded WritesOverBudget WritesOverBudget WritesOverBudget WritesOverBudget]
   end
 
   test "the beat: a machine that cannot be read faults the beat" do
@@ -1106,7 +1106,7 @@ Hecks.behaviors "Signalbox" do
   test "the beat: a disk with under a tenth of it free is said to run low" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-full-disk" }
-    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskRanLow DiskWritesRecorded ClearanceGranted
+    expect emits: %w[BeatBegun BeatLooked BeatRecorded DiskRecorded DiskRanLow DiskWritesRecorded WritesOverBudget WritesOverBudget WritesOverBudget WritesOverBudget ClearanceGranted
                      BeatPublished PressureOpened StandingOpened PressureRead PressureEased PressurePosted DelegateHeard RulingRecorded
                      RulingRecorded]
   end
