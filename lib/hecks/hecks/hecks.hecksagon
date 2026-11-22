@@ -511,6 +511,15 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Turns auto-merge on again for a train pull request the merge queue dropped, which enqueues it.
+  Hecks::TrainPrEnqueue.port "GitHubPullRequests" do
+    asks "Arm", to: TrainPrEnqueue do
+      attribute :pr, PrNumber
+      answers "ArmAnswered"
+      refuses "ArmRefused"
+    end
+  end
+
   Hecks::ReviewRequest.port "GitHubPullRequests" do
     asks "Tidy", to: ReviewRequest do
       attribute :run, RunKey

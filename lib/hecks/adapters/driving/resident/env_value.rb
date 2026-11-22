@@ -1,18 +1,19 @@
+require "digest"
+
 module Hecks
   module Adapters
     module Driving
       module Resident
         # What a variable's value comes to when a line's environment is compared with the
-        # resident's. Most values count as they are; three are cleaned of what changes nothing the
-        # code loads: `RUBYLIB` of the rbenv hook directory and a Bundler gem's library, `RUBYOPT`
-        # when it holds only Bundler's setup (which the resident has run), its library and warning
-        # levels, `BUNDLE_GEMFILE` when it names the served checkout's own Gemfile, and `GEM_HOME`
-        # when it names the directory gems resolve to without it (compared by real path, so a
-        # symlink to it counts). A line's child runs under the line's own environment, so a
-        # cleaned value still reaches its subprocesses. Anything else keeps the whole value and
-        # is refused on a difference; `GEM_PATH` is never cleaned, since it adds to the gem set
-        # whatever `GEM_HOME` is. It uses only the standard library: the client runs before
-        # anything loads.
+        # resident's. Most values count as they are; some are cleaned of what changes nothing
+        # the code loads: `RUBYLIB` of the rbenv hook directory and a Bundler gem's library,
+        # `RUBYOPT` holding only Bundler's setup and warning levels, `BUNDLE_GEMFILE` naming the
+        # checkout's own Gemfile or a copy whose Gemfile and `Gemfile.lock` hold the same bytes
+        # (the gems are the lock's), and `GEM_HOME` naming the directory gems resolve to without
+        # it (by real path). A line's child runs under the line's own environment. Anything else
+        # keeps the whole value and is refused on a difference; `GEM_PATH` is never cleaned,
+        # since it adds to the gem set. It uses only the standard library: the client runs
+        # before anything loads.
         module EnvValue
           # The variable whose value is cleaned.
           LIBRARY_PATH = "RUBYLIB".freeze
@@ -55,7 +56,24 @@ module Hecks
 
           # @return [String, nil] nil when the Gemfile is the checkout's own, the value otherwise
           def gemfile(value, root)
-            root && canonical(value) == canonical(File.join(root, "Gemfile")) ? nil : value
+            root && (same_path?(value, root) || same_bundle?(value, root)) ? nil : value
+          end
+
+          # @return [Boolean] whether the Gemfile is the checkout's own, by real path
+          def same_path?(value, root) = canonical(value) == canonical(File.join(root, "Gemfile"))
+
+          # @return [Boolean] whether the Gemfile and its lock hold the same bytes as the
+          #   checkout's, so a copy resolves to the same gems; false when either lock is missing
+          def same_bundle?(value, root)
+            mine = bundle_digest(File.join(root, "Gemfile"))
+            !mine.nil? && mine == bundle_digest(value)
+          end
+
+          # @return [String, nil] a digest of the Gemfile and its lock, nil when either is unread
+          def bundle_digest(gemfile)
+            Digest::SHA256.hexdigest([File.binread(gemfile), File.binread("#{gemfile}.lock")].join("\0"))
+          rescue SystemCallError
+            nil
           end
 
           # @return [String, nil] nil when `GEM_HOME` is the directory gems resolve to without it,

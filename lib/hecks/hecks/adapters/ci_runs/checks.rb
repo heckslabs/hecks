@@ -29,6 +29,9 @@ module Hecks
         # @return [Boolean] whether a check failed and no check is left running
         def failed_and_complete? = !failed.empty? && done == total
 
+        # @return [Boolean] whether checks are listed, every one concluded and none failed
+        def passed_and_complete? = total.positive? && done == total && failed.empty?
+
         # @return [String] the counts for a report: `"3 of 12 checks"`
         def counts = "#{done} of #{total} checks"
 

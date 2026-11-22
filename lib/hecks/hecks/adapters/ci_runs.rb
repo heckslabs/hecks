@@ -9,6 +9,7 @@ require_relative "ci_runs/job_rerun"
 require_relative "ci_runs/train_pr_failure"
 require_relative "ci_runs/red_pull"
 require_relative "ci_runs/ci_start"
+require_relative "ci_runs/dropped_pull"
 require_relative "main_integration/command_runner"
 require_relative "main_integration/carried_check"
 
@@ -111,8 +112,15 @@ module Hecks
         checks = Checks.new(replaced.keep(pull["statusCheckRollup"]))
         return pr_failed(landed, pull) if checks.failed_and_complete?
 
+        found = DroppedPull.new(runner, @checkout, pull, landed).read(checks)
+        found ? dropped_answer(found) : waiting(landed, pull, checks, replaced)
+      end
+
+      def dropped_answer(found) = answer(found[:outcome], found[:report]).merge(pr: { value: found[:pr] })
+
+      def waiting(landed, pull, checks, replaced)
         start = CiStart.new(pull, checks, replaced.newest_status(WORKFLOW), now)
-        answer(start.outcome, still_open(landed, pull, start, replaced)).merge(start.facts)
+        answer(start.outcome, start.progress(landed, replaced.unread)).merge(start.facts)
       end
 
       def pr_failed(landed, pull)
@@ -121,13 +129,6 @@ module Hecks
         answer("pr_failed", facts.delete(:report)).merge(facts.transform_values { |value| { value: value } })
       rescue ConsoleCapture::Failure => e
         answer("running", red.unreadable(pull, e))
-      end
-
-      def still_open(landed, pull, start, replaced)
-        return "#{landed[0, 10]}: #{start.report}" if start.unstarted?
-
-        text = "#{landed[0, 10]}: PR #{pull["number"]} not merged yet (#{start.counts})"
-        replaced.unread ? "#{text}; replaced runs unread: #{replaced.unread}" : text
       end
 
       # @param merged [Object, nil] the pull request's number when it merged: CI still running on

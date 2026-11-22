@@ -104,7 +104,8 @@ module RestPullView
     merged = pull["state"] == "MERGED"
     { "number" => pull["number"], "state" => pull["state"] == "OPEN" ? "open" : "closed", "html_url" => pull["url"],
       "head" => { "ref" => pull["headRefName"], "sha" => SHA }, "created_at" => pull["createdAt"],
-      "merged_at" => (merged ? "2026-01-01T00:00:00Z" : nil), "merge_commit_sha" => pull.dig("mergeCommit", "oid") }
+      "merged_at" => (merged ? "2026-01-01T00:00:00Z" : nil), "merge_commit_sha" => pull.dig("mergeCommit", "oid"),
+      "auto_merge" => pull["autoMergeRequest"] }
   end
 
   def check_run(entry)
