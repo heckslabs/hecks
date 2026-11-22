@@ -24,6 +24,7 @@ Hecks.context_map "Hecks" do
   context "Pipeline"
   context "Agents"
   context "Triage"
+  context "Interviews"
   context "Delivery"
   context "Signalbox"
 
