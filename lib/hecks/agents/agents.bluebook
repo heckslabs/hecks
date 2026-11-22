@@ -2133,6 +2133,13 @@ Hecks.bluebook "Agents" do
       ask     :recipient, with: { message: :message, recipient: :recipient }
     end
 
+    # A sent message, a released held one included, rouses the session holding its recipient's role
+    # name. A role nobody holds leaves it resting; a busy holder hears it at its next tool call.
+    policy "RouseTheRecipient" do
+      on      "Message.MessageSent"
+      ask     :rouse, with: { message: :message }
+    end
+
     # A message handed to its session is read: the hook records `Receive`, and this records the read.
     # A read refused leaves the message delivered, handed over once and still in the inbox.
     policy "ReadWhatWasHandedOver" do
