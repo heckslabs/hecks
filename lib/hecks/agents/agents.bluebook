@@ -2695,7 +2695,7 @@ Hecks.bluebook "Agents" do
 
     policy "RegisterTheRestartedRun" do
       on      "HandRun.HandRunRestarted"
-      trigger HandRun::Register, with: { run: :run, session: :session, role: :role, checkout: :checkout }
+      trigger HandRun::Register, with: { run: :run, session: :session, role: :role }
     end
   end
 
