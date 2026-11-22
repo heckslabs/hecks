@@ -7,16 +7,16 @@ Hecks::Adapters::DeliveryLibrary.require("git_landing")
 module Hecks
   module Adapters
     module Landing
-      # The landing job that reports its own death. The vendored `GitLanding::Job` runs `Landing.carry!`
-      # in a detached process and ends silently when that process dies with no outcome recorded; this
-      # one, prepended to it, runs the same loop and then does two things more (ADR 0205 keeps the
-      # delivery package's files unedited, so the override is here).
+      # The landing job that reports its own death. The vendored `GitLanding::Job` runs
+      # `Landing.carry!` in a detached process and ends silently when that process dies with no
+      # outcome recorded. This module, prepended to it, runs the same loop and does two things more
+      # (ADR 0205 keeps the delivery package's files unedited, so the override is here).
       #
-      # A try that says "the resident went away" ran its line to an unknown end, so it is run once more
-      # without the resident, once for the whole job. A job that ends without success and without
-      # `BranchLanded` or `LandingRefused` in the last output records `LandingJobFault.report!`, naming
-      # the branch and the last line of the output, so the Work item is planned again and no landing
-      # stays silent.
+      # A try that says "the resident went away" ran its line to an unknown end, so it is run once
+      # more without the resident, once for the whole job. A job that ends without success and
+      # without `BranchLanded` or `LandingRefused` in the last output records
+      # `LandingJobFault.report!`, naming the branch and the last line of the output, so the Work
+      # item is planned again and no landing stays silent.
       module ReportingJob
         # What a carry's output holds when its outcome was recorded: the events it lists.
         RECORDED = ['"LandingRefused"', '"BranchLanded"'].freeze
