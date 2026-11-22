@@ -1361,6 +1361,14 @@ Hecks.bluebook "Signalbox" do
       invariant("an amount of writes is not negative") { !value.negative? }
     end
 
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :present
+    end
+
     query "Latest" do
       description "The newest day's writes by process, in megabytes."
       order_by :day, :desc
@@ -1385,6 +1393,23 @@ Hecks.bluebook "Signalbox" do
       sets :postgres_mb, to: postgres_steps.value * step_hundredths.value / 100
 
       emits DiskWritesRecorded
+    end
+
+    # The budget rides in with the judgement: each process's default is declared by the policy that
+    # asks, with the cause it was set for; a raise is a new Allowance with an end, kept beside it.
+    command "Overrun" do
+      role "System"
+      goal "Say a process wrote more in the day than its budget allows, and why it has that budget"
+
+      reference_to DiskWrites
+      attribute :process,         Word
+      attribute :steps,           Count
+      attribute :step_hundredths, Count
+      attribute :budget,          Megabytes
+      attribute :cause,           Note
+      given("the process wrote more than its budget") { steps.value * step_hundredths.value / 100 > budget.value }
+
+      emits WritesOverBudget
     end
   end
 
@@ -1598,6 +1623,38 @@ Hecks.bluebook "Signalbox" do
     trigger DiskWrites::Record, with: {
       day: :writes_day, step_hundredths: :step_hundredths, ruby_steps: :ruby_steps, git_steps: :git_steps,
       rustc_steps: :rustc_steps, postgres_steps: :postgres_steps
+    }
+  end
+
+  policy "JudgeRubyWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "ruby" }, steps: :ruby_steps, step_hundredths: :step_hundredths, budget: { value: 300000 },
+      cause: { value: "cold boots until a resident answers every command" }
+    }
+  end
+
+  policy "JudgeGitWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "git" }, steps: :git_steps, step_hundredths: :step_hundredths, budget: { value: 100000 },
+      cause: { value: "about 240 worktrees until the pruner retires again" }
+    }
+  end
+
+  policy "JudgeRustcWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "rustc" }, steps: :rustc_steps, step_hundredths: :step_hundredths, budget: { value: 80000 },
+      cause: { value: "a cold cargo target in each worktree until builds share one cache" }
+    }
+  end
+
+  policy "JudgePostgresWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "postgres" }, steps: :postgres_steps, step_hundredths: :step_hundredths, budget: { value: 20000 },
+      cause: { value: "a service restarting every 10 seconds until it is stopped" }
     }
   end
 
