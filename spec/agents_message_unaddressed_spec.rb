@@ -16,10 +16,11 @@ RSpec.describe "the Agents message to a name with no live session" do
 
   def listed_sessions = %w[1ead-full c0de-full]
 
-  it "holds mail to orchestrator, naming the live lead seat and why", :aggregate_failures do
+  it "holds mail to orchestrator when two seats are live, naming both and why", :aggregate_failures do
+    register_hand(run: "lead-2", session: "c0de-full", role: "lead")
     sent = send_message(to: "orchestrator", sender: "run-a")
     expect(sent.status).to eq("held")
-    expect(sent.held_for.value).to include("no run has that id: orchestrator").and include("live holders: lead")
+    expect(sent.held_for.value).to include("no run has that id: orchestrator").and include("live holders: lead, lead-2")
   end
 
   it "refuses mail to a role, naming the live seats that fill it" do
