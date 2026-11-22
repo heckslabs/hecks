@@ -124,15 +124,30 @@ RSpec.describe "the orchestrator guard hook" do
       expect(asked?).to be(true)
     end
 
-    it "sends every call to the door when the rules file is missing" do
-      hook("git status")
-      expect(asked?).to be(true)
+    it "refuses a guarded role's call when the rules file is missing", :aggregate_failures do
+      err, status = hook("git status")
+      expect(status).to eq(2)
+      expect(err).to include("guard_rules.json is missing", "project_agent_roles!")
+      expect(asked?).to be(false)
     end
 
-    it "sends every call to the door when the rules file is stale" do
+    it "refuses a guarded role's call when the rules file is stale", :aggregate_failures do
       project(digest: "0" * 64)
-      hook("git status")
-      expect(asked?).to be(true)
+      err, status = hook("git status")
+      expect(status).to eq(2)
+      expect(err).to include("guard_rules.json is stale", "project_agent_roles!")
+      expect(asked?).to be(false)
+    end
+
+    it "still lets a guarded role run the projection when the rules file is stale", :aggregate_failures do
+      project(digest: "0" * 64)
+      expect(hook("exe/hecks regeneration_run.project_agent_roles!").last).to eq(0)
+      expect(hook("exe/hecks regeneration_run.project_agent_roles! --wait").last).to eq(0)
+    end
+
+    it "lets a role that is not guarded through when the rules file is stale" do
+      project(digest: "0" * 64)
+      expect(hook("cat lib/x.rb", role: "coder").last).to eq(0)
     end
   end
 
