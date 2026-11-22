@@ -66,4 +66,62 @@ RSpec.describe "The quick stage's rubocop on a landing's changed files" do
     git("branch", "-q", "-m", "trunk")
     expect(plan.first).to eq(:skip)
   end
+
+  context "with a branch that deleted a Ruby file" do
+    before do
+      git("checkout", "-q", "-b", "work")
+      FileUtils.rm(File.join(root, "lib/a.rb"))
+      commit("work")
+    end
+
+    it "does not lint the missing file" do
+      expect(plan.first).to eq(:skip)
+    end
+  end
+
+  context "with a branch that changed a file another Ruby file requires" do
+    before do
+      write("lib/req.rb", "require_relative \"a\"\n")
+      commit("requirer")
+      git("checkout", "-q", "-b", "work")
+      write("lib/a.rb", "A = 2\n")
+      commit("work")
+    end
+
+    it "lints the requirer too" do
+      expect(plan[1]).to eq(%w[lib/a.rb lib/req.rb])
+    end
+  end
+
+  context "with a tracked Ruby file edited but not committed" do
+    before do
+      git("checkout", "-q", "-b", "work")
+      write("lib/a.rb", "A = 2\n")
+    end
+
+    it "lints the edited file as well" do
+      expect(plan[1]).to eq(%w[lib/a.rb])
+    end
+  end
+
+  context "when local main is behind origin/main" do
+    before do
+      git("checkout", "-q", "-b", "work")
+      git("branch", "-q", "stale_main")
+      write("lib/x.rb", "X = 1\n")
+      commit("origin moved")
+      git("update-ref", "refs/remotes/origin/main", "HEAD")
+      git("branch", "-q", "-f", "main", "stale_main")
+      write("lib/b.rb", "B = 1\n")
+      commit("work")
+    end
+
+    it "lints only what the branch changed since origin/main" do
+      expect(plan[1]).to eq(%w[lib/b.rb])
+    end
+  end
+
+  it "keeps a full plan full" do
+    expect(ruby.plan(root, nil, ruby.hashes(root)).first).to eq(:full)
+  end
 end

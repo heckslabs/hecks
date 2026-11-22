@@ -35,15 +35,24 @@ module Hecks
             RubyFiles.lintable(root, RubyFiles.closure(root, changed, now.keys))
           end
 
-          # @return [Array<String>] the Ruby files that differ from the merge-base with `main`, or
-          #   none when the checkout has no `main` to compare with
+          # @return [Array<String>] the Ruby files that differ from the merge-base with `origin/main`
+          #   (or `main` when there is no remote), or none when there is no trunk to compare with
           def changed(root)
-            base, status = Open3.capture2("git", "-C", root, "merge-base", "HEAD", "main", err: File::NULL)
-            return [] unless status.success?
+            base = merge_base(root)
+            return [] unless base
 
-            out, = Open3.capture2("git", "-C", root, "diff", "--name-only", "--diff-filter=d", base.strip, "--", "*.rb",
+            out, = Open3.capture2("git", "-C", root, "diff", "--name-only", "--diff-filter=d", base, "--", "*.rb",
                                   err: File::NULL)
             out.split("\n")
+          end
+
+          # @return [String, nil] the commit the branch left the trunk at, `origin/main` preferred
+          def merge_base(root)
+            %w[origin/main main].each do |trunk|
+              out, status = Open3.capture2("git", "-C", root, "merge-base", "HEAD", trunk, err: File::NULL)
+              return out.strip if status.success?
+            end
+            nil
           end
         end
       end
