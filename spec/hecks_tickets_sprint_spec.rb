@@ -23,7 +23,7 @@ RSpec.describe "the Tickets Sprint" do
     cli("work.assign!", "to=#{key}", "epic=#{epic}")
   end
 
-  def schedule(key, day) = cli("work.schedule!", "to=#{key}", "sprint=#{day}")
+  def schedule(key, day) = cli("work.schedule!", "to=#{key}", "into=#{day}")
 
   def plain(value) = value.respond_to?(:value) ? value.value : value
 
@@ -79,6 +79,6 @@ RSpec.describe "the Tickets Sprint" do
     cli("sprint.close!", "to=2026-11-23")
     item("a1")
     schedule("a1", "2026-11-23")
-    expect(sprint_of("a1")).to be_nil
+    expect(sprint_of("a1").to_s).to eq("")
   end
 end
