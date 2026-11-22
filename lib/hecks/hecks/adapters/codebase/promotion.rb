@@ -32,6 +32,10 @@ module Hecks
           # @return [#call, nil] answers the time now; the system clock when nil. A spec sets it.
           attr_accessor :clock
 
+          # @return [#states] the checks reader: the one a spec replaced it with, else one shared
+          #   `GithubChecks`, so the wait for a rate limit is one budget for the whole run
+          def reader = checks || (@reader ||= GithubChecks.new)
+
           # @return [Time] the time now
           def now = (clock || -> { Time.now }).call
         end
@@ -48,6 +52,8 @@ module Hecks
         def facts(held, tree)
           watching = plain(held[:operation]) == "watch"
           (watching ? Watch : Standing).new(held, tree).facts
+        rescue GithubChecks::RateLimited => e
+          limited(e.message)
         end
 
         # The facts of a tree that is not a checkout: placeholders that satisfy the value objects,
@@ -81,7 +87,7 @@ module Hecks
         # @param reasons [Array<String>] why the facts are not all true
         # @return [Hash{Symbol => Hash}] the facts, as value objects
         def answer(commit, head, green, descends, reasons)
-          { lane_known: { value: true }, green: { value: green }, descends: { value: descends },
+          { lane_known: { value: true }, rate_limited: { value: false }, green: { value: green }, descends: { value: descends },
             commit: { value: commit }, head: { value: head || "none" },
             reason: { value: reasons.reject { |why| why.to_s.empty? }.join("; ") } }
         end
@@ -91,7 +97,8 @@ module Hecks
         # @param reason [String] what the watch found
         # @return [Hash{Symbol => Hash}] the facts of a watch, as value objects
         def watched(behind, limit, reason)
-          { lane_known: { value: true }, behind_hours: { value: behind }, limit_hours: { value: limit },
+          { lane_known: { value: true }, rate_limited: { value: false }, behind_hours: { value: behind },
+            limit_hours: { value: limit },
             promoted: { value: false }, reason: { value: reason } }
         end
 
@@ -99,10 +106,17 @@ module Hecks
         # @param why [String, nil] what to say instead of the default
         # @return [Hash{Symbol => Hash}] facts none of which is true
         def unknown(lane, why = nil)
-          { lane_known: { value: false }, green: { value: false }, descends: { value: false },
+          { lane_known: { value: false }, rate_limited: { value: false }, green: { value: false }, descends: { value: false },
             commit: { value: "none" }, head: { value: "none" }, behind_hours: { value: 0 },
             limit_hours: { value: 0 }, promoted: { value: false },
             reason: { value: why || "#{lane.inspect} is not a Lane row that follows another lane" } }
+        end
+
+        # @param why [String] when GitHub will answer again, as the read of the checks said
+        # @return [Hash{Symbol => Hash}] facts of a run that could not read the checks: none of them
+        #   true and `rate_limited` true, so the run is deferred and not faulted
+        def limited(why)
+          unknown("none", "not promoted: #{why}").merge(rate_limited: { value: true })
         end
 
         # @return [Hash{Symbol => Hash}] what a finished move reports

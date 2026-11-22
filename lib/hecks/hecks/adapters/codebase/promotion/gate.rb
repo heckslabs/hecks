@@ -39,7 +39,7 @@ module Hecks
           def named(kinds) = states.select { |_, state| kinds.include?(state) }.keys
 
           def states
-            @states ||= (Promotion.checks || GithubChecks.new).states(commit: @commit, names: names)
+            @states ||= Promotion.reader.states(commit: @commit, names: names)
           end
 
           def names = Hecks::Vocabulary.rows("RequiredCheck").map { |check| check["name"] }
