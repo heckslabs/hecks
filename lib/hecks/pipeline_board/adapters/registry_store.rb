@@ -2,6 +2,7 @@
 
 require "hecks"
 require_relative "probe"
+require_relative "registry_store/event_cursor"
 
 module Hecks
   module Adapters
@@ -30,6 +31,7 @@ module Hecks
           @cache_seconds = cache_seconds
           @lock = Mutex.new
           @kept = {}
+          @cursor = EventCursor.new
         end
 
         # @param domain [String] a bluebook of the domain, such as `"Hecks"`
@@ -105,7 +107,9 @@ module Hecks
           raise Unavailable, "#{label} declares no #{domain}.#{name}" unless aggregate
 
           repository = current.repository(domain, aggregate)
-          repository.respond_to?(:events) ? repository.events.to_a : []
+          return [] unless repository.respond_to?(:events)
+
+          @cursor.read(current, [domain, name], repository)
         end
 
         # What the store is called in a refusal.
