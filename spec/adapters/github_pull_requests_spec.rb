@@ -102,12 +102,22 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
                                 { "name" => "lint", "conclusion" => "", "state" => "PENDING" }] }
     end
 
-    it "answers the state, URL, merge and checks as text" do
-      replies[["pr", "view", "42", "--json", "number,state,url,mergedAt,statusCheckRollup"]] = [JSON.generate(view), "", true]
+    def queue_args
+      ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-F", "number=42",
+       "-f", "query=#{Hecks::Adapters::GithubPullRequests::QueueStanding::QUERY}"]
+    end
 
-      expect(pulls.status(number: { value: "42" })[:text]).to eq(
-        "number: 42\nstate: OPEN\nurl: https://github.com/acme/app/pull/42\nmerged: no\nchecks: rspec=SUCCESS, lint=PENDING\n"
-      )
+    def reply_to_status
+      replies[["pr", "view", "42", "--json", "number,state,url,mergedAt,statusCheckRollup"]] = [JSON.generate(view), "", true]
+      pull = { "mergedAt" => nil }
+      replies[queue_args] = [JSON.generate("data" => { "repository" => { "pullRequest" => pull } }), "", true]
+    end
+
+    it "answers the state, URL, merge, queue place and checks as text" do
+      reply_to_status
+      text = pulls.status(number: { value: "42" })[:text]
+      expect(text).to eq("number: 42\nstate: OPEN\nurl: https://github.com/acme/app/pull/42\nmerged: no\n" \
+                         "queue: not queued\nchecks: rspec=SUCCESS, lint=PENDING\n")
     end
   end
 
