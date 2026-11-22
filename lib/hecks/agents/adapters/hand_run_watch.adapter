@@ -1,0 +1,7 @@
+# Binds the `HandRunWatching` port to `HandRunWatch`, which reads the sessions `claude agents` lists for each hand run.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/hand_run_watch"
+
+Hecks.adapter "HandRunWatch" do
+  port "HandRunWatching"
+end
