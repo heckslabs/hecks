@@ -1046,6 +1046,17 @@ Hecks.bluebook "Signalbox" do
     attribute :shed_delegate, Word, optional: true
     attribute :refusal,       Note, optional: true
     attribute :begun_at,      Stamp, optional: true
+    # The disk the look read (decided 2026-11-21): its free space and its size, in megabytes.
+    attribute :disk_free,     Megabytes, optional: true
+    attribute :disk_total,    Megabytes, optional: true
+    # The newest daily report of disk writes the look read: its day, the size of a step in
+    # hundredths of a megabyte, and the steps it counted for four processes.
+    attribute :writes_day,       Word, optional: true
+    attribute :step_hundredths,  Count, optional: true
+    attribute :ruby_steps,       Count, optional: true
+    attribute :git_steps,        Count, optional: true
+    attribute :rustc_steps,      Count, optional: true
+    attribute :postgres_steps,   Count, optional: true
 
     value_object "BeatKey" do
       attribute :value, String, matches: :present
@@ -1089,6 +1100,12 @@ Hecks.bluebook "Signalbox" do
       description "The beat a granted clearance names, whose looked facts are published once it is cleared."
       attribute :clearance, BeatKey
       where(beat: :clearance)
+    end
+
+    query "Latest" do
+      description "The newest beat, with the disk's free space and size its look read."
+      order_by :begun_at, :desc
+      limit 1
     end
 
     lifecycle :status, default: "begun" do
@@ -1153,6 +1170,29 @@ Hecks.bluebook "Signalbox" do
       sets :gates_fit,  to: (capacity.value - used.value - reserve.value) / gate_draw.value
 
       emits BeatRecorded
+    end
+
+    # The disk is recorded beside the look, not in it: a beat's look answers it with the machine.
+    command "RecordDisk" do
+      role "System"
+      goal "Record the free space and the size of the disk the beat's look read"
+
+      reference_to Beat
+      attribute :disk_free,  Megabytes, sets: true
+      attribute :disk_total, Megabytes, sets: true
+
+      emits DiskRecorded
+    end
+
+    # The disk is running low when under a tenth of it is free; a nearly full SSD wears faster.
+    command "WarnDisk" do
+      role "System"
+      goal "Say the disk the beat read is running low on free space"
+
+      reference_to Beat
+      given("under a tenth of the disk is free") { disk_free.value * 10 < disk_total.value }
+
+      emits DiskRanLow
     end
 
     command "Fault" do
@@ -1284,6 +1324,154 @@ Hecks.bluebook "Signalbox" do
       attribute :also,     Note, optional: true, sets: true
 
       emits RulingRecorded
+    end
+  end
+
+  # A day of the disk's writes, by process, as macOS's daily report counts them: samples of a
+  # fixed size each. The megabytes are reckoned here from the steps, never by the port that read them.
+  aggregate "DiskWrites" do
+    description "One day's disk writes by process: the report's steps for ruby, git, rustc and postgres, and the megabytes they come to."
+    created_by "DiskWrites.record!"
+
+    identified_by :day
+
+    attribute :day,             Day
+    attribute :step_hundredths, Count
+    attribute :ruby_steps,      Count
+    attribute :git_steps,       Count
+    attribute :rustc_steps,     Count
+    attribute :postgres_steps,  Count
+    attribute :ruby_mb,         Megabytes, optional: true
+    attribute :git_mb,          Megabytes, optional: true
+    attribute :rustc_mb,        Megabytes, optional: true
+    attribute :postgres_mb,     Megabytes, optional: true
+
+    # The day the report's window ended, as `2026-11-20`.
+    value_object "Day" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("an amount of writes is not negative") { !value.negative? }
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :present
+    end
+
+    query "Latest" do
+      description "The newest day's writes by process, in megabytes."
+      order_by :day, :desc
+      limit 1
+    end
+
+    # A step is `step_hundredths` hundredths of a megabyte.
+    command "Record" do
+      role "System"
+      goal "Record one day's writes by process from the report's steps"
+
+      attribute :day,             Day, sets: true
+      attribute :step_hundredths, Count, sets: true
+      attribute :ruby_steps,      Count, sets: true
+      attribute :git_steps,       Count, sets: true
+      attribute :rustc_steps,     Count, sets: true
+      attribute :postgres_steps,  Count, sets: true
+
+      sets :ruby_mb,     to: ruby_steps.value * step_hundredths.value / 100
+      sets :git_mb,      to: git_steps.value * step_hundredths.value / 100
+      sets :rustc_mb,    to: rustc_steps.value * step_hundredths.value / 100
+      sets :postgres_mb, to: postgres_steps.value * step_hundredths.value / 100
+
+      emits DiskWritesRecorded
+    end
+
+    # The budget rides in with the judgement: each process's default is declared by the policy that
+    # asks, with the cause it was set for; a raise is a new Allowance with an end, kept beside it.
+    command "Overrun" do
+      role "System"
+      goal "Say a process wrote more in the day than its budget allows, and why it has that budget"
+
+      reference_to DiskWrites
+      attribute :process,         Word
+      attribute :steps,           Count
+      attribute :step_hundredths, Count
+      attribute :budget,          Megabytes
+      attribute :cause,           Note
+      given("the process wrote more than its budget") { steps.value * step_hundredths.value / 100 > budget.value }
+
+      emits WritesOverBudget
+    end
+  end
+
+  # A process's daily write budget, which names its cause. A raise is a new allowance that ends on
+  # a date, never an edit of the old one, so every raise is a recorded decision that lapses.
+  aggregate "Allowance" do
+    description "One decision on how many megabytes a process may write in a day: the cause it was decided for and when it ends."
+    created_by "Allowance.set!"
+
+    identified_by :allowance
+
+    attribute :allowance, Key
+    attribute :process,   Word
+    attribute :megabytes, Megabytes
+    attribute :cause,     Note
+    attribute :ends_at,   Stamp
+    attribute :set_at,    Stamp, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Megabytes" do
+      attribute :value, Integer, default: 0
+      invariant("a budget is not negative") { !value.negative? }
+    end
+
+    value_object "Stamp" do
+      attribute :value, Integer, default: 0
+      invariant("a time is not negative") { !value.negative? }
+    end
+
+    query "Of" do
+      description "The decisions on one process's write budget, newest first."
+      attribute :process, Word
+      where(process: :process)
+      order_by :set_at, :desc
+    end
+
+    command "Set" do
+      role "System"
+      goal "Decide a process's daily write budget, for a cause, until a date"
+
+      attribute :allowance, Key, sets: true
+      attribute :process,   Word, sets: true
+      attribute :megabytes, Megabytes, sets: true
+      attribute :cause,     Note, sets: true
+      attribute :ends_at,   Stamp, sets: true
+      attribute :now,       Stamp
+      needs :now
+
+      sets :set_at, to: :now
+
+      emits AllowanceSet
     end
   end
 
@@ -1422,6 +1610,58 @@ Hecks.bluebook "Signalbox" do
       fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
       shed_delegate: :shed_delegate
     }
+  end
+
+  # The disk and the day's writes ride the same look, so no second port reads them.
+  policy "RecordTheDiskOnTheLook" do
+    on      "Beat.BeatLooked"
+    trigger Beat::RecordDisk, with: { beat: :beat, disk_free: :disk_free, disk_total: :disk_total }
+  end
+
+  policy "RecordTheDaysWritesOnTheLook" do
+    on      "Beat.BeatLooked"
+    trigger DiskWrites::Record, with: {
+      day: :writes_day, step_hundredths: :step_hundredths, ruby_steps: :ruby_steps, git_steps: :git_steps,
+      rustc_steps: :rustc_steps, postgres_steps: :postgres_steps
+    }
+  end
+
+  policy "JudgeRubyWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "ruby" }, steps: :ruby_steps, step_hundredths: :step_hundredths, budget: { value: 300000 },
+      cause: { value: "cold boots until a resident answers every command" }
+    }
+  end
+
+  policy "JudgeGitWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "git" }, steps: :git_steps, step_hundredths: :step_hundredths, budget: { value: 100000 },
+      cause: { value: "about 240 worktrees until the pruner retires again" }
+    }
+  end
+
+  policy "JudgeRustcWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "rustc" }, steps: :rustc_steps, step_hundredths: :step_hundredths, budget: { value: 80000 },
+      cause: { value: "a cold cargo target in each worktree until builds share one cache" }
+    }
+  end
+
+  policy "JudgePostgresWritesOnTheDay" do
+    on      "DiskWrites.DiskWritesRecorded"
+    trigger DiskWrites::Overrun, with: {
+      day: :day, process: { value: "postgres" }, steps: :postgres_steps, step_hundredths: :step_hundredths, budget: { value: 20000 },
+      cause: { value: "a service restarting every 10 seconds until it is stopped" }
+    }
+  end
+
+  policy "WarnWhenTheDiskRunsLow" do
+    on      "Beat.DiskRecorded"
+    where   { disk_free.value * 10 < disk_total.value }
+    trigger Beat::WarnDisk, with: { beat: :beat }
   end
 
   policy "FaultTheLook" do
