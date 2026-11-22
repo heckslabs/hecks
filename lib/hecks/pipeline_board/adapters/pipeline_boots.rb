@@ -2,6 +2,7 @@
 
 require_relative "../../hecks/adapters/boot_budget"
 require_relative "../../hecks/adapters/dispatching/settings"
+require_relative "boot_entries"
 require_relative "load_guard"
 
 module Hecks
@@ -15,9 +16,10 @@ module Hecks
       #   average, `now:` the time
       # @param registry [Runtime::Registry, nil] whose Tickets world sets the budget and the limit
       def initialize(aggregate: nil, settings: {}, registry: nil)
-        @budget = BootBudget.new(entries: settings[:entries], now: settings[:now])
+        @entries = BootEntries.new(settings[:entries])
+        @budget = BootBudget.new(entries: @entries, now: settings[:now])
         load = settings[:load] || PipelineBoard::LoadGuard.method(:reading)
-        @machine = Dispatching::Settings.new(registry, load: load)
+        @machine = Dispatching::Settings.new(registry, load: load, boots: @budget)
       end
 
       # @return [Hash] `hours`, `boots`, `unmeasured`, `approximate` (runs placed by their day
@@ -26,6 +28,7 @@ module Hecks
       #   `max_load`, `share` (percent of the CPU the last minutes' boots took) and `storms`
       #   (callers booting over the declared rate); the day's hours are a reading, never a brake
       def today
+        @entries.renew
         reading = @budget.today
         { hours: reading.hours, boots: reading.boots, unmeasured: reading.unmeasured,
           approximate: reading.approximate, truncated: reading.capped, last_hour: reading.last_hour,
