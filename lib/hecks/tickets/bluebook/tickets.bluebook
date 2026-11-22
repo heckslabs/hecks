@@ -2346,13 +2346,13 @@ Hecks.bluebook "Tickets" do
     identified_by :principle
 
     attribute :principle, PrincipleKey
-    attribute :text,      AgreementText
+    attribute :text,      PrincipleText
 
     value_object "PrincipleKey" do
       attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
     end
 
-    value_object "AgreementText" do
+    value_object "PrincipleText" do
       attribute :value, String, matches: :present
     end
 
@@ -2366,7 +2366,7 @@ Hecks.bluebook "Tickets" do
       goal "Write down a principle that agreements can be folded into"
 
       attribute :principle, PrincipleKey, sets: true
-      attribute :text,      AgreementText, sets: true
+      attribute :text,      PrincipleText, sets: true
 
       emits "PrincipleDeclared"
     end
@@ -2384,6 +2384,16 @@ Hecks.bluebook "Tickets" do
     attribute :text,      AgreementText
     attribute :kind,      AgreementKind
     attribute :principle, PrincipleKey, optional: true
+    # The retro that owes this agreement a mark, and none once it is marked.
+    attribute :owed_in,   OwedIn, optional: true
+
+    value_object "OwedIn" do
+      attribute :value, String
+    end
+
+    value_object "ReviewMark" do
+      attribute :value, String, one_of: %w[kept folded dropped]
+    end
 
     value_object "AgreementKey" do
       attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
@@ -2445,14 +2455,33 @@ Hecks.bluebook "Tickets" do
     command "Present" do
       role "System"
       policy_only
-      goal "Put an agreement in force before the review of a retro that opened"
+      goal "Owe an agreement in force a mark in a retro that opened, once"
 
       reference_to WorkingAgreement
       attribute :retro, RetroDay
+      sets :owed_in, to: :retro
 
       given("only an agreement in force is reviewed") { status == "in_force" }
+      given("an agreement is owed a mark once a retro") { owed_in.nil? || owed_in.value != retro.value }
 
       emits "AgreementPresented"
+    end
+
+    command "Answer" do
+      role "System"
+      policy_only
+      goal "Take the scrum master's mark of an agreement a retro owes, and only one it owes"
+
+      reference_to WorkingAgreement
+      attribute :retro,     RetroDay
+      attribute :mark,      ReviewMark
+      attribute :principle, FoldedInto, optional: true
+
+      sets :owed_in, to: ""
+
+      given("only an agreement a retro owes is marked") { !owed_in.nil? && owed_in.value == retro.value }
+
+      emits "AgreementAnswered"
     end
 
     command "Drop" do
@@ -2515,7 +2544,7 @@ Hecks.bluebook "Tickets" do
       emits "ReviewOwed"
     end
 
-    command "Reviewed" do
+    command "CountReview" do
       role "System"
       policy_only
       goal "Count one agreement marked"
@@ -2571,7 +2600,7 @@ Hecks.bluebook "Tickets" do
     attribute :retro,     RetroDay
     attribute :agreement, AgreementKey
     attribute :mark,      ReviewMark
-    attribute :principle, PrincipleKey, optional: true
+    attribute :principle, FoldedInto, optional: true
 
     value_object "ReviewKey" do
       attribute :value, String, matches: :present
@@ -2585,8 +2614,9 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
     end
 
-    value_object "PrincipleKey" do
-      attribute :value, String, pattern: '^[a-z0-9][a-z0-9-]*$'
+    # The principle a folded mark names; empty for a kept or dropped one.
+    value_object "FoldedInto" do
+      attribute :value, String, default: ""
     end
 
     value_object "ReviewMark" do
@@ -2601,9 +2631,9 @@ Hecks.bluebook "Tickets" do
       attribute :retro,     RetroDay, sets: true
       attribute :agreement, AgreementKey, sets: true
       attribute :mark,      ReviewMark, sets: true
-      attribute :principle, PrincipleKey, optional: true, sets: true
+      attribute :principle, FoldedInto, optional: true
 
-      given("a folded agreement names its principle") { mark.value != "folded" || !principle.nil? }
+      given("a folded agreement names its principle") { mark.value != "folded" || !principle.value.to_s.empty? }
 
       emits "AgreementReviewed"
     end
@@ -2620,19 +2650,31 @@ Hecks.bluebook "Tickets" do
     trigger Retro::Owe, with: { retro: :retro }
   end
 
-  policy "CountReviewWhenAgreementReviewed" do
+  policy "AnswerAgreementWhenMarkedFolded" do
     on      "AgreementReview.AgreementReviewed"
-    trigger Retro::Reviewed, with: { retro: :retro }
+    where   { mark.value == "folded" }
+    trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark, principle: :principle }
+  end
+
+  policy "AnswerAgreementWhenMarkedKeptOrDropped" do
+    on      "AgreementReview.AgreementReviewed"
+    where   { mark.value != "folded" }
+    trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark }
+  end
+
+  policy "CountReviewWhenAgreementAnswered" do
+    on      "WorkingAgreement.AgreementAnswered"
+    trigger Retro::CountReview, with: { retro: :retro }
   end
 
   policy "FoldAgreementWhenReviewedFolded" do
-    on      "AgreementReview.AgreementReviewed"
+    on      "WorkingAgreement.AgreementAnswered"
     where   { mark.value == "folded" }
     trigger WorkingAgreement::Fold, with: { agreement: :agreement, principle: :principle }
   end
 
   policy "DropAgreementWhenReviewedDropped" do
-    on      "AgreementReview.AgreementReviewed"
+    on      "WorkingAgreement.AgreementAnswered"
     where   { mark.value == "dropped" }
     trigger WorkingAgreement::Drop, with: { agreement: :agreement }
   end

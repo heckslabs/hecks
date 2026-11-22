@@ -52,6 +52,13 @@ RSpec.describe "the Tickets Retro" do
     expect([plain(row.status), plain(row.principle)]).to eq(%w[retired fix-together])
   end
 
+  it "counts a mark of an agreement no retro owes for nothing" do
+    agreement("a1")
+    open_retro
+    review("2026-11-22", "ghost", "kept")
+    expect(plain(stored("Retro").first.unreviewed)).to eq(1)
+  end
+
   def reviewed_retro
     agreement("a1")
     open_retro
