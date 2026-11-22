@@ -4305,6 +4305,80 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  aggregate "Evidence" do
+    description "What one coder run found building was like: what was hard or slow, what surprised it, and the source events it read that from. One entry per run, kept by the run and its Work item and epic, and refused when it cites no source event."
+
+    identified_by :run
+
+    acknowledges :key_by_value, "the Work item's slug, which lives in the Tickets store, not in a Routing record, so a reference would refuse every entry of a Work item no routing was asked for", of: :work
+    acknowledges :key_by_value, "the epic's slug, which lives in the Tickets store, so an entry survives its epic being closed", of: :epic
+
+    attribute :run,      RunKey
+    attribute :work,     WorkKey
+    attribute :epic,     EpicKey,       optional: true
+    attribute :hard,     HardText,      optional: true
+    attribute :surprise, SurpriseText,  optional: true
+    attribute :sources,  SourceEvents
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "WorkKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "EpicKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # Retries, refusals, yields and red runs, in the coder's words.
+    value_object "HardText", String
+    value_object "SurpriseText", String
+
+    # The events the entry was read from, space separated, each as Name:subject.
+    value_object "SourceEvents", String
+
+    # The guard checks that the text names something, not that the events exist: it is no proof of
+    # them. A second Record for a run that has an entry is refused: the run's row exists.
+    command "Record" do
+      role "System"
+      goal "File the entry of one coder run: what was hard, what surprised it, and the source events it read that from; refused when the sources are blank, which says nothing about whether the events exist"
+
+      attribute :run,      RunKey,       sets: true
+      attribute :work,     WorkKey,      sets: true
+      attribute :epic,     EpicKey,      optional: true, sets: true
+      attribute :hard,     HardText,     optional: true, sets: true
+      attribute :surprise, SurpriseText, optional: true, sets: true
+      attribute :sources,  SourceEvents, sets: true
+
+      given("an entry cites at least one source event") { !sources.to_s.strip.empty? }
+
+      emits "EvidenceRecorded"
+    end
+
+    # The entry one run filed.
+    query "OfRun" do
+      description "The entry keyed by one run, with its Work item and epic."
+      attribute :run, RunKey
+      where(run: :run)
+    end
+
+    # Every entry filed against a Work item.
+    query "OfWork" do
+      description "The entries of one Work item, each with its run."
+      attribute :run, WorkKey
+      where(work: :run)
+    end
+
+    # An entry with no epic is listed under none.
+    query "OfEpic" do
+      description "The entries of one epic, each with its run and Work item."
+      attribute :run, EpicKey
+      where(epic: :run)
+    end
+  end
+
   # The AgentRun ledger is read, never written: a stopped run is finished `stopped` by the next
   # `AgentRun.check_all!`. A role never stops a session, so no RoutingRule row names Stop or Resume.
   aggregate "Fleet" do
