@@ -6,6 +6,7 @@ require "hecks/hecks/adapters/claude_resolving_shell"
 require "hecks/hecks/adapters/claude_session_listing"
 require "hecks/hecks/adapters/dispatching/work_items"
 require "hecks/agents/adapters/recipient_check/hand_runs"
+require "hecks/agents/adapters/recipient_check/holders"
 require "hecks/agents/adapters/recipient_check/senders"
 require "hecks/agents/adapters/recipient_check/sender_proof"
 
@@ -48,6 +49,7 @@ module Hecks
         @listed = listed
         @hand_runs = HandRuns.new(registry, hand_runs)
         @senders = Senders.new(registry)
+        @holders = Holders.new(registry, @hand_runs, method(:listed?))
         @proof = SenderProof.new(runs: method(:runs), hand_runs: @hand_runs, session: session)
       end
 
@@ -97,6 +99,13 @@ module Hecks
       end
 
       def refusal(id, run)
+        found = plain_refusal(id, run)
+        return found if found.kind == "hand-unlisted"
+
+        Unaddressable.new(found.kind, found.message + @holders.hint(id))
+      end
+
+      def plain_refusal(id, run)
         return Unaddressable.new("ended", "the run #{id} has no live session (#{run[:status]})") if run
         return hand_unlisted(id) unless @hand_runs.session(id).empty?
 
