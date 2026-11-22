@@ -67,4 +67,23 @@ RSpec.describe "a submission whose first commit is judged for being test-first" 
     allow(port).to receive(:measure_submitter).and_raise(Hecks::Adapters::ConsoleCapture::Failure, "no started coder run")
     expect(accepted?).to be(true)
   end
+
+  describe "the answer to a withheld submit" do
+    def told(**facts)
+      measuring(**facts)
+      submit.first.to_s
+    end
+
+    it "carries the unread policy's refusal" do
+      expect(told(inbox: true)).to include("An answer to you is unread")
+    end
+
+    it "carries the no-spec policy's refusal" do
+      expect(told(first_spec: "none", first_paths: "lib/a.rb")).to include("adds no spec or .behaviors file")
+    end
+
+    it "carries the passes-on-main policy's refusal" do
+      expect(told(first_spec: "passed")).to include("passes on main")
+    end
+  end
 end
