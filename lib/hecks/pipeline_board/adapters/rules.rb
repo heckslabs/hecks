@@ -17,7 +17,7 @@ module Hecks
       module Rules
         BLUEBOOK_DIR = File.expand_path("..", __dir__)
         TABLES = %w[Verdict Setting Tile Finding StaleStatus ActionRule CycleStage HealthCheck ReworkCheck ProjectBoard StuckKind
-                    IdleReason SignalSays FillSide OutcomeState].freeze
+                    IdleReason SignalSays StandingSays FillSide OutcomeState].freeze
 
         module_function
 
