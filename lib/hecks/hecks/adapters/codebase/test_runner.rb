@@ -96,11 +96,13 @@ module Hecks
         #   defined, stubbed or registered carries over) or in this one. A fresh process is ended,
         #   with every process it started, once it runs past its bound, and what it printed then
         #   ends with the file and example it was in.
+        # @param files [Integer] how many spec files the process runs; its bound is one file's bound
+        #   for each
         # @return [Array(Integer, String)] the exit status and what the runner printed
-        def outcome(args, env: {}, fresh: false)
+        def outcome(args, env: {}, fresh: false, files: 1)
           return with_env(env) { in_process(args) } unless fresh
 
-          result = bounded.call(build_command(args), env: env, chdir: @tree.root)
+          result = bounded(files).call(build_command(args), env: env, chdir: @tree.root)
           [result.ok? ? 0 : [result.status, 1].max, "#{result.out}#{result.err}".strip]
         end
 
@@ -141,8 +143,8 @@ module Hecks
 
         def at_reaction_depth_zero(&) = self.class.at_reaction_depth_zero(&)
 
-        def bounded
-          seconds = @bound || BoundedCapture.seconds(@tree.root, :file_seconds)
+        def bounded(files = 1)
+          seconds = (@bound || BoundedCapture.seconds(@tree.root, :file_seconds)) * files
           BoundedCapture.new(seconds: seconds, setting: "spec_bounds file_seconds")
         end
 
