@@ -58,8 +58,8 @@ RSpec.describe Hecks::Adapters::Driving::KeptCheck do
     expect(File.read(File.join(@root, described_class::OVERLAY))).to include("Tickets::Epic.persisted_by")
   end
 
-  it "names a kept aggregate in the warning for a saga that starts on it" do
-    expect { boot_hecks_in_memory }.to output(/Landing is on the dev pipeline's kept list/).to_stderr
+  it "stays silent about a kept aggregate's saga when the whole domain is in Memory" do
+    expect { boot_hecks_in_memory }.not_to output(/Landing is on the dev pipeline's kept list/).to_stderr
   end
 
   it "refuses a copy that is neither main nor train" do
