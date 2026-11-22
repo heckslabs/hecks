@@ -111,7 +111,7 @@ RSpec.describe "the launcher's opt-in options" do
 
   describe "names" do
     it "lists the command by its real name, and says the alias", :aggregate_failures do
-      help = run_verb.first
+      help = run_verb("--all").first
 
       expect(help).to match(/^\s+serve_mcp! .*\(also: mcp!\)/)
       expect(help).to match(/^\s+open_console! .*\(also: console!\)/)
