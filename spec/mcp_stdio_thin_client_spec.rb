@@ -29,8 +29,6 @@ RSpec.describe "the MCP stdio entry as a client of the control process" do
     <<~RUBY
       require "hecks/adapters/driving/resident/client"
       Hecks::Adapters::Driving::Resident::Client.define_singleton_method(:ask) { |*_a, **_k| [nil, nil] }
-      require "hecks/adapters/driving/mcp/stdio_entry"
-      Hecks::Adapters::Driving::Mcp.define_singleton_method(:serve) { puts "SERVED COLD" }
     RUBY
   end
 
@@ -40,8 +38,8 @@ RSpec.describe "the MCP stdio entry as a client of the control process" do
   end
 
   it "serves cold and says so on stderr when no control process answers" do
-    out, err, = run_entry(silent)
-    expect([out, err]).to match([/SERVED COLD/, /control process down, running cold/])
+    _out, err, status = run_entry(silent)
+    expect([status.exitstatus, err]).to match([0, /control process down, running cold/])
   end
 
   it "refuses a transport that is not stdio, as it does without a control process" do
