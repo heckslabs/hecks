@@ -137,6 +137,12 @@ Shared caches and records, which every checkout and worktree reads, and how each
 - **A worktree's host build compiles its 402 registry packages again.** A binary build takes a directory of its own,
   so `rust/host` (wasmtime and the rest) is not shared between worktrees; `sccache` would share it (not installed).
   ADR 0203 has the measurements and why the kernel split was not made.
+- **Builds use `sccache` when it is installed.** `RustBuild::CompilerCache` adds `RUSTC_WRAPPER` and
+  `CARGO_INCREMENTAL=0` to a build child's environment when `sccache` is on its `PATH`, so each worktree's own target
+  directory reuses compiled dependencies (`rust/host` included) instead of compiling them again. It is not installed
+  on this machine (measured 2026-11-21: rustc and cargo at 0% of a core, 53 slots in 2.8 GB), so nothing changes
+  until `brew install sccache`. It then keeps a cache of its own (`~/.cache/sccache`) and runs a server process; a
+  wrapper set by hand wins.
 - **A coder's worktree has no local overlay.** `hecks.local.hecksagon` and `hecks.local.world` are gitignored, so
   stores that live there (Agents, Work, Landing, AgentRun and the rest of the shared ledgers) boot in Memory in a
   worktree. A command that **writes** one is run in the main checkout instead (`LedgerForward`, ADR 0202), with the
