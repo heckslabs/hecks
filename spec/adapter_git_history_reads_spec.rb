@@ -15,6 +15,7 @@ module GitHistoryReads
   ALLOWED = {
     "branch_pruning/reading.rb"               => "whether main holds a branch's commits, and the ones it lacks: ancestry",
     "claude_cleaning/worktree_check.rb"       => "unpushed commits of a worktree before removal: a checkout fact",
+    "codebase/bluebook_extraction.rb"         => "merge-base picks the diff base of the bluebooks a branch changed: ancestry",
     "codebase/impacted_specs.rb"              => "merge-base picks the diff base of a branch: ancestry is git",
     "codebase/release_facts.rb"               => "trailer of the commit that set the version: message text is git",
     "desktop_alert.rb"                        => "subjects of the commits a push carried, shown in a notification",
