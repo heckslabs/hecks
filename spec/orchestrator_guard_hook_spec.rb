@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "json"
+require "digest"
 require "open3"
 require "tmpdir"
 
@@ -78,6 +79,60 @@ RSpec.describe "the orchestrator guard hook" do
     it "counts every role as guarded when the list is missing" do
       File.delete(File.join(dir, ".claude/hooks/guarded_roles"))
       expect(hook("cat lib/x.rb", role: "coder").last).to eq(2)
+    end
+  end
+
+  describe "with the projected rules file" do
+    let(:agents) { File.join(dir, "lib/hecks/agents") }
+    let(:rules) { File.join(dir, ".claude/hooks/guard_rules.json") }
+
+    # Writes the rules file for a role that may run `git status` and `git branch`, with `digest`
+    # defaulting to the one of the scratch agents bluebook.
+    def project(digest: Digest::SHA256.hexdigest("domain Agents\n"))
+      File.write(rules, JSON.generate(digest: digest, roles: { orchestrator: ["git status", "git branch"] }))
+    end
+
+    def asked? = File.exist?(File.join(dir, "argv"))
+
+    before do
+      FileUtils.mkdir_p(agents)
+      File.write(File.join(agents, "agents.bluebook"), "domain Agents\n")
+      launcher
+    end
+
+    it "decides a call that is exactly a git read row without asking the door", :aggregate_failures do
+      project
+      expect(hook("git status").last).to eq(0)
+      expect(asked?).to be(false)
+    end
+
+    it "lets a role the rules do not list through without asking the door", :aggregate_failures do
+      project
+      expect(hook("cat lib/x.rb", role: "coder").last).to eq(0)
+      expect(asked?).to be(false)
+    end
+
+    it "sends a git branch that makes a branch to the door" do
+      project
+      hook("git branch newname")
+      expect(asked?).to be(true)
+    end
+
+    it "sends a launcher call, which the script rule must note, to the door" do
+      project
+      hook("exe/hecks agents Role.guard")
+      expect(asked?).to be(true)
+    end
+
+    it "sends every call to the door when the rules file is missing" do
+      hook("git status")
+      expect(asked?).to be(true)
+    end
+
+    it "sends every call to the door when the rules file is stale" do
+      project(digest: "0" * 64)
+      hook("git status")
+      expect(asked?).to be(true)
     end
   end
 
