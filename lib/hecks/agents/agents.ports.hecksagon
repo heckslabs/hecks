@@ -50,10 +50,9 @@ Hecks.hecksagon "Agents" do
     end
   end
 
-  # The mail spool a send appends to, read one line at a time. `Read` answers the next line past
-  # the cursor as `MailLineRead` (an empty `message` when there is none); `Acknowledge` moves the
-  # cursor past it and answers `LineAcknowledged` with the key of the pass that follows. Bound by
-  # adapters/mail_spool, which never writes a line to the spool.
+  # The mail spool a send appends to, read a line at a time: `Read` answers the next line past the
+  # cursor (an empty `message` when none), `Acknowledge` moves the cursor. Bound by adapters/mail_spool,
+  # which never writes a line.
   Agents::MailSpool.port "MailSpooling" do
     asks "Read", to: MailSpool do
       attribute :pass, PassKey

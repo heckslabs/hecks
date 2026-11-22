@@ -2192,12 +2192,9 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The spool a send appends to, taken one line at a time. A send is one line appended to a file
-  # (`.claude/hooks/mail_send.sh`), so it boots nothing; Hecks reads the spool past its cursor on
-  # each beat of the clock and keeps every line as a `Message`, which is the ledger. A line a
-  # replay reads again is refused by its key, so ingesting twice is safe, and a spool nobody reads
-  # keeps its lines until the next beat. A sender is trusted as written: an ingested message is
-  # stamped unverified, and signed sends wait for the off-laptop design.
+  # The spool a send appends to, taken a line at a time: each line becomes a Message, the ledger.
+  # A replayed line is refused by its key, and a sender is trusted as written (stamped unverified).
+  # See docs/findings/mail-spool-2026-11.md.
   aggregate "MailSpool" do
     description "One pass over the mail spool: ask for the next line past the cursor, keep it as a message, move the cursor, and ask again until none is left."
 
