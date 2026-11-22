@@ -9,8 +9,8 @@ RSpec.describe LiveSessionGuard do
     expect(described_class.refusal(real, { "PATH" => "/usr/bin" })).to include("a spec started a real claude session")
   end
 
-  it "lets through a claude that does not start a session in the background" do
-    expect(described_class.refusal(%w[claude agents --json], {})).to be_nil
+  it "lets through a claude that neither starts nor lists sessions" do
+    expect(described_class.refusal(%w[claude --version], {})).to be_nil
   end
 
   it "lets through a stand-in claude under the temporary directory" do
