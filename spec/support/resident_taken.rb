@@ -9,13 +9,15 @@ module ResidentTaken
   # @return [Answer] the line's answer
   def launch_until_taken(*argv)
     answer = launch(*argv)
-    ThreadParking.wait_for(timeout: STARTUP) { taken_since_busy? }
+    ThreadParking.wait_for(timeout: ResidentLaunch::STARTUP) { taken_since_busy? }
     answer
   end
 
   # @return [Boolean] whether the resident took a caller after the latest line it was too slow for
   def taken_since_busy?
-    File.mtime(PATHS.taken(ROOT)) >= File.mtime(PATHS.busy(ROOT))
+    paths = ResidentLaunch::PATHS
+    root = ResidentLaunch::ROOT
+    File.mtime(paths.taken(root)) >= File.mtime(paths.busy(root))
   rescue SystemCallError
     false
   end
