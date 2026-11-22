@@ -67,6 +67,13 @@ Hecks.behaviors "Codebase" do
                      ConformanceCompleted]
   end
 
+  test "CheckBluebookExtraction keeps extractable bluebooks as a completed check" do
+    tests "CheckBluebookExtraction", on: "ConformanceRun"
+    input run: { value: "extraction" }
+    expect emits: %w[CheckBluebookExtractionRequested ConformanceExamined ConformanceAccepted ConformanceAnswered
+                     ConformanceCompleted]
+  end
+
   test "ArgumentGateMatrix refuses a run that is not named" do
     tests "ArgumentGateMatrix", on: "ConformanceRun"
     input run: { value: "" }

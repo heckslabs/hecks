@@ -3,6 +3,7 @@
 require_relative "tree"
 require_relative "ruby_child"
 require_relative "launcher_text"
+require_relative "bluebook_extraction"
 require_relative "role_shadow_reading"
 require "hecks/engine_agreement"
 require "hecks/doc/reference"
@@ -25,7 +26,8 @@ module Hecks
       module Conformance
         # Every operation this family carries out.
         OPERATIONS = %w[check_engine_agreement measure_doc_coverage check_shape_ledger check_command_names
-                        check_workflow_pagination report_role_shadow argument_gate_matrix].freeze
+                        check_workflow_pagination check_bluebook_extraction report_role_shadow
+                        argument_gate_matrix].freeze
 
         module_function
 
@@ -43,6 +45,7 @@ module Hecks
           when "check_shape_ledger" then shape_ledger(held, tree)
           when "check_command_names" then LauncherText.command_names(tree)
           when "check_workflow_pagination" then LauncherText.workflow_pagination(tree)
+          when "check_bluebook_extraction" then extraction(held, tree)
           when "report_role_shadow" then RoleShadowReading.call(held)
           else gate_matrix(held, tree)
           end
@@ -66,6 +69,15 @@ module Hecks
           raise ConsoleCapture::Failure, report unless clean
 
           report
+        end
+
+        # @param held [Hash] the record's fields; `base` is the ref the branch is compared against
+        # @param tree [Tree] the checkout
+        # @return [String] the clean verdict
+        # @raise [ConsoleCapture::Failure] with each changed bluebook that was refused
+        def extraction(held, tree)
+          base = held[:base].is_a?(Hash) ? held[:base][:value] : held[:base]
+          BluebookExtraction.call(tree, base: base.to_s.empty? ? "origin/main" : base)
         end
 
         # @param held [Hash] the record's fields; `confirm` rewrites the ledger

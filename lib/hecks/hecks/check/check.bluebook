@@ -395,6 +395,13 @@ Hecks.bluebook "Hecks" do
       attribute :confirm,   Switch, optional: true
       # The domain a role shadow report reads; the other checks read this checkout.
       attribute :domain,    DomainDirectory, optional: true
+      # The revision the changed bluebooks are found against; origin/main when none is named.
+      attribute :base,      Ref, optional: true
+
+      # A revision a code comparison is made against.
+      value_object "Ref" do
+        attribute :value, String, matches: :no_whitespace
+      end
 
       # A domain directory, anywhere on disk.
       value_object "DomainDirectory" do
@@ -457,6 +464,18 @@ Hecks.bluebook "Hecks" do
         emits CheckWorkflowPaginationRequested
       end
 
+      command "CheckBluebookExtraction" do
+        role "Maintainer"
+        goal "Check that every rule of each bluebook the branch changed survives extraction into the IR, as the push requires"
+
+        attribute :run,  RunKey, sets: true
+        attribute :base, Ref, optional: true, sets: true
+
+        sets :operation, to: "check_bluebook_extraction"
+
+        emits CheckBluebookExtractionRequested
+      end
+
       command "ArgumentGateMatrix" do
         role "Maintainer"
         goal "Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed"
@@ -504,6 +523,11 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenCheckWorkflowPaginationRequested" do
       on      "ConformanceRun.CheckWorkflowPaginationRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCheckBluebookExtractionRequested" do
+      on      "ConformanceRun.CheckBluebookExtractionRequested"
       ask     :examine, with: { run: :run }
     end
 
