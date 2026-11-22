@@ -15,6 +15,10 @@ RSpec.describe "docs/tools.md" do
     expect(tool.projection(text, root)).to eq(text)
   end
 
+  it "says the tables are current when a check finds nothing stale" do
+    expect { tool.main(["--check"], root: root) }.to output(/every table current/).to_stdout
+  end
+
   it "has a marked table for every section the rows name", :aggregate_failures do
     sections = tool.rows.map { |row| row["section"] }.uniq
 
