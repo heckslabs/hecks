@@ -7,7 +7,8 @@ require "hecks/adapters/driving/resident/stuck"
 
 # A control command (tickets, messages, settings, the red flag's status) acts on the primary
 # checkout's shared stores, so a launcher in a linked worktree with no resident of its own asks the
-# primary checkout's resident instead of booting cold. Every other line asks only its own checkout.
+# primary checkout's resident, the control process, and never one of its own. Every other line asks
+# only its own checkout.
 RSpec.describe "a control command run from a linked worktree" do
   let(:client) { Hecks::Adapters::Driving::Resident::Client }
   let(:control) { Hecks::Adapters::Driving::Resident::Control }
@@ -73,10 +74,10 @@ RSpec.describe "a control command run from a linked worktree" do
     expect(launch).to eq("refused:via-primary:overlay:cwd")
   end
 
-  it "boots cold when the primary has no resident, and starts none for the primary" do
+  it "boots cold when the control process is down, and starts no resident for the worktree" do
     allow(client).to receive(:ask).and_return([nil, nil])
     launch
-    expect(client).to have_received(:spawn_resident).with(own, File.join(own, "exe", "hecks"))
+    expect(client).not_to have_received(:spawn_resident)
   end
 
   it "asks only its own checkout for a line that is not a control command" do
@@ -93,7 +94,8 @@ RSpec.describe "a control command run from a linked worktree" do
     expect(client).not_to have_received(:ask).with(primary, anything)
   end
 
-  it "does not ask the primary when the worktree's own resident refused the line" do
+  it "boots cold, naming why, when the worktree's own resident refused a line that is not a control command" do
+    stub_const("ARGV", ["style", "StyleRun.check_comments!"])
     allow(client).to receive(:ask).with(own, anything).and_return([nil, "env:GEM_HOME"])
     expect(launch).to eq("refused:env:GEM_HOME")
   end

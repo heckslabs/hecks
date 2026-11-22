@@ -33,6 +33,9 @@ module Hecks
         #
         #   ruby -I lib lib/hecks/adapters/driving/resident/server.rb <checkout> <launcher script>
         class Server
+          # The argument that starts the resident as the control process (launchd's job passes it).
+          CONTROL_FLAG = "--control".freeze
+
           include Loading
           include StartDeadline
           include Forking
@@ -48,7 +51,7 @@ module Hecks
           #
           # @param root [String] the checkout
           # @param script [String] the launcher the lines come from
-          def self.start(root, script)
+          def self.start(root, script, mode = nil)
             begin
               Process.setsid
             rescue SystemCallError
@@ -56,11 +59,12 @@ module Hecks
             end
             Foreground.apply
             Title.apply(Title.resident(root))
-            new(root, script).run
+            new(root, script, control: mode == CONTROL_FLAG).run
           end
 
           # @param exists [#call] answers whether a path is still there; a spec stands in
-          def initialize(root, script, exists: File.method(:exist?))
+          def initialize(root, script, exists: File.method(:exist?), control: false)
+            @control = control
             @root = root
             @script = script
             @exists = exists
@@ -74,10 +78,10 @@ module Hecks
 
           # Takes the checkout's lock, loads, and serves lines until idle or retired.
           def run
-            return unless lock_taken? && !Crowd.crowded?(@root)
+            return unless lock_taken? && (@control || !Crowd.crowded?(@root))
 
             prepare
-            return if @crowded
+            return if @crowded && !@control
 
             settle
             bind

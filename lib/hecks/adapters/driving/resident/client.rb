@@ -70,12 +70,11 @@ module Hecks
           #   resident gave for not serving the line, else what starting one came to
           def attempt(root, script)
             asked = Time.now
-            status, why = ask(root, script)
-            status, why = Control.via_primary(self, root, why) unless status || why
+            direct, status, why = Control.answer(self, root, script)
             Stuck.after(root, why, asked: asked)
             return end_line(root, script, status) if status
 
-            spawned = spawn_resident(root, script)
+            spawned = direct ? Outcome::NONE : spawn_resident(root, script)
             why ? Outcome.refused(why) : spawned
           end
 
