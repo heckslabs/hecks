@@ -5,6 +5,7 @@ require_relative "looking/view"
 require_relative "looking/marks"
 require_relative "looking/delegate_look"
 require_relative "looking/meter"
+require_relative "looking/disk"
 
 module Hecks
   module Adapters
@@ -16,6 +17,9 @@ module Hecks
       # A look that could not read the machine.
       class Unlooked < StandardError; end
 
+      # The disk as the machine has it, read when no stand-in is given.
+      LIVE_DISK = -> { Disk.new.facts }
+
       # @param registry [Runtime::Registry, nil] whose Signalbox world and Delegate records it reads
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] stand-ins for the outside: `view:`, `machine:` (else the {Meter}),
@@ -23,8 +27,9 @@ module Hecks
       # @param root [String, nil] the checkout the beat runs from
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         live = { view: -> { View.new(root || Dir.pwd).facts }, machine: -> { Meter.read(registry) },
-                 marks: -> { Marks.new(registry).facts }, delegate: -> { DelegateLook.new(registry).facts } }
-        @view, @machine, @marks, @delegate = live.map { |part, read| settings.fetch(part, read) }
+                 marks: -> { Marks.new(registry).facts }, delegate: -> { DelegateLook.new(registry).facts },
+                 disk: LIVE_DISK }
+        @view, @machine, @marks, @delegate, @disk = live.map { |part, read| settings.fetch(part, read) }
       end
 
       # @param held [Hash] the `Beat` record: `beat`
@@ -36,7 +41,7 @@ module Hecks
         marks = marks_read
         raise Unlooked, "the machine's memory could not be read" unless machine[:capacity_mb].to_i.positive?
 
-        wrap(beat: beat, **@view.call, **reading(machine), **marks, **rulings(beat), **@delegate.call)
+        wrap(beat: beat, **@view.call, **reading(machine), **marks, **rulings(beat), **outside)
       end
 
       private
@@ -56,6 +61,9 @@ module Hecks
           memory_pressure_level: machine[:memory_pressure_level].to_i, metered_draw: machine[:coder_draw_mb].to_i,
           age: 0 }
       end
+
+      # Delegate's last fill and shed, and the disk with its day's writes.
+      def outside = @delegate.call.merge(@disk.call)
 
       def rulings(beat) = { fill_ruling: "#{beat}:fill", shed_ruling: "#{beat}:shed" }
 

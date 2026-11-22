@@ -46,6 +46,7 @@ module SignalboxDoorWiring
     replayed = Hecks::Adapters::ReplayedLooking
     reads = metered ? {} : { machine: -> { machine || replayed::QUIET } }
     Hecks::Adapters::Looking.new(settings: { view: -> { view }, **reads, delegate: -> { replayed::STARTED },
+                                             disk: -> { replayed::DISK },
                                              marks: -> { Hecks::Adapters::Looking::Marks.new(nil).facts } })
   end
 end
