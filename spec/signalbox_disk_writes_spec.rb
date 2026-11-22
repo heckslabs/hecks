@@ -38,6 +38,8 @@ RSpec.describe "Signalbox's disk writes" do
   it "says which processes wrote more in the day than their budget allows, with the cause of the budget" do
     over = signalbox.registry.event_log.select { |event| event.name == "WritesOverBudget" }
 
-    expect(over.map { |event| Hecks::Runtime::Value.materialize(event.payload)[:process][:value] }).to eq(%w[ruby git rustc postgres])
+    named = over.map { |event| Hecks::Runtime::Value.materialize(event.payload)[:process][:value] }
+
+    expect(named).to eq(%w[ruby git rustc postgres])
   end
 end
