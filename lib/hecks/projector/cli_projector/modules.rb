@@ -33,7 +33,8 @@ module Hecks
           width = widest(rows.keys)
           ["modules (`#{program} <module>` lists its commands and queries):",
            *rows.map { |word, vision| "  #{word.ljust(width)}  #{vision}" },
-           "", "  #{program} --all                  every command and query, in full"]
+           "", "  #{program} --all                  every command and query, in full",
+           "  #{program} <query> --since[=<hash>]  ask again for one line when nothing changed"]
         end
 
         # The length of the longest word.
