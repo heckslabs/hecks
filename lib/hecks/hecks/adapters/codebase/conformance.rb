@@ -43,9 +43,8 @@ module Hecks
           when "check_engine_agreement" then engine_agreement(tree)
           when "measure_doc_coverage" then doc_coverage(tree)
           when "check_shape_ledger" then shape_ledger(held, tree)
-          when "check_command_names" then LauncherText.command_names(tree)
-          when "check_workflow_pagination" then LauncherText.workflow_pagination(tree)
-          when "check_bluebook_extraction" then extraction(held, tree)
+          when "check_command_names", "check_workflow_pagination", "check_bluebook_extraction"
+            read_text(operation, held, tree)
           when "report_role_shadow" then RoleShadowReading.call(held)
           else gate_matrix(held, tree)
           end
@@ -69,6 +68,15 @@ module Hecks
           raise ConsoleCapture::Failure, report unless clean
 
           report
+        end
+
+        # @return [String] the clean verdict of one check over files and text, in this process
+        def read_text(operation, held, tree)
+          case operation
+          when "check_command_names" then LauncherText.command_names(tree)
+          when "check_workflow_pagination" then LauncherText.workflow_pagination(tree)
+          else extraction(held, tree)
+          end
         end
 
         # @param held [Hash] the record's fields; `base` is the ref the branch is compared against
