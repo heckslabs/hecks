@@ -4174,5 +4174,135 @@ Hecks.bluebook "Hecks" do
         order_by :desk
       end
     end
+
+    # The facts the board reads: power factor is productive sessions over all sessions. Compute
+    # spent, negawatts and curtailment wait for an event that carries their amount.
+    aggregate "ComputeMeter" do
+      description "The one meter of a store: the load as pressure, the sessions counted productive or wasted, and the landings."
+
+      attribute :meter,               MeterKey
+      attribute :pressure,            Pressure
+      attribute :sessions_total,      Tally
+      attribute :sessions_productive, Tally
+      attribute :landings,            Tally
+      identified_by :meter
+
+      value_object "MeterKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # The machine's load as the last reading took it.
+      value_object "Pressure" do
+        attribute :value, Float, default: 0.0
+        invariant("pressure is never negative") { value >= 0 }
+      end
+
+      value_object "Tally" do
+        attribute :value, Integer, default: 0
+      end
+
+      command "Open" do
+        role "System"
+        goal "Open the one meter of a store, reading nothing yet"
+
+        attribute :meter, MeterKey, sets: true
+
+        emits ComputeMeterOpened
+      end
+
+      command "Read" do
+        role "System"
+        goal "Take the load of a machine reading as the pressure"
+
+        reference_to ComputeMeter
+        attribute :pressure, Pressure, sets: true
+
+        emits PressureRead
+      end
+
+      command "WorkSession" do
+        role "System"
+        goal "Count a session that ended well: one more session, one more productive"
+
+        reference_to ComputeMeter
+
+        sets :sessions_total,      increment: { value: 1 }
+        sets :sessions_productive, increment: { value: 1 }
+
+        emits SessionCountedProductive
+      end
+
+      command "WasteSession" do
+        role "System"
+        goal "Count a session that failed: one more session, none more productive"
+
+        reference_to ComputeMeter
+
+        sets :sessions_total, increment: { value: 1 }
+
+        emits SessionCountedWasted
+      end
+
+      command "Land" do
+        role "System"
+        goal "Count a branch that landed"
+
+        reference_to ComputeMeter
+
+        sets :landings, increment: { value: 1 }
+
+        emits LandingCounted
+      end
+    end
+
+    # Each event opens the meter first (refused, and benign, once it is there): any may be the first
+    # a store hears.
+    policy "OpenTheMeterWhenTheMachineIsRead" do
+      on      "Machine.MachineSampled"
+      trigger ComputeMeter::Open, with: { meter: "meter" }
+    end
+
+    policy "ReadThePressure" do
+      on      "Machine.MachineSampled"
+      where   { load }
+      trigger ComputeMeter::Read, with: { compute_meter: "meter", pressure: :load }
+    end
+
+    policy "OpenTheMeterWhenASessionFinishes" do
+      on      "AgentRun.SessionFinished"
+      trigger ComputeMeter::Open, with: { meter: "meter" }
+    end
+
+    policy "CountTheSessionThatEndedWell" do
+      on      "AgentRun.SessionFinished"
+      where   { condition == "done" }
+      trigger ComputeMeter::WorkSession, with: { compute_meter: "meter" }
+    end
+
+    policy "CountTheSessionThatWasStopped" do
+      on      "AgentRun.SessionFinished"
+      where   { condition != "done" }
+      trigger ComputeMeter::WasteSession, with: { compute_meter: "meter" }
+    end
+
+    policy "OpenTheMeterWhenASessionFails" do
+      on      "AgentRun.SessionFailed"
+      trigger ComputeMeter::Open, with: { meter: "meter" }
+    end
+
+    policy "CountTheSessionThatFailed" do
+      on      "AgentRun.SessionFailed"
+      trigger ComputeMeter::WasteSession, with: { compute_meter: "meter" }
+    end
+
+    policy "OpenTheMeterWhenABranchLands" do
+      on      "Landing.BranchLanded"
+      trigger ComputeMeter::Open, with: { meter: "meter" }
+    end
+
+    policy "CountTheLanding" do
+      on      "Landing.BranchLanded"
+      trigger ComputeMeter::Land, with: { compute_meter: "meter" }
+    end
   end
 end

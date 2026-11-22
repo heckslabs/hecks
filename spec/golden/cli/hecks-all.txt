@@ -350,13 +350,14 @@ commands:
     SessionCleanup.decline! SessionCleanup.reap! SessionCleanup.clean! SessionCleanup.mark!
     SessionCleanup.sweep_plain! ReapTurn.open! ReapTurn.take! ReapTurn.free! Question.ask!
     Question.seat! Question.close! Question.drop! Question.release! AnswerDesk.open!
-    AnswerDesk.take! AnswerDesk.free! Restoration.record! Restoration.decline!
-    Restoration.restore! ShallowCheck.pass! ShallowCheck.refuse! ShallowCheck.shallow_check!
-    ShallowCheck.shallow_switch! EarlyCi.start! EarlyCi.open! EarlyCi.observe! EarlyCi.withdraw!
-    EarlyCi.close! EarlyCi.decline! EarlyCi.branch_ci! EarlyCi.branch_ci_close!
-    SendTrain.summarize! SendTrain.send! SendTrain.ride! SendTrain.queue! SendTrain.merge!
-    SendTrain.fail! SendTrain.close! SendTrain.unland! SendTrain.reverse! SendTrain.fault!
-    SendTrain.carry! SendTrain.tally! SendTrain.observe! SendTrain.revert!
+    AnswerDesk.take! AnswerDesk.free! ComputeMeter.open! ComputeMeter.read!
+    ComputeMeter.work_session! ComputeMeter.waste_session! ComputeMeter.land! Restoration.record!
+    Restoration.decline! Restoration.restore! ShallowCheck.pass! ShallowCheck.refuse!
+    ShallowCheck.shallow_check! ShallowCheck.shallow_switch! EarlyCi.start! EarlyCi.open!
+    EarlyCi.observe! EarlyCi.withdraw! EarlyCi.close! EarlyCi.decline! EarlyCi.branch_ci!
+    EarlyCi.branch_ci_close! SendTrain.summarize! SendTrain.send! SendTrain.ride! SendTrain.queue!
+    SendTrain.merge! SendTrain.fail! SendTrain.close! SendTrain.unland! SendTrain.reverse!
+    SendTrain.fault! SendTrain.carry! SendTrain.tally! SendTrain.observe! SendTrain.revert!
     SendTrain.record_outcome! SendTrain.announce! SendTrain.leftovers! SendTrain.refresh!
     Shipment.stop! Shipment.judge! Integration.poll! Integration.summarize! Integration.pass!
     Integration.fail! Integration.fail_once! Integration.send! Integration.reject!
