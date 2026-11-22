@@ -1,0 +1,7 @@
+# Binds the `Rousing` port to `RoleRouser`, which wakes the session holding a message's role name.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/role_rouser"
+
+Hecks.adapter "RoleRouser" do
+  port "Rousing"
+end

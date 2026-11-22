@@ -50,6 +50,16 @@ Hecks.hecksagon "Agents" do
     end
   end
 
+  # Whether a session holds the role a sent message is addressed to, and the wake of it. Bound by
+  # adapters/role_rouser, which resumes an idle holder and leaves a busy one to its inbox hook.
+  Agents::Message.port "Rousing" do
+    asks "Rouse", to: Message do
+      attribute :message, MessageKey
+      answers "MessageWoken"
+      refuses "WakeUnreachable"
+    end
+  end
+
   # Which paths a submitted branch changed against main, read in its checkout. Bound by
   # adapters/submitted_paths, which only reads git; the bluebook decides what the paths ask for.
   # The same read answers `Tier`, `Domains` and the architect's `Diff`.
