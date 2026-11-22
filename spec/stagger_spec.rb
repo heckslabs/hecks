@@ -1,21 +1,16 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "support/stagger_steps"
 
 # A start of a kind (a quick gate, a launcher boot) is admitted only once its spacing has passed
 # since the last start of that kind, so bursts flatten into a line.
 RSpec.describe "Staggering the starts of quick gates and boots" do
+  include StaggerSteps
+
   before(:all) { @hecks = boot_hecks_in_memory }
 
   let(:noon) { 1_700_000_000 }
-
-  def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
-
-  def admit(kind, at:, spacing: 30)
-    launch("stagger.admit!", "to=#{kind}", "spacing.value=#{spacing}", "now.value=#{at}", "--wait")
-  end
-
-  def open_kind(kind) = launch("stagger.open!", "kind.value=#{kind}", "--wait")
 
   it "admits the first gate start of a store" do
     open_kind("gate-a")
@@ -25,7 +20,7 @@ RSpec.describe "Staggering the starts of quick gates and boots" do
   it "holds a gate that starts inside the spacing, by name" do
     open_kind("gate-b")
     admit("gate-b", at: noon)
-    expect(admit("gate-b", at: noon + 29)).to include("started less than its spacing ago")
+    expect(admit("gate-b", at: noon + 29)).to include(StaggerSteps::REFUSAL)
   end
 
   it "admits a gate once the spacing has passed" do
