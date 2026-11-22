@@ -24,13 +24,19 @@ module Hecks
       # memory pressure normal.
       METERED = QUIET.merge(coder_draw_mb: 1_100, memory_pressure_level: 1).freeze
 
+      # The disk of the owner's machine on 2026-11-21 and the daily report of its writes for
+      # 2026-11-20: 10.49 MB a step, and the steps counted for four processes.
+      DISK = { disk_total: 471_480, disk_free: 78_397, writes_day: "2026-11-20", step_hundredths: 1_049,
+               ruby_steps: 39_963, git_steps: 14_789, rustc_steps: 11_400, postgres_steps: 6_700 }.freeze
+
       # The looks each beat name replays.
       RECORDINGS = {
-        "beat-quiet"    => { view: MAIN, machine: QUIET, delegate: STARTED },
-        "beat-storm"    => { view: MAIN, machine: STORM, delegate: STARTED },
-        "beat-metered"  => { view: MAIN, machine: METERED, delegate: STARTED },
-        "beat-worktree" => { view: MAIN.merge(head: "9b81245"), machine: QUIET, delegate: STARTED },
-        "beat-unread"   => { view: MAIN, machine: { capacity_mb: 0 }, delegate: STARTED }
+        "beat-quiet"     => { view: MAIN, machine: QUIET, delegate: STARTED },
+        "beat-storm"     => { view: MAIN, machine: STORM, delegate: STARTED },
+        "beat-metered"   => { view: MAIN, machine: METERED, delegate: STARTED },
+        "beat-worktree"  => { view: MAIN.merge(head: "9b81245"), machine: QUIET, delegate: STARTED },
+        "beat-full-disk" => { view: MAIN, machine: QUIET, delegate: STARTED, disk: DISK.merge(disk_free: 20_000) },
+        "beat-unread"    => { view: MAIN, machine: { capacity_mb: 0 }, delegate: STARTED }
       }.freeze
 
       # @param aggregate [Object, nil] unused
@@ -42,7 +48,7 @@ module Hecks
       def look(**held)
         beat = held[:beat].is_a?(Hash) ? held[:beat][:value] : held[:beat]
         recorded = RECORDINGS.fetch(beat) { raise Looking::Unlooked, "no look is recorded for #{beat}" }
-        stand_ins = recorded.transform_values { |facts| -> { facts } }
+        stand_ins = { disk: DISK }.merge(recorded).transform_values { |facts| -> { facts } }
         Looking.new(settings: stand_ins.merge(marks: -> { Looking::Marks.new(nil).facts })).look(**held)
       end
     end
