@@ -4,6 +4,7 @@ require "open3"
 require "pathname"
 require "yaml"
 require_relative "../gate_memo"
+require_relative "ruby_files/since_main"
 
 module Hecks
   module Tools
@@ -57,7 +58,11 @@ module Hecks
         # @return [Array(Symbol, Array<String>, String)] the mode (`skip`, `incremental` or `full`),
         # the
         #   files to lint when incremental, and why
-        def plan(root, entry, now)
+        def plan(root, entry, now) = SinceMain.widen(root, memo_plan(root, entry, now), now)
+
+        # @return [Array(Symbol, Array<String>, String)] what the memo alone decides, as {plan}
+        #   documents
+        def memo_plan(root, entry, now)
           return [:full, [], "no green run is recorded"] unless entry.is_a?(Hash) && entry["files"].is_a?(Hash)
           return [:full, [], "the configuration or a local cop changed"] unless entry["inputs"] == config(root)
           return [:skip, [], "the Ruby files are unchanged"] if now == entry["files"]
