@@ -7,6 +7,7 @@ require_relative "in_process_operations/tailing"
 require_relative "in_process_operations/event_logs"
 require_relative "in_process_operations/domain_names"
 require_relative "operation_run"
+require_relative "codebase/heavy_slots"
 require "hecks/tools/model_check"
 require "hecks/tools/smoke_test"
 require "hecks/tools/behaviors"
@@ -115,7 +116,9 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when any test failed, errored or did not parse
       def verify(**held)
         argv = [plain(held[:subject])].compact
-        output(ConsoleCapture.answer { Tools::Behaviors.call(argv, program: "hecks run_behaviors") })
+        root = checkout_root
+        run = -> { ConsoleCapture.answer { Tools::Behaviors.call(argv, program: "hecks run_behaviors") } }
+        output(root ? Codebase::HeavySlots.command(root, "run_behaviors", &run) : run.call)
       end
 
       # Boots a wired domain and dispatches one synthesized call per command and report.

@@ -133,6 +133,11 @@ Hecks.world "Tickets" do
   # (swap or compressor over its mark while free memory is short, until it is not), reading the machine
   # every `memory_poll_seconds` (`Codebase::MemoryWait`); seen 2026-11-13 at 33 of 36 GB used.
   heavy_jobs "HeavyJobs", cap: 1, memory_poll_seconds: 10.0, memory_give_up_seconds: 120.0
+  # `heavy_commands` declares once which commands are heavy, by verb, and the job class each takes
+  # a place as (`Codebase::HeavySlots.command`): `run_behaviors` takes one place for the whole run,
+  # however many files it holds. A command not named, such as `EarlyCi.request!`, which mostly waits
+  # on a remote run, takes none.
+  heavy_commands "HeavyCommands", run_behaviors: "behaviors"
   # `spec_workers` is the most workers one parallel spec run starts (a bare `rspec`, the gate's
   # parallel suite), never more than the cores: seen 2026-11-13, one run of 12 workers on 12 cores
   # left the desktop nothing, so 6 holds one run to half the machine (`Codebase::SpecWorkers`).
