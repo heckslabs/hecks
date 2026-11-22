@@ -159,7 +159,7 @@ module Hecks
         found ? found[:use] : own_verbs(name)
       end
 
-      # The verbs on the role's own routing list, as many as read well, or the way to hand the step on.
+      # The verbs on the role's own routing list, as many as read well, or how to hand the step on.
       def own_verbs(name)
         verbs = rows("RoutingRule", name).map { |row| row[:pattern] }.grep_v(SHELL_PATTERN).first(VERB_LIST)
         return "dispatch another role through Work.plan!" if verbs.empty?
