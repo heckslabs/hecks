@@ -7,7 +7,7 @@ require_relative "fake_train_github"
 # `merge_state` what GitHub reports of its mergeability, and `merge_refusal` makes
 # `gh pr merge` refuse. The calls it remembers are the ones that changed the pull request.
 class FakeDroppedGithub < FakeTrainGithub
-  attr_accessor :auto_merge, :merge_state, :merge_refusal
+  attr_accessor :auto_merge, :merge_state, :merge_refusal, :direct_refusal
 
   def initialize
     super
@@ -19,7 +19,7 @@ class FakeDroppedGithub < FakeTrainGithub
   # The `GithubPullRequests` runner, remembering each call as the `CiRuns` one does.
   def gh(argv)
     @calls << "gh #{argv.join(" ")}"
-    return ["", @merge_refusal, false] if @merge_refusal && argv[0..1] == %w[pr merge]
+    return ["", refusal(argv), false] if refusal(argv)
 
     super
   end
@@ -28,6 +28,14 @@ class FakeDroppedGithub < FakeTrainGithub
   def merges = calls.grep(/pr merge/)
 
   private
+
+  # The refusal GitHub gives this `gh pr merge`: `merge_refusal` for arming auto-merge,
+  # `direct_refusal` for a merge made at once.
+  def refusal(argv)
+    return nil unless argv[0..1] == %w[pr merge]
+
+    argv.include?("--auto") ? @merge_refusal : @direct_refusal
+  end
 
   def answer(argv)
     return { mergeable_state: @merge_state }.to_json if argv.last.to_s.match?(%r{/pulls/\d+\z})

@@ -2442,7 +2442,7 @@ Hecks.bluebook "Hecks" do
     # A dropped train pull request (open, green, auto-merge gone) is armed again once per observation;
     # a refusal is recorded and the run stays watched; a conflicted one parks its run.
     aggregate "TrainPrEnqueue" do
-      description "One enqueue again of a train pull request the merge queue dropped when main moved (open, every check green, auto-merge gone), by turning its auto-merge on. Keyed by the observation that found it dropped, so one dropped twice is enqueued twice. A refusal is recorded and the run stays watched, its stage bound ending one that never clears; a pull request whose mergeability GitHub has not computed is read again."
+      description "One enqueue again of a train pull request the merge queue dropped when main moved (open, every check green, auto-merge gone), by turning its auto-merge on, or merging it at once when GitHub refuses auto-merge on a pull request that is already mergeable (an adapter fallback: the Enqueued report then names a merge). Keyed by the observation that found it dropped, so one dropped twice is enqueued twice. A refusal is recorded and the run stays watched, its stage bound ending one that never clears; a pull request whose mergeability GitHub has not computed is read again."
 
       attribute :run,     Word
       attribute :pr,      PrNumber
