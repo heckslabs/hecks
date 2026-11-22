@@ -2,6 +2,7 @@
 
 require "securerandom"
 require_relative "repository"
+require_relative "leveling"
 
 module Hecks
   module Adapters
@@ -25,25 +26,39 @@ module Hecks
           return [] if last.nil? || open?
 
           repository = Repository.new(last.checkout.empty? ? Dir.pwd : last.checkout)
+          conflict = level(repository)
           head = uncovered(repository)
-          head ? record(head, repository.checkout) : []
+          head ? record(head, repository.checkout, conflict) : []
         rescue ConsoleCapture::Failure
           []
         end
 
         private
 
-        def uncovered(repository)
+        # Merges what origin/main gained (a merged train) into main, so the tip boards on a main
+        # that holds it; the files in conflict when it cannot.
+        def level(repository)
           repository.refresh
+          Leveling.new(repository.checkout).call
+        end
+
+        def uncovered(repository)
           head = repository.main
           head unless head == repository.remote_main || repository.carried_by(head) || @runs.find(head)
         end
 
-        def record(head, checkout)
+        def record(head, checkout, conflict)
           report = "#{head[0, 10]} is ahead of origin/main with no run: opened one"
           args = { run: { value: SecureRandom.uuid }, branch: "main", landed: head, checkout: checkout, report: report }
           Runtime::Dispatcher.new(@registry).dispatch_flat("Delivery::Landing.Adopt", args)
-          [report]
+          conflict ? [report, strand(head, conflict)] : [report]
+        end
+
+        # Parks the opened run in needs_human with the conflict named.
+        def strand(head, conflict)
+          args = { run: { value: SecureRandom.uuid }, landed: head, refusal: conflict }
+          Runtime::Dispatcher.new(@registry).dispatch_flat("Hecks::Integration.Strand", args)
+          "#{head[0, 10]} needs_human: #{conflict}"
         end
 
         # A run waiting for its next step is open, and so is one pushed or watched that still holds
