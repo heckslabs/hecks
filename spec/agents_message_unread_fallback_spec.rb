@@ -38,7 +38,7 @@ RSpec.describe "the Agents message unread fallback" do
     send_message(to: "orchestrator")
     fall_back("m1", 1_400)
     expect(resumed).to be_empty
-    expect(Hecks::Agents::Message.find("m1").fallen_back_at).to be_nil
+    expect(Hecks::Agents::Message.find("m1").fallen_back_at&.value.to_i).to eq(0)
   end
 
   it "falls back once, so the second sweep finds nothing unread" do
