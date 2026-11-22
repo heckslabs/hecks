@@ -202,6 +202,9 @@ Hecks.bluebook "Coder" do
     attribute :revert_of, SubmissionRevertOf, default: { value: "" }
     attribute :covers,    SubmissionCovers, default: { value: "" }
 
+    # What a withheld coder is told, kept so the answer to the submit can print it.
+    attribute :refusal,   SubmissionRefusal, optional: true
+
     value_object "SubmissionBranch" do
       attribute :value, String, matches: :present
       invariant("a submission names its branch") { !value.to_s.empty? }
@@ -296,7 +299,7 @@ Hecks.bluebook "Coder" do
       goal "Record that the branch is not handed in while an answer to its coder is unread, and what the coder is told"
 
       reference_to Submission
-      attribute :refusal, SubmissionRefusal, optional: true
+      attribute :refusal, SubmissionRefusal, optional: true, sets: true
 
       emits "SubmissionWithheld"
     end

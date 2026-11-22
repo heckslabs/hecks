@@ -1,0 +1,615 @@
+Hecks —
+  hecks 7.1.0
+
+  hecks <command>! [name=value …]       do something
+  hecks <query> [name=value …]          read something, written bare
+
+everyday:
+  Operation.run!
+  Operation.open_console!
+  GateRun.gate!
+  TestSuiteRun.run_changed!
+  TestSuiteRun.run_spec_example!
+  TestSuiteRun.run_spec_files!
+  TestSuiteRun.run_impacted_specs!
+  Build.build_host!
+  Shipment.ship!
+  SendTrain.board!
+  Codebase.search
+
+commands:
+  LocalOverlay:
+    …
+    write!
+  Build:
+    …
+    project_rust!
+    build_wasm!
+    prune_rust!
+    build_component!
+    build_parser!
+    build_host!
+    build_browser_wasm!
+    check_conformance!
+    fuzz_conformance!
+    check_coverage_allowlist!
+  RegenerationRun:
+    …
+    regenerate_corpus!
+    project_ci_gates!
+    project_ci_pipeline!
+    project_lanes!
+    project_agent_roles!
+    project_tools_doc!
+    project_glossary!
+    decide_ci_gate!
+  KernelRun:
+    …
+    project_kernel_capabilities!
+    measure_kernel_coverage!
+  GateRun:
+    …
+    gate!
+  ModelCheckRun:
+    …
+    model_check!
+  BehaviorsCoverage:
+    …
+    cover!
+  ConformanceRun:
+    …
+    check_engine_agreement!
+    measure_doc_coverage!
+    check_shape_ledger!
+    check_command_names!
+    check_workflow_pagination!
+    check_bluebook_extraction!
+    argument_gate_matrix!
+    report_role_shadow!
+  StyleRun:
+    …
+    check_comments!
+    fix_comments!
+    shorten_value_objects!
+    write_comment_baseline!
+    check_comments_unchanged!
+    check_rust_comments!
+    fix_rust_comments!
+    canonicalise!
+  InspectionRun:
+    …
+    flog!
+    flay!
+    reek!
+    rubycritic!
+  Audit:
+    …
+    verify!
+  AgentRun:
+    …
+    dispatch!
+    check!
+    tidy!
+    release!
+    answer!
+    rebind!
+    retire!
+  SessionSweep:
+    …
+    check_all!
+  Dispatch:
+    …
+    fill!
+    settle!
+  MergeWindow:
+    …
+    open!
+    close!
+  PlainSession:
+    …
+    remove!
+    retire!
+  SessionCleanup:
+    …
+    remove_safe!
+  Question:
+    …
+    escalate!
+  Restoration:
+    …
+    make!
+  ShallowCheck:
+    …
+    run!
+    switch!
+  EarlyCi:
+    …
+    request!
+    retry!
+  SendTrain:
+    …
+    board!
+    survey!
+    watch!
+  PushOutcome:
+    …
+    record!
+  Shipment:
+    …
+    ship!
+    rejudge!
+  Integration:
+    …
+    advance!
+    schedule!
+    unschedule!
+    verify!
+    board!
+    release!
+    observe!
+  ReviewRequest:
+    …
+    open!
+    take!
+    edit!
+    close!
+  BoardingHold:
+    …
+    hold!
+  BoardingRelease:
+    …
+    release!
+  BisectLog:
+    …
+    log!
+  Relief:
+    …
+    plan!
+    relieve!
+  Cache:
+    …
+    clear!
+  LanguageRun:
+    …
+    project_model!
+    project_vocabulary!
+    project_rust_vocabulary!
+    project_refusal_wording!
+    project_reserved_names!
+    project_parser_table!
+    project_phrase_table!
+    project_bootstrap_table!
+    project_field_hints!
+    project_expression_tables!
+    project_reference!
+    propose!
+    admit!
+    deprecate!
+    retire!
+    rename!
+    propose_argument!
+    admit_argument!
+    deprecate_argument!
+    retire_argument!
+  CodemodRun:
+    …
+    hoist_local_givens!
+    drop_implicit_append_fields!
+    move_former_name!
+  ScriptRun:
+    …
+    plan_script!
+    apply_script!
+  GithubWebhook:
+    …
+    serve!
+  LedgerFile:
+    …
+    reclaim!
+  SchemaRevision:
+    …
+    hold_first!
+    rename_domain!
+    merge_tail!
+    reattest!
+    backfill_projections!
+    compact!
+    compact_heki!
+    write_translation!
+    reconcile!
+    mint_held!
+    release_mint!
+  RehearsalRun:
+    …
+    request!
+  Operation:
+    …
+    run!
+    refresh_projections!
+    redrive_outbox!
+    abandon_outbox_row!
+    run_behaviors!
+    open_console!
+    smoke_test!
+    smoke_http!
+    bootstrap_admin!
+  Host:
+    …
+    check_era!
+    recheck!
+  QaQuiesce:
+    …
+    hold!
+    release!
+  RedFlag:
+    …
+    check_in!
+    sync!
+  PushRehearsal:
+    …
+    rehearse!
+  PublishingRun:
+    …
+    publish!
+    publish_gem!
+  PromotionRun:
+    …
+    watch!
+    promote!
+  Registry:
+    …
+    release!
+  Package:
+    …
+    vendor!
+    revendor!
+  Server:
+    …
+    present!
+    compose!
+    preview!
+    serve_query_ir_mcp!
+    serve_mcp!
+  Board:
+    …
+    serve!
+  HelpWanted:
+    …
+    assign!
+  Launch:
+    …
+    project_cli!
+    init!
+    project_rails!
+  TestSuiteRun:
+    …
+    run_spec_example!
+    run_spec_files!
+    run_impacted_specs!
+    run_suite!
+    run_changed!
+    stress_concurrency!
+    run_cargo_tests!
+    clear_caches!
+    regenerate_legacy_fixtures!
+    rewrite_ir_golden!
+    seed_semantics_corpus!
+    write_io_parallel_spec_list!
+  FuzzRun:
+    …
+    fuzz!
+    mutate!
+    bench!
+  Dial:
+    …
+    turn!
+  Watchdog:
+    …
+    arm!
+    disarm!
+  internal — what a run records about itself, named here only (`--help` still works):
+    LocalOverlay.settle! LocalOverlay.decline! LocalOverlay.lay! Build.complete! Build.fault!
+    Build.generate! Build.wasm! Build.host! Build.browser_wasm! Build.prune! Build.parser!
+    Build.component! Build.conform! Build.replay! Build.audit! RegenerationRun.accept!
+    RegenerationRun.complete! RegenerationRun.fault! RegenerationRun.examine!
+    RegenerationRun.perform! KernelRun.accept! KernelRun.complete! KernelRun.fault!
+    KernelRun.examine! KernelRun.perform! CatcherCare.look! CatcherCare.hear! CatcherCare.decline!
+    CatcherCare.settle! CatcherCare.refuse! CatcherCare.rested! CatcherCare.run_catcher!
+    GateRun.accept! GateRun.complete! GateRun.fault! GateRun.examine! GateRun.perform!
+    ModelCheckRun.pass! ModelCheckRun.flag! ModelCheckRun.check! BehaviorsCoverage.record!
+    BehaviorsCoverage.count! ConformanceRun.accept! ConformanceRun.complete! ConformanceRun.fault!
+    ConformanceRun.examine! ConformanceRun.perform! StyleRun.accept! StyleRun.complete!
+    StyleRun.fault! StyleRun.examine! StyleRun.perform! InspectionRun.accept!
+    InspectionRun.complete! InspectionRun.fault! InspectionRun.examine! InspectionRun.perform!
+    Audit.confirm! Audit.fail! Audit.walk! CiLook.look! CiRunRecord.note! AgentRun.begin!
+    AgentRun.decline! AgentRun.work! AgentRun.block! AgentRun.finish! AgentRun.fail!
+    AgentRun.tidied! AgentRun.retain! AgentRun.detach! AgentRun.shed! AgentRun.await!
+    AgentRun.answered! AgentRun.fork! AgentRun.rebound! AgentRun.refuse_rebind!
+    AgentRun.resume_in_place! AgentRun.unanswered! AgentRun.unresumed! AgentRun.unreached!
+    AgentRun.refuse_answer! AgentRun.retired! AgentRun.retire_trial! AgentRun.unretired!
+    AgentRun.locate! AgentRun.start! AgentRun.read_job! AgentRun.await_job! AgentRun.review!
+    AgentRun.remove! AgentRun.clear_scratch! AgentRun.retire_worktree! AgentRun.stop_session!
+    AgentRun.stop_forked_from! AgentRun.inspect_session! AgentRun.look_for! AgentRun.present!
+    AgentRun.deliver! AgentRun.resume! SessionSweep.find! SessionSweep.check_roles!
+    Dispatch.record! Dispatch.decline! Dispatch.choose! Dispatch.conclude! SweepBatch.read!
+    SweepBatch.compose! SweepBatch.hold! Roll.start! Roll.record! Roll.decline! Roll.roll!
+    RollSwitch.open! RollSwitch.consult! RollSwitch.pause! RollSwitch.resume! RollSwitch.read!
+    MergeWindow.record! MergeWindow.decline! MergeWindow.quiet! Heartbeat.beat! Heartbeat.record!
+    Heartbeat.decline! Heartbeat.measure! Heartbeat.take! Heartbeat.signal! Ticker.start!
+    Ticker.begin! Ticker.decline! Ticker.tick! Ticker.stop! Ticker.open! Idler.keep! Idler.start!
+    Idler.begin! Idler.decline! Idler.tick! Idler.stop! Idler.open! Wake.look! Wake.hear!
+    Wake.decline! Wake.notice! FillStall.open! FillStall.watch! FillStall.mark! FillStall.raise!
+    FillStall.clear! FillStall.gauge! Machine.sample! Machine.record! Machine.decline!
+    Machine.fall_below! Machine.rise_above! Machine.run_low! Machine.recover! Machine.go_busy!
+    Machine.go_idle! Machine.strain! Machine.ease! Machine.read! LoadStanding.open!
+    LoadStanding.rise! LoadStanding.fall! Overload.open! Overload.strain! Overload.settle!
+    Overload.waver! Overload.starve! Overload.replenish! Overload.declare_for_load!
+    Overload.declare_for_memory! Overload.lift! Shed.look! Shed.record! Shed.decline! Shed.survey!
+    RedWake.hear! RedWake.start! RedWake.decline! RedWake.weigh! PlainSession.refuse_retirement!
+    PlainSession.discard! PlainSession.examine! PlainSession.withdraw! SessionCleanup.record!
+    SessionCleanup.decline! SessionCleanup.reap! SessionCleanup.clean! SessionCleanup.mark!
+    SessionCleanup.sweep_plain! ReapTurn.open! ReapTurn.take! ReapTurn.free! Question.ask!
+    Question.seat! Question.close! Question.drop! Question.release! AnswerDesk.open!
+    AnswerDesk.take! AnswerDesk.free! Restoration.record! Restoration.decline!
+    Restoration.restore! ShallowCheck.pass! ShallowCheck.refuse! ShallowCheck.shallow_check!
+    ShallowCheck.shallow_switch! EarlyCi.start! EarlyCi.open! EarlyCi.observe! EarlyCi.withdraw!
+    EarlyCi.close! EarlyCi.decline! EarlyCi.branch_ci! EarlyCi.branch_ci_close!
+    SendTrain.summarize! SendTrain.send! SendTrain.ride! SendTrain.queue! SendTrain.merge!
+    SendTrain.fail! SendTrain.close! SendTrain.unland! SendTrain.reverse! SendTrain.fault!
+    SendTrain.carry! SendTrain.tally! SendTrain.observe! SendTrain.revert!
+    SendTrain.record_outcome! SendTrain.announce! SendTrain.leftovers! SendTrain.refresh!
+    Shipment.stop! Shipment.judge! Integration.poll! Integration.summarize! Integration.pass!
+    Integration.fail! Integration.fail_once! Integration.send! Integration.reject!
+    Integration.stall! Integration.strand! Integration.green! Integration.red! Integration.close!
+    Integration.probe! Integration.merge! Integration.supersede! Integration.step!
+    Integration.tend! Integration.arrange! Integration.withdraw! Integration.check!
+    Integration.bisect! Integration.embark! Integration.watch! RedEpisode.revert! RedEpisode.park!
+    RedEpisode.acquit! RedEpisode.unfound! RedEpisode.undo! RedEpisode.restore! RedEpisode.mend!
+    TrainPr.record! TrainPr.rerun! TrainPr.exhaust! TrainPr.search! TrainPr.restart!
+    TrainPr.restart_job! TrainPrCi.await! TrainPrCi.start! TrainPrReopen.request!
+    TrainPrReopen.reopen! TrainPrReopen.decline! TrainPrReopen.cycle! TrainPrEnqueue.request!
+    TrainPrEnqueue.enqueue! TrainPrEnqueue.decline! TrainPrEnqueue.arm! ReviewRequest.sweep!
+    ReviewRequest.swept! ReviewRequest.record! ReviewRequest.confirm! ReviewRequest.queue!
+    ReviewRequest.revise! ReviewRequest.refuse! ReviewRequest.tidy! ReviewRequest.create!
+    ReviewRequest.merge! ReviewRequest.amend! ReviewRequest.shut! BoardingHold.settle!
+    BoardingHold.decline! BoardingHold.mark! BoardingRelease.settle! BoardingRelease.decline!
+    BoardingRelease.clear! BisectLog.settle! BisectLog.decline! BisectLog.record!
+    LandingReview.await! LandingReview.judge! LandingReview.clear! LandingReview.refuse!
+    LandingReview.shadow! Reading.take! Level.judge! Volume.rise! Volume.ease! Relief.settle!
+    Relief.decline! Cache.settle! Cache.decline! LanguageRun.accept! LanguageRun.complete!
+    LanguageRun.fault! LanguageRun.examine! LanguageRun.perform! SyntaxBootCache.record!
+    SyntaxBootCache.invalidate! SyntaxBootCache.rebuild! CodemodRun.accept! CodemodRun.complete!
+    CodemodRun.fault! CodemodRun.examine! CodemodRun.perform! ScriptRun.accept!
+    ScriptRun.complete! ScriptRun.fault! ScriptRun.examine! ScriptRun.perform!
+    GithubWebhook.close! GithubWebhook.refuse! GithubWebhook.listen! GithubEvent.record!
+    ChangeGroup.form! LedgerCare.look! LedgerCare.hear! LedgerCare.decline! LedgerCare.weigh!
+    OutboxCare.look! OutboxCare.hear! OutboxCare.decline! OutboxCare.purge! LedgerFile.settle!
+    LedgerFile.decline! LedgerFile.vacuum! SchemaRevision.permit! SchemaRevision.settle!
+    SchemaRevision.abandon! SchemaRevision.examine! SchemaRevision.apply! SchemaRevision.mint!
+    SchemaRevision.mint_release! SchemaRevision.capture! Seal.record! RehearsalRun.boot!
+    RehearsalRun.audit! RehearsalRun.judge! RehearsalRun.withhold! RehearsalRun.refuse!
+    RehearsalRun.fail! RehearsalRun.survey! RehearsalRun.examine! Operation.succeed!
+    Operation.fail! Operation.execute! Operation.refresh! Operation.redrive! Operation.abandon!
+    Operation.verify! Operation.smoke! Operation.bootstrap! Operation.open! Operation.probe!
+    Host.observe! Host.drift! Host.lose! Host.fetch! QaQuiesce.settle! QaQuiesce.decline!
+    QaQuiesce.mark! QaQuiesce.clear! RedFlag.raise! RedFlag.clear! RedFlag.admit! RedFlag.record!
+    RedFlag.note! RedFlag.welcome! RedFlag.lift! RedFlag.accept! RedFlag.settle! RedFlag.decline!
+    RedFlag.hoist! RedFlag.sign_in! RedFlag.lower! RedFlag.survey! RedFlag.pass!
+    PushRehearsal.pass! PushRehearsal.fail! PushRehearsal.decline! PushRehearsal.trial!
+    Release.tag! Release.mark_published! Release.verify! Release.close_findings!
+    PublishingRun.accept! PublishingRun.approve! PublishingRun.accept_gem! PublishingRun.complete!
+    PublishingRun.fault! PublishingRun.examine! PublishingRun.perform! PromotionRun.accept!
+    PromotionRun.observe! PromotionRun.complete! PromotionRun.lag! PromotionRun.fault!
+    PromotionRun.examine! PromotionRun.perform! Registry.complete! Registry.abandon! Registry.tag!
+    Package.complete! Package.abandon! Package.pin! Server.accept! Server.complete! Server.fault!
+    Server.serve! Server.examine! Server.perform! StallWatch.detect! Stall.file! Stall.abandon!
+    ScrumWake.call! HelpWanted.raise! HelpWanted.brief! HelpWanted.close! Launch.finish!
+    Launch.stop! Launch.write! Launch.scaffold! Launch.write_rails! TestSuiteRun.accept!
+    TestSuiteRun.complete! TestSuiteRun.fault! TestSuiteRun.examine! TestSuiteRun.perform!
+    FuzzRun.conclude! FuzzRun.halt! FuzzRun.sweep! FuzzRun.probe! FuzzRun.measure! Dial.settle!
+    Dial.decline! Dial.set! Probe.open! Probe.record! Probe.look! Probe.keep! Probe.revert!
+    Probe.close! Probe.strand! Probe.restore! Probe.measure! Probe.judge! WorkCap.open!
+    WorkCap.count_calm! WorkCap.count_pressed! WorkCap.count_strained! WorkCap.count_green_train!
+    WorkCap.count_red_train! WorkCap.widen! WorkCap.halve_for_memory! WorkCap.halve_for_load!
+    WorkCap.floor! WorkCap.ceil! Watchdog.record_guard! Watchdog.record_release! Watchdog.decline!
+    Watchdog.guard! Watchdog.release!
+
+queries (nothing here changes anything):
+  Build:
+    …
+    rust_coverage
+  CorpusRun:
+    …
+    rust_domains
+    regen_order
+    corpus_rust_coverage
+    generated_key
+    ir_constructs
+    ir_duplicates
+    ir_impact
+  StyleRun:
+    …
+    report_comments
+    report_rust_comments
+  CiLook:
+    …
+    unrecorded
+  AgentRun:
+    …
+    working
+    blocked
+    answering
+  Dispatch:
+    …
+    preview
+  Machine:
+    …
+    busiest
+  Overload:
+    …
+    standing
+  SessionCleanup:
+    …
+    removable
+  AnswerDesk:
+    …
+    desks
+  Workspace:
+    …
+    settings
+    doctor
+    where
+  LandingPace:
+    …
+    pace
+    throughput
+  RedEpisode:
+    …
+    recent
+    standing
+    reverting
+  ReviewRequest:
+    …
+    status
+    timeline
+    failures
+  BoardingHold:
+    …
+    status
+  LandingReview:
+    …
+    landing_reviews
+  LanguageRun:
+    …
+    word_status
+  SyntaxBootCache:
+    …
+    stale
+  Codebase:
+    …
+    search
+    read_source
+    outline
+    declaration
+  Index:
+    …
+    find
+  GithubEvent:
+    …
+    since
+  SchemaRevision:
+    …
+    scaffold_translation
+    audit_translation
+    compose_translation
+    reconcile_plan
+    attestation
+    compaction
+    boot_status
+    boot_resolution
+    sqlite_status
+    event_trace
+    projection_audit
+    mint_plan
+  Seal:
+    …
+    latest
+  Operation:
+    …
+    follow
+    feed
+  Introspection:
+    …
+    ir
+    shape
+    stores
+    history
+    statements
+    undo
+    narrate
+    relationships
+    context_map
+    world_skeleton
+    docs
+    project_diagrams
+    glossary
+  Pace:
+    …
+    read
+  QaQuiesce:
+    …
+    status
+  RedFlag:
+    …
+    status
+  PushRehearsal:
+    …
+    due
+  Release:
+    …
+    shipped
+  Registry:
+    …
+    check
+    digest
+  Package:
+    …
+    verify
+  StallWatch:
+    …
+    unclosed
+    impediments
+    relieved
+    unraised
+    abandoned
+  TestSuiteRun:
+    …
+    shard_specs
+    list_io_parallel_specs
+    record_pattern_cases
+  FuzzRun:
+    …
+    generate_sequence
+    promotion_lag
+    releases_by_state
+  internal — what a run records about itself, named here only (`--help` still works):
+    Build.result Build.faulted RegenerationRun.regeneration_outcome
+    RegenerationRun.regeneration_faulted KernelRun.kernel_outcome KernelRun.kernel_faulted
+    GateRun.gate_outcome GateRun.gate_faulted ModelCheckRun.verdict ModelCheckRun.flagged
+    BehaviorsCoverage.coverage ConformanceRun.conformance_outcome
+    ConformanceRun.conformance_faulted StyleRun.style_outcome StyleRun.style_faulted
+    InspectionRun.inspection_outcome InspectionRun.inspections_faulted Audit.verdict
+    Audit.unproven AgentRun.tidyable AgentRun.running AgentRun.started_of_run AgentRun.last_report
+    AgentRun.ended AgentRun.gone AgentRun.declined Roll.latest Question.open
+    Question.seated_of_run Question.seated_of_work Question.of_run Question.asked_of_run
+    SendTrain.outcome SendTrain.queued Integration.outcome LanguageRun.language_outcome
+    LanguageRun.language_faulted CodemodRun.codemod_outcome CodemodRun.codemod_faulted
+    SchemaRevision.settlement SchemaRevision.abandoned RehearsalRun.rehearsal_outcome
+    RehearsalRun.withheld Operation.outcome Operation.failed Host.standing Host.drifted
+    PublishingRun.publishing_outcome PublishingRun.publishing_faulted
+    PromotionRun.promotion_outcome PromotionRun.promotion_faulted Registry.releasing
+    Registry.refused Package.pinning Package.unpinned Server.server_outcome Server.server_faulted
+    HelpWanted.open HelpWanted.unassigned HelpWanted.assigned_of_help Launch.ended Launch.stopped
+    TestSuiteRun.test_suite_outcome TestSuiteRun.test_suite_faulted FuzzRun.conclusion
+    FuzzRun.halted Dial.of_run Probe.of_run Probe.watching
+
+bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  delivery
+  deploy
+  governance
+  tenancy
+  site
+  tickets
+  composer
+  quality_control
+  bluebook
+  hecksagon
+  world
+  adapter
+  port
+  translation
+  expression
+
+  hecks <command> --help       what one command wants, and every way it refuses
+  a command is called with its aggregate — LocalOverlay.write!
+  exit status: 0 answered, 1 refused or failed, 2 a line it could not read

@@ -8,6 +8,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
 
   def run(*argv) = described_class.usage(runtime: runtime, argv: argv, program: "hecks")
   def entries(*argv) = JSON.parse(run(*argv).first)
+  def full_listing = run("--all").first
   def calls(*argv) = entries(*argv).map { |entry| entry["call"] }
 
   it "prints the entries as a JSON array that parses" do
@@ -15,7 +16,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   it "lists every command the text listing names" do
-    expect(calls("--json")).to all(satisfy { |call| run.first.include?(call.split(".").last) })
+    expect(calls("--json")).to all(satisfy { |call| full_listing.include?(call.split(".").last) })
   end
 
   it "lists only one module's entries when a module is named" do

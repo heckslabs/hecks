@@ -4,6 +4,8 @@ require "fileutils"
 require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
+require_relative "heavy_commands"
+require_relative "holder_mark"
 require_relative "memory_wait"
 require_relative "response_wait"
 require_relative "slot_queue"
@@ -28,6 +30,8 @@ module Hecks
       # by RuboCop, unless set). A job does not wait in CI or when `HELD` says a parent started it,
       # or once it gave up; a rejoining waiter keeps its place ({SlotWait}).
       class HeavySlots
+        extend HeavyCommands
+
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
 
@@ -117,7 +121,7 @@ module Hecks
         # @return [Array(Object, String)] what the block returned, and the wait to name in the
         #   run's report: empty when it took a place at once
         def hold(job, &)
-          return [yield, ""] if bypass?
+          return [yield, ""] if HolderMark.covers?(@base)
 
           memory = @memory ? @memory.wait(job) : ""
           place, slot = acquire(job)
@@ -130,8 +134,6 @@ module Hecks
         end
 
         private
-
-        def bypass? = !@base[HELD].to_s.empty? || !@base["CI"].to_s.empty?
 
         # @return [Array(File, String), Array(nil, String)] the place taken and the wait's note;
         #   no place when the places cannot be opened or the wait gave up
@@ -181,8 +183,10 @@ module Hecks
           before = ENV.values_at(HELD, WORKERS)
           ENV[HELD] = Process.pid.to_s
           ENV[WORKERS] ||= @workers.to_s if @workers
+          HolderMark.set(true)
           yield
         ensure
+          HolderMark.set(false)
           ENV[HELD], ENV[WORKERS] = before
         end
 
@@ -199,9 +203,8 @@ module Hecks
         end
 
         def gave_up(job)
-          note = "no longer waiting for a stalled heavy-job line after #{GIVE_UP_AFTER} s; #{job} runs anyway"
-          @err.puts("hecks: #{note}")
-          note
+          "no longer waiting for a stalled heavy-job line after #{GIVE_UP_AFTER} s; #{job} runs anyway"
+            .tap { |note| @err.puts("hecks: #{note}") }
         end
       end
     end

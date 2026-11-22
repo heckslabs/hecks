@@ -13,7 +13,7 @@ module CliHelpLauncher
   # The lines whose help the snapshot pins, by golden name.
   SNAPSHOTS = {
     "hecks" => [],
-    "hecks-help" => ["--help"],
+    "hecks-help" => ["--help"], "hecks-all" => ["--all"],
     "module-build" => ["build"], "module-check" => ["check"], "module-delegate" => ["delegate"],
     "module-deliver" => ["deliver"], "module-evolve" => ["evolve"], "module-find" => ["find"],
     "module-migrate" => ["migrate"], "module-operate" => ["operate"], "module-release" => ["release"],
