@@ -41,6 +41,20 @@ RSpec.describe "exe/hecks usage without an adapter", :io do
     expect(out).to eq("")
   end
 
+  it "keeps the bare help to the modules, with the full tables behind --all", :aggregate_failures do
+    brief, = hecks("help")
+
+    expect(brief).to include("modules (`hecks <module>` lists its commands and queries):", "hecks --all")
+    expect(brief).not_to include("commands:")
+  end
+
+  it "keeps the bare help under half the size of the full help" do
+    brief, = hecks("help")
+    full, = hecks("--all")
+
+    expect(brief.bytesize).to be < full.bytesize / 2
+  end
+
   it "answers the same text in memory as with the adapter unreachable" do
     memory, = Open3.capture3(env.merge("HECKS_ENVIRONMENT" => "memory"), RbConfig.ruby, exe, "--help")
     bare, = hecks("--help")
