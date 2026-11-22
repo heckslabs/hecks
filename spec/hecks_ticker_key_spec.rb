@@ -5,6 +5,7 @@ require_relative "support/ticker_chain"
 # A tick finds its record by the run key the chain passes, so a missing record is refused by name.
 RSpec.describe "the chain of ticks finding its record by the run key it passes" do
   include TickerChain
+
   include_context "with a stand-in claude"
 
   before(:all) { @hecks = boot_hecks_in_memory }
