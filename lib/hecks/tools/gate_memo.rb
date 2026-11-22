@@ -71,6 +71,7 @@ module Hecks
         "adapter_words"       => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
         "io_spec_list"        => LIBRARY + %w[spec/**/*.rb .github/postgres_io_spec_files.txt
                                               .github/workflows/ci-postgres-io-parallel.yml],
+        "bluebook_extraction" => MODEL,
         "rspec"               => SOURCE,
         "fuzzing"             => FUZZING,
         "query_agreement"     => SOURCE,

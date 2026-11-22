@@ -87,6 +87,14 @@ Hecks.bluebook "Hecks" do
                ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
+        # A message sent and still unread ten minutes on: its recipient's session was never woken or
+        # never took its turn. Only this kind of message raises a stall; the line closes when the
+        # turn reads it, and a message that was never sent (held, refused) never opens it.
+        member kind: "wake-failed", not_about: "stall-", aggregate: "Agents::Message", opens: "MessageSent",
+               closes: "MessageRead", minutes: 10, forgets: 1440, fixer: "orchestrator",
+               move: "Read the message (Message.inbox recipient=<run>) and its recipient: a run with no live " \
+                     "session needs AgentRun.answer! or a new wake, a busy one hears it at its next tool step. " \
+                     "Wake the holder (Message.send! again under a new key), or report who holds the seat."
         # A rerun does not close the line; an exhaust or a search does, and any later merge settles it
         # (`TrainPr` records no pass), even an unrelated one. A failed rerun exhausts or is searched
         # under a new key, so this line still files and its move stops.

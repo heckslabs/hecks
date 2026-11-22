@@ -50,6 +50,24 @@ Hecks.hecksagon "Agents" do
     end
   end
 
+  # The mail spool a send appends to, read a line at a time: `Read` answers the next line past the
+  # cursor (an empty `message` when none), `Acknowledge` moves the cursor. Bound by adapters/mail_spool,
+  # which never writes a line.
+  Agents::MailSpool.port "MailSpooling" do
+    asks "Read", to: MailSpool do
+      attribute :pass, PassKey
+      answers "MailLineRead"
+      refuses "SpoolRefused"
+    end
+
+    asks "Acknowledge", to: MailSpool do
+      attribute :pass, PassKey
+      attribute :line, LineNumber
+      answers "LineAcknowledged"
+      refuses "SpoolRefused"
+    end
+  end
+
   # Whether a session holds the role a sent message is addressed to, and the wake of it. Bound by
   # adapters/role_rouser, which resumes an idle holder and leaves a busy one to its inbox hook.
   Agents::Message.port "Rousing" do

@@ -2192,6 +2192,145 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  # The spool a send appends to, taken a line at a time: each line becomes a Message, the ledger.
+  # A replayed line is refused by its key, and a sender is trusted as written (stamped unverified).
+  # See docs/findings/mail-spool-2026-11.md.
+  aggregate "MailSpool" do
+    description "One pass over the mail spool: ask for the next line past the cursor, keep it as a message, move the cursor, and ask again until none is left."
+
+    identified_by :pass
+
+    attribute :pass, PassKey
+    attribute :line, LineNumber, optional: true
+    attribute :refusal, SpoolRefusal, optional: true
+
+    # How many spool lines the cursor stands past once this line is kept, from the first line.
+    value_object "LineNumber" do
+      attribute :value, Integer
+      invariant("a line number is positive") { value.positive? }
+    end
+
+    # A pass is keyed by the beat that began the chain, then by the line it follows.
+    value_object "PassKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # Why the spool could not be read or its cursor moved, as the port said.
+    value_object "SpoolRefusal" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Take" => "taken", from: "requested"
+      transition "Finish" => "dry", from: "requested"
+      transition "Decline" => "refused", from: "requested"
+      transition "Settle" => "settled", from: "taken"
+      mark :terminal, "dry", "refused", "settled"
+    end
+
+    command "Ingest" do
+      role "Operator"
+      goal "Read the mail spool once past its cursor, so the next line becomes a message"
+
+      attribute :pass, PassKey, sets: true
+
+      emits "IngestRequested"
+    end
+
+    command "Take", from: "requested" do
+      role "System"
+      goal "Keep the line the spool held: its message is sent next"
+
+      reference_to MailSpool
+      attribute :line, LineNumber, sets: true
+
+      emits "LineTaken"
+    end
+
+    command "Finish", from: "requested" do
+      role "System"
+      goal "End a pass that found no line past the cursor"
+
+      reference_to MailSpool
+
+      emits "IngestFinished"
+    end
+
+    command "Decline", from: "requested" do
+      role "System"
+      goal "Record why the spool could not be read"
+
+      reference_to MailSpool
+      attribute :refusal, SpoolRefusal, sets: true
+
+      emits "IngestDeclined"
+    end
+
+    command "Settle", from: "taken" do
+      role "System"
+      goal "End a pass whose line was kept and its cursor moved"
+
+      reference_to MailSpool
+
+      emits "IngestSettled"
+    end
+
+    # Each beat of the clock reads the spool once, keyed by the beat. A root, so it starts its own chain.
+    policy "IngestOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger MailSpool::Ingest, with: { pass: :beat }
+    end
+
+    policy "ReadTheSpool" do
+      on      "MailSpool.IngestRequested"
+      ask     :read, with: { pass: :pass }
+    end
+
+    policy "FinishWhenNoLine" do
+      on      "MailSpool.MailLineRead"
+      where   { message.value.to_s.empty? }
+      trigger MailSpool::Finish, with: { pass: :pass }
+    end
+
+    policy "TakeTheLine" do
+      on      "MailSpool.MailLineRead"
+      where   { !message.value.to_s.empty? }
+      trigger MailSpool::Take, with: { pass: :pass, line: :line }
+    end
+
+    # The line is sent as written; a duplicate key is refused by `Send`, so a replay adds nothing.
+    policy "SendTheLine" do
+      on      "MailSpool.MailLineRead"
+      where   { !message.value.to_s.empty? }
+      trigger Message::Send, with: { message: :message, recipient: :recipient, sender: :sender,
+                                     kind: :kind, body: :body, in_reply_to: :in_reply_to }
+    end
+
+    # The cursor moves once the line is taken, so a crash before it reads the line again.
+    policy "MoveTheCursor" do
+      on      "MailSpool.LineTaken"
+      ask     :acknowledge, with: { pass: :pass, line: :line }
+    end
+
+    policy "SettleWhenAcknowledged" do
+      on      "MailSpool.LineAcknowledged"
+      trigger MailSpool::Settle, with: { pass: :pass }
+    end
+
+    # The next line is asked for under a pass named by the line it follows.
+    policy "ReadTheNextLine" do
+      on      "MailSpool.LineAcknowledged"
+      trigger MailSpool::Ingest, with: { pass: :next_pass }
+    end
+
+    policy "DeclineWhenSpoolRefused" do
+      on      "MailSpool.SpoolRefused"
+      trigger MailSpool::Decline, with: { pass: :pass, refusal: :refusal }
+    end
+  end
+
   # The `Recipients` port finds a hand run while `claude agents` lists its session; an AgentRun
   # with the same key is found first. A stopgap until AgentRun registers such a session itself.
   aggregate "HandRun" do
