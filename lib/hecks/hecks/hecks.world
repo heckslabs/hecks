@@ -96,7 +96,10 @@ Hecks.world "Hecks" do
   # A resident (ADR 0201) exits after `idle_seconds` with nothing to run (`worktree_idle_seconds` in a
   # linked worktree); past `max_residents` a checkout boots each line cold. A launcher waits
   # `ready_wait_ms` for its first word, then boots on its own; it takes `workers` callers at once.
-  resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, max_residents: 8, ready_wait_ms: 400, workers: 8
+  # `control` names the commands a launcher in a linked worktree with no resident of its own asks the
+  # primary checkout's resident to run: they act on its shared stores, and it says so when it serves one.
+  resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, max_residents: 8, ready_wait_ms: 400, workers: 8,
+           control: "work message dial redflag.status"
   # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
   # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level. These are
   # the volume's own lines for relief; `disk_health` above sets the floors of the board's Disk free tile.
