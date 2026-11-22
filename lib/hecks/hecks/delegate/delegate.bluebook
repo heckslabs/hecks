@@ -3686,10 +3686,9 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # A burst of quick gates or launcher boots is a peak, and peaks, not averages, trip the machine.
-    # One record per kind of start (a gate, a boot) holds when the last was admitted; a start is
-    # admitted only once its spacing has passed, so starts of a kind come in a line. The callers and
-    # the spacing's world line are the wiring's; this is the rule.
+    # Peaks, not averages, trip the machine: a start of a kind (a gate, a boot) is admitted only a
+    # spacing after the last, so starts come in a line. The callers and the spacing's world line
+    # are the wiring's.
     aggregate "Stagger" do
       description "The spacing between the starts of one kind (a quick gate, a launcher boot): a start is admitted only when the spacing has passed since the last one of its kind."
 
