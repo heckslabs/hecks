@@ -22,4 +22,10 @@ RSpec.describe "a landing refuses commits that do not name their run" do
     commit_file("a", "change\n\nHecks-Run: run-1")
     expect(refusal).to include("Hecks-Work")
   end
+
+  it "refuses a commit authored after the cutoff, by name" do
+    git("update-ref", "refs/remotes/origin/main", "HEAD")
+    commit_file("b", "late", at: 3_000)
+    expect(refusal).to include("late")
+  end
 end

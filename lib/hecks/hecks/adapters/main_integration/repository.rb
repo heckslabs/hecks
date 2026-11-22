@@ -125,15 +125,15 @@ module Hecks
         def messages(base, tip) = read("log", "--format=%B%x1e", "#{base}..#{tip}").split("\x1e").map(&:strip)
 
         # The log format of `authored`: the commit, its subject and the trailers a landing needs.
-        AUTHORED_FORMAT = "%H%x09%s%x09%(trailers:key=Hecks-Run,valueonly,unfold)" \
+        AUTHORED_FORMAT = "%H%x09%s%x09%at%x09%(trailers:key=Hecks-Run,valueonly,unfold)" \
                           "%x09%(trailers:key=Hecks-Work,valueonly,unfold)%x1e"
 
-        # @return [Array<Hash{Symbol => String}>] each non-merge commit in the range: `sha:`,
-        #   `subject:`, and the `run:` and `work:` its trailers name, "" when it names none
+        # @return [Array<Hash>] each non-merge commit in the range: `sha:`, `subject:`, `time:`
+        #   authored (epoch seconds), and the `run:` and `work:` its trailers name, "" when none
         def authored(base, tip)
           read("log", "--no-merges", "--format=#{AUTHORED_FORMAT}", "#{base}..#{tip}").split("\x1e").filter_map do |line|
-            sha, subject, run, work = line.strip.split("\t", 4)
-            { sha: sha, subject: subject.to_s, run: run.to_s.strip, work: work.to_s.strip } if sha
+            sha, subject, time, run, work = line.strip.split("\t", 5)
+            { sha: sha, subject: subject.to_s, time: time.to_i, run: run.to_s.strip, work: work.to_s.strip } if sha
           end
         end
 
