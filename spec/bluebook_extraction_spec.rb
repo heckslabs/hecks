@@ -10,12 +10,12 @@ RSpec.describe Hecks::Adapters::Codebase::BluebookExtraction do
   let(:root) { Dir.mktmpdir("bluebook-extraction") }
   let(:tree) { Hecks::Adapters::Codebase::Tree.new(root: root) }
   let(:good) do
-    "Hecks.bluebook \"Fine\" do\n  aggregate(\"Thing\") do\n    attribute :name, Name\n" \
-      "    identified_by :name\n    value_object(\"Name\", String)\n    command(\"Do\") { emits \"Done\" }\n  end\nend\n"
+    "Hecks.bluebook \"Fine\" do\n  aggregate(\"Thing\") do\n    attribute :name, Name\n    " \
+      "identified_by :name\n    value_object(\"Name\", String)\n    command(\"Do\") { emits \"Done\" }\n  end\nend\n"
   end
   let(:bad) do
-    "Hecks.bluebook \"Broken\" do\n  aggregate(\"Thing\") do\n" \
-      "    command(\"Do\") { given(\"unreadable\", &eval(\"proc { 1 < 2 }\")) }\n  end\nend\n"
+    "Hecks.bluebook \"Broken\" do\n  aggregate(\"Thing\") do\n    " \
+      "command(\"Do\") { given(\"unreadable\", &eval(\"proc { 1 < 2 }\")) }\n  end\nend\n"
   end
 
   after { FileUtils.remove_entry(root) }
@@ -49,13 +49,13 @@ RSpec.describe Hecks::Adapters::Codebase::BluebookExtraction do
     before { write("lib/a/a.bluebook", "#{good}\n") }
 
     it "passes, naming how many it read" do
-      expect(described_class.call(tree, base: "HEAD")).to match(/1 changed bluebook/)
+      expect(described_class.call(tree, base: "HEAD")).to include("1 changed bluebook")
     end
   end
 
   describe "a branch that changed no bluebook" do
     it "passes having read none" do
-      expect(described_class.call(tree, base: "HEAD")).to match(/0 changed bluebook/)
+      expect(described_class.call(tree, base: "HEAD")).to include("0 changed bluebook")
     end
   end
 end
