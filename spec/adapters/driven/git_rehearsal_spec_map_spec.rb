@@ -238,4 +238,43 @@ RSpec.describe Hecks::Adapters::GitRehearsal::SpecMap do
       expect(specs("docs/guide.md")).to include("spec/gear_box_spec.rb")
     end
   end
+
+  context "with a world whose triggered_specs row names always-run specs" do
+    let(:always) { "spec/always_spec.rb" }
+    let(:world) do
+      %(Hecks.world "Tickets" do\n  triggered_specs "Specs", paths: ["docs/**/*.md"], ) +
+        %(specs: ["spec/gear_box_spec.rb"], always: ["spec/always_spec.rb"]\nend\n)
+    end
+
+    before do
+      add(always, "# nothing points here\n")
+      add("lib/hecks/hecks/tickets.world", world)
+    end
+
+    it "runs them for a change touching none of their files, ahead of the limit" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", limit: 1)).to eq([always])
+    end
+
+    it "runs them with a docs change that comes with a change outside docs/" do
+      expect(specs("docs/guide.md", "lib/hecks/widgets/gear_box.rb")).to include(always)
+    end
+
+    it "does not run them for a change wholly under docs/", :aggregate_failures do
+      expect(specs("docs/guide.md")).not_to include(always)
+      expect(specs("docs/guide.md")).to include("spec/gear_box_spec.rb")
+    end
+
+    it "runs none when nothing changed" do
+      expect(specs).to eq([])
+    end
+
+    it "leaves one out when the skip rules say it cannot run" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", skip: ->(spec) { "no" if spec == always })).not_to include(always)
+    end
+
+    it "takes no always list from a row that declares none" do
+      add("lib/hecks/hecks/tickets.world", world.sub(%(, always: ["spec/always_spec.rb"]), ""))
+      expect(specs("lib/hecks/widgets/gear_box.rb")).not_to include(always)
+    end
+  end
 end
