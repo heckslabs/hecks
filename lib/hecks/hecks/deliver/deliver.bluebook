@@ -1632,7 +1632,7 @@ Hecks.bluebook "Hecks" do
       where   { culprit.value != "" && base_red.value == false && already_reverted.value == false && revert_count.value < 3 }
       trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
                                           spec: :spec, example: :example, local: :local, checkout: :checkout,
-                                          work: :work, finding: :finding }
+                                          work: :work, finding: :finding, landed: :landed }
     end
 
     policy "ParkWhenTheRangeHoldsTheMostReverts" do
@@ -1761,6 +1761,8 @@ Hecks.bluebook "Hecks" do
       attribute :checkout, Report, optional: true
       attribute :landed,   Report, optional: true
       attribute :local,    Switch, optional: true
+      # Whether the failing spec also fails on origin/main, so a revert would not clear it.
+      attribute :reproduced, Switch, optional: true
       attribute :work,     Report, optional: true
       attribute :finding,  Report, optional: true
       attribute :began_at, Instant, optional: true
@@ -1808,9 +1810,15 @@ Hecks.bluebook "Hecks" do
         attribute :local,    Switch, optional: true, sets: true
         attribute :work,     Report, optional: true, sets: true
         attribute :finding,  Report, optional: true, sets: true
+        # The train's landed commit whose run the revert closes, and whether the failure also
+        # reproduces on origin/main (a revert of the merge would then clear nothing).
+        attribute :landed,     Report, optional: true, sets: true
+        attribute :reproduced, Switch, optional: true, sets: true
         # `now:` is filled from the clock port; an explicit value wins.
         attribute :now,      Instant
         needs :now
+
+        given("origin/main does not share the failure") { reproduced.to_s != "true" }
 
         sets :began_at, to: :now
         sets :ended_at, to: 0
@@ -1893,6 +1901,9 @@ Hecks.bluebook "Hecks" do
         attribute :work,    Report, optional: true
         attribute :finding, Report, optional: true
         attribute :report,  Report, optional: true
+        # The merge and the branch the revert undid, so a re-land item can name them.
+        attribute :culprit, Report, optional: true
+        attribute :branch,  Report, optional: true
 
         given("the episode still stands") { ended_at == nil || ended_at.value == 0 }
 
@@ -2002,7 +2013,16 @@ Hecks.bluebook "Hecks" do
       root
       for_each "RedEpisode.Reverting"
       trigger  RedEpisode::Undo, with: { run: :run, revert: :reverted, work: :work, finding: :finding,
-                                         report: :report }
+                                         report: :report, culprit: :culprit, branch: :branch }
+    end
+
+    # The train a reverted culprit rode is closed: its pull request is recorded closed unmerged and
+    # its run parks for a person, which frees the line for the green train that follows.
+    policy "CloseTheTrainOfARevertedCulprit" do
+      on      "RedEpisode.EpisodeReverting"
+      root
+      where   { landed.value.to_s != "" }
+      trigger Integration::Close, with: { landed: :landed, report: :subject }
     end
 
     policy "AdmitTheRevertOfAPushedMerge" do
