@@ -65,4 +65,12 @@ RSpec.describe "the priority lane holds at most two items" do
 
     expect(priority("hot-3")).to eq("expedite")
   end
+
+  it "accepts the third once one of the two is lapsed" do
+    %w[hot-1 hot-2].each { |key| expedite(key) }
+    cli("work.lapse!", "to=hot-1")
+    expedite("hot-3")
+
+    expect(priority("hot-3")).to eq("expedite")
+  end
 end
