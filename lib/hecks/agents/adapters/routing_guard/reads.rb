@@ -14,9 +14,9 @@ module Hecks
 
         private
 
-        # Whether a launcher call only reads, for every role in every domain: it asks for `--help`, or
-        # names a query. The launcher refuses a command written without its `!`, so a verb with no
-        # `!` writes nothing.
+        # Whether a launcher call only reads, for every role in every domain: it asks for
+        # `--help`, or names a query. The launcher refuses a command written without its `!`, so
+        # a verb with no `!` writes nothing.
         def read?(text)
           call = unquoted(text).sub(LAUNCHER, "")
           return true if call.split.include?("--help")
@@ -25,9 +25,9 @@ module Hecks
           !word.nil? && !word.end_with?("!")
         end
 
-        # The text with each quoted span blanked, so a `;` the shell reads as literal is not chaining.
-        # A backslash pair stays, a double-quoted span holding a substitution stays, and an unclosed
-        # quote matches no span and so stays too.
+        # The text with each quoted span blanked, so a `;` the shell reads as literal is not
+        # chaining. A backslash pair stays, a double-quoted span holding a substitution stays, and
+        # an unclosed quote matches no span and so stays too.
         def unquoted(text)
           text.gsub(QUOTED) do |span|
             next span unless span.start_with?("'", '"')
