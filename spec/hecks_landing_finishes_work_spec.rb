@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "support/stand_in_claude"
 require "fileutils"
 require "open3"
 require "tmpdir"
@@ -9,6 +10,7 @@ require "tmpdir"
 # done is left alone. The domain is in Memory; the repository is a throwaway one and the push
 # rehearsal is stubbed.
 RSpec.describe "a landing followed by its Work item" do
+  include_context "with a stand-in claude"
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-landing-work")) }
   let(:repo) { File.join(dir, "main") }
   let(:stages) { instance_double(Hecks::Adapters::GitRehearsal::Stages, run: []) }
