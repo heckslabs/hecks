@@ -18,7 +18,8 @@ module Hecks
         #   @return [Array<Hash>] the checks to run; rubocop with the files it lints when
         # incremental
         # @!attribute [r] skipped
-        #   @return [Array(Hash, String)] each skipped check and when its green run was recorded
+        #   @return [Array(Hash, String, String)] each skipped check, when its green run was
+        #     recorded and the commit it passed on (nil when that run had uncommitted edits)
         # @!attribute [r] notes
         #   @return [Array<String>] what the memo could not do, and how each planned check runs
         Plan = Struct.new(:run, :skipped, :notes)
@@ -66,9 +67,9 @@ module Hecks
           tree = GateMemo.tree(@root, check["id"])
           inputs = GateMemo.digest(@root, check, @env, tree)
           hit = GateMemo.reused(@memo[check["id"]], inputs)
-          return result.skipped << [check, hit["at"]] if hit
+          return result.skipped << [check, hit["at"], hit["commit"]] if hit
 
-          run(check, result, inputs ? GateMemo.green(inputs, tree) : nil)
+          run(check, result, inputs ? GateMemo.green(inputs, tree, GateMemo.clean_commit(@root)) : nil)
         end
 
         # @return [void] RuboCop runs on the files its green run did not cover, or on all of them
@@ -76,7 +77,7 @@ module Hecks
           entry = @memo["rubocop"]
           now = RubyFiles.hashes(@root)
           mode, files, why = RubyFiles.plan(@root, entry, now)
-          return result.skipped << [check, entry["at"]] if mode == :skip
+          return result.skipped << [check, entry["at"], entry["commit"]] if mode == :skip
 
           result.notes << "rubocop #{mode}: #{why}"
           run(rubocop_check(check, mode, files), result, rubocop_entry(now))
@@ -89,7 +90,7 @@ module Hecks
 
         # @return [Hash] the green entry a passing RuboCop run records: its config and every Ruby
         # file
-        def rubocop_entry(now) = GateMemo.green(RubyFiles.config(@root)).merge("files" => now)
+        def rubocop_entry(now) = GateMemo.green(RubyFiles.config(@root), nil, GateMemo.clean_commit(@root)).merge("files" => now)
 
         # @return [void] the check joins the run; its green entry is kept when it passes
         def run(check, result, entry)
