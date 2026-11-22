@@ -17,6 +17,7 @@ is a regression, whichever step moved it.
 | Commands a newcomer must learn | Names in the `everyday` list of the launcher setting, plus any other name the tour makes a newcomer type | The `everyday` list in `lib/hecks/hecks/hecks.world` and the tour's transcript | fall, then hold | the everyday list (steps 1 and 49), the collapsed families (step 5) |
 | Refusals recovered without reading source | Refusals whose next command the user or agent ran, over refusals seen | The deprecation log and the usage counts, once they exist; until then, a sampled session transcript | rise | refusal hints (step 10), refusal codes (step 33), the undo for every write (step 37) |
 | Cold start of a command | Wall-clock from the shell prompt to the first byte a command writes, for `Checkout.status` and for a bang that writes nothing | A timing spec in CI, warm cache and cold cache both | fall, then hold under its budget | the startup budget (step 35) |
+| Disk writes per day | Megabytes written by ruby, git, rustc and postgres in the window of macOS's daily `disk writes_*.diag` report, beside the cold starts a day | Signalbox `DiskWrites.Latest`, recorded on each pressure beat from the report; each process's budget and its cause are `Overrun` policies, a raise is an `Allowance` with an end date | fall under each process's budget | the resident cold-start control, the shared rust cache, the pruner |
 | Lines of bare `hecks` | Lines the bare launcher prints inside a hecks checkout and in a client project | The help snapshot | fall, then hold | the modules (step 4), the 7.0.0 change (step 5), the snapshot (step 21) |
 | Hand-kept lists the help depends on | Lists an edit to the bluebook does not move on its own: the `legacy` table, a scope list kept beside the bluebook, a rename map written by hand | A count of such lists in the launcher setting, the MCP door and the projector | fall to none | the retired gem table (step 9 of the ADR plan), the rename table (step 26), the MCP scope from the audience (step 23) |
 | Old-name calls during the warning window | Calls that reached a command through its old name, by name | The deprecation log | fall to none before the refusal ships | the bang rule (step 7), the deprecation log (step 11), the rename table (step 26) |
@@ -67,3 +68,13 @@ names both medians and the ratio.
 The first in-process help call after a cache clear costs about one second. The 0.66-second
 shell figure earlier was a warm run; the breakdown that suggested a larger figure ran straight
 after the clear and measured that cold help call.
+
+## Disk writes: the baseline
+
+The report for 2026-11-20 (83,019 samples of 10.49 MB, about 870 GB) names ruby about 419 GB, git
+about 155 GB, rustc about 120 GB and postgres about 70 GB. Signalbox's budgets for a day, each with
+the cause it ends with: ruby 300 GB (cold boots until a resident answers every command), git 100 GB
+(about 240 worktrees until the pruner retires again), rustc 80 GB (a cold cargo target in each
+worktree until builds share one cache), postgres 20 GB (a service restarting every 10 seconds until
+it is stopped). A process over its budget is said as `WritesOverBudget`. A raise is a new
+`Allowance` with a cause and an end date.
