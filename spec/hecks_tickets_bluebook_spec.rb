@@ -5,7 +5,7 @@ require_relative "support/stand_in_claude"
 # Sighting are declared in it, the finding's lifecycle drives GitHub through the GitHubIssues port,
 # a refused ask never blocks the finding, and a Work step stays inside Hecks.
 RSpec.describe "the Tickets bluebook" do
-  def declared = %w[Finding Adr Epic Work Lesson Sighting]
+  def declared = %w[Finding Adr Epic Sprint Work Lesson Sighting]
 
   before(:all) do
     @hecks = InMemoryDomain.boot_hecks_in_memory

@@ -801,6 +801,67 @@ Hecks.bluebook "Tickets" do
     end
   end
 
+  # A sprint: one day's goal and the work items scheduled into it, from any epic. Its key is the day, so
+  # a day has one sprint. Its items are the work items that name it (`Work.InSprint`), read and not
+  # stored here. Closing it frees every item, so history of a closed sprint is not kept on the items.
+  aggregate "Sprint" do
+    description "One day's sprint: its goal and the work items scheduled into it, open until the day's review closes it."
+    created_by "Sprint.open!"
+
+    attribute :sprint, SprintDay
+    attribute :goal,   SprintGoal
+    identified_by :sprint
+
+    # The day the sprint runs, as an ISO date.
+    value_object "SprintDay" do
+      attribute :value, String, pattern: '\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z'
+    end
+
+    value_object "SprintGoal" do
+      attribute :value, String
+
+      invariant("a sprint has a goal") { !value.to_s.strip.empty? }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+    end
+
+    command "Open" do
+      role "Maintainer"
+      goal "Open the sprint of one day with its goal"
+
+      attribute :sprint, SprintDay, sets: true
+      attribute :goal,   SprintGoal, sets: true
+
+      emits "SprintOpened"
+    end
+
+    command "Close" do
+      role "Maintainer"
+      goal "Close a sprint at the day's review; its items are freed by ReleaseWorkWhenSprintClosed"
+
+      reference_to Sprint
+
+      emits "SprintClosed"
+    end
+
+    # The sprint itself when it is closed and none when open, so a policy reading a scheduling can
+    # tell a closed sprint from an open one.
+    query "ClosedOf" do
+      description "The one sprint, when it is closed."
+      attribute :into, String
+      where(sprint: :into, status: "closed")
+    end
+
+    # The open sprints, the soonest day first: the board's current and upcoming sprints.
+    query "Upcoming" do
+      description "Every open sprint, the soonest day first."
+      where(status: "open")
+      order_by :sprint
+    end
+  end
+
   # A work item: one planned, started or done piece of Work, keyed by its id and held under the
   # decision it carries out. It drives nothing outside: planned work is the maintainer's own list, not
   # an issue.
@@ -836,6 +897,8 @@ Hecks.bluebook "Tickets" do
     # builds on the lead's branch. Empty once it is returned.
     attribute :batch,    WorkText, optional: true
     reference_to Epic, as: :epic, optional: true
+    # The open sprint it is scheduled into, from any epic; empty when it sits in none.
+    reference_to Sprint, as: :sprint, optional: true
     attribute :priority, Priority, optional: true
     reference_to Adr, as: :decision, optional: true
     attribute :interview, InterviewCitation, optional: true
@@ -1179,6 +1242,36 @@ Hecks.bluebook "Tickets" do
       given("a dropped work item joins no epic") { status != "dropped" }
 
       emits "WorkAssigned"
+    end
+
+    # An open work item is put into one sprint directly, from any epic. It sits in at most one open
+    # sprint: it is scheduled again only after its sprint closes.
+    command "Schedule" do
+      role "Maintainer"
+      goal "Put an open work item into a sprint"
+
+      reference_to Work
+      reference_to Sprint, as: :into
+
+      sets :sprint, to: :into
+
+      given("a done work item is not scheduled") { status != "done" }
+      given("a dropped work item is not scheduled") { status != "dropped" }
+      given("a work item in an open sprint joins no other") { sprint.to_s.empty? }
+
+      emits "WorkScheduled"
+    end
+
+    # Frees an item from its sprint. It has no status guard: a closing sprint frees done items too.
+    command "Unschedule" do
+      goal "Take a work item out of its sprint"
+
+      reference_to Work
+      reference_to Sprint, as: :from, optional: true
+
+      sets :sprint, to: ""
+
+      emits "WorkUnscheduled"
     end
 
     # An open work item is given how soon it is wanted. The claim, the step and the area stay as they are.
@@ -1571,6 +1664,13 @@ Hecks.bluebook "Tickets" do
       order_by :step
     end
 
+    query "InSprint" do
+      description "Every work item scheduled into one sprint, in plan order."
+      attribute :sprint, String
+      where(sprint: :sprint)
+      order_by :step
+    end
+
     query "UncommittedIn" do
       description "The members still batched in one batch work item and not yet committed on its branch."
       attribute :work, String
@@ -1605,6 +1705,21 @@ Hecks.bluebook "Tickets" do
   policy "PrioritizeTheBatchWhenSweepBatchComposed" do
     on      "SweepBatch.SweepBatchComposed"
     trigger Work::Prioritize, with: { work: :batch, priority: "next" }
+  end
+
+  # A closed sprint frees its items, done ones too.
+  policy "ReleaseWorkWhenSprintClosed" do
+    on       "Sprint.SprintClosed"
+    for_each "Work.InSprint"
+    trigger  Work::Unschedule, with: { work: :work }
+  end
+
+  # A reference only checks that the sprint exists, so an item scheduled into a closed sprint is freed
+  # again: an open sprint answers no row and nothing happens.
+  policy "UnscheduleWorkScheduledIntoClosedSprint" do
+    on       "Work.WorkScheduled"
+    for_each "Sprint.ClosedOf"
+    trigger  Work::Unschedule, with: { work: :work, from: :into }
   end
 
   # A member closing asks the EpicMembers port whether its epic has a member and none open. An item
@@ -2219,6 +2334,13 @@ Hecks.bluebook "Tickets" do
     description "How many work items stand in each status."
     include Work
     group_by :status
+    count
+  end
+
+  read_model "WorkBySprint" do
+    description "How many work items are scheduled into each sprint."
+    include Work
+    group_by :sprint
     count
   end
 
