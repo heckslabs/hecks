@@ -12,15 +12,27 @@ require "tmpdir"
 RSpec.describe "the orchestrator guard hook" do
   let(:root) { File.expand_path("..", __dir__) }
   let(:dir) { Dir.mktmpdir("orchestrator_guard") }
+  let(:agents) { File.join(dir, "lib/hecks/agents") }
+  let(:rules) { File.join(dir, ".claude/hooks/guard_rules.json") }
 
   before do
     FileUtils.mkdir_p(File.join(dir, ".claude/hooks"))
     FileUtils.mkdir_p(File.join(dir, "exe"))
     FileUtils.cp(File.join(root, ".claude/hooks/orchestrator_guard.sh"), File.join(dir, ".claude/hooks"))
     File.write(File.join(dir, ".claude/hooks/guarded_roles"), "# Generated\norchestrator\n")
+    FileUtils.mkdir_p(agents)
+    File.write(File.join(agents, "agents.bluebook"), "domain Agents\n")
+    project(roles: { orchestrator: [], coder: [] })
   end
 
   after { FileUtils.remove_entry(dir) }
+
+  # Writes the rules file, current for the scratch agents bluebook unless `digest` says otherwise.
+  def project(roles: { orchestrator: ["git status", "git branch"] }, digest: Digest::SHA256.hexdigest("domain Agents\n"))
+    File.write(rules, JSON.generate(digest: digest, roles: roles))
+  end
+
+  def asked? = File.exist?(File.join(dir, "argv"))
 
   # Makes the stand-in launcher record its words, print `body` and exit with `code`.
   def launcher(body: "allowed", code: 0, pause: 0)
@@ -83,49 +95,34 @@ RSpec.describe "the orchestrator guard hook" do
   end
 
   describe "with the projected rules file" do
-    let(:agents) { File.join(dir, "lib/hecks/agents") }
-    let(:rules) { File.join(dir, ".claude/hooks/guard_rules.json") }
-
-    # Writes the rules file for a role that may run `git status` and `git branch`, with `digest`
-    # defaulting to the one of the scratch agents bluebook.
-    def project(digest: Digest::SHA256.hexdigest("domain Agents\n"))
-      File.write(rules, JSON.generate(digest: digest, roles: { orchestrator: ["git status", "git branch"] }))
-    end
-
-    def asked? = File.exist?(File.join(dir, "argv"))
-
     before do
-      FileUtils.mkdir_p(agents)
-      File.write(File.join(agents, "agents.bluebook"), "domain Agents\n")
+      project
       launcher
     end
 
     it "decides a call that is exactly a git read row without asking the door", :aggregate_failures do
-      project
       expect(hook("git status").last).to eq(0)
       expect(asked?).to be(false)
     end
 
     it "lets a role the rules do not list through without asking the door", :aggregate_failures do
-      project
-      expect(hook("cat lib/x.rb", role: "coder").last).to eq(0)
+      expect(hook("cat lib/x.rb", role: "scout").last).to eq(0)
       expect(asked?).to be(false)
     end
 
     it "sends a git branch that makes a branch to the door" do
-      project
       hook("git branch newname")
       expect(asked?).to be(true)
     end
 
     it "sends a launcher call, which the script rule must note, to the door" do
-      project
       hook("exe/hecks agents Role.guard")
       expect(asked?).to be(true)
     end
 
     it "refuses a guarded role's call when the rules file is missing", :aggregate_failures do
-      err, status = hook("git status")
+      File.delete(rules)
+      err, status = hook("git log")
       expect(status).to eq(2)
       expect(err).to include("guard_rules.json is missing", "project_agent_roles!")
       expect(asked?).to be(false)
@@ -133,7 +130,7 @@ RSpec.describe "the orchestrator guard hook" do
 
     it "refuses a guarded role's call when the rules file is stale", :aggregate_failures do
       project(digest: "0" * 64)
-      err, status = hook("git status")
+      err, status = hook("git log")
       expect(status).to eq(2)
       expect(err).to include("guard_rules.json is stale", "project_agent_roles!")
       expect(asked?).to be(false)

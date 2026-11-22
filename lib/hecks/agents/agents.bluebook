@@ -26,6 +26,9 @@ Hecks.bluebook "Agents" do
     # What a role may run itself, one row per pattern: `Aggregate.verb`, or `Aggregate.*` for every
     # verb of an aggregate. A role with no row here is not guarded. The `Guard` query reads these
     # rows when it is asked, so the allowlist is data and no hook or role file holds a copy.
+    # The Bash hook decides the exact `git` and `gh` rows itself from `.claude/hooks/guard_rules.json`,
+    # projected from these rows with the digest of this folder's bluebooks; it asks `Guard` only for
+    # a check that needs live state, and refuses a guarded role when that file is missing or stale.
     value_object "RoutingRule" do
       attribute :role,    String
       attribute :pattern, String
