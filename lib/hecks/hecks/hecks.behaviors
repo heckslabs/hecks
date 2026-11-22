@@ -91,20 +91,4 @@ Hecks.behaviors "Hecks" do
     input run: { value: "release-1" }, landed: { value: "a1b2c3" }, report: { value: "train closed" }
     expect emits: %w[RunReleased]
   end
-
-  # A train pull request the merge queue dropped is enqueued again; the beat's whole path (a
-  # green pull request with auto-merge gone, the refusal, the conflicted one) is specified in
-  # spec/hecks_train_pr_dropped_from_queue_spec.rb.
-  test "Request asks for a dropped train pull request to be enqueued again" do
-    tests "Request", on: "TrainPrEnqueue"
-    input run: { value: "obs-1" }, pr: { value: "2052" }, landed: { value: "30b178390f" }
-    expect emits: ["TrainPrEnqueueRequested"]
-  end
-
-  test "Decline records why a dropped train pull request was not enqueued" do
-    tests "Decline", on: "TrainPrEnqueue"
-    setup  "Hecks::TrainPrEnqueue.Request", run: { value: "obs-1" }, pr: { value: "2052" }
-    input  run: { value: "obs-1" }, refusal: { value: "Pull request is in clean status" }
-    expect state: "declined"
-  end
 end
