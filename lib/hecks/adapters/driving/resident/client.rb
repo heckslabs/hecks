@@ -103,17 +103,18 @@ module Hecks
             bare.delete("_").downcase.chomp("!")
           end
 
-          # Asks the resident to run the line. The socket is closed whatever happens, before the
+          # Asks the resident to run the line (`argv`, the launcher's own arguments unless a caller
+          # that is not the launcher names one). The socket is closed whatever happens, before the
           # launcher boots on its own, so a resident that is slow never runs a line this launcher
           # then runs itself.
           #
           # @return [Array(Integer, nil), Array(nil, String)] the line's exit status and nil, or nil
           #   and why the resident did not take it (nil when there was nothing to ask)
-          def ask(root, script)
+          def ask(root, script, argv: ARGV)
             return [nil, Paths.absent_reason(root)] unless Paths.trusted_socket?(root)
 
             socket = UNIXSocket.new(Paths.socket(root))
-            Peer.trusted?(socket) ? converse(socket, script, ready_wait) : [nil, "unsafe"]
+            Peer.trusted?(socket) ? converse(socket, script, ready_wait, argv: argv) : [nil, "unsafe"]
           rescue Wire::Slow
             [nil, "busy"]
           rescue *LOST, Wire::Refused
@@ -126,8 +127,8 @@ module Hecks
           # milliseconds), sends the three streams only then (so nothing the resident reads of the
           # request can take one with it), waits for `ready`, answers `go` and waits for the status.
           # A `stale` in place of `fds` sends the launcher on to boot.
-          def converse(socket, script, wait = READY_WAIT)
-            Wire.write_request(socket, request(script), seconds: HANDSHAKE)
+          def converse(socket, script, wait = READY_WAIT, argv: ARGV)
+            Wire.write_request(socket, request(script, argv), seconds: HANDSHAKE)
             first = first_word(socket, wait)
             return [nil, refusal(first)] unless first == Wire::FDS
 
@@ -190,8 +191,8 @@ module Hecks
           end
 
           # @return [Hash] the line as the resident needs it
-          def request(script)
-            { argv: ARGV.dup, cwd: Dir.pwd, env: ENV.to_h, script: File.realpath(script) }
+          def request(script, argv = ARGV)
+            { argv: argv.dup, cwd: Dir.pwd, env: ENV.to_h, script: File.realpath(script) }
           end
 
           # Starts the resident that will serve the next line ({Starting}), which a launcher that a

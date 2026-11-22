@@ -11,12 +11,6 @@ RSpec.describe "the MCP stdio entry as a client of the control process" do
   let(:lib) { File.expand_path("../lib", __dir__) }
   let(:entry) { "hecks/adapters/driving/mcp/stdio_entry" }
 
-  def run_entry(prelude, argv: "[\"--stdio\"]")
-    code = "#{prelude}\nrequire '#{entry}'\n" \
-           "Hecks::Adapters::Driving::Mcp.serve_stdio(#{argv})"
-    Open3.capture3(RbConfig.ruby, "-I", lib, "-e", code, stdin_data: "")
-  end
-
   let(:answered) do
     <<~RUBY
       require "hecks/adapters/driving/resident/client"
@@ -30,6 +24,12 @@ RSpec.describe "the MCP stdio entry as a client of the control process" do
       require "hecks/adapters/driving/resident/client"
       Hecks::Adapters::Driving::Resident::Client.define_singleton_method(:ask) { |*_a, **_k| [nil, nil] }
     RUBY
+  end
+
+  def run_entry(prelude, argv: "[\"--stdio\"]")
+    code = "#{prelude}\nrequire '#{entry}'\n" \
+           "Hecks::Adapters::Driving::Mcp.serve_stdio(#{argv})"
+    Open3.capture3(RbConfig.ruby, "-I", lib, "-e", code, stdin_data: "")
   end
 
   it "ends with the status the control process gave, loading no MCP server of its own" do
