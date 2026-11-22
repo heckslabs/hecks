@@ -3269,10 +3269,9 @@ Hecks.bluebook "Hecks" do
                       works_as: "orchestrator-seat" }
     end
 
-    # A wake of a seat whose run is live answers that run with the wake's brief: its session is
-    # looked at, an idle one resumed under its own id and a busy one handed the brief through its
-    # inbox. The start above is refused by name while the key is held, and a first wake finds no
-    # run to answer, so one of the pair acts. A root, past a sweep's reaction cap.
+    # A wake of a seat whose run is live answers that run with the brief: an idle session resumes
+    # under its own id, a busy one takes it by inbox. The start above is refused by name while the
+    # key is held, and a first wake finds no run to answer. A root, past a sweep's reaction cap.
     policy "ResumeTheStandingSeatWhenWoken" do
       on      "Escalation.CoordinatorWoken"
       root
