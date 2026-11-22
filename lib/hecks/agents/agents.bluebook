@@ -2651,12 +2651,12 @@ Hecks.bluebook "Agents" do
 
     policy "ExamineTheHandRunSession" do
       on  "HandRun.HandRunLooked"
-      ask :examine, with: { run: :run, session: :seen, role: :role, checkout: :checkout }
+      ask :read_session, with: { run: :run, session: :seen, role: :role, checkout: :checkout }
     end
 
     policy "ReadTheHandRunKey" do
       on  "HandRun.HandRunSeeked"
-      ask :seek, with: { run: :run, session: :session, role: :role, checkout: :checkout }
+      ask :read_run_key, with: { run: :run, session: :session, role: :role, checkout: :checkout }
     end
 
     policy "LoseTheHandRunWhoseSessionEnded" do
