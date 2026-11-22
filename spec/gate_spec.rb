@@ -34,7 +34,10 @@ RSpec.describe "hecks gate" do
     $stderr = STDERR
   end
 
-  before { allow(gate).to receive(:stages).and_return(stages) }
+  before do
+    allow(gate).to receive(:stages).and_return(stages)
+    allow(Hecks::Tools::GateMemo).to receive(:path).and_return(File.join(RunSandbox.path("gate"), "memo.json"))
+  end
 
   it "answers 0 and names the checks when every one passes", :process do
     status, out, = run_gate("demo", "only=passes,reads_env")
