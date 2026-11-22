@@ -1891,6 +1891,23 @@ Hecks.bluebook "Tickets" do
     trigger Work::Reopen, with: { work: :work, title: "A red main reverted this work item's merge", detail: :report }
   end
 
+  # A merge reverted with no Work item of its own (a culprit named by hand) is filed to land again,
+  # at priority now: its key is the branch and its detail the revert's report, which names the
+  # merge. It names no author.
+  policy "FileTheRelandOfAnUnplannedRevert" do
+    on      "RedEpisode.EpisodeRevertMade"
+    root
+    where   { work.value.to_s == "" && branch.value.to_s != "" }
+    trigger Work::Plan, with: { work: :branch, title: "A red main reverted this branch's merge: land it again", detail: :report }
+  end
+
+  policy "PrioritizeTheRelandOfAnUnplannedRevert" do
+    on      "RedEpisode.EpisodeRevertMade"
+    root
+    where   { work.value.to_s == "" && branch.value.to_s != "" }
+    trigger Work::Prioritize, with: { work: :branch, priority: "now" }
+  end
+
   policy "PrioritizeTheWorkAnEpisodeReverted" do
     on      "RedEpisode.EpisodeRevertMade"
     root

@@ -37,13 +37,13 @@ Hecks.behaviors "Hecks" do
   test "Revert of a culprit that reproduces on origin/main is refused" do
     tests "Revert", on: "RedEpisode"
     input run: { value: "rv-1" }, base: "b0", culprit: "m1", reproduced: true, now: { value: 100 }
-    expect refused: "reproduces on origin/main"
+    expect refused: "origin/main does not share the failure"
   end
 
   test "Revert of a named culprit decides the episode is reverting" do
     tests "Revert", on: "RedEpisode"
     input run: { value: "rv-2" }, base: "b0", culprit: "m1", landed: "l1", now: { value: 100 }
-    expect state: "reverting"
+    expect emits: ["EpisodeReverting"]
   end
 
   # The ReleaseCut saga: a release is examined, accepted, approved, then carried out. The examiner
