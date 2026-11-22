@@ -39,7 +39,8 @@ module HecksDoorStub
   # @param checkout [String] the stub checkout the door is started for
   # @return [Hash{String => String}] the environment the server was started with
   def server_environment(checkout)
-    env = { "HECKS_CHECKOUT" => checkout, "HECKS_DOOR_ALL" => nil, "BUNDLE_GEMFILE" => nil, "RUBYOPT" => nil }
+    env = { "HECKS_CHECKOUT" => checkout, "HECKS_DOOR_ALL" => nil, "BUNDLE_GEMFILE" => nil, "RUBYOPT" => nil,
+            "HECKS_SERVER_DOMAINS" => nil, "HECKS_SERVER_COMMANDS" => nil }
     _out, err, status = Open3.capture3(env, DOOR, stdin_data: "")
     raise "door failed: #{err}" unless status.success?
 
@@ -54,5 +55,12 @@ RSpec.describe "the restricted hecks door's server environment" do
     checkout, environment = HecksDoorStub.run
     expect(environment).to include("HECKS_STOREHOUSE_ROOT" => checkout)
     expect(environment).not_to have_key("HECKS_CHECKOUT")
+  end
+
+  # `hecks-helper-door` execs `hecks-door-helper`, whose default domain list this reads.
+  it "serves the Interviews domain and names no worktree path", :aggregate_failures, if: sandboxed do
+    checkout, environment = HecksDoorStub.run
+    expect(environment["HECKS_SERVER_DOMAINS"].split(":")).to include("#{checkout}/lib/hecks/interviews")
+    expect(environment["HECKS_SERVER_DOMAINS"]).not_to include(".claude/worktrees")
   end
 end
