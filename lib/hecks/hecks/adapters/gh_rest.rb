@@ -70,6 +70,22 @@ module Hecks
         end
       end
 
+      # @param prefix [String] a branch prefix
+      # @return [Array<String>] the names of the origin branches under `prefix`
+      def train_refs(prefix)
+        listed("repos/{owner}/{repo}/git/matching-refs/heads/#{prefix}").map { |ref| ref["ref"].to_s.delete_prefix("refs/heads/") }
+      end
+
+      # @param prefix [String] a branch prefix
+      # @return [Array<Hash>] the closed pull requests of branches under `prefix`, shaped, with
+      #   `closedAt` and `mergedAt`
+      def closed_pulls(prefix)
+        listed("repos/{owner}/{repo}/pulls?state=closed&per_page=#{PAGE}").filter_map do |pull|
+          row = shaped(pull).merge("closedAt" => pull["closed_at"], "mergedAt" => pull["merged_at"])
+          row if row["headRefName"].to_s.start_with?(prefix)
+        end
+      end
+
       # @return [String] the repository's web address
       def repo_url = @gh.call("api", "repos/{owner}/{repo}")["html_url"].to_s
 

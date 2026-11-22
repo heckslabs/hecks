@@ -29,6 +29,7 @@ RSpec.describe Hecks::Adapters::GithubPullRequests::TrainSweep do
     return refs.map { |ref| { "ref" => "refs/heads/#{ref}" } } if path.include?("matching-refs")
     return closed if path.include?("state=closed")
     return open if path.include?("state=open")
+    return { "check_runs" => [], "statuses" => [] } if path.include?("/commits/")
 
     []
   end

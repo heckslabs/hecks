@@ -80,6 +80,8 @@ class FakeTrainGithub
   def listed_answer(argv)
     return RestPullView.open_answer(argv, @pulls) || RestPullView.answer(argv, view) if RestPullView.api?(argv)
 
+    return branch_answer(argv) if argv.last.to_s.match?(/matching-refs|state=closed/)
+
     case argv[1..2]
     when %w[pr view] then view.to_json
     when %w[run list] then [{ databaseId: 77, attempt: @attempt }].to_json
@@ -87,6 +89,9 @@ class FakeTrainGithub
     else ""
     end
   end
+
+  # A sweep's read of the origin train branches and of the closed pull requests: there are none.
+  def branch_answer(_argv) = [[]].to_json
 
   # The files the pull request changes, as `gh api --paginate --slurp` prints them; `files` nil
   # makes the read fail.
