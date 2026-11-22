@@ -32,6 +32,15 @@ Hecks.behaviors "Hecks" do
     expect refused: "state"
   end
 
+  # A promotion or watch that could not read the checks because GitHub rate limited it is not a
+  # fault: it ends deferred, saying why, and the next run tries again.
+  test "Defer ends a rate-limited promotion as deferred, not faulted" do
+    tests "Defer", on: "PromotionRun"
+    setup  "Hecks::PromotionRun.Promote", run: { value: "rl-1" }, lane: { value: "stable" }
+    input  refusal: { value: "not promoted: rate limited" }
+    expect state: "deferred"
+  end
+
   # A revert of a named culprit: the episode refuses by name when the failure also reproduces on
   # origin/main, since reverting the merge would not clear it; the fact is the port's, not a guess.
   test "Revert of a culprit that reproduces on origin/main is refused" do
