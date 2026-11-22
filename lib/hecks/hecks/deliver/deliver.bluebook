@@ -464,9 +464,6 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # Main itself is not a branch to push as ci/<branch>: a tip no run covers, which the integration
-    # adopts (`Landing.Adopt`, from `Integration::Adoption`), is recorded as landed on main and
-    # starts no early CI.
     # A job that gave up waiting on a queue or a red main is not the branch's fault: only the other
     # ends plan the Work item again.
     policy "FindWorkWhenALandingJobIsFaulted" do
@@ -475,6 +472,9 @@ Hecks.bluebook "Hecks" do
       ask     :find_faulted_work, with: { branch: :branch, refusal: :refusal }
     end
 
+    # Main itself is not a branch to push as ci/<branch>: a tip no run covers, which the integration
+    # adopts (`Landing.Adopt`, from `Integration::Adoption`), is recorded as landed on main and
+    # starts no early CI.
     policy "StartEarlyCiWhenBranchLanded" do
       on      "Landing.BranchLanded"
       where   { branch.value != "main" }
