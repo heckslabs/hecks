@@ -320,6 +320,14 @@ Hecks.behaviors "Agents" do
     expect refused: "Receive refused — status is \"refused\", and Receive moves it only from \"sent\""
   end
 
+  test "FallBack refuses a message that has not waited its window unread" do
+    tests "FallBack", on: "Message"
+    setup  "Agents::Message.Send", message: { value: "m5" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "how is it going" }
+    input  message: { value: "m5" }, now: { value: 0 }
+    expect refused: "FallBack refused — the message has waited its window unread"
+  end
+
   test "Send refuses a message kind it does not know" do
     tests "Send", on: "Message"
     input  message: { value: "m4" }, recipient: { value: "run-a" }, sender: { value: "miette" },
