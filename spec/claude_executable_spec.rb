@@ -48,7 +48,7 @@ RSpec.describe Hecks::Adapters::ClaudeExecutable do
 
   it "refuses by name under an empty home with no claude on the path" do
     Dir.mktmpdir do |home|
-      places = described_class::CANDIDATES.map { |place| place.sub("~", home) }.reject { |p| p.start_with?("/") && !p.start_with?(home) }
+      places = described_class::CANDIDATES.grep(/\A~/).map { |place| place.sub("~", home) }
 
       expect { described_class.new(candidates: places, path: "/nowhere").resolve }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /claude is not on the path/)
