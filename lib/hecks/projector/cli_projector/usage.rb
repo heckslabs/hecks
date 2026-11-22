@@ -81,7 +81,6 @@ module Hecks
             return out << "  start with #{program} init! — it writes the stub files of a new domain"
           end
 
-          out << "  #{program} <query> --since[=<hash>]  ask again for one line when nothing changed"
           out.concat(all_hint(program, *shown)) unless options[:all]
           out.concat(CliAudience.maintainer_hint(program, hidden_count))
           out.concat(closing_lines(shown, options))
