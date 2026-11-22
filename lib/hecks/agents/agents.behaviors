@@ -362,4 +362,47 @@ Hecks.behaviors "Agents" do
            findings: "Nothing was checked: the diff could not be read."
     expect verdict: { value: "unverified" }
   end
+
+  test "Record files what a coder run found hard and what surprised it, citing the events it read" do
+    tests "Record", on: "Evidence"
+    input  run: { value: "ev-r1" }, work: { value: "ev-w1" }, epic: { value: "ev-e1" },
+           hard: "two refusals from the gate and one red run", surprise: "the resident refused a stale GEM_HOME",
+           sources: "LandingRefused:ev-w1 RedFlagRaised:f1"
+    expect emits: ["EvidenceRecorded"]
+  end
+
+  test "Record refuses an entry that cites no source event" do
+    tests "Record", on: "Evidence"
+    input  run: { value: "ev-r2" }, work: { value: "ev-w2" }, epic: { value: "ev-e1" },
+           hard: "it felt slow", surprise: "nothing in particular", sources: "  "
+    expect refused: "an entry cites at least one source event"
+  end
+
+  test "OfRun lists the entry one run filed" do
+    tests "Evidence.OfRun", kind: :query
+    setup "Agents::Evidence.Record", run: { value: "ev-r3" }, work: { value: "ev-w3" }, epic: { value: "ev-e3" },
+          hard: "a yield", surprise: "none", sources: "WorkYielded:ev-w3"
+    input run: { value: "ev-r3" }
+    expect count: 1
+  end
+
+  test "OfWork lists the entries filed against one work item" do
+    tests "Evidence.OfWork", kind: :query
+    setup "Agents::Evidence.Record", run: { value: "ev-r4" }, work: { value: "ev-w4" }, epic: { value: "ev-e4" },
+          hard: "a retry", surprise: "none", sources: "AgentRunRetried:ev-r4"
+    setup "Agents::Evidence.Record", run: { value: "ev-r5" }, work: { value: "ev-w4" }, epic: { value: "ev-e4" },
+          hard: "a refusal", surprise: "none", sources: "LandingRefused:ev-w4"
+    input run: { value: "ev-w4" }
+    expect count: 2
+  end
+
+  test "OfEpic lists the entries of one epic" do
+    tests "Evidence.OfEpic", kind: :query
+    setup "Agents::Evidence.Record", run: { value: "ev-r6" }, work: { value: "ev-w6" }, epic: { value: "ev-e6" },
+          hard: "a red run", surprise: "none", sources: "RedFlagRaised:f6"
+    setup "Agents::Evidence.Record", run: { value: "ev-r7" }, work: { value: "ev-w7" },
+          hard: "a retry", surprise: "none", sources: "AgentRunRetried:ev-r7"
+    input run: { value: "ev-e6" }
+    expect count: 1
+  end
 end
