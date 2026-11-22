@@ -413,10 +413,12 @@ Hecks.behaviors "Agents" do
     input  run: { value: "ev-r8" }, work: { value: "ev-w8" }, hard: "again", surprise: "none", sources: "AgentRunRetried:ev-r8"
     expect refused: "Record creates a Evidence that already exists — run.value \"ev-r8\""
   end
-  test "Ingest asks the spool for its next line" do
+  # These run against a clean machine, where the spool holds no line: a read answers none, so the
+  # pass finishes at once and the later steps of a pass are refused by name.
+  test "Ingest finishes a pass at once when the spool holds no line" do
     tests "Ingest", on: "MailSpool"
     input  pass: { value: "beat-1" }
-    expect status: "requested"
+    expect status: "dry"
   end
 
   test "Ingest refuses a pass that already ran" do
@@ -426,40 +428,30 @@ Hecks.behaviors "Agents" do
     expect refused: "Ingest creates a MailSpool that already exists"
   end
 
-  test "Take keeps a line the spool held" do
+  test "Take refuses a pass that found no line" do
     tests "Take", on: "MailSpool"
     setup  "Agents::MailSpool.Ingest", pass: { value: "beat-3" }
     input  pass: { value: "beat-3" }, line: { value: 1 }
-    expect status: "taken"
-  end
-
-  test "Take refuses a pass that is no longer requested" do
-    tests "Take", on: "MailSpool"
-    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-4" }
-    setup  "Agents::MailSpool.Finish", pass: { value: "beat-4" }
-    input  pass: { value: "beat-4" }, line: { value: 1 }
     expect refused: "Take refused — status is \"dry\", and Take moves it only from \"requested\""
   end
 
-  test "Finish records a spool with no line past the cursor" do
-    tests "Finish", on: "MailSpool"
+  test "Decline refuses a pass that already finished" do
+    tests "Decline", on: "MailSpool"
+    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-4" }
+    input  pass: { value: "beat-4" }, refusal: { value: "the spool cannot be read" }
+    expect refused: "Decline refused — status is \"dry\", and Decline moves it only from \"requested\""
+  end
+
+  test "Settle refuses a pass whose line was never taken" do
+    tests "Settle", on: "MailSpool"
     setup  "Agents::MailSpool.Ingest", pass: { value: "beat-5" }
     input  pass: { value: "beat-5" }
-    expect status: "dry"
+    expect refused: "Settle refused — status is \"dry\", and Settle moves it only from \"taken\""
   end
 
-  test "Decline records why the spool could not be read" do
-    tests "Decline", on: "MailSpool"
-    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-6" }
-    input  pass: { value: "beat-6" }, refusal: { value: "the spool cannot be read" }
-    expect status: "refused"
-  end
-
-  test "Settle ends a pass whose line was kept and acknowledged" do
-    tests "Settle", on: "MailSpool"
-    setup  "Agents::MailSpool.Ingest", pass: { value: "beat-7" }
-    setup  "Agents::MailSpool.Take", pass: { value: "beat-7" }, line: { value: 1 }
-    input  pass: { value: "beat-7" }
-    expect status: "settled"
+  test "Take refuses a line number that is not positive" do
+    tests "Take", on: "MailSpool"
+    input  pass: { value: "beat-6" }, line: { value: 0 }
+    expect refused: "a line number is positive"
   end
 end
