@@ -78,7 +78,8 @@ module Hecks
 
           # @return [String, nil] why the line cannot be served: `script` (not this checkout's
           #   launcher), `env:<NAME>` (an environment variable the code loaded under differs; the
-          #   first three differing names, joined with `+`), `overlay:cwd` (the line's directory
+          #   first three differing names, joined with `+`; a differing `GEM_HOME` matters because
+          #   it loads other gems), `overlay:cwd` (the line's directory
           #   keeps local files, {PersistenceGuard.foreign_overlay}), `persistence:<Aggregate>` or
           #   `changed` (the code or declarations changed, so the resident retires); nil when it can
           def unservable(request)
