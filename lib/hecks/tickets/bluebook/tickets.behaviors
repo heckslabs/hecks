@@ -518,4 +518,48 @@ Hecks.behaviors "Tickets" do
     input  sprint: "2026-11-23"
     expect status: "closed"
   end
+
+  test "Declare puts a working agreement in force" do
+    tests "Declare", on: "WorkingAgreement"
+    input agreement: { value: "pair-on-red" }, text: { value: "Pair on every red main" }, kind: { value: "practice" }
+    expect status: "in_force"
+  end
+
+  test "Fold retires a working agreement under a principle" do
+    tests "Fold", on: "WorkingAgreement"
+    setup  "Tickets::WorkingAgreement.Declare", agreement: { value: "pair-on-red" },
+           text: { value: "Pair on every red main" }, kind: { value: "practice" }
+    input  agreement: "pair-on-red", principle: { value: "fix-together" }
+    expect status: "retired", principle: { value: "fix-together" }
+  end
+
+  test "Drop retires a working agreement with no principle" do
+    tests "Drop", on: "WorkingAgreement"
+    setup  "Tickets::WorkingAgreement.Declare", agreement: { value: "a1" },
+           text: { value: "An old rule" }, kind: { value: "practice" }
+    input  agreement: "a1"
+    expect status: "retired"
+  end
+
+  test "Proceed refuses a retro whose review of the agreements was not recorded" do
+    tests "Proceed", on: "Retro"
+    setup  "Tickets::Retro.Open", retro: { value: "2026-11-22" }, unreviewed: { value: 0 }
+    input  retro: "2026-11-22"
+    expect refused: "Proceed"
+  end
+
+  test "CompleteReview refuses while an agreement in force is unreviewed" do
+    tests "CompleteReview", on: "Retro"
+    setup  "Tickets::Retro.Open", retro: { value: "2026-11-22" }, unreviewed: { value: 2 }
+    input  retro: "2026-11-22"
+    expect refused: "every agreement in force is reviewed"
+  end
+
+  test "Proceed moves a reviewed retro to its main round" do
+    tests "Proceed", on: "Retro"
+    setup  "Tickets::Retro.Open", retro: { value: "2026-11-22" }, unreviewed: { value: 0 }
+    setup  "Tickets::Retro.CompleteReview", retro: "2026-11-22"
+    input  retro: "2026-11-22"
+    expect status: "main_round"
+  end
 end
