@@ -1,8 +1,8 @@
 # Runs every git a spec starts with no global or system configuration and no identity, as a CI
 # runner does: `GIT_CONFIG_GLOBAL` names the null device, an empty file no run can remove,
-# `GIT_CONFIG_NOSYSTEM` hides the system file and `user.useConfigOnly` refuses a guessed identity. A spec that commits must name its
-# own identity (`-c user.name=…` or `GIT_AUTHOR_*`), so a spec that leans on the owner's global
-# identity fails here as it would in CI.
+# `GIT_CONFIG_NOSYSTEM` hides the system file and `user.useConfigOnly` refuses a guessed
+# identity. A spec that commits must name its own identity (`-c user.name=…` or `GIT_AUTHOR_*`),
+# so a spec that leans on the owner's global identity fails here as it would in CI.
 module GitIdentityFree
   # The identity variables a commit reads before any configuration file.
   IDENTITY_KEYS = %w[GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL].freeze
