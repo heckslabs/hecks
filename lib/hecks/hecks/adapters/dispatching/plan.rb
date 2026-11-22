@@ -26,7 +26,7 @@ module Hecks
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
         # `waits_on` is the work items it names as waited on ({Dependencies}), nil when not read.
-        # `held` is why its area holds it back, empty when it does not ({WorkItems} reads `held_reason`).
+        # `held` is why its area holds it back, empty when it does not (read from `held_reason`).
         # `batch` is the lead whose batch holds it, and `batch_commit` its commit on the lead's
         # branch once built; a lead a fill starts for a group carries the work items it builds as
         # `batched` and the `group` it was asked for ({Batching}).
