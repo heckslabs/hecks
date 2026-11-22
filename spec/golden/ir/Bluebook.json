@@ -35077,6 +35077,32 @@
             [
               [
                 "name",
+                "bluebook_extraction"
+              ],
+              [
+                "id",
+                "bluebook_extraction"
+              ],
+              [
+                "title",
+                "bluebook extraction, every rule of each bluebook the branch changed survives into the IR"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_bluebook_extraction! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a changed bluebook holds a given, where or invariant whose source did not survive extraction, a rule the IR cannot carry; the push refuses it at load. The failure names each file and the refusal; rewrite the rule as an expression the language has."
+              ]
+            ],
+            [
+              [
+                "name",
                 "command_names"
               ],
               [
@@ -35960,7 +35986,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,remedy_names,workflow_pagination,role_files,role_world_list,tools_doc"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,bluebook_extraction,command_names,remedy_names,workflow_pagination,role_files,role_world_list,tools_doc"
               ]
             ],
             [
