@@ -49,7 +49,7 @@ module AgentsMessageHelpers
                                         hand_runs: hand_runs && -> { hand_runs }, session: -> { sending_session })
   end
 
-  # The sessions `claude agents` lists for the `Rousing` stand-in, as listing entries; none by default.
+  # The sessions `claude agents` lists for the `Rousing` stand-in; none by default.
   def role_sessions = []
 
   # What the stand-in resume is told, one `[session id, prompt]` pair per wake.
