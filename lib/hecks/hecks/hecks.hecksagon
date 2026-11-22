@@ -295,6 +295,12 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unraised"
   end
 
+  # Read-only: the event tap's lines in a window, counted as gross events, finished items and the
+  # finished per 1,000 events. The adapter reads the log as the `Feed` query does and boots no domain.
+  Hecks::Pace.port "Pacing" do
+    answers_query "Read"
+  end
+
   Hecks::SendTrain.port "Alerts" do
     asks "Announce", to: SendTrain do
       attribute :run, RunKey

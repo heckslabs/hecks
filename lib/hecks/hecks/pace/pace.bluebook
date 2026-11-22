@@ -1,0 +1,67 @@
+Hecks.bluebook "Hecks" do
+  domain_module "EventPace" do
+    vision "Pace is the domain's raw generation: events an hour, read beside what finished, so a busy hour that finished nothing shows as lost work."
+
+    # Read from the event tap and never written. `LandingPace` measures landings from the Landing
+    # ledger; this reads every event the tap carries. Gross is the events an hour that are not noise,
+    # net is the finished items an hour, and efficiency is the finished items per thousand events.
+    # The `Pace` port's adapter reads the tap as the `Feed` query does, so it boots no domain; where
+    # the world keeps no tap every figure reads zero.
+    aggregate "Pace" do
+      description "A reading of the event tap over a window: gross events an hour, finished items an hour, and finished items per 1,000 events."
+      acknowledges :no_command_surface, "a reading of a tap already recorded: it changes nothing"
+
+      attribute :run, RunKey
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      # A window a reading may name, by its label, and the seconds it covers. The first is the default.
+      value_object "Window" do
+        attribute :label,   String
+        attribute :seconds, Integer
+
+        member label: "1h",   seconds: 3_600
+        member label: "5m",   seconds: 300
+        member label: "24h",  seconds: 86_400
+        member label: "week", seconds: 604_800
+      end
+
+      # An event that is the system watching itself, not generating work: a poll, a read, a beat. It is
+      # left out of gross.
+      value_object "Noise" do
+        attribute :event, String
+
+        member event: "JobRead"
+        member event: "RunRead"
+        member event: "AgentCheckRequested"
+        member event: "SweepRequested"
+        member event: "RolesChecked"
+        member event: "BeatRequested"
+        member event: "EvidenceCited"
+        member event: "EvidenceCounted"
+        member event: "RollSwitchConsulted"
+      end
+
+      # An event that says one item finished: net counts these.
+      value_object "Finished" do
+        attribute :event, String
+
+        member event: "WorkFinished"
+      end
+
+      query "Read" do
+        description "Gross events an hour, finished items an hour and finished items per 1,000 events over a window (`1h` unless given: 5m, 1h, 24h or week), the noise left out of gross as the bluebook lists it. A window with no events, or no tap, reads zero."
+        attribute :run,    RunKey
+        attribute :window, String, optional: true
+        returns Document
+      end
+    end
+  end
+end
