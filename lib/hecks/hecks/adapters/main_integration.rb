@@ -186,6 +186,7 @@ end
 
 require_relative "main_integration/code_watch"
 require_relative "main_integration/runs"
+require_relative "main_integration/commit_age"
 require_relative "main_integration/stale"
 require_relative "main_integration/newest_first"
 require_relative "main_integration/adoption"
