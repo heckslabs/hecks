@@ -50,6 +50,7 @@ One change to a domain's journal of eras, and how it ended: a store's upkeep.
 - `hecks SchemaRevision.backfill_projections! <domain>`: Store the shape every held era froze with, for the eras that predate it
 - `hecks SchemaRevision.compact! <domain> [aggregates=] --confirm`: Delete the journal entries a Postgres or Sqlite aggregate has already projected
 - `hecks SchemaRevision.compact_heki! <domain> [aggregates=] --confirm`: Empty a Heki aggregate's journal, keeping the snapshot
+- `hecks SchemaRevision.compact_events! <domain> window_days= --confirm`: Drop the events recorded before a window of days from a Sqlite store's shared event log
 - `hecks SchemaRevision.write_translation! <domain> --confirm`: Write the one translation edge that leads the latest held era to the current shape
 - `hecks SchemaRevision.reconcile! [<domain>] --confirm`: Write the translation edges that lead every domain's latest held era to its current shape
 - `hecks SchemaRevision.mint_held! [<rehearsal_verdict>] [watermark=] --confirm`: Mint the Hecks domain's next era when its shape moved, before the push train writes
