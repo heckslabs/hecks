@@ -19,7 +19,7 @@ RSpec.describe "the Agents message refusals" do
   %w[notice tonight].each do |kind|
     it "refuses the kind #{kind} naming the declared kinds" do
       expect { send_message(kind: kind) }
-        .to raise_error(Hecks::Refused, /MessageKind admits "help".*"owner" — got "#{kind}"/)
+        .to raise_error(Hecks::Refused, /MessageKind admits "help".*"person" — got "#{kind}"/)
     end
   end
 end

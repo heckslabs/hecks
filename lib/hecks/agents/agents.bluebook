@@ -1984,6 +1984,7 @@ Hecks.bluebook "Agents" do
     attribute :refusal, RefusalText, optional: true
     attribute :held_for, HeldFor, optional: true
     attribute :verified, VerifiedSender, optional: true
+    attribute :source, MessageSource, optional: true
     attribute :asker_role, AskerRole, optional: true
     attribute :findings, FindingsText, optional: true
     attribute :sent_at, MessageInstant, optional: true
@@ -2004,9 +2005,27 @@ Hecks.bluebook "Agents" do
       attribute :value, String, matches: :present
     end
 
-    # What the message is, to a session or back from one: `owner` holds the owner's verbatim words.
+    # What the message is, to a session or back from one: `owner` holds the owner's verbatim words
+    # and `person` a post from anyone else in the crew room, who may talk but not command.
     value_object "MessageKind" do
-      attribute :value, String, one_of: %w[help question answer check-in report stand-down owner]
+      attribute :value, String, one_of: %w[help question answer check-in report stand-down owner person]
+    end
+
+    # Where a line came from when a listener wrote it: `slack` is the crew room's Socket Mode
+    # listener. The trust rule `TrustedSource` reads it; a line with none is a session's own.
+    value_object "MessageSource" do
+      attribute :value, String, one_of: ["", "slack"]
+    end
+
+    # The kinds a source's lines are trusted as, the owner's Slack ID as `owner` and anyone else as
+    # `person`, with no session registered for the sender. A `SenderProof` is not weakened for any
+    # other line. The sender checker reads these rows; the owner decided them on 2026-11-22.
+    value_object "TrustedSource" do
+      attribute :source, String
+      attribute :kind,   String
+
+      member source: "slack", kind: "owner"
+      member source: "slack", kind: "person"
     end
 
     # Whether the message may interrupt: a normal one waits for the recipient's next turn when it is
@@ -2034,6 +2053,7 @@ Hecks.bluebook "Agents" do
       member kind: "report",     route: "train",  reply_expected: "false"
       member kind: "stand-down", route: "direct", reply_expected: "false"
       member kind: "owner",      route: "direct", reply_expected: "true"
+      member kind: "person",     route: "direct", reply_expected: "true"
     end
 
     # Who a channel post wakes: `help` wakes only the scrum master, which is where a help call is
@@ -2161,6 +2181,7 @@ Hecks.bluebook "Agents" do
       attribute :channel,     Channel, optional: true, sets: true
       attribute :in_reply_to, MessageRef, default: "", sets: true
       attribute :asker_role,  AskerRole, default: "", sets: true
+      attribute :source,      MessageSource, default: "", sets: true
       # `now:` is filled from the clock port; an explicit value wins.
       attribute :now,         MessageInstant
       needs :now
@@ -2400,7 +2421,8 @@ Hecks.bluebook "Agents" do
     policy "CheckTheSender" do
       on      "Message.MessageAddressed"
       ask     :sender, with: { message: :message, sender: :sender, recipient: :recipient,
-                              asker_role: :asker_role, kind: :kind }
+                              asker_role: :asker_role, kind: :kind,
+                              source: :source }
     end
 
     policy "StampTheSender" do
@@ -2573,6 +2595,78 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  # The crew room in Slack, heard while the laptop is awake: its posts are appended to the mail spool
+  # as lines, so the next beat sends each as a message. The listener holds no domain; this record
+  # says a room is open and why it ended.
+  aggregate "CrewRoom" do
+    description "A Slack room the laptop listens to, whose posts reach the spool as crew mail."
+
+    identified_by :room
+
+    attribute :room, RoomName
+    attribute :refusal, RoomRefusal, optional: true
+
+    # The room's name in the crew, not its Slack ID, which is read from 1Password at start.
+    value_object "RoomName" do
+      attribute :value, String, matches: :present
+    end
+
+    # Why the room could not be heard, as the port said.
+    value_object "RoomRefusal" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Close" => "closed", from: "requested"
+      transition "Refuse" => "refused", from: "requested"
+      mark :terminal, "closed", "refused"
+    end
+
+    command "Open" do
+      role "Operator"
+      goal "Listen to the crew room in Slack until stopped, appending each post to the mail spool"
+
+      attribute :room, RoomName, sets: true
+
+      emits "OpenRequested"
+    end
+
+    command "Close", from: "requested" do
+      role "System"
+      goal "Record that the room is no longer heard"
+
+      reference_to CrewRoom
+
+      emits "RoomClosed"
+    end
+
+    command "Refuse", from: "requested" do
+      role "System"
+      goal "Record why the room could not be heard"
+
+      reference_to CrewRoom
+      attribute :refusal, RoomRefusal, sets: true
+
+      emits "RoomRefused"
+    end
+
+    policy "HearWhenOpened" do
+      on  "CrewRoom.OpenRequested"
+      ask :hear, with: { room: :room }
+    end
+
+    policy "CloseWhenSilent" do
+      on      "CrewRoom.RoomHeard"
+      trigger CrewRoom::Close, with: { room: :room }
+    end
+
+    policy "RefuseWhenUnheard" do
+      on      "CrewRoom.RoomUnheard"
+      trigger CrewRoom::Refuse, with: { room: :room, refusal: :refusal }
+    end
+  end
+
   # The spool a send appends to, taken a line at a time: each line becomes a Message, the ledger.
   # A replayed line is refused by its key, and a sender is trusted as written (stamped unverified).
   # See docs/findings/mail-spool-2026-11.md.
@@ -2687,7 +2781,7 @@ Hecks.bluebook "Agents" do
       where   { !message.value.to_s.empty? && advance.value.to_s.empty? && open.value.to_s.empty? }
       trigger Message::Send, with: { message: :message, recipient: :recipient, sender: :sender,
                                      kind: :kind, body: :body, in_reply_to: :in_reply_to,
-                                     asker_role: :asker_role }
+                                     asker_role: :asker_role, source: :source }
     end
 
     # A mark line moves a seat's cursor; one the cursor already stands past is refused by `Advance`, a no-op.
