@@ -94,9 +94,9 @@ Hecks.world "Hecks" do
   # command that started it, above `rss_mb` megabytes resident or after `age_hours` hours up.
   board_restart "PipelineBoard", refresh_seconds: 30, rss_mb: 1024, age_hours: 24
   # A resident (ADR 0201) exits after `idle_seconds` idle (`worktree_idle_seconds` in a linked worktree); past
-  # `max_residents` a checkout boots cold. A launcher waits `ready_wait_ms` for its first word; it takes `workers`
+  # `max_residents` (derived from the machine's profile when no line sets it) a checkout boots cold. A launcher waits `ready_wait_ms` for its first word; it takes `workers`
   # callers at once; control commands (shared stores only; never Landing, Integration or AgentRun, which act on a worktree's branch) go to the control process, the primary's resident kept by launchd, from any worktree.
-  resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, max_residents: 8, ready_wait_ms: 400, workers: 8,
+  resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, ready_wait_ms: 400, workers: 8,
            control: "work message dial redflag"
   # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
   # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level. These are
