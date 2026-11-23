@@ -92,4 +92,9 @@ RSpec.describe "the ClientRepo port" do
     ports = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/clients/clients.ports.hecksagon"))
     expect(ports.scan(/attribute :(\w+)/).flatten & %w[visibility private public]).to be_empty
   end
+
+  it "lets no command of a client carry a visibility" do
+    domain = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/clients/clients.bluebook"))
+    expect(domain.scan(/attribute :(\w+)/).flatten & %w[visibility private public]).to be_empty
+  end
 end
