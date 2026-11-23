@@ -70,6 +70,16 @@ Hecks.hecksagon "Agents" do
     end
   end
 
+  # The Slack crew room, heard over Socket Mode. Bound by adapters/slack_room, which appends each post
+  # to the mail spool and never boots a domain; its tokens are read with `op read` from op:// references.
+  Agents::CrewRoom.port "RoomHearing" do
+    asks "Hear", to: CrewRoom do
+      attribute :room, RoomName
+      answers "RoomHeard"
+      refuses "RoomUnheard"
+    end
+  end
+
   # The sessions `claude agents` lists, as each hand run's session and run key find them (adapters/hand_run_watch).
   Agents::HandRun.port "HandRunWatching" do
     asks "ReadSession", to: HandRun do

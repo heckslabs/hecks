@@ -2575,6 +2575,78 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  # The crew room in Slack, heard while the laptop is awake: its posts are appended to the mail spool
+  # as lines, so the next beat sends each as a message. The listener holds no domain; this record
+  # says a room is open and why it ended.
+  aggregate "CrewRoom" do
+    description "A Slack room the laptop listens to, whose posts reach the spool as crew mail."
+
+    identified_by :room
+
+    attribute :room, RoomName
+    attribute :refusal, RoomRefusal, optional: true
+
+    # The room's name in the crew, not its Slack ID, which is read from 1Password at start.
+    value_object "RoomName" do
+      attribute :value, String, matches: :present
+    end
+
+    # Why the room could not be heard, as the port said.
+    value_object "RoomRefusal" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Close" => "closed", from: "requested"
+      transition "Refuse" => "refused", from: "requested"
+      mark :terminal, "closed", "refused"
+    end
+
+    command "Open" do
+      role "Operator"
+      goal "Listen to the crew room in Slack until stopped, appending each post to the mail spool"
+
+      attribute :room, RoomName, sets: true
+
+      emits "OpenRequested"
+    end
+
+    command "Close", from: "requested" do
+      role "System"
+      goal "Record that the room is no longer heard"
+
+      reference_to CrewRoom
+
+      emits "RoomClosed"
+    end
+
+    command "Refuse", from: "requested" do
+      role "System"
+      goal "Record why the room could not be heard"
+
+      reference_to CrewRoom
+      attribute :refusal, RoomRefusal, sets: true
+
+      emits "RoomRefused"
+    end
+
+    policy "HearWhenOpened" do
+      on  "CrewRoom.OpenRequested"
+      ask :hear, with: { room: :room }
+    end
+
+    policy "CloseWhenSilent" do
+      on      "CrewRoom.RoomHeard"
+      trigger CrewRoom::Close, with: { room: :room }
+    end
+
+    policy "RefuseWhenUnheard" do
+      on      "CrewRoom.RoomUnheard"
+      trigger CrewRoom::Refuse, with: { room: :room, refusal: :refusal }
+    end
+  end
+
   # The spool a send appends to, taken a line at a time: each line becomes a Message, the ledger.
   # A replayed line is refused by its key, and a sender is trusted as written (stamped unverified).
   # See docs/findings/mail-spool-2026-11.md.
