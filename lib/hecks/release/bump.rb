@@ -56,7 +56,9 @@ module Hecks
         rewrite(File.join(root, "packages/hecks-client/package.json")) do |text|
           text.sub(/"version":\s*"#{Regexp.escape(current)}"/, %("version": "#{version}"))
         end
-        rewrite(File.join(root, "README.md")) { |text| text.gsub("Current release: `#{current}`", "Current release: `#{version}`") }
+        rewrite(File.join(root, "README.md")) do |text|
+          text.gsub("Current release: `#{current}`", "Current release: `#{version}`")
+        end
         rewrite(File.join(root, "CHANGELOG.md")) { |text| heading(text, version, date) }
       end
 
