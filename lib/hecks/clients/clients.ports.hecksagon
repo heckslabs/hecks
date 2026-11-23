@@ -4,10 +4,37 @@ Hecks.hecksagon "Clients" do
   # Whether the client's repository is private. Asked before a repository is recorded created, so
   # "never public" is a fact read at that moment and not a flag the domain stores.
   Clients::Client.port "ClientRepo" do
+    # Makes the client's repository, private. No ask here carries a visibility: the port has one way
+    # to create, and the bluebook reads the answer back with IsPrivate.
+    asks "CreatePrivate", to: Client do
+      attribute :name, Name
+      answers "RepoMade"
+      refuses "RepoNotMade"
+    end
+
     asks "IsPrivate", to: Client do
       attribute :name, Name
       answers "RepoChecked"
       refuses "RepoUnchecked"
+    end
+
+    # Read before each write: a repository that does not read as private is refused here, and the
+    # bluebook records the finding.
+    asks "CheckBeforeWrite", to: Client do
+      attribute :name,    Name
+      attribute :path,    RepoPath
+      attribute :content, FileContent
+      answers "WriteChecked"
+      refuses "WriteUnchecked"
+    end
+
+    # Writes one file. The adapter reads the visibility again and refuses a repository not private.
+    asks "WriteFile", to: Client do
+      attribute :name,    Name
+      attribute :path,    RepoPath
+      attribute :content, FileContent
+      answers "FileWritten"
+      refuses "FileRefused"
     end
   end
 end

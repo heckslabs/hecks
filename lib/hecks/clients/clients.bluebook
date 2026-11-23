@@ -29,6 +29,12 @@ Hecks.bluebook "Clients" do
       attribute :value, String, matches: :present
     end
 
+    value_object "RepoPath" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "FileContent", String
+
     # None, asked for, or created: no state says public, and a created repository is one the port
     # answered private.
     lifecycle :status, default: "none" do
@@ -82,6 +88,53 @@ Hecks.bluebook "Clients" do
       emits "RepoRefused"
     end
 
+    command "WriteRepoFile" do
+      role "Owner"
+      goal "Ask for a file to be written to the client's repository, once the repository reads as private"
+
+      reference_to Client
+      attribute :path,    RepoPath
+      attribute :content, FileContent
+
+      given("a file is written only to a created repository") { status == "created" }
+
+      emits "RepoFileRequested"
+    end
+
+    command "RecordRepoFileWritten" do
+      role "System"
+      policy_only
+      goal "Record that a file was written to the client's private repository"
+
+      reference_to Client
+      attribute :path, RepoPath
+
+      emits "RepoFileWritten"
+    end
+
+    command "RecordRepoFileRefused" do
+      role "System"
+      policy_only
+      goal "Record that the port could not write the file"
+
+      reference_to Client
+      attribute :path, RepoPath
+
+      emits "RepoFileRefused"
+    end
+
+    command "RecordRepoFoundPublic" do
+      role "System"
+      policy_only
+      goal "Record the finding that the client's repository read as public: nothing is written to it"
+
+      reference_to Client
+
+      given("a finding is recorded only for a created repository") { status == "created" }
+
+      emits "RepoFoundPublic"
+    end
+
     command "LinkBoard" do
       role "Owner"
       goal "Keep the link to the client's own board, where it has one"
@@ -95,9 +148,19 @@ Hecks.bluebook "Clients" do
     end
   end
 
-  policy "AskIfTheRepoIsPrivate" do
+  policy "CreateThePrivateRepo" do
     on  "Client.RepoRequested"
-    ask :is_private, with: { name: :client }
+    ask :create_private, with: { name: :client }
+  end
+
+  policy "RefuseTheRepoNotMade" do
+    on      "Client.RepoNotMade"
+    trigger Client::RefuseRepo, with: { client: :name }
+  end
+
+  policy "AskIfTheRepoIsPrivate" do
+    on  "Client.RepoMade"
+    ask :is_private, with: { name: :name }
   end
 
   policy "RecordThePrivateRepo" do
@@ -108,6 +171,31 @@ Hecks.bluebook "Clients" do
   policy "RefuseTheRepoNotPrivate" do
     on      "Client.RepoUnchecked"
     trigger Client::RefuseRepo, with: { client: :name }
+  end
+
+  policy "CheckTheRepoBeforeAWrite" do
+    on  "Client.RepoFileRequested"
+    ask :check_before_write, with: { name: :client, path: :path, content: :content }
+  end
+
+  policy "WriteTheFileOnceChecked" do
+    on  "Client.WriteChecked"
+    ask :write_file, with: { name: :name, path: :path, content: :content }
+  end
+
+  policy "RecordTheFileWritten" do
+    on      "Client.FileWritten"
+    trigger Client::RecordRepoFileWritten, with: { client: :name, path: :path }
+  end
+
+  policy "RecordTheFileRefused" do
+    on      "Client.FileRefused"
+    trigger Client::RecordRepoFileRefused, with: { client: :name, path: :path }
+  end
+
+  policy "RecordTheFindingWhenPublic" do
+    on      "Client.WriteUnchecked"
+    trigger Client::RecordRepoFoundPublic, with: { client: :name }
   end
 
   aggregate "Engagement" do
