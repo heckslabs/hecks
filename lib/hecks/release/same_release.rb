@@ -13,6 +13,8 @@ module Hecks
     # the files the tag carries and the ones released may differ in what the merge brought in.
     module SameRelease
       VERSION_FILE = "lib/hecks/version.rb"
+      # The `VERSION = "x.y.z"` line of the version file.
+      VERSION_LINE = /^ *VERSION = "(.*)"/
 
       module_function
 
@@ -25,13 +27,13 @@ module Hecks
         return false unless git(dir, "merge-base", "--is-ancestor", tag_commit, commit)
 
         text = git(dir, "show", "#{tag_commit}:#{VERSION_FILE}")
-        text.to_s[/^ *VERSION = "(.*)"/, 1] == version
+        text.to_s[VERSION_LINE, 1] == version
       end
 
-      # @return [String, Boolean, nil] git's output, true for a clean silent exit, nil on failure
-      def git(dir, *args)
-        out, status = Open3.capture2("git", "-C", dir, *args, err: File::NULL)
-        status.success? ? (out.empty? ? true : out) : nil
+      # @return [String, nil] git's output (a space for a silent success), nil on failure
+      def git(dir, *)
+        out, status = Open3.capture2("git", "-C", dir, *, err: File::NULL)
+        status.success? ? "#{out} " : nil
       end
     end
   end

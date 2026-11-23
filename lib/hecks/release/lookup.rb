@@ -8,8 +8,8 @@ module Hecks
     #
     # `gh release view` exits nonzero both when the release is missing and when the call itself
     # fails (rate limit, outage). Only GitHub's own words "release not found" mean absence; every
-    # other answer is a failed lookup, retried and then named, never read as "not released". Like
-    # {Approval} it needs only the standard library, so `release.yml` runs it with the runner's Ruby.
+    # other answer is a failed lookup, retried and then named, never read as "not released".
+    # Like {Approval} it needs only the standard library, so `release.yml` runs it on the runner.
     module Lookup
       ABSENT = "release not found"
       ATTEMPTS = 3
@@ -42,7 +42,7 @@ module Hecks
       # @param out [#puts] where a failure is named
       # @param sleeper [#call] waits the given seconds between attempts
       # @return [Integer] 0 when the release exists, 1 when it does not, 2 when the lookup failed
-      def check(tag, runner: method(:gh), out: $stdout, sleeper: ->(seconds) { sleep(seconds) })
+      def check(tag, runner: method(:gh), out: Kernel, sleeper: ->(seconds) { sleep(seconds) })
         last = nil
         ATTEMPTS.times do |attempt|
           last = verdict(**named(runner.call(tag)))
