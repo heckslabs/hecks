@@ -67,7 +67,8 @@ module Hecks
         # @param pace [Hash] `after_read:` runs after each read, such as the check that restarts a
         #   board grown too large; `loaded_every:` is the seconds between reads while the machine
         #   is loaded (`every` when none is given); `stand:` answers the load guard, or nil, when
-        #   the snapshot starts; `wait:` stands in for the sleep that holds a loaded machine's read
+        #   the snapshot starts; `wait:` stands in for the sleep that holds a loaded machine's read; `clock:` answers
+        #   monotonic seconds
         # @param read_duty [Numeric] the share of time reading may take; a costlier read is followed
         #   by a longer rest (see {ReadPace})
         def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, read_duty: 0, **pace)
@@ -146,7 +147,7 @@ module Hecks
           [loaded, @read_pace.rest_floor(@cost.to_f)].max
         end
 
-        def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        def monotonic = (@pace[:clock] || -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }).call
 
         # Runs the after-read check; a check that raises, such as a restart that cannot exec, is
         # recorded and the loop goes on, so a failed check never freezes the board.
