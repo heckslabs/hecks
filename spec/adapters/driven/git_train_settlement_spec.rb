@@ -77,6 +77,18 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect(git("rev-parse", "HEAD", dir: work)).to eq(git("rev-parse", "origin/main", dir: work))
   end
 
+  it "boards main without rewriting an unpushed commit that a branch is built on", :aggregate_failures do
+    commit("unpushed")
+    unpushed = git("rev-parse", "HEAD")
+    git("branch", "open-work")
+    push_elsewhere("train-merge")
+
+    carry
+
+    expect(git("merge-base", "--is-ancestor", unpushed, "origin/main") && true).to be(true)
+    expect(git("merge-base", "open-work", "main")).to eq(unpushed)
+  end
+
   it "aborts a rebase that conflicts outside the ledger, and says which path", :aggregate_failures do
     commit("shared", text: "local")
     push_elsewhere("shared", text: "remote")
