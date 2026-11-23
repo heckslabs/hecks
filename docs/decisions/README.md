@@ -232,4 +232,5 @@ The table is the store as `DecisionFiles` reads it, by number, written by `hecks
 | [0234](0234-a-command-starts-no-process.md) | A command starts no process; a cold start is rare, counted and reported | accepted |  |  |
 | [0235](0235-one-control-process-serves-control-commands-from-any-worktree.md) | One control process serves control commands from any worktree | accepted |  |  |
 | [0236](0236-the-train-keeps-its-one-pull-request-rule-after-the-merge-queue.md) | The train keeps its one-pull-request rule after the merge queue; removal waits on a measurement | accepted |  |  |
+| [0237](0237-rolls-follow-stable-by-policy-guarded-per-service.md) | A promotion to stable rolls by policy, guarded per service, with no deploy-manager role | accepted |  |  |
 <!-- generated:end -->
