@@ -9,7 +9,8 @@ module Hecks
     module PipelineBoard
       # Whether the machine is too loaded for the board to add to it: the load average the world's
       # `load_average` dial names (5 minutes by default) against the limit a fill stops at (the
-      # Tickets world's `dispatch_max_load`). While it is, {Probe} starts no program and {Snapshot} reads at the slower `loaded_refresh_seconds`. The
+      # Tickets world's `dispatch_max_load`). While it is, {Probe} starts no program
+      # and {Snapshot} reads at the slower `loaded_refresh_seconds`. The
       # load is read with no child process, so asking never adds to what it measures. While the
       # owner has `signalbox_pressure` drive it and Signalbox's signal is current, the machine is
       # loaded in the short band instead, and the load average is not compared.
