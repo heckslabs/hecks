@@ -57,4 +57,25 @@ RSpec.describe "the mail spool" do
     File.write(spool, "{\"message\":\"m9\"")
     expect(adapter.read(pass: { value: "p" })).to include(message: { value: "" })
   end
+
+  def mark(kind, seat, position)
+    Open3.capture3({ "HECKS_DEV_DIR" => dir }, File.join(root, ".claude/hooks/mail_mark.sh"), kind, seat, position)
+  end
+
+  it "appends a mark line that moves a seat's cursor, and boots nothing" do
+    mark("advance", "run-a", "7")
+    expect(JSON.parse(File.read(spool))).to eq("advance" => "run-a", "to" => 7)
+  end
+
+  it "reads a mark line as a line of its own, naming the seat and the position", :aggregate_failures do
+    mark("open", "run-a", "7")
+    answer = adapter.read(pass: { value: "p" })
+    expect(answer).to include(open: { value: "run-a" }, to: { value: 7 }, line: { value: 1 })
+    expect(answer[:advance]).to eq({ value: "" })
+  end
+
+  it "refuses a mark of a kind it does not know, and writes nothing", :aggregate_failures do
+    _out, _err, status = mark("erase", "run-a", "7")
+    expect([status.success?, File.exist?(spool)]).to eq([false, false])
+  end
 end

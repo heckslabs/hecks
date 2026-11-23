@@ -94,7 +94,7 @@ RSpec.describe "the message inbox hook" do
   it "reads a seat with no cursor from now: it hears none of the past and marks the newest event", :aggregate_failures do
     say
     expect(step).to be_empty
-    expect(marks).to eq([{ "advance" => "run-a", "to" => 1 }])
+    expect(marks).to eq([{ "open" => "run-a", "to" => 1 }])
   end
 
   it "says nothing and marks nothing when the cursor is past every message", :aggregate_failures do

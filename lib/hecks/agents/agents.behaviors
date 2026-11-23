@@ -312,6 +312,32 @@ Hecks.behaviors "Agents" do
     expect refused: "a landing state is landed, pushed_not_landed, committed_not_pushed or uncommitted"
   end
 
+  test "Open starts a seat's cursor at the position named" do
+    tests "Open", on: "SeatCursor"
+    input  seat: { value: "run-a" }, to: { value: 9 }
+    expect position: { value: 9 }
+  end
+
+  test "Advance moves a seat's cursor over the messages it was handed" do
+    tests "Advance", on: "SeatCursor"
+    setup  "Agents::SeatCursor.Open", seat: { value: "run-a" }, to: { value: 2 }
+    input  seat: { value: "run-a" }, to: { value: 5 }
+    expect position: { value: 5 }
+  end
+
+  test "Advance refuses moving a seat's cursor back" do
+    tests "Advance", on: "SeatCursor"
+    setup  "Agents::SeatCursor.Open", seat: { value: "run-a" }, to: { value: 5 }
+    input  seat: { value: "run-a" }, to: { value: 3 }
+    expect refused: "a cursor never moves back"
+  end
+
+  test "Open refuses a negative position" do
+    tests "Open", on: "SeatCursor"
+    input  seat: { value: "run-b" }, to: { value: -1 }
+    expect refused: "a position is not negative"
+  end
+
   test "Receive refuses a message that is not sent" do
     tests "Receive", on: "Message"
     setup  "Agents::Message.Send", message: { value: "m2" }, recipient: { value: "run-a" }, sender: { value: "miette" },
