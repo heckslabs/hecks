@@ -154,6 +154,9 @@ Hecks.bluebook "Hecks" do
         transition "Decline" => "refused",  from: "requested"
         transition "Finish"  => "finished", from: "started"
         transition "Fail"    => "finished", from: "started"
+        # `Revived` is guarded by the command, not `from:`: a finished run is reusable, and the lifecycle
+        # check refuses a transition that leaves a reusable state for a live one.
+        transition "Revived" => "started"
         transition "Tidied"  => "tidied",   from: "finished"
         transition "Retired" => "retired",  from: ["started", "finished"]
         transition "Close" => "closed", from: ["requested", "refused"]
@@ -354,6 +357,22 @@ Hecks.bluebook "Hecks" do
         sets :kept_at, to: { value: 0 }
 
         emits AgentRunReleased
+      end
+
+      # `Fleet.resume!` woke the session a finished run held, so the run is working again and the
+      # tidy and the pruner no longer read it as finished. A tidied or retired run's session is
+      # gone, and the lifecycle refuses it.
+      command "Revived" do
+        role "System"
+        goal "Record that the session of a finished run was resumed, so the run is working again"
+
+        reference_to AgentRun
+        attribute :condition, Condition, default: "working", sets: true
+
+        given("only a finished run is revived") { status == "finished" }
+        sets :kept_at, to: { value: 0 }
+
+        emits AgentRunRevived
       end
 
       command "Detach" do
@@ -3018,6 +3037,15 @@ Hecks.bluebook "Hecks" do
       root
       where   { pinned_role != "" }
       ask     :stop_forked_from, with: { run: :run }
+    end
+
+    # A resume that names the run holding the session records that run working again; a session no
+    # run holds (`run` empty) records nothing. A root, since the resume's chain is long.
+    policy "FollowTheResumedSession" do
+      on      "Fleet.SessionRevived"
+      root
+      where   { run.value != "" }
+      trigger AgentRun::Revived, with: { run: :run }
     end
 
     # A rebind looks at the named session first; the bluebook judges what the port reports.

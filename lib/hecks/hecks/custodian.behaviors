@@ -211,6 +211,13 @@ Hecks.behaviors "Custodian" do
     expect refused: "ended done"
   end
 
+  test "Revived refuses a run that never finished, so a resume changes nothing" do
+    tests "Revived", on: "AgentRun"
+    setup "Hecks::AgentRun.Dispatch", run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }
+    input run: { value: "evening" }
+    expect refused: "only a finished run is revived"
+  end
+
   test "Close keeps a refused run a planned and ranked work item holds" do
     tests "Close", on: "AgentRun"
     setup "Hecks::AgentRun.Dispatch", run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }

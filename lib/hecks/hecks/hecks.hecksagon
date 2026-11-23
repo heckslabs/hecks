@@ -34,6 +34,9 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.VerdictAbandoned"
   # A verdict sent again answers the waiting coder as a judged one does (AnswerTheWaitingCoderAgain).
   subscribe "Agents.VerdictRedelivered"
+  # A resumed session records the run that holds it working again (FollowTheResumedSession in the
+  # delegate bluebook).
+  subscribe "Agents.SessionRevived"
   # A coder's submitted branch starts its landing job (LandWhenWorkIsSubmitted in the deliver bluebook).
   subscribe "Coder.WorkSubmitted"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
