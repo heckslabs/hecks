@@ -383,6 +383,27 @@ Hecks.behaviors "Agents" do
     expect refused: "a message body is at most 2000 characters; split it"
   end
 
+  test "Send accepts a post from a person in the crew room" do
+    tests "Send", on: "Message"
+    input  message: { value: "slack-p1" }, recipient: { value: "orchestrator" }, sender: { value: "Dana" },
+           kind: { value: "person" }, body: { value: "how is the train" }
+    expect kind: { value: "person" }
+  end
+
+  test "Send keeps the source a Slack post carries" do
+    tests "Send", on: "Message"
+    input  message: { value: "slack-p2" }, recipient: { value: "orchestrator" }, sender: { value: "owner" },
+           kind: { value: "owner" }, body: { value: "status?" }, source: { value: "slack" }
+    expect source: { value: "slack" }
+  end
+
+  test "Send refuses a source that is not a declared one" do
+    tests "Send", on: "Message"
+    input  message: { value: "slack-p3" }, recipient: { value: "orchestrator" }, sender: { value: "owner" },
+           kind: { value: "owner" }, body: { value: "status?" }, source: { value: "carrier-pigeon" }
+    expect refused: "MessageSource admits \"\", \"slack\" — got \"carrier-pigeon\""
+  end
+
   test "Send refuses a kind the old protocol named and the new one does not" do
     tests "Send", on: "Message"
     input  message: { value: "m7" }, recipient: { value: "run-a" }, sender: { value: "miette" },
@@ -550,6 +571,20 @@ Hecks.behaviors "Agents" do
     tests "Ingest", on: "MailSpool"
     input  pass: { value: "beat-1" }
     expect status: "dry"
+  end
+
+  # No listener is bound in a behavior run, so the room cannot be heard and Open ends refused.
+  test "Open ends refused when no listener can hear the room" do
+    tests "Open", on: "CrewRoom"
+    input  room: { value: "crew" }
+    expect status: "refused"
+  end
+
+  test "Open refuses a room already open" do
+    tests "Open", on: "CrewRoom"
+    setup  "Agents::CrewRoom.Open", room: { value: "crew" }
+    input  room: { value: "crew" }
+    expect refused: "Open creates a CrewRoom that already exists"
   end
 
   test "Ingest refuses a pass that already ran" do

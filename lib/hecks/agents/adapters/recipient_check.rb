@@ -57,9 +57,9 @@ module Hecks
       # @param recipient [Hash, nil] the run the message is for, passed back for the next step
       # @return [Hash{Symbol => Hash}] `verified:` "true" when the sending session is registered
       #   under that name, otherwise "false"; never raises
-      def sender(sender:, recipient: nil, asker_role: nil, kind: nil, **)
+      def sender(sender:, recipient: nil, asker_role: nil, kind: nil, **rest)
         { sender: { value: plain(sender) }, recipient: seat_holder(recipient),
-          verified: { value: (ledger? && @proof.verified?(plain(sender))).to_s },
+          verified: { value: trusted?(rest[:source], kind, plain(sender)).to_s },
           asker_role: { value: plain(asker_role) }, kind: { value: plain(kind) } }
       end
 
@@ -80,6 +80,10 @@ module Hecks
 
       # The owner is a person, not a run: mail to the owner is always addressable and waits in the
       # owner's inbox, which the board and `Message.inbox recipient=owner` read.
+      # The `TrustedSource` rows of the bluebook: the (source, kind) pairs whose sender needs no
+      # registered session.
+      TRUSTED = [%w[slack owner], %w[slack person]].freeze
+
       OWNER = "owner"
 
       # The refusal of a boot that holds no AgentRun ledger: `exe/hecks agents` boots Agents alone.
@@ -87,6 +91,16 @@ module Hecks
                   "send with exe/hecks Message.send!, which boots the Hecks domain"
 
       private
+
+      # @param source [Hash, String, nil] where the line came from
+      # @param kind [Hash, String, nil] the message kind
+      # @param name [String] the sender as the message names it
+      # @return [Boolean] true for a `TrustedSource` pair, otherwise whether the session is proven
+      def trusted?(source, kind, name)
+        return true if TRUSTED.include?([plain(source), plain(kind)])
+
+        ledger? && @proof.verified?(name)
+      end
 
       def ledger?
         return true if @read_runs

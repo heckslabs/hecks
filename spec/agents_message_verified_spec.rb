@@ -29,6 +29,27 @@ RSpec.describe "the Agents message sender" do
     expect(verified_for(nil)).to eq("false")
   end
 
+  def slack_post(kind, source: "slack", sender: "owner")
+    @sending_session = nil
+    send_message(sender: sender, to: "orchestrator", kind: kind, source: source).verified.value
+  end
+
+  it "shows a Slack post from the owner as verified, with no session registered" do
+    expect(slack_post("owner")).to eq("true")
+  end
+
+  it "shows a Slack post from a person as verified under their own name" do
+    expect(slack_post("person", sender: "Dana")).to eq("true")
+  end
+
+  it "shows a Slack line of any other kind as unverified" do
+    expect(slack_post("answer")).to eq("false")
+  end
+
+  it "shows an owner message that names no Slack source as unverified" do
+    expect(slack_post("owner", source: "")).to eq("false")
+  end
+
   it "answers a message to a tidied run as refused, with the reason", :aggregate_failures do
     sent = send_message(to: "run-done")
     expect(sent.status).to eq("refused")
