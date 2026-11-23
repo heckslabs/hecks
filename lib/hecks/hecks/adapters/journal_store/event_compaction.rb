@@ -52,9 +52,10 @@ module Hecks
         private
 
         def repositories
-          @registry.bluebooks.flat_map do |domain_name, bluebook|
+          all = @registry.bluebooks.flat_map do |domain_name, bluebook|
             bluebook.aggregates.map { |aggregate| @registry.repository(domain_name, aggregate) }
-          end.select { |repository| repository.is_a?(Ports::Persistence::AppendOnly) }
+          end
+          all.grep(Ports::Persistence::AppendOnly)
         end
 
         def lagging

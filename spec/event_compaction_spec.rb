@@ -54,7 +54,7 @@ RSpec.describe Hecks::Adapters::JournalStore::EventCompaction do
     dir = sqlite_domain
     seed(dir, [40, 20, 5, 1])
 
-    expect(log(dir).apply!.first).to match(/dropped 2 events/)
+    expect(log(dir).apply!.first).to include("dropped 2 events")
     expect(log(dir).candidates).to eq(0)
   end
 end
