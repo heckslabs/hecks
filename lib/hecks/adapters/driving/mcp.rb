@@ -3,6 +3,7 @@ require_relative "mcp/stdio_entry"
 require_relative "mcp/tool_definitions"
 require_relative "mcp/loading"
 require_relative "mcp/call_boots"
+require_relative "mcp/home_boot"
 require_relative "mcp_scope"
 require_relative "mcp/roles"
 
@@ -45,6 +46,7 @@ module Hecks
 
         extend Loading
         extend CallBoots
+        extend HomeBoot
         extend Roles
 
         module_function
@@ -88,6 +90,19 @@ module Hecks
           runtime = scope.restricted? ? resident_boot(path) : call_boot(path)
           Admission.admit!(runtime.registry, "Mcp")
           runtime
+        end
+
+        # The runtime a read answers from: the home domain, answering as the attached bluebook, when
+        # a restricted server is asked for a directory the home attaches (see `HomeBoot`), and the
+        # server's own boot of the directory otherwise.
+        def read_boot(domain)
+          framework!
+          path = Storehouse.confine!(scope.admit_domain!(domain), "domain")
+          home = scope.restricted? ? home_runtime(path) : nil
+          return boot(domain) unless home
+
+          Admission.admit!(home.registry, "Mcp")
+          home
         end
 
         def answer_tool(name, args)

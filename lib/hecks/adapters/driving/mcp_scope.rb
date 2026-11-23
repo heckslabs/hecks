@@ -115,7 +115,7 @@ module Hecks
         # Kernel.load.
         def admit_domain!(domain)
           return domain unless restricted?
-          return domain if @allowed_domains.include?(Storehouse.confine!(domain, "domain"))
+          return domain if reads?(Storehouse.confine!(domain, "domain"))
 
           raise Runtime::TypeMismatch,
                 "domain: #{domain.inspect} is refused: this server runs in #{mode_label} " \
