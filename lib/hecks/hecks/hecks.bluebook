@@ -97,6 +97,8 @@ Hecks.bluebook "Hecks" do
                reason: "work items are the ledger every session reads (ADR 0163)"
         member domain: "Tickets", aggregate: "Epic", checkout: "main",
                reason: "an opened epic is read by the next command that files work under it"
+        member domain: "Tickets", aggregate: "Sprint", checkout: "main",
+               reason: "a sprint is opened by one call and scheduled into by later ones"
         member domain: "Agents", aggregate: "Role", checkout: "main",
                reason: "the board reads which roles are pinned between calls"
         member domain: "Agents", aggregate: "PlanReview", checkout: "main",
