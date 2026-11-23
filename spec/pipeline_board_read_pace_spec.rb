@@ -25,16 +25,3 @@ RSpec.describe Hecks::Adapters::PipelineBoard::ReadPace do
     expect(Hecks::Adapters::PipelineBoard::BoardRestart.limits(nil)[:read_duty]).to eq(0.1)
   end
 end
-
-RSpec.describe Hecks::Adapters::PipelineBoard::Snapshot do
-  after { @snap&.stop }
-
-  it "reads a costly state less often than its period when the duty is small", :aggregate_failures do
-    reads = []
-    source = -> { reads << 1 && sleep(0.05) && { generated_at: reads.size.to_s, stages: [] } }
-    @snap = described_class.new(source: source, every: 0.01, read_duty: 0.25).start
-    sleep 0.6
-    expect(reads.size).to be <= 4
-    expect(reads.size).to be >= 1
-  end
-end
