@@ -89,11 +89,11 @@ RSpec.describe "a resident started from an odd environment" do
     line = launch_logged
     wait_for_new_resident(old)
   rescue ThreadParking::NeverReached => e
-    raise e.class, "#{e.message}; #{ended(line)}"
+    raise e.class, "#{e.message}; #{ended(line, old)}"
   end
 
   # @return [String] how the line that was to start the replacement ended, for a failure message
-  def ended(line)
+  def ended(line, old)
     _out, err, status = line
     "the replacing line ended #{status&.exitstatus.inspect} (#{last_outcome.inspect}): " \
       "#{err.to_s.lines.last(4).join.strip}; #{why_ended(old)}"
