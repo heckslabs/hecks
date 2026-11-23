@@ -16,12 +16,18 @@ module Hecks
       # safety net wakes it, and then it sends a heartbeat. It ends when the reader goes away,
       # because the write the caller does for each event then raises.
       class Stream
+        # Seconds an idle stream waits for a wake before it asks whether its reader has gone.
+        PROBE_SECONDS = 2
+
         # @param hub [#join, #leave, #current] the journal's wakes (see {Hub})
         # @param state [#call, nil] answers the board's state hash (see {Snapshot#latest}), whose
         #   `events` are the newest events, newest first, or `{unknown: reason}`
         # @param wiring [#call, nil] answers the wiring with its `digest`, or `{unknown: reason}`
-        def initialize(hub:, state: nil, wiring: nil)
+        # @param gone [#call, nil] answers whether the reader has hung up; asked while idle, so a
+        #   reader that left ends the stream without waiting for a write to fail
+        def initialize(hub:, state: nil, wiring: nil, gone: nil)
           @hub = hub
+          @gone = gone
           @state = state
           @wiring = wiring
           @seen = {}
@@ -34,23 +40,38 @@ module Hecks
         def each(&emit)
           wakes = @hub.join
           @hub.current.each { |fragment| yield({ tile: fragment.to_h }) }
-          loop do
-            look_board(&emit)
-            look_wiring(&emit)
-            wait(wakes, &emit)
-          end
+          catch(:gone) { follow(wakes, &emit) }
         ensure
           @hub.leave(wakes) if wakes
         end
 
         private
 
+        def follow(wakes, &)
+          loop do
+            look_board(&)
+            look_wiring(&)
+            wait(wakes, &)
+          end
+        end
+
         # Waits for the next wake, takes the ones that came with it, and pushes their fragments.
         def wait(wakes, &)
-          pending = [wakes.pop]
+          pending = [next_wake(wakes)]
           pending << wakes.pop until wakes.empty?
           pending.flat_map(&:fragments).each { |fragment| yield({ tile: fragment.to_h }) }
           yield({ heartbeat: Time.now.utc.iso8601 }) if pending.any?(&:net)
+        end
+
+        # The next wake. While none comes the reader is asked every `PROBE_SECONDS` whether it is
+        # still there, which reads nothing and draws nothing, and the stream ends if it is not.
+        def next_wake(wakes)
+          loop do
+            wake = wakes.pop(timeout: PROBE_SECONDS)
+            return wake if wake
+
+            throw :gone if @gone&.call
+          end
         end
 
         # Says the wiring is drawn differently: once on first look, then whenever its digest moves.
