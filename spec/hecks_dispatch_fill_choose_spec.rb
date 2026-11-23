@@ -13,7 +13,7 @@ RSpec.describe "a filling, dispatched through its Choose ask" do
   def dispatching(planned)
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: planned.map { |key| item(key) },
                                                                     started: [], runs: {}, lessons: [])
-    Hecks::Adapters::Dispatching.new(settings: { load: -> { 1.5 }, cpus: 4, work_items: items, runner: runner })
+    Hecks::Adapters::Dispatching.new(settings: { sprint: false, load: -> { 1.5 }, cpus: 4, work_items: items, runner: runner })
   end
 
   # The launcher's stand-in: every command answers, compose with a brief, and dispatching `gap-b`

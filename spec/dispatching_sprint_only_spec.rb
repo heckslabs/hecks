@@ -6,6 +6,11 @@ require "hecks/hecks/adapters/dispatching"
 RSpec.describe "a fill that starts only sprint work and bugs" do
   let(:plan_class) { Hecks::Adapters::Dispatching::Plan }
 
+  let(:work)      { item("in-sprint", sprint: "2026-11-23") }
+  let(:first_bug) { item("bug-one", category: "bug") }
+  let(:next_bug)  { item("bug-two", category: "bug") }
+  let(:other)     { item("off-sprint") }
+
   def item(key, sprint: "", category: "", priority: "now")
     plan_class::Item.new(key: key, title: key, detail: "", area: [key], priority: priority,
                          sprint: sprint, category: category)
@@ -15,29 +20,24 @@ RSpec.describe "a fill that starts only sprint work and bugs" do
     plan_class.new(planned, [], cap: cap, load: 1.0, max_load: 20.0, frozen: [], urgent_reserve: 0, sprint: true)
   end
 
-  let(:work)  { item("in-sprint", sprint: "2026-11-23") }
-  let(:bug1)  { item("bug-one", category: "bug") }
-  let(:bug2)  { item("bug-two", category: "bug") }
-  let(:other) { item("off-sprint") }
-
-  it "starts the sprint item and one bug, and refuses the other item by name" do
-    plan = fill([work, bug1, bug2, other])
+  it "starts the sprint item and one bug", :aggregate_failures do
+    plan = fill([work, first_bug, next_bug, other])
     expect(plan.chosen.map(&:key)).to eq(%w[in-sprint bug-one])
     expect(plan.skipped.find { |skip| skip.key == "off-sprint" }.reason).to eq("skipped: not in the open sprint")
   end
 
-  it "holds the second bug while a sprint item is ready, even one later in plan order" do
-    plan = fill([bug1, bug2, work])
+  it "holds the second bug while a sprint item is ready, even one later in plan order", :aggregate_failures do
+    plan = fill([first_bug, next_bug, work])
     expect(plan.chosen.map(&:key)).to eq(%w[bug-one in-sprint])
     expect(plan.skipped.map(&:reason)).to eq(["skipped: held: bug bug-one already holds the one bug seat"])
   end
 
   it "starts a second bug when no sprint item is ready" do
-    expect(fill([bug1, bug2, other]).chosen.map(&:key)).to eq(%w[bug-one bug-two])
+    expect(fill([first_bug, next_bug, other]).chosen.map(&:key)).to eq(%w[bug-one bug-two])
   end
 
   it "starts only bugs with no open sprint" do
-    expect(fill([other, bug1]).chosen.map(&:key)).to eq(["bug-one"])
+    expect(fill([other, first_bug]).chosen.map(&:key)).to eq(["bug-one"])
   end
 
   it "refuses an expedited item outside the sprint and starts a red-* fix" do
