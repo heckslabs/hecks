@@ -85,7 +85,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
 
     carry
 
-    expect(git("merge-base", "--is-ancestor", unpushed, "origin/main") && true).to be(true)
+    expect(git("rev-list", "origin/main").lines.map(&:strip)).to include(unpushed)
     expect(git("merge-base", "open-work", "main")).to eq(unpushed)
   end
 
