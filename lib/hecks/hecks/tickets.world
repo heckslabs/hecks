@@ -9,7 +9,7 @@
 # `cpu_budget` is the hours of launcher boots in a rolling 24 hours (the usage record's `boot_ms`,
 # from each run's start time; a run with no boot time adds nothing). It is a reading on the board and
 # holds nothing: a loop that boots the launcher over and over is stopped by `boot_storm` and `boot_share`.
-# `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
+# `dispatch_max_load` is the load (the `load_average` average, 5 minutes) above which `Dispatch.Fill` starts no session (the CPU count
 # when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
 # policies run `Dispatch.Fill` on events that free capacity, and false pauses them and the beat; `Fill only=<key>` still starts one. `session_environment` is what every dispatched session starts with: a shared cargo
 # target directory and a `nice` increment. `session_grace` is how many seconds a started session is
@@ -69,6 +69,11 @@ Hecks.world "Tickets" do
   # on memory as before while the signal is dark. Off until the owner turns it.
   signalbox_response "Signalbox", drives: false
   dispatch_max_load "Dispatch", limit: 10.0
+  # `load_average` names which average every reader of the machine's load takes: 1, 5 or 15 minutes. The
+  # fill's `dispatch_max_load`, the expedite bar, the Machine's marks and the board's guard read this one
+  # figure. 5 is smoother than the 1-minute figure the fill used to start in a dip of; the same 10.0 now
+  # compares against a lower, steadier number, so the limit may want a turn down.
+  load_average "Dispatch", minutes: 5
   # `roundhouse: true` moves every Delegate reader of load from `uptime` to Roundhouse's `Load`
   # query (ADR 0222, metering); off, each Machine reading keeps it beside as `metered_load`.
   # Memory stays judged on free plus inactive pages; at the turn the marks see one of each meter.

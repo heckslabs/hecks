@@ -51,6 +51,7 @@ module Hecks
 
           lambda do
             limit = Dispatching::Settings.new(registry).max_load
+            LoadGuard.minutes = LoadAverage.minutes(registry)
             LoadHistory.stand(limit)
             LoadCauses.stand
             StandingSince.stand

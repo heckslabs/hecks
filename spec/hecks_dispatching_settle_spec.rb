@@ -110,9 +110,9 @@ RSpec.describe Hecks::Adapters::Dispatching do
   end
 
   describe "the load reading" do
-    it "reads the 1-minute load from macOS and Linux uptime lines", :aggregate_failures do
-      expect(described_class::Settings.uptime_load("13:00  up 3 days,  load averages: 23.41 18.00 12.50")).to eq(23.41)
-      expect(described_class::Settings.uptime_load(" 13:00:01 up 3 days, load average: 0.52, 0.58, 0.59")).to eq(0.52)
+    it "reads the 5-minute load from macOS and Linux uptime lines", :aggregate_failures do
+      expect(described_class::Settings.uptime_load("13:00  up 3 days,  load averages: 23.41 18.00 12.50")).to eq(18.0)
+      expect(described_class::Settings.uptime_load(" 13:00:01 up 3 days, load average: 0.52, 0.58, 0.59")).to eq(0.58)
     end
 
     it "reads the machine when no text is given" do
