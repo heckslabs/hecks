@@ -5111,7 +5111,7 @@ Hecks.bluebook "Agents" do
     policy "WakeTheIdleSeat" do
       on      "Fleet.WakeExamined"
       where   { working != true }
-      ask     :wake, with: { session: :session }
+      ask     :awaken, with: { session: :session }
     end
 
     policy "RecordTheWake" do
