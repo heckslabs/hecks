@@ -20,7 +20,7 @@ module Hecks
 
         # A confirmed filling starts work, so it says why when the owner has stopped new work.
         def refuse_stopped!
-          raise ConsoleCapture::Failure, "new work is stopped: dispatch_roll_forward is off" unless machine.switch_on?
+          raise ConsoleCapture::Failure, "#{WorkLimits::STOPPED}: #{WorkLimits::SWITCH} is off" unless machine.switch_on?
         end
 
         # The header, the line of each launch and each wait of a confirmed filling; a filling that
