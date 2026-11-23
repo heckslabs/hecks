@@ -60,7 +60,7 @@ module Hecks
             adapter, settings = persistence(registry, clock, domain)
             return InProcess.new unless POSTGRES.include?(adapter)
 
-            require "pg"
+            require "hecks/pg_options"
             PostgresAdvisory.new(PG.connect(settings[:database].to_s))
           end
 
