@@ -30,13 +30,13 @@ module RefillQueue
 
     def started = @started.dup
 
-    def runs = @started.to_h { |item| [item.key, { status: "started" }] }
+    def runs = @started.to_h { |item| [item.key, { status: "started", started_at: "2026-11-17T10:01:00Z" }] }
 
     def rollable = planned
 
     def lessons = []
 
-    def claimed_at(*) = ""
+    def claimed_at(*) = "2026-11-17T10:00:00Z"
 
     def landed_commits(*) = []
 
