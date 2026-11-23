@@ -157,13 +157,16 @@ RSpec.describe "the Tickets bluebook" do
 
   # The WorkAreas and WorkLimits ports read Hecks's own records, clock and checkout; nothing leaves
   # the process.
+  def work_asks
+    %w[CheckAreaWhenStarted CheckCapWhenStarted CheckAreaNamesWhenPlanned CheckAreaNamesWhenRescoped
+       CheckWaitKeysWhenNamed CheckWaitKeysWhenPlanned CheckExpediteWhenExpedited
+       ComposeNoteWhenNoteRequested ReadSpendWhenWorkFinished]
+  end
+
   it "asks only Hecks's own ports from a Work step" do
     asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 
-    expect(asks.map(&:hecks_name)).to contain_exactly(
-      "CheckAreaWhenStarted", "CheckCapWhenStarted", "CheckAreaNamesWhenPlanned", "CheckAreaNamesWhenRescoped",
-      "CheckWaitKeysWhenNamed", "CheckWaitKeysWhenPlanned", "CheckExpediteWhenExpedited", "ComposeNoteWhenNoteRequested"
-    )
+    expect(asks.map(&:hecks_name)).to contain_exactly(*work_asks)
   end
 
   it "lapses a superseded decision's undone steps" do
