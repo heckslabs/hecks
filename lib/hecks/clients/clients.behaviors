@@ -1,0 +1,54 @@
+Hecks.behaviors "Clients" do
+  vision "A client opens with no repository, asks for one and has it only once the repository is answered private; its work stays in its own repo or board."
+
+  # No adapter binds the ClientRepo port here, so the privacy ask comes back refused: a missing answer
+  # fails closed. An answered-private run is the Clients spec's, with a stub adapter bound.
+  loads "clients.hecksagon", "clients.ports.hecksagon", "clients.bluebook"
+
+  test "a client opens with no repository" do
+    tests "Open", on: "Client"
+    input name: { value: "Rye and Rosemary" }
+    expect emits: ["ClientOpened"], status: "none"
+  end
+
+  test "opening a client with a blank name is refused" do
+    tests "Open", on: "Client"
+    input name: { value: "" }
+    expect refused: "name must be present"
+  end
+
+  test "a repository request with no private answer falls back to none" do
+    tests "RequestRepo", on: "Client"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input name: { value: "Rye and Rosemary" }
+    expect emits: ["RepoRequested", "RepoRefused"], status: "none"
+  end
+
+  test "a repository cannot be recorded created before it was requested" do
+    tests "RecordRepoCreated", on: "Client"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input name: { value: "Rye and Rosemary" }
+    expect refused: "a repository is created only after it was requested"
+  end
+
+  test "a board link is kept on the client" do
+    tests "LinkBoard", on: "Client"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input name: { value: "Rye and Rosemary" }, board: { value: "https://boards.example/rye" }
+    expect emits: ["BoardLinked"], status: "none"
+  end
+
+  test "an engagement cites a client and an interview by reference" do
+    tests "Begin", on: "Engagement"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input reference: { value: "ENG-1" }, client: "Rye and Rosemary", interview: { value: "INT-1" }
+    expect emits: ["EngagementBegun"], status: "begun"
+  end
+
+  test "an engagement citing a blank interview is refused" do
+    tests "Begin", on: "Engagement"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input reference: { value: "ENG-2" }, client: "Rye and Rosemary", interview: { value: "" }
+    expect refused: "interview must be present"
+  end
+end
