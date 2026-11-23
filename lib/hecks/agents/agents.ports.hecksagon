@@ -210,6 +210,20 @@ Hecks.hecksagon "Agents" do
       refuses "SessionReviveRefused"
     end
 
+    # Whether the seat that holds the run key is working, and the run, in words; refused by name
+    # when no listed session holds the key.
+    asks "ExamineWake", to: Fleet do
+      attribute :session, FleetSession
+      answers "WakeExamined"
+      refuses "SessionWakeRefused"
+    end
+
+    asks "Wake", to: Fleet do
+      attribute :session, FleetSession
+      answers "SessionWoken"
+      refuses "SessionWakeRefused"
+    end
+
     answers_query "Sessions"
     answers_query "Topic"
   end
