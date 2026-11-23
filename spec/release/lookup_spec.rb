@@ -7,7 +7,7 @@ RSpec.describe Hecks::Release::Lookup do
   let(:out) { StringIO.new }
   let(:no_wait) { ->(_seconds) {} }
 
-  def answering(*answers) = answers.each_with_object([]) { |a, list| list << a }.then { |list| ->(_tag) { list.shift || list.last } }
+  def answering(*answers) = ->(_tag) { answers.size > 1 ? answers.shift : answers.first }
 
   def check(*answers) = described_class.check("v7.1.0", runner: answering(*answers), out: out, sleeper: no_wait)
 

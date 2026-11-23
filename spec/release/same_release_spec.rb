@@ -44,6 +44,7 @@ RSpec.describe Hecks::Release::SameRelease do
 
   it "does not count a tag on a commit the release does not contain" do
     git(@dir, "checkout", "-q", "-b", "elsewhere", "release~1")
+    File.write(File.join(@dir, "elsewhere.txt"), "y")
     bump(@dir, "7.1.0")
     expect(described_class.stands?(tag_commit: sha(@dir, "elsewhere"), commit: sha(@dir, "main"),
                                    version: "7.1.0", dir: @dir)).to be(false)
