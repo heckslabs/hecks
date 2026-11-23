@@ -612,7 +612,8 @@ Hecks.behaviors "Tickets" do
   test "Size sizes a started work item" do
     tests "Size", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "sz3" }, title: { value: "Underway" }
-    setup  "Tickets::Work.Start", work: { value: "sz3" }
+    setup  "Tickets::Work.Start", work: { value: "sz3" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     input  work: { value: "sz3" }, pomodoros: { value: 3 }
     expect status: "started", pomodoros: { value: 3 }
   end
