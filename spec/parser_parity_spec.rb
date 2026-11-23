@@ -71,8 +71,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
                      %w[pizzas identity governance console_settings expression translation banking compliance
                         compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo
-                        privacy change event_delivery messaging order_deadline onboarding command_defaults multi_role parent_visibility
-                        command_list_argument list_field_shape copy_from_state assurance bounded_step] -
+                        privacy change event_delivery messaging order_deadline onboarding command_defaults multi_role
+                        parent_visibility command_list_argument list_field_shape copy_from_state assurance
+                        bounded_step] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
