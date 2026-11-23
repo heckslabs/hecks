@@ -88,12 +88,19 @@ module Hecks
       end
 
       def stop(entry)
-        unless STOPPED_STATES.include?(entry["state"].to_s)
+        if needs_stop?(entry)
           name = entry.fetch("id", entry["sessionId"]).to_s
           @shell.capture(@command, "stop", name)
           settle(name)
         end
         await_exit(entry["pid"])
+      end
+
+      # A listing with a pid is judged by whether that process stands, since a session listed done
+      # can still run; one without keeps the listed state.
+      def needs_stop?(entry)
+        pid = entry["pid"]
+        pid.is_a?(Integer) ? alive?(pid) : !STOPPED_STATES.include?(entry["state"].to_s)
       end
 
       # Waits until the session's process is gone: the listing reads stopped before it exits, and
