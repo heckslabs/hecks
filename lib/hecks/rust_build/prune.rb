@@ -57,10 +57,15 @@ module Hecks
       # @param now [Time] the time the grace period counts from
       # @return [Integer] bytes freed (or that would be)
       def unlisted_slots(shared, live, dry_run: false, now: Time.now)
+        abandoned_slots(shared, live, now).sum { |path| remove(path, dry_run) }
+      end
+
+      # @return [Array<String>] the slots below `shared` whose worktree is gone, by the rules of
+      #   {unlisted_slots}
+      def abandoned_slots(shared, live, now = Time.now)
         names = live.flat_map { |path| SessionBuild.slugs(path) }
         slots = Dir.glob(File.join(shared, "*-#{"[0-9a-f]" * 8}")).select { |path| File.directory?(path) }
-        abandoned = slots.reject { |path| names.include?(File.basename(path)) || kept?(path, now, live) }
-        abandoned.sum { |path| remove(path, dry_run) }
+        slots.reject { |path| names.include?(File.basename(path)) || kept?(path, now, live) }
       end
 
       # A slot that records its owner is kept exactly while that owner stands: a removed worktree's
