@@ -5,74 +5,70 @@ Hecks.behaviors "Clients" do
   # is the Clients spec's, with a stub adapter bound.
   loads "clients.hecksagon", "clients.ports.hecksagon", "clients.bluebook"
 
-  test "a client opens with no repository" do
+  test "a client opens on the owner's words, and its repository is asked for" do
     tests "Open", on: "Client"
-    input name: { value: "Rye and Rosemary" }
-    expect emits: ["ClientOpened"], status: "none"
+    input name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Rye and Rosemary" }
+    expect emits: %w[ClientOpened RepoRequested RepoNotMade RepoRefused], status: "none"
   end
 
   test "opening a client with a blank name is refused" do
     tests "Open", on: "Client"
-    input name: { value: "" }
+    input name: { value: "" }, phrase: { words: "new client:", named: "" }
     expect refused: "Name.value must match"
   end
 
-  # A behaviors run stops at the request: the privacy ask and its fallback to none are the Clients
-  # spec's, with the port bound or left unbound.
-  test "a repository request is recorded as requested" do
-    tests "RequestRepo", on: "Client"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
-    input client: "Rye and Rosemary"
-    expect emits: ["RepoRequested"], status: "requested"
+  test "opening a client with no phrase is refused" do
+    tests "Open", on: "Client"
+    input name: { value: "Rye and Rosemary" }, phrase: { words: "", named: "Rye and Rosemary" }
+    expect refused: "Phrase.words must match"
   end
 
-  test "a repository cannot be recorded created before it was requested" do
-    tests "RecordRepoCreated", on: "Client"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
-    input client: "Rye and Rosemary"
-    expect refused: "a repository is created only after it was requested"
+  test "opening a client with a phrase naming another is refused" do
+    tests "Open", on: "Client"
+    input name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Someone Else" }
+    expect refused: "the owner said new client: and this client's name"
   end
 
   # A write waits for the port's answers, so a behaviors run shows only the guard: no file is written
   # to a repository that was not created. The privacy check and the finding are the port spec's.
   test "a file is not written to a repository that was never created" do
     tests "WriteRepoFile", on: "Client"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Rye and Rosemary" }
     input client: "Rye and Rosemary", path: { value: "notes/first-call.md" }, content: { value: "hello" }
     expect refused: "a file is written only to a created repository"
   end
 
   test "a finding is recorded only for a created repository" do
     tests "RecordRepoFoundPublic", on: "Client"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Rye and Rosemary" }
     input client: "Rye and Rosemary"
     expect refused: "a finding is recorded only for a created repository"
   end
 
   test "a file path that is blank is refused" do
     tests "WriteRepoFile", on: "Client"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Rye and Rosemary" }
     input client: "Rye and Rosemary", path: { value: "" }, content: { value: "hello" }
     expect refused: "RepoPath.value must match"
   end
 
   test "a board link is kept on the client" do
     tests "LinkBoard", on: "Client"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Rye and Rosemary" }
     input client: "Rye and Rosemary", board: { value: "https://boards.example/rye" }
     expect emits: ["BoardLinked"], status: "none"
   end
 
   test "an engagement cites a client and an interview by reference" do
     tests "Begin", on: "Engagement"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Rye and Rosemary" }
     input reference: { value: "ENG-1" }, client: "Rye and Rosemary", interview: { value: "INT-1" }
     expect emits: ["EngagementBegun"], status: "begun"
   end
 
   test "an engagement citing a blank interview is refused" do
     tests "Begin", on: "Engagement"
-    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }, phrase: { words: "new client:", named: "Rye and Rosemary" }
     input reference: { value: "ENG-2" }, client: "Rye and Rosemary", interview: { value: "" }
     expect refused: "InterviewRef.value must match"
   end

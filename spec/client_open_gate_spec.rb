@@ -5,8 +5,8 @@ require "yaml"
 require_relative "support/client_repo_stub"
 
 # The new-client gate: the Owner opens a client only with the words "new client: <name>", and the
-# private repository is then asked for by policy. Any other role, a missing phrase or a phrase naming
-# another client is refused and creates nothing. The client is the invented bakery, over the stub.
+# private repository is then asked for by policy. Any other role, a missing phrase or a phrase
+# naming another client is refused and creates nothing. The client is the invented bakery.
 module ClientOpenGateWorld
   NAME = YAML.safe_load_file(File.join(InMemoryDomain::ROOT, "spec/fixtures/clients/bakery/bakery.yml"),
                              symbolize_names: true).dig(:client, :name)
@@ -24,14 +24,20 @@ module ClientOpenGateWorld
   end
 
   # Opens the bakery as the given role, with the given words.
-  def open_as(runtime, role, phrase)
+  def open_as(runtime, role, words, named = NAME)
     Hecks::Runtime::Caller.as(role: role) do
-      runtime.dispatch_flat("Clients::Client.Open", name: { value: NAME }, phrase: { value: phrase })
+      runtime.dispatch_flat("Clients::Client.Open", name: { value: NAME }, phrase: { words: words, named: named })
     end
   end
 
-  # @return [String] the owner's words for the bakery
-  def words = "new client: #{NAME}"
+  # @return [Class] the stub standing for the port
+  def stub = STUB
+
+  # @return [String] the invented bakery's name
+  def bakery = NAME
+
+  # @return [String] the words the owner says before a client's name
+  def words = "new client:"
 
   # @return [Array<String>] the names of the events recorded so far
   def event_names(runtime) = runtime.events.map(&:name)
@@ -43,7 +49,7 @@ RSpec.describe "the new-client gate" do
   it "creates the bakery's private repository on the owner's words" do
     booted do |runtime|
       open_as(runtime, "Owner", words)
-      expect(STUB.repos.keys).to eq([NAME])
+      expect(stub.repos.keys).to eq([bakery])
     end
   end
 
@@ -54,32 +60,32 @@ RSpec.describe "the new-client gate" do
     end
   end
 
-  it "refuses a coder and creates nothing" do
+  it "refuses a coder and creates nothing", :aggregate_failures do
     booted do |runtime|
       expect { open_as(runtime, "Coder", words) }.to raise_error(Hecks::Runtime::Unauthorized)
-      expect(STUB.repos).to be_empty
+      expect(stub.repos).to be_empty
     end
   end
 
-  it "refuses an agent and creates nothing" do
+  it "refuses an agent and creates nothing", :aggregate_failures do
     booted do |runtime|
       expect { open_as(runtime, "Agent", words) }.to raise_error(Hecks::Runtime::Unauthorized)
-      expect(STUB.repos).to be_empty
+      expect(stub.repos).to be_empty
     end
   end
 
-  it "refuses a missing phrase and creates nothing" do
+  it "refuses a missing phrase and creates nothing", :aggregate_failures do
     booted do |runtime|
-      expect { open_as(runtime, "Owner", "") }.to raise_error(StandardError, /Phrase.value must match/)
-      expect(STUB.repos).to be_empty
+      expect { open_as(runtime, "Owner", "") }.to raise_error(StandardError, /Phrase.words must match/)
+      expect(stub.repos).to be_empty
     end
   end
 
-  it "refuses a phrase naming another client and creates nothing" do
+  it "refuses a phrase naming another client and creates nothing", :aggregate_failures do
     booted do |runtime|
-      expect { open_as(runtime, "Owner", "new client: Someone Else") }
+      expect { open_as(runtime, "Owner", words, "Someone Else") }
         .to raise_error(StandardError, /the owner said new client: and this client's name/)
-      expect(STUB.repos).to be_empty
+      expect(stub.repos).to be_empty
     end
   end
 

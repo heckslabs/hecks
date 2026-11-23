@@ -57,15 +57,10 @@ module ClientsSpecWorld
     Hecks::Runtime::Value.materialize(runtime.registry.repository("Clients", aggregate).find(bakery[:client][:name]).state)
   end
 
-  # Opens the bakery client and asks for its repository.
-  def request_repo(runtime)
-    open_client(runtime)
-    runtime.dispatch_flat("Clients::Client.RequestRepo", client: bakery[:client][:name])
-  end
-
-  # Opens the bakery client.
+  # Opens the bakery client on the owner's words, which asks for its repository.
   def open_client(runtime)
-    runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery[:client][:name] })
+    name = bakery[:client][:name]
+    runtime.dispatch_flat("Clients::Client.Open", name: { value: name }, phrase: { words: "new client:", named: name })
   end
 
   # Links the bakery client's board.
@@ -86,23 +81,16 @@ end
 RSpec.describe "the Clients bluebook" do
   include ClientsSpecWorld
 
-  it "opens the bakery client with no repository" do
-    booted do |runtime|
-      open_client(runtime)
-      expect(client_state(runtime)[:status]).to eq("none")
-    end
-  end
-
   it "records the repository created once the port answers private" do
     booted do |runtime|
-      request_repo(runtime)
+      open_client(runtime)
       expect(client_state(runtime)[:status]).to eq("created")
     end
   end
 
   it "falls back to none when the port has no adapter to answer private" do
     booted(stub: false) do |runtime|
-      request_repo(runtime)
+      open_client(runtime)
       expect(client_state(runtime)[:status]).to eq("none")
     end
   end
