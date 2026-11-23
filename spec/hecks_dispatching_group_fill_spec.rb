@@ -23,7 +23,7 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
 
   def adapter(planned, load: 1.0, batched: [])
     items = instance_double(described_class::WorkItems, planned: planned, batched: batched, started: [], runs: {}, lessons: [])
-    described_class.new(settings: { load: -> { load }, cpus: 10, cap: 6, work_items: items, runner: runner })
+    described_class.new(settings: { sprint: false, load: -> { load }, cpus: 10, cap: 6, work_items: items, runner: runner })
   end
 
   def fill(planned, **opts) = adapter(planned, **opts).choose(repo: "/repo", confirm: { value: true }, only: "group:lib/x")

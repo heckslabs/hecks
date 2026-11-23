@@ -17,7 +17,7 @@ module PriorityReportFixtures
      record("now-e", priority: "now", step: 1), record("run-1", status: "started")]
   end
 
-  def settings(cap: 2) = { load: -> { 0.5 }, cpus: 4, cap: cap }
+  def settings(cap: 2) = { sprint: false, load: -> { 0.5 }, cpus: 4, cap: cap }
 
   def adapter(entries = seeded, cap: 2)
     Hecks::Adapters::PriorityReport.new(registry: registry_of(entries), settings: settings(cap: cap))

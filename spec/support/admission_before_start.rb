@@ -21,7 +21,7 @@ module AdmissionBeforeStart
   # @return [String] the fill's report
   def fill(ruling, planned = [item_of("sim-properties-independent")])
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: planned, started: [], runs: {}, lessons: [])
-    settings = { load: -> { 1.0 }, cpus: 4, work_items: items, runner: runner, admitting: admission(ruling) }
+    settings = { sprint: false, load: -> { 1.0 }, cpus: 4, work_items: items, runner: runner, admitting: admission(ruling) }
     Hecks::Adapters::Dispatching.new(settings: settings).choose(repo: "/repo", confirm: { value: true }).dig(:report, :value)
   end
 

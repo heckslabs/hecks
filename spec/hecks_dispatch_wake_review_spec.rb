@@ -33,7 +33,7 @@ RSpec.describe "the waker after its second review" do
   end
 
   def adapter(heavy: false)
-    settings = { load: -> { level[:load] }, cpus: 12, work_items: work_items, boots: boots(heavy), now: -> { now },
+    settings = { sprint: false, load: -> { level[:load] }, cpus: 12, work_items: work_items, boots: boots(heavy), now: -> { now },
                  runner: ->(*) { raise "no launch" } }
     dispatching.new(registry: boot_hecks_in_memory.registry, settings: settings)
   end

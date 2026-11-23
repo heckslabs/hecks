@@ -6,6 +6,7 @@ require_relative "../work_slots"
 require_relative "pressure_limits"
 require_relative "plan_admission"
 require_relative "plan_batch"
+require_relative "plan_sprint"
 
 module Hecks
   module Adapters
@@ -22,6 +23,7 @@ module Hecks
       class Plan
         include PlanAdmission
         include PlanBatch
+        include PlanSprint
 
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
@@ -30,8 +32,8 @@ module Hecks
         # `batch` is the lead whose batch holds it, and `batch_commit` its commit on the lead's
         # branch once built; a lead a fill starts for a group carries the work items it builds as
         # `batched` and the `group` it was asked for ({Batching}).
-        Item = Struct.new(:key, :title, :detail, :area, :waits_on, :yield_kind, :retry_at, :yield_count, :priority,
-                          :epic, :batch, :batch_commit, :batched, :group, :held, keyword_init: true)
+        Item = Struct.new(:key, :title, :detail, :area, :waits_on, :yield_kind, :retry_at, :yield_count, :priority, :epic,
+                          :batch, :batch_commit, :batched, :group, :held, :sprint, :category, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)
@@ -64,14 +66,14 @@ module Hecks
         #   waits for a person), `waits:` (callable: the unlanded item it waits on), `admit:`
         #   ({PlanAdmission}), `exempt:` (callable: whether an item starts despite it), `storm:`
         #   (callable: why an item's run is a boot storm), `stall:` (callable: whether a key is a
-        #   filed stall's), `root:` (the top level) and `effective:` (callable: its area now, by
-        #   {EffectiveArea}); all optional but `cap:`, `load:`, `max_load:` and `frozen:`
+        #   filed stall's), `sprint:` ({PlanSprint}), `root:` and `effective:` (callable: its
+        #   area now, by {EffectiveArea}); all optional but `cap:`, `load:`, `max_load:`, `frozen:`
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
           @chosen = []
           @skipped = []
-          planned.each { |item| consider(item) }
+          (@planned = planned).each { |item| consider(item) }
         end
 
         # @return [Array<Item>] the started work items and the chosen ones: whose areas are not to
@@ -101,7 +103,7 @@ module Hecks
         private
 
         def consider(item)
-          reason = held_reason(item) || stop_reason(item) || limit_reason(item)
+          reason = first_reason(item)
           reason ? @skipped << skip_of(item, reason) : @chosen << item
         end
 

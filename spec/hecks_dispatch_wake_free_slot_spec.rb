@@ -32,7 +32,7 @@ RSpec.describe "a beat that fills a free slot no event announced" do
 
   # The machine and clock the beat reads, with Signalbox's admission once a case names its answer.
   def settings
-    held = { load: -> { machine[:load] }, cpus: 10, cap: machine[:cap], work_items: work_items, boots: budget,
+    held = { sprint: false, load: -> { machine[:load] }, cpus: 10, cap: machine[:cap], work_items: work_items, boots: budget,
              now: -> { now }, runner: ->(*) { raise "no launch" } }
     held.merge(admitted)
   end

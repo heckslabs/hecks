@@ -162,10 +162,11 @@ module Hecks
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s, detail: field(record, :detail).to_s,
                          area: StartedWork.words(field(record, :area)), waits_on: StartedWork.words(field(record, :waits_on)),
                          priority: field(record, :priority).to_s, epic: field(record, :epic).to_s,
-                         **in_batch(record), **yielded(record))
+                         **kept_fields(record), **yielded(record))
         end
 
-        def in_batch(record) = { batch: field(record, :batch).to_s, batch_commit: field(record, :batch_commit).to_s }
+        # The batch, sprint and category a work item keeps, each as text.
+        def kept_fields(record) = %i[batch batch_commit sprint category].to_h { |name| [name, field(record, name).to_s] }
 
         def yielded(record)
           { yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,

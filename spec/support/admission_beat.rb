@@ -27,7 +27,7 @@ module AdmissionBeat
 
   # @return [Hash] the stand-ins for the machine, the clock, the queue and Signalbox's admission
   def admission_settings
-    { load: -> { 2.0 }, cpus: 10, cap: 2, work_items: beat_work_items, now: -> { NOW }, admitting: real_admitting,
+    { sprint: false, load: -> { 2.0 }, cpus: 10, cap: 2, work_items: beat_work_items, now: -> { NOW }, admitting: real_admitting,
       boots: Hecks::Adapters::BootBudget.new(entries: ->(_cutoff) { [] }, now: -> { NOW }),
       runner: ->(*) { raise "no launch" } }
   end

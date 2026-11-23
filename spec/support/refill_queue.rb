@@ -100,7 +100,7 @@ module RefillQueue
   end
 
   def roll_settings
-    { load: -> { 0.5 }, cpus: 4, cap: 4, work_items: board, runner: method(:run),
+    { sprint: false, load: -> { 0.5 }, cpus: 4, cap: 4, work_items: board, runner: method(:run),
       sessions: double(quiet?: false) }
   end
 
