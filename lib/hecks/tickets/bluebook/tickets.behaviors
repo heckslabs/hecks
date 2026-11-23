@@ -21,6 +21,26 @@ Hecks.behaviors "Tickets" do
     expect status: "planned"
   end
 
+  test "Plan files a bug under the category bug" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1b" }, title: { value: "A bug" }, category: { value: "bug" }
+    expect status: "planned", category: { value: "bug" }
+  end
+
+  test "Plan files a work item with no category when none is named" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1c" }, title: { value: "No theme" }
+    expect status: "planned", category: nil
+  end
+
+  test "Reopen keeps the category bug of a finished bug" do
+    tests "Reopen", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w1d" }, title: { value: "A bug" }, category: { value: "bug" }
+    setup  "Tickets::Work.Close", work: { value: "w1d" }, no_change: { value: "already fixed" }
+    input  work: { value: "w1d" }, title: { value: "A bug" }, detail: { value: "again" }
+    expect status: "planned", category: { value: "bug" }
+  end
+
   test "Plan refuses a negative pomodoro size" do
     tests "Plan", on: "Work"
     input work: { value: "w1n" }, title: { value: "Too few" }, pomodoros: { value: -1 }
