@@ -3,6 +3,7 @@
 require "etc"
 require_relative "window_standing"
 require_relative "../work_limits"
+require_relative "../load_average"
 require_relative "../boot_budget"
 require_relative "../shell"
 require_relative "../claude_executable"
@@ -77,7 +78,7 @@ module Hecks
         BUDGET_MINUTES = 90
 
         # What `uptime` prints before the 1-minute load, on macOS and Linux.
-        UPTIME_LOAD = /load averages?:\s*([0-9]+[.,][0-9]+)/
+        UPTIME_LOAD = /load averages?:\s*([0-9.,\s]+)/
 
         # @param registry [Runtime::Registry, nil] the booted registry whose Tickets world is read
         # @param load [#call, nil] answers the 1-minute load average; the machine's when nil
@@ -92,21 +93,26 @@ module Hecks
           @boots = boots || BootBudget.new
         end
 
-        # Ruby's `Etc` has no load average, so the 1-minute figure is read from `uptime`.
+        # Ruby's `Etc` has no load average, so the figure is read from `uptime`.
         #
         # @param text [String, nil] what `uptime` printed; the machine's when nil
-        # @return [Float] the 1-minute load, 0.0 when `uptime` says none
-        def self.uptime_load(text = nil)
+        # @param minutes [Integer] 1, 5 or 15: which of the three averages `uptime` prints
+        # @return [Float] that average, 0.0 when `uptime` says none
+        def self.uptime_load(text = nil, minutes: LoadAverage::DEFAULT)
           text ||= Shell.new.capture("uptime").out
-          text[UPTIME_LOAD, 1].to_s.tr(",", ".").to_f
+          figures = text[UPTIME_LOAD, 1].to_s.split.map { |figure| figure.delete_suffix(",").tr(",", ".") }
+          LoadAverage.pick(figures, minutes)
         end
 
         # @return [Array<String>] the frozen areas and aggregates, empty when none is declared
         def frozen = Array(declared(FREEZE)[:areas]).map(&:to_s)
 
-        # @return [Float] the 1-minute load average now: Roundhouse's meter with the Tickets world's
-        #   `metering.roundhouse` switch on, else `uptime`
+        # @return [Float] the load average now: the one the world's `load_average` dial names from
+        #   `uptime`, or the 1-minute figure of Roundhouse's meter with `metering.roundhouse` on
         def load = @load.call.to_f
+
+        # @return [Integer] 1, 5 or 15: the average the fill, the expedite bar and `max_load` read
+        def load_minutes = LoadAverage.minutes(@registry)
 
         # @return [String] where the last {#load} was read: `roundhouse`, or `uptime` with the
         #   switch off, a meter that could not read, or a stand-in load
@@ -198,7 +204,7 @@ module Hecks
         def read_load
           metered = MeterSwitch.on?(@registry) && MeterSwitch.load
           @load_source = metered ? "roundhouse" : "uptime"
-          metered || self.class.uptime_load
+          metered || self.class.uptime_load(minutes: load_minutes)
         end
 
         def declared(verb) = @registry&.world("Tickets")&.for_verb(verb) || {}

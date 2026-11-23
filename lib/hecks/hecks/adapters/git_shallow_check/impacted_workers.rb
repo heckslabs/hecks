@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/rust_build/world_rows"
+require "hecks/hecks/adapters/load_average"
 require "hecks/pipeline_board/adapters/load_guard"
 require_relative "../bounded_capture"
 
@@ -21,7 +22,7 @@ module Hecks
 
         # @param specs [Integer] how many specs are to run
         # @param cap [Integer] the world's most workers
-        # @param load [Numeric] the machine's 1-minute load now
+        # @param load [Numeric] the machine's load now
         # @param limit [Numeric] the load a fill stops at
         # @return [Integer] workers to start: the cap, held to the load room, never above the specs
         #   and never below one
@@ -30,14 +31,19 @@ module Hecks
         end
 
         # @param root [String] a hecks checkout
-        # @param load [#call] answers the machine's 1-minute load
+        # @param load [#call, nil] answers the machine's load; the world's `load_average` when nil
         # @return [#call] given the spec count, the workers its world and the load now allow
-        def from_world(root, load: PipelineBoard::LoadGuard.method(:reading))
+        def from_world(root, load: nil)
+          load ||= -> { PipelineBoard::LoadGuard.reading(minutes_of(root)) }
           lambda do |specs|
             count(specs: specs, cap: BoundedCapture.seconds(root, :impacted_workers), load: load.call,
                   limit: limit_of(root))
           end
         end
+
+        # @param root [String] a hecks checkout
+        # @return [Integer] the minutes of the world's `load_average` dial, 5 when it names none
+        def minutes_of(root) = LoadAverage.named(RustBuild::WorldRows.row(root, "load_average")[:minutes])
 
         # @param root [String] a hecks checkout
         # @return [Float] the world's `dispatch_max_load` limit, else `DEFAULT_LIMIT`

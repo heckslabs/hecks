@@ -2,13 +2,15 @@
 
 require "fiddle"
 require "time"
+require "hecks/hecks/adapters/load_average"
 
 module Hecks
   module Adapters
     module PipelineBoard
-      # Whether the machine is too loaded for the board to add to it: the 1-minute load average
-      # against the limit a fill stops at (the Tickets world's `dispatch_max_load`). While it is,
-      # {Probe} starts no program and {Snapshot} reads at the slower `loaded_refresh_seconds`. The
+      # Whether the machine is too loaded for the board to add to it: the load average the world's
+      # `load_average` dial names (5 minutes by default) against the limit a fill stops at (the
+      # Tickets world's `dispatch_max_load`). While it is, {Probe} starts no program
+      # and {Snapshot} reads at the slower `loaded_refresh_seconds`. The
       # load is read with no child process, so asking never adds to what it measures. While the
       # owner has `signalbox_pressure` drive it and Signalbox's signal is current, the machine is
       # loaded in the short band instead, and the load average is not compared.
@@ -38,24 +40,35 @@ module Hecks
           # @return [Hash, nil] the standing guard's {#signal}; nil when none stands
           def signal = shared&.signal
 
-          # The 1-minute load average, from `/proc/loadavg` where there is one, else from the C
-          # library's `getloadavg`, which macOS and the BSDs answer.
+          # The minutes {reading} takes when none is named: the dial's, set when a board starts
+          # serving, else 5.
+          # @return [Integer]
+          def minutes = @minutes || LoadAverage::DEFAULT
+
+          # @param value [Integer, nil] 1, 5 or 15; nil leaves the default
+          # @return [Integer]
+          def minutes=(value)
+            @minutes = value && LoadAverage.named(value)
+          end
+
+          # A load average, from `/proc/loadavg` where there is one, else from the C library's
+          # `getloadavg`, which macOS and the BSDs answer.
           #
+          # @param named [Integer] 1, 5 or 15 minutes; the dial's when nil
           # @return [Float] the load, 0.0 when the system reports none
-          def reading
-            File.readable?(PROC) ? first_figure(File.read(PROC)) : from_library
+          def reading(named = nil)
+            figures = File.readable?(PROC) ? File.read(PROC).split.first(3) : from_library
+            LoadAverage.pick(figures, named || minutes)
           rescue SystemCallError, Fiddle::DLError
             0.0
           end
 
           private
 
-          def first_figure(text) = text.split.first.to_f
-
           def from_library
-            averages = Fiddle::Pointer.malloc(Fiddle::SIZEOF_DOUBLE, Fiddle::RUBY_FREE)
-            read = library_call.call(averages, 1)
-            read.positive? ? averages[0, Fiddle::SIZEOF_DOUBLE].unpack1("d") : 0.0
+            averages = Fiddle::Pointer.malloc(Fiddle::SIZEOF_DOUBLE * 3, Fiddle::RUBY_FREE)
+            read = library_call.call(averages, 3)
+            read.positive? ? averages[0, Fiddle::SIZEOF_DOUBLE * 3].unpack("d3") : []
           end
 
           def library_call
@@ -65,7 +78,7 @@ module Hecks
         end
 
         # @param limit [#call] answers the load above which the machine counts as loaded
-        # @param load [#call] answers the 1-minute load average
+        # @param load [#call] answers the load average the dial names
         # @param now [#call] answers the current time
         # @param pressure [#call] answers Signalbox's current signal, nil while it does not drive
         def initialize(limit:, load: self.class.method(:reading), now: -> { Time.now.utc }, pressure: -> {})
