@@ -38,6 +38,8 @@ Hecks.bluebook "Hecks" do
       attribute :reviewing, Reviewing, optional: true
       attribute :shedding,  Shedding,  optional: true
       attribute :kept_at,   Instant,   optional: true
+      # When the run was requested, in epoch seconds, read from the clock port by `Dispatch`.
+      attribute :requested_at, Instant, optional: true
       attribute :review_wait, Wait,    optional: true
       # The run whose reaction dispatched this one, so a fan-out's depth can be read; empty when no
       # run dispatched it (a Work item's coder, a hand dispatch, a planner). It is a run key, never
@@ -133,6 +135,15 @@ Hecks.bluebook "Hecks" do
         invariant("a wait is positive") { value.positive? }
       end
 
+      # The seconds a request may stand refused or unstarted before nothing is taken to act on it.
+      value_object "Age" do
+        attribute :value, Integer, default: 86_400
+        invariant("an age is positive") { value.positive? }
+      end
+
+      # Whether a planned and ranked work item still holds the request; the sweep reads the work.
+      value_object "Held", Boolean
+
       # The directory a session works in, written with its trailing slash, so a watch that filters
       # on a checkout's directory matches the checkout and every worktree under it.
       value_object "Checkout", String
@@ -145,13 +156,14 @@ Hecks.bluebook "Hecks" do
         transition "Fail"    => "finished", from: "started"
         transition "Tidied"  => "tidied",   from: "finished"
         transition "Retired" => "retired",  from: ["started", "finished"]
+        transition "Close" => "closed", from: ["requested", "refused"]
         transition "RetireTrial" => "retired", from: "started"
-        mark :terminal, "tidied", "refused", "retired"
+        mark :terminal, "tidied", "retired", "closed"
         # A run that has ended frees its key: a dispatch under it starts a new run, and the ended
         # one stays readable as `<run>~<n>`, its attempt number. A run in no state declared here
         # frees its key too. A requested or started run, working or blocked, keeps its key, and a
         # second dispatch is refused by name.
-        mark :reusable, "finished", "tidied", "refused", "retired"
+        mark :reusable, "finished", "tidied", "refused", "retired", "closed"
       end
 
       command "Dispatch" do
@@ -165,11 +177,36 @@ Hecks.bluebook "Hecks" do
         attribute :works_as, Part, optional: true, sets: true
         attribute :work,  WorkSlug, optional: true, sets: true
         attribute :parent, RunKey, optional: true, sets: true
+        attribute :now, Instant
+        needs :now
+
+        sets :requested_at, to: :now
 
         given("a brief says something") { !brief.value.to_s.strip.empty? }
 
 
         emits AgentRunRequested
+      end
+
+      # A request nothing will act on: refused or never started, past its age, and no planned and
+      # ranked work item holds it. A run with no recorded request time counts as past its age.
+      command "Close" do
+        role "Operator"
+        goal "Close a refused or requested run past its age with the reason, unless a ranked work item holds it"
+
+        reference_to AgentRun
+        attribute :age, Age, default: { value: 86_400 }
+        attribute :held, Held, default: false
+        attribute :refusal, Report, sets: true
+        attribute :now, Instant
+        needs :now
+
+        given("a planned and ranked work item holds the request, so it is kept") { held != true }
+        given("the request has stood past its age") do
+          requested_at.value == nil || requested_at.value + age.value <= now.value
+        end
+
+        emits AgentRunClosed
       end
 
       command "Begin" do
@@ -619,6 +656,12 @@ Hecks.bluebook "Hecks" do
         description "Every run retired because its session is gone, oldest key first."
         where(status: "retired")
         order_by :run
+      end
+
+      query "Closable" do
+        description "Every run still requested or refused, oldest request first; `Close` keeps those a ranked work item holds or that have not stood past their age."
+        where(status: { in: "requested,refused" })
+        order_by :requested_at
       end
 
       query "Declined" do
