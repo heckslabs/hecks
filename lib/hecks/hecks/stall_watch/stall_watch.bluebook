@@ -470,7 +470,7 @@ Hecks.bluebook "Hecks" do
       query "Impediments" do
         description "Every opening line of every stall kind still open past its kind's minutes and within its window, filed or not: its run not ended, its subject not settled, its closing line not come. One per subject, or one per kind for a row that folds, with how many lines it stands for; and one per pair of open branches that changed the same files against main, naming the files, until either branch's tip moves; oldest first. Given `stall`, the impediment key of one row (the suffix of its `help-<impediment>`), it answers only that row, and nothing when no such row stands. Read-only: it reads the tap and the branches' file names, and boots nothing."
         attribute :run,   String
-        attribute :stall, String
+        attribute :stall, String, optional: true
         returns list_of(Sighting)
       end
 
