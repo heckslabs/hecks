@@ -62,6 +62,9 @@ module Hecks
       # The world verb that carries the owner's stop and start switch for new work.
       SWITCH = "dispatch_roll_forward"
 
+      # How every refusal of a start stopped by the owner's switch opens.
+      STOPPED = "new work is stopped"
+
       # Whether the owner's switch lets new work start. It is the one fact the Settings page
       # shows and every start reads; a merge window is a separate pause and does not count.
       #
@@ -80,7 +83,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when new work is stopped, or naming the cap, the count and
       #   the holders
       def check_cap(**held)
-        raise ConsoleCapture::Failure, "new work is stopped: #{SWITCH} is off" unless self.class.switch_on?(@registry)
+        raise ConsoleCapture::Failure, "#{STOPPED}: #{SWITCH} is off" unless self.class.switch_on?(@registry)
 
         key = plain(held[:work])
         Dispatching::AdmissionSwitch.on?(@registry) ? admitted(key) : within_cap(key)

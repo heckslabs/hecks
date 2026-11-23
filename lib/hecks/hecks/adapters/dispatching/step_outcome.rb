@@ -56,6 +56,10 @@ module Hecks
         # @return [String] what a later reaction refused, empty when nothing was refused
         def note = ok? && !@result.ok? ? reason : ""
 
+        # @return [Boolean] whether a later reaction refused the start because the owner stopped new
+        #   work, so no session may be launched for it
+        def stopped? = note.include?(WorkLimits::STOPPED)
+
         # @return [String] why the command failed: its record's refusal, else its stderr without the
         #   boot notices (`BootNotices`), else its stdout, else the notices, on one line. A refusal
         #   that carries notices after their divider gives only its own words.
