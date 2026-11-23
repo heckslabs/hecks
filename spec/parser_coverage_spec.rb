@@ -89,8 +89,8 @@ RSpec.describe "the Rust parser's own coverage", :io do
     # `revisions` and `inline_reactions` (ADR 0182) and `clock` with its words (ADR 0184) are read by
     # the Ruby grammar; hecks-parse does not build them yet.
     ["a hecksagon word hecks-parse does not build yet", [
-      %w[inline_reactions Hecksagon], %w[revisions Hecksagon], %w[clock Hecksagon],
-      %w[cron Clock], %w[every Clock], %w[at Clock], %w[dispatch Clock]
+      %w[at Clock], %w[clock Hecksagon], %w[cron Clock], %w[dispatch Clock], %w[every Clock],
+      %w[inline_reactions Hecksagon], %w[revisions Hecksagon]
     ]],
     # Declared query/read-model options no tracked corpus member happens to
     # use — `limit`/`where`/`order_by` are, and are reported.
