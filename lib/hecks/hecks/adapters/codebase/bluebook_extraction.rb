@@ -52,9 +52,13 @@ module Hecks
           files.group_by { |file| source_of(members, File.join(tree.root, file)) }
         end
 
+        # A language bluebook refers to its siblings' aggregates, so it boots with its folder.
+        #
         # @return [String] the corpus source holding the file, or the file itself
         def source_of(members, path)
           owner = members.find { |member| path == member.path || path.start_with?("#{member.path}/") }
+          return File.dirname(path) if owner&.kind == :language
+
           (owner && Corpus.source_of(owner)) || path
         end
 

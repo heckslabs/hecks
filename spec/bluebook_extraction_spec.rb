@@ -58,4 +58,26 @@ RSpec.describe Hecks::Adapters::Codebase::BluebookExtraction do
       expect(described_class.call(tree, base: "HEAD")).to include("0 changed bluebook")
     end
   end
+
+  describe "a language bluebook that refers to an aggregate its sibling declares" do
+    let(:part) { lang_aggregate("Part", "reference_to Thing") }
+
+    define_method(:lang_aggregate) do |name, extra|
+      "Hecks.bluebook \"Lang\" do\n  aggregate \"#{name}\" do\n    attribute :name, Name\n    " \
+        "identified_by :name\n    value_object(\"Name\", String)\n    #{extra}\n    " \
+        "command(\"Go\") { emits \"Gone\" }\n  end\nend\n"
+    end
+
+    before do
+      write("lib/hecks/language/bluebook/thing.bluebook", lang_aggregate("Thing", ""))
+      write("lib/hecks/language/bluebook/part.bluebook", part)
+      git("add", ".")
+      git("commit", "-q", "-m", "language")
+      write("lib/hecks/language/bluebook/part.bluebook", "# a comment\n#{part}")
+    end
+
+    it "passes, booting the sibling bluebooks together" do
+      expect(described_class.call(tree, base: "HEAD")).to include("1 changed bluebook")
+    end
+  end
 end
