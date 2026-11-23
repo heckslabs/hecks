@@ -2,14 +2,24 @@
 
 require "spec_helper"
 require "tmpdir"
+require_relative "support/machine_profiles"
 require "hecks/hecks/adapters/codebase/spec_workers"
 
 # A parallel spec run takes at most the Tickets world's `spec_workers` cap of workers, and never
 # more than the machine has cores, so one run cannot take the whole machine.
 RSpec.describe Hecks::Adapters::Codebase::SpecWorkers do
+  include MachineProfiles
+
   let(:root) { Dir.mktmpdir("spec-workers") }
 
+  before { allow(Hecks::Adapters::MachineProfiling).to receive(:standing).and_return(big) }
+
   after { FileUtils.rm_rf(root) }
+
+  it "derives the cap from the machine's performance cores when the world sets none" do
+    allow(Hecks::Adapters::MachineProfiling).to receive(:standing).and_return(small)
+    expect(described_class.max_of(root)).to eq(2)
+  end
 
   it "holds a 12-core machine to half its cores by default" do
     expect(described_class.count(root, cores: 12, base: {})).to eq(6)
