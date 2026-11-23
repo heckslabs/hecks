@@ -765,10 +765,8 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  # The outside a beat reaches to weigh the Rust build dirs: the volume's free gigabytes against the
-  # Hecks world's `disk_space` `rising_free_gb`, and the build dirs whose worktree is gone. It answers
-  # the prune due, with its mode (`pressure` or `gone`); with room enough and nothing gone, or while a
-  # Rust build holds the build lock, it is deferred by name.
+  # The outside a beat reaches to weigh the Rust build dirs: free gigabytes against the Hecks world's
+  # `disk_space` line, and gone worktrees' dirs. It answers the prune due with its mode, else defers.
   Hecks::RustCare.port "Gauging" do
     asks "Weigh", to: RustCare do
       attribute :run, CareKey

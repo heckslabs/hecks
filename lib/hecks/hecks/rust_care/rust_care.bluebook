@@ -2,11 +2,9 @@ Hecks.bluebook "Hecks" do
   domain_module "RustCare" do
     vision "The disk Rust builds hold is pruned on the clock's beat: under pressure, or when a build dir's worktree is gone."
 
-    # A beat looks once at whether the Rust build dirs are due a prune. The `Gauging` port reads the
-    # volume's free gigabytes against the `disk_space` row's `rising_free_gb` of the Hecks world, and
-    # looks for build dirs whose worktree is gone; it defers by name while a Rust build holds the
-    # build lock. Under pressure the whole prune is due (gone dirs and stale cache); with only gone
-    # dirs, just those go. The `Trimming` port does the deleting, and only after the look is heard.
+    # A beat looks once: the `Gauging` port reads free disk against the `disk_space` line and finds
+    # gone worktrees' dirs, deferring while a build runs; the `Trimming` port then deletes, whole
+    # under pressure (`pressure`) or only the gone dirs (`gone`).
     aggregate "RustCare" do
       description "One look, on a beat of the clock, at whether the Rust build dirs are due a prune."
 
