@@ -1,3 +1,5 @@
+require "hecks/adapters/driving/resident/trace/marks"
+
 module Hecks
   module Adapters
     module Driving
@@ -9,6 +11,9 @@ module Hecks
         #
         #     launcher_start, child_took_over, script_load_begin, usage_begin/_end,
         #     boot_begin/_end, call_begin/_end, child_exit
+        #
+        # {Marks} adds the write's own: store_open, event_recorded, reactions_begin/_end and
+        # slot_wait_begin/_end.
         #
         # The time from the shell to `launcher_start` is the interpreter's own start.
         module Trace
@@ -71,6 +76,7 @@ module Hecks
           def install
             return unless on?
 
+            Marks.attach
             Hecks.singleton_class.prepend(Calls)
             Hecks::Adapters::Driving::CliRunner.singleton_class.prepend(Runner)
           end
