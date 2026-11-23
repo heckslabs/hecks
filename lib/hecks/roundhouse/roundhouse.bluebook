@@ -362,9 +362,8 @@ Hecks.bluebook "Roundhouse" do
     end
   end
 
-  # How a run's Work item was authored: in a bluebook and generated, or written directly by agents.
-  # Generated code spends no tokens, so what the bluebook saves is read by comparing the two arms on
-  # the same change, not counted. A run nobody tagged stays `untagged` and is never folded into an arm.
+  # How a run's Work item was authored. Generated code spends no tokens, so the saving is read by
+  # comparing arms on one change; an untagged run is never folded into an arm.
   aggregate "ArmRun" do
     description "One landed run, tagged with the arm its Work item was authored in, and what it cost and how it fared."
     created_by "ArmRun.record!"
@@ -504,11 +503,7 @@ Hecks.bluebook "Roundhouse" do
     sum :defects
   end
 
-  # One measure of one change, the two arms side by side, per landed item. With no run on one arm
-  # there is no matched baseline: the reading says `no reading` and carries no difference, never
-  # zero. The one-time authoring cost (the interview and the first bluebook, in tokens) is reported
-  # apart from the difference and divided into it for the break-even: the changes after which the
-  # bluebook arm has paid for its authoring.
+  # No run on one arm means no reading: no difference, never zero. Authoring cost is apart.
   aggregate "ArmComparison" do
     description "One measure of one change compared across the two arms, with the authoring cost and the break-even reported apart."
     created_by "ArmComparison.compare!"
@@ -569,9 +564,7 @@ Hecks.bluebook "Roundhouse" do
       order_by :comparison
     end
 
-    # The per-item figures are the runs' sums over their counts, rounded down; the difference is
-    # the direct arm's less the bluebook arm's. The break-even is the authoring cost over a
-    # positive difference, rounded up; it is absent while there is none.
+    # Difference is the direct figure less the bluebook's; break-even is authoring over it, rounded up.
     command "Compare" do
       role "System"
       goal "Compare one measure of one change across the two arms, or say there is no reading"
