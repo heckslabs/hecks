@@ -19,14 +19,13 @@ module Hecks
           module_function
 
           # @param root [String] the checkout
-          # @return [Integer, nil] the `max_residents` the world declares (the owner's override),
-          #   else the one the machine's profile derives, nil when neither is readable
+          # @return [Integer, nil] the `max_residents` the world declares, nil when none is readable
           def for(root)
             FILES.each do |file|
               cap = declared(File.join(root, file))
               return cap if cap
             end
-            derived
+            nil
           end
 
           # @return [Integer, nil] the `residents` the machine's profile derives, nil when none
