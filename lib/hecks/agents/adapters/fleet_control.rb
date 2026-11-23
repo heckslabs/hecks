@@ -3,6 +3,7 @@
 require "hecks/hecks/adapters/console_capture"
 require "hecks/hecks/adapters/claude_resolving_shell"
 require "hecks/hecks/adapters/claude_transcript"
+require "hecks/hecks/adapters/listed_status"
 require_relative "fleet_control/listing"
 require_relative "fleet_control/ledger"
 require_relative "fleet_control/transcripts"
@@ -133,7 +134,9 @@ module Hecks
         result
       end
 
-      def working?(entry) = entry["state"].to_s == "working" || entry["status"].to_s == "busy"
+      def working?(entry)
+        !ListedStatus.idle?(entry) && (entry["state"].to_s == "working" || entry["status"].to_s == "busy")
+      end
 
       def full_id(entry) = (entry.key?("sessionId") ? entry["sessionId"] : entry["id"]).to_s
 

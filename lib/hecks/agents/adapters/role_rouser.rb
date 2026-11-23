@@ -5,6 +5,7 @@ require "hecks/hecks/adapters/claude_executable"
 require "hecks/hecks/adapters/claude_resolving_shell"
 require "hecks/hecks/adapters/claude_session_listing"
 require "hecks/hecks/adapters/claude_resumption"
+require "hecks/hecks/adapters/listed_status"
 
 module Hecks
   module Adapters
@@ -65,7 +66,7 @@ module Hecks
       # A listed status of idle wins over the state, which a finished turn leaves at working.
       def busy?(entry) = !idle?(entry) && (entry["status"].to_s == "busy" || %w[working blocked].include?(entry["state"].to_s))
 
-      def idle?(entry) = entry["status"].to_s == "idle" || (entry["status"].to_s != "busy" && resting?(entry))
+      def idle?(entry) = ListedStatus.idle?(entry) || (entry["status"].to_s != "busy" && resting?(entry))
 
       def resting?(entry) = IDLE.include?(entry["state"].to_s.then { |state| state.empty? ? "idle" : state })
 
