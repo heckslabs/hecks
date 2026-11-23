@@ -9,6 +9,9 @@ Hecks.hecksagon "Tickets" do
 
   # The Hecks domain's landing job refused a branch a coder can fix: RefuseWorkWhenLandingRefused reacts.
   subscribe "Delivery.RefusedWorkFound"
+
+  # The Hecks domain's landing job died with nothing recorded: RefuseWorkWhenALandingJobFaulted reacts.
+  subscribe "Hecks.FaultedWorkFound"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

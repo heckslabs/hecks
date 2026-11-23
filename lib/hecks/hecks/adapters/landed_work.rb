@@ -70,6 +70,13 @@ module Hecks
         refused(item, plain(held[:refusal]).to_s)
       end
 
+      # Finds the same work item for a job that ended with no landing recorded: the branch is told.
+      #
+      # @param held [Hash] the faulted job's `branch` and `refusal`
+      # @return [Hash{Symbol => Hash}] as {#find_refused_work}
+      # @raise [ConsoleCapture::Failure] when no started work item is named by the branch
+      def find_faulted_work(**held) = find_refused_work(**held)
+
       private
 
       def refused(item, refusal)
