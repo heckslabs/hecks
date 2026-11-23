@@ -56,7 +56,7 @@ module Hecks
         owner = event["user"] == @owner
         { message: "slack-#{event.fetch("client_msg_id", event["ts"])}", recipient: recipient,
           sender: owner ? "owner" : @names.call(event["user"]), kind: owner ? "owner" : "person",
-          body: body, in_reply_to: "", asker_role: "" }
+          body: body, in_reply_to: "", asker_role: "", source: "slack" }
       end
 
       def fitted(line)
