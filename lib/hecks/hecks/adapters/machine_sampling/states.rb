@@ -6,7 +6,8 @@ module Hecks
       # What each gauge's reading leaves the machine as, against its marks and the state it stood
       # in: a reading beyond a mark changes the state, a reading in the gap keeps it. The CPU idle
       # percentage decides the load; the load average only tips it when the CPU does not already
-      # say, because it counts processes waiting on swap and disk and so overstates CPU use.
+      # say, because it counts processes waiting on swap and disk and so overstates CPU use. A
+      # metered load under the low mark is the exception: the sampler hides the CPU's share then.
       class States
         # The states the machine starts in.
         START = { load: "below", memory: "ok", lane: "idle" }.freeze

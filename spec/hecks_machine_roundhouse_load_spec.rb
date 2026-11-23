@@ -29,4 +29,8 @@ RSpec.describe "the machine's load read from Roundhouse" do
   it "leaves the load above for a metered load over the high mark" do
     expect(state_of(12.0)).to eq("above")
   end
+
+  it "keeps the CPU's word with the switch off, a busy CPU holding the load above" do
+    expect(state_of(6.0, roundhouse: false)).to eq("above")
+  end
 end
