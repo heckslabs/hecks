@@ -59,7 +59,10 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
   # The doors, by driving adapter name, with the door name spec/support/doors.rb sends through.
   DOOR_NAMES = { "Ruby" => "ruby", "Cli" => "cli", "Json" => "json", "Mcp" => "mcp" }.freeze
 
-  DOORS_ELSEWHERE = { "Web" => "the Composer's live editor, a development tool no domain is served through" }.freeze
+  DOORS_ELSEWHERE = {
+    "Web"   => "the Composer's live editor, a development tool no domain is served through",
+    "Clock" => "a schedule, not a caller: spec/driving_adapters/clock_spec.rb fires its dispatches"
+  }.freeze
 
   # Each persistence adapter with the spec holding it to the others.
   STORE_SPECS = {
