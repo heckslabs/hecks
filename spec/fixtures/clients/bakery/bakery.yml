@@ -1,0 +1,7 @@
+# An invented client: no real person, business or repository.
+client:
+  name: Rye and Rosemary Bakery
+  board: https://boards.example/rye-and-rosemary
+engagement:
+  reference: ENG-BAKE-1
+  interview: INT-BAKE-1
