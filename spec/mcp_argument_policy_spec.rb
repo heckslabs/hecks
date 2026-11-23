@@ -13,7 +13,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
     reason refusal rehearsal_verdict
     report required resuming retried revert role run runs scope seed_start seeds session shard stage state stdout
     steps strict subject tags taking target targets timeout title to top verb verdict warmup watermark winners word
-    work workers works_as
+    window_days work workers works_as
   ].freeze
 
   let(:classes) do

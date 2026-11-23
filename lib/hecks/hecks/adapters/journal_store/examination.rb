@@ -5,6 +5,7 @@ require "json"
 require_relative "held_domain"
 require_relative "edge_audit"
 require_relative "compaction"
+require_relative "event_compaction"
 
 module Hecks
   module Adapters
@@ -98,6 +99,11 @@ module Hecks
         def examine_compact(held) = examine_compaction(held, :entries)
 
         def examine_compact_heki(held) = examine_compaction(held, :heki)
+
+        def examine_compact_events(held)
+          log = event_compaction(held)
+          { candidates: log.candidates, bound: log.bound }
+        end
 
         def examine_compaction(held, kind)
           compaction = Compaction.new(plain(held[:domain]), aggregates: names(held[:aggregates]), kind: kind)
