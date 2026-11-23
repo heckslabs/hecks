@@ -107,6 +107,14 @@ Hecks.hecksagon "Agents" do
       answers "MessageResumed"
       refuses "WakeUnreachable"
     end
+
+    # Whether any session holds the role: a role nobody holds is final, a working holder is not.
+    asks "Holds", to: Message do
+      attribute :message, MessageKey
+      attribute :now, MessageInstant
+      answers "RoleHeld"
+      refuses "RoleUnheld"
+    end
   end
 
   # Which paths a submitted branch changed against main, read in its checkout. Bound by
