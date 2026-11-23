@@ -1969,7 +1969,7 @@ Hecks.bluebook "Agents" do
     attribute :sender, SenderName
     attribute :kind, MessageKind
     attribute :body, BodyText
-    attribute :priority, Priority
+    attribute :priority, Priority, optional: true
     attribute :channel, Channel, optional: true
     attribute :in_reply_to, MessageRef, optional: true
     attribute :reader, ReaderName, optional: true
