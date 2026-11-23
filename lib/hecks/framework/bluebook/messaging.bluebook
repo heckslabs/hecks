@@ -1,0 +1,187 @@
+Hecks.bluebook "Messaging" do
+  vision "A message tells a recipient something, hangs on whatever carries it, and is heard once."
+  supporting
+
+  # What a message means, apart from how it is delivered: delivery is a hecksagon's adapter (a
+  # session, a stream), and the windows and budgets that time it are the attaching app's dials,
+  # given as command arguments with these defaults. An app attaches this member and sends the
+  # kinds and channels it declares here; its own kinds are a follow-up.
+  aggregate "Message" do
+    description "One message from a sender to a recipient: sent, heard once, then read so an inbox clears itself. It may hang on what carries it, such as a Work item or an order. It grants no approval and changes no permission."
+
+    identified_by :message
+
+    attribute :message,      MessageKey
+    attribute :recipient,    RecipientName
+    attribute :sender,       SenderName
+    attribute :kind,         MessageKind
+    attribute :body,         BodyText
+    attribute :priority,     Priority, default: { value: "normal" }
+    attribute :channel,      Channel, optional: true
+    attribute :in_reply_to,  MessageRef, optional: true
+    attribute :subject_kind, SubjectKind, optional: true
+    attribute :subject_ref,  SubjectRef, optional: true
+    attribute :reader,       ReaderName, optional: true
+    attribute :sent_at,      MessageInstant, optional: true
+
+    value_object "MessageKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The party a message is for: the key its holder reads an inbox by.
+    value_object "RecipientName" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SenderName" do
+      attribute :value, String, matches: :present
+    end
+
+    # What the message is, and so whether a reply is expected (see KindRule).
+    value_object "MessageKind" do
+      attribute :value, String, one_of: %w[help question answer notice report]
+    end
+
+    # A normal message waits for its recipient's next turn when posted to a channel; an urgent one does not.
+    value_object "Priority" do
+      attribute :value, String, one_of: %w[normal urgent]
+    end
+
+    # The shared places a message may be posted to; empty on a direct message.
+    value_object "Channel" do
+      attribute :value, String, one_of: %w[help all train]
+    end
+
+    # What each kind decides: where it routes (`direct` or a channel) and whether a reply is expected.
+    value_object "KindRule" do
+      attribute :kind,           String
+      attribute :route,          String
+      attribute :reply_expected, String
+
+      member kind: "help",     route: "help",   reply_expected: "true"
+      member kind: "question", route: "direct", reply_expected: "true"
+      member kind: "answer",   route: "direct", reply_expected: "false"
+      member kind: "notice",   route: "all",    reply_expected: "false"
+      member kind: "report",   route: "train",  reply_expected: "false"
+    end
+
+    # Who a channel post wakes: `help` wakes a named seat; the other channels wake no one.
+    value_object "ChannelRule" do
+      attribute :channel, String
+      attribute :wakes,   String
+
+      member channel: "help",  wakes: "help-desk"
+      member channel: "all",   wakes: ""
+      member channel: "train", wakes: ""
+    end
+
+    # Free text. Nothing reads it as a command.
+    value_object "BodyText", String
+
+    # The key of the message this one answers; empty when it answers none.
+    value_object "MessageRef", String
+
+    # The kind of thing the message hangs on, as its own bluebook names it: `Order`, `Work`.
+    value_object "SubjectKind", String
+
+    # The key of the thing the message hangs on.
+    value_object "SubjectRef", String
+
+    value_object "ReaderName" do
+      attribute :value, String, matches: :present
+    end
+
+    # Seconds since the epoch.
+    value_object "MessageInstant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    lifecycle :status, default: "sent" do
+      transition "Receive" => "delivered", from: "sent"
+      transition "Read" => "read", from: %w[sent delivered]
+      mark :rests, "sent"
+    end
+
+    command "Send" do
+      role "Operator"
+      goal "Tell a recipient something: an answer, a question, a notice or a report, optionally hung on an order or a Work item"
+
+      attribute :message,      MessageKey, sets: true
+      attribute :recipient,    RecipientName, sets: true
+      attribute :sender,       SenderName, sets: true
+      attribute :kind,         MessageKind, sets: true
+      attribute :body,         BodyText, sets: true
+      attribute :priority,     Priority, default: "normal", sets: true
+      attribute :in_reply_to,  MessageRef, default: "", sets: true
+      attribute :subject_kind, SubjectKind, default: "", sets: true
+      attribute :subject_ref,  SubjectRef, default: "", sets: true
+      attribute :now,          MessageInstant, default: 0
+
+      given("the message says something") { !body.value.to_s.strip.empty? }
+      given("a message body is at most 2000 characters; split it") { body.value.to_s.length <= 2000 }
+
+      sets :sent_at, to: :now
+
+      emits "MessageSent"
+    end
+
+    command "Announce" do
+      role "Operator"
+      goal "Post what happened to a channel as a message, for an app's policy to trigger on an event it names"
+
+      attribute :message,      MessageKey, sets: true
+      attribute :recipient,    RecipientName, sets: true
+      attribute :sender,       SenderName, sets: true
+      attribute :kind,         MessageKind, sets: true
+      attribute :body,         BodyText, sets: true
+      attribute :channel,      Channel, sets: true
+      attribute :priority,     Priority, default: "normal", sets: true
+      attribute :subject_kind, SubjectKind, default: "", sets: true
+      attribute :subject_ref,  SubjectRef, default: "", sets: true
+
+      given("the announcement says something") { !body.value.to_s.strip.empty? }
+
+      emits "MessageAnnounced"
+    end
+
+    command "Receive", from: "sent" do
+      role "Operator"
+      goal "Record that the recipient's holder heard a message, so its hook hands it over once"
+
+      reference_to Message
+      attribute :reader, ReaderName, sets: true
+
+      emits "MessageDelivered"
+    end
+
+    command "Read", from: %w[sent delivered] do
+      role "Operator"
+      goal "Record that a message was read, so it leaves its recipient's inbox"
+
+      reference_to Message
+      attribute :reader, ReaderName, sets: true
+
+      emits "MessageRead"
+    end
+
+    query "All" do
+      description "Every message, in every state."
+      order_by :message
+    end
+
+    query "Inbox" do
+      description "The unread messages for one recipient, sent or heard, each with its sender, kind, body, what it hangs on and the message it answers."
+      attribute :recipient, RecipientName
+      where(status: { in: %w[sent delivered] }, recipient: :recipient)
+      order_by :message
+    end
+
+    query "Undelivered" do
+      description "The messages for one recipient that no holder has heard yet: what a hook hands over, once, before it records them heard."
+      attribute :recipient, RecipientName
+      where(status: "sent", recipient: :recipient)
+      order_by :message
+    end
+  end
+end

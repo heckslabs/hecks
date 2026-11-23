@@ -1,0 +1,6 @@
+# The Messaging wiring `messaging.behaviors` loads: framework.hecksagon binds every member,
+# so the suite loads this one binding and the Governance sibling beside `change.behaviors`'s.
+Hecks.hecksagon "Messaging" do
+  attaches "Governance"
+  persisted_by "Memory"
+end

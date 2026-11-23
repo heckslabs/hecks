@@ -1,0 +1,36 @@
+Hecks.behaviors "Messaging" do
+  vision "A message is sent to a recipient, heard once and read once; it hangs on what carries it."
+
+  loads "messaging.bluebook", "governance.bluebook", "../../../../spec/fixtures/messaging/messaging.hecksagon",
+        "../../../../spec/fixtures/change/governance.hecksagon"
+
+  test "Send refuses a kind the member does not declare" do
+    tests "Send", on: "Message"
+    input message: { value: "m1" }, recipient: { value: "driver" }, sender: { value: "baker" },
+          kind: { value: "gossip" }, body: { value: "hi" }
+    expect refused: "MessageKind admits"
+  end
+
+  test "Send refuses a message that says nothing" do
+    tests "Send", on: "Message"
+    input message: { value: "m1" }, recipient: { value: "driver" }, sender: { value: "baker" },
+          kind: { value: "question" }, body: { value: " " }
+    expect refused: "says something"
+  end
+
+  test "Send keeps a message sent for its recipient" do
+    tests "Send", on: "Message"
+    input message: { value: "m2" }, recipient: { value: "driver" }, sender: { value: "baker" },
+          kind: { value: "question" }, body: { value: "Is order 7 out?" }
+    expect status: "sent"
+  end
+
+  test "Read refuses a message nobody sent" do
+    tests "Read", on: "Message"
+    setup "Messaging::Message.Send", message: { value: "m3" }, recipient: { value: "driver" }, sender: { value: "baker" },
+          kind: { value: "report" }, body: { value: "done" }
+    setup "Messaging::Message.Read", message: { value: "m3" }, reader: { value: "driver" }
+    input message: { value: "m3" }, reader: { value: "driver" }
+    expect refused: "sent"
+  end
+end

@@ -20,13 +20,13 @@ RSpec.describe "messaging" do
   it "keeps a sent message in its recipient's inbox" do
     send_message
 
-    expect(inbox.map { |row| row[:message] }).to eq([{ value: "m1" }])
+    expect(inbox.map { |row| row[:message].value }).to eq(["m1"])
   end
 
   it "hangs a message on the order that carries it" do
     send_message(subject_kind: { value: "Order" }, subject_ref: { value: "order-7" })
 
-    expect(hecks.query("Messaging::Message.All").first[:subject_ref]).to eq({ value: "order-7" })
+    expect(hecks.query("Messaging::Message.All").first[:subject_ref].value).to eq("order-7")
   end
 
   it "refuses a kind it does not declare" do
@@ -45,6 +45,6 @@ RSpec.describe "messaging" do
   it "announces an event as a message on a channel" do
     hecks.dispatch_flat("Messaging::Message.Announce", **says, kind: { value: "report" }, channel: { value: "train" })
 
-    expect(hecks.query("Messaging::Message.All").first[:channel]).to eq({ value: "train" })
+    expect(hecks.query("Messaging::Message.All").first[:channel].value).to eq("train")
   end
 end
