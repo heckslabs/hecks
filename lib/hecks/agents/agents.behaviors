@@ -390,6 +390,20 @@ Hecks.behaviors "Agents" do
     expect kind: { value: "person" }
   end
 
+  test "Send keeps the source a Slack post carries" do
+    tests "Send", on: "Message"
+    input  message: { value: "slack-p2" }, recipient: { value: "orchestrator" }, sender: { value: "owner" },
+           kind: { value: "owner" }, body: { value: "status?" }, source: { value: "slack" }
+    expect source: { value: "slack" }
+  end
+
+  test "Send refuses a source that is not a declared one" do
+    tests "Send", on: "Message"
+    input  message: { value: "slack-p3" }, recipient: { value: "orchestrator" }, sender: { value: "owner" },
+           kind: { value: "owner" }, body: { value: "status?" }, source: { value: "carrier-pigeon" }
+    expect refused: "MessageSource admits \"\", \"slack\" — got \"carrier-pigeon\""
+  end
+
   test "Send refuses a kind the old protocol named and the new one does not" do
     tests "Send", on: "Message"
     input  message: { value: "m7" }, recipient: { value: "run-a" }, sender: { value: "miette" },
