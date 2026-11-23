@@ -1,8 +1,8 @@
 Hecks.behaviors "Clients" do
   vision "A client opens with no repository, asks for one and has it only once the repository is answered private; its work stays in its own repo or board."
 
-  # No adapter binds the ClientRepo port here, so the privacy ask comes back refused: a missing answer
-  # fails closed. An answered-private run is the Clients spec's, with a stub adapter bound.
+  # The ClientRepo port has no adapter here. A missing answer fails closed, and an answered-private run
+  # is the Clients spec's, with a stub adapter bound.
   loads "clients.hecksagon", "clients.ports.hecksagon", "clients.bluebook"
 
   test "a client opens with no repository" do
@@ -14,27 +14,29 @@ Hecks.behaviors "Clients" do
   test "opening a client with a blank name is refused" do
     tests "Open", on: "Client"
     input name: { value: "" }
-    expect refused: "name must be present"
+    expect refused: "Name.value must match"
   end
 
-  test "a repository request with no private answer falls back to none" do
+  # A behaviors run stops at the request: the privacy ask and its fallback to none are the Clients
+  # spec's, with the port bound or left unbound.
+  test "a repository request is recorded as requested" do
     tests "RequestRepo", on: "Client"
     setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
-    input name: { value: "Rye and Rosemary" }
-    expect emits: ["RepoRequested", "RepoRefused"], status: "none"
+    input client: "Rye and Rosemary"
+    expect emits: ["RepoRequested"], status: "requested"
   end
 
   test "a repository cannot be recorded created before it was requested" do
     tests "RecordRepoCreated", on: "Client"
     setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
-    input name: { value: "Rye and Rosemary" }
+    input client: "Rye and Rosemary"
     expect refused: "a repository is created only after it was requested"
   end
 
   test "a board link is kept on the client" do
     tests "LinkBoard", on: "Client"
     setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
-    input name: { value: "Rye and Rosemary" }, board: { value: "https://boards.example/rye" }
+    input client: "Rye and Rosemary", board: { value: "https://boards.example/rye" }
     expect emits: ["BoardLinked"], status: "none"
   end
 
@@ -49,6 +51,6 @@ Hecks.behaviors "Clients" do
     tests "Begin", on: "Engagement"
     setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
     input reference: { value: "ENG-2" }, client: "Rye and Rosemary", interview: { value: "" }
-    expect refused: "interview must be present"
+    expect refused: "InterviewRef.value must match"
   end
 end

@@ -13,12 +13,10 @@ module ClientsSpecWorld
     module Hecks
       module Adapters
         class ClientsSpecRepoStub
-          PRIVATE = ["Rye and Rosemary Bakery"].freeze
-
           def initialize(aggregate: nil); end
 
           def is_private(name:, **)
-            raise "the repository is not private" unless PRIVATE.include?(name[:value] || name)
+            raise "the repository is not private" unless (name[:value] || name) == "Rye and Rosemary Bakery"
 
             { name: name }
           end
@@ -55,9 +53,27 @@ module ClientsSpecWorld
 
   # Opens the bakery client and asks for its repository.
   def request_repo(runtime)
-    name = { value: bakery[:client][:name] }
-    runtime.dispatch_flat("Clients::Client.Open", name: name)
-    runtime.dispatch_flat("Clients::Client.RequestRepo", name: bakery[:client][:name])
+    open_client(runtime)
+    runtime.dispatch_flat("Clients::Client.RequestRepo", client: bakery[:client][:name])
+  end
+
+  # Opens the bakery client.
+  def open_client(runtime)
+    runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery[:client][:name] })
+  end
+
+  # Links the bakery client's board.
+  def link_board(runtime)
+    board = { value: bakery[:client][:board] }
+    runtime.dispatch_flat("Clients::Client.LinkBoard", client: bakery[:client][:name], board: board)
+  end
+
+  # Begins the bakery engagement, citing its interview.
+  def begin_engagement(runtime)
+    engagement = bakery[:engagement]
+    runtime.dispatch_flat("Clients::Engagement.Begin", reference: { value: engagement[:reference] },
+                                                       client:    bakery[:client][:name],
+                                                       interview: { value: engagement[:interview] })
   end
 end
 
@@ -66,7 +82,7 @@ RSpec.describe "the Clients bluebook" do
 
   it "opens the bakery client with no repository" do
     booted do |runtime|
-      runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery[:client][:name] })
+      open_client(runtime)
       expect(client_state(runtime)[:status]).to eq("none")
     end
   end
@@ -87,18 +103,16 @@ RSpec.describe "the Clients bluebook" do
 
   it "keeps the board link of the bakery client" do
     booted do |runtime|
-      runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery[:client][:name] })
-      runtime.dispatch_flat("Clients::Client.LinkBoard", name: bakery[:client][:name], board: { value: bakery[:client][:board] })
+      open_client(runtime)
+      link_board(runtime)
       expect(client_state(runtime)[:board]).to eq(value: bakery[:client][:board])
     end
   end
 
   it "has an engagement cite an interview by reference" do
     booted do |runtime|
-      runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery[:client][:name] })
-      runtime.dispatch_flat("Clients::Engagement.Begin", reference: { value: bakery[:engagement][:reference] },
-                                                          client: bakery[:client][:name],
-                                                          interview: { value: bakery[:engagement][:interview] })
+      open_client(runtime)
+      begin_engagement(runtime)
       expect(runtime.events.map(&:name)).to include("EngagementBegun")
     end
   end

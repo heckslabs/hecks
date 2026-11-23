@@ -32,7 +32,8 @@ Hecks.bluebook "Clients" do
     # None, asked for, or created: no state says public, and a created repository is one the port
     # answered private.
     lifecycle :status, default: "none" do
-      mark :rests, "none", "requested", "created"
+      mark :rests, "none"
+      mark :terminal, "created"
       transition "RequestRepo"       => "requested", from: "none"
       transition "RecordRepoCreated" => "created",   from: "requested"
       transition "RefuseRepo"        => "none",      from: "requested"
@@ -51,7 +52,7 @@ Hecks.bluebook "Clients" do
       role "Owner"
       goal "Ask for the client's private repository, to be created once the owner says so"
 
-      reference_to Client, as: :name
+      reference_to Client
 
       given("a repository is requested only while the client has none") { status == "none" }
 
@@ -63,7 +64,7 @@ Hecks.bluebook "Clients" do
       policy_only
       goal "Record the repository created, once it was answered private"
 
-      reference_to Client, as: :name
+      reference_to Client
       attribute :repo, RepoLink, optional: true
 
       given("a repository is created only after it was requested") { status == "requested" }
@@ -76,7 +77,7 @@ Hecks.bluebook "Clients" do
       policy_only
       goal "Drop the request: the repository was not answered private"
 
-      reference_to Client, as: :name
+      reference_to Client
 
       emits "RepoRefused"
     end
@@ -85,10 +86,10 @@ Hecks.bluebook "Clients" do
       role "Owner"
       goal "Keep the link to the client's own board, where it has one"
 
-      reference_to Client, as: :name
+      reference_to Client
       attribute :board, BoardLink
 
-      sets :board, to: :board
+      sets :board
 
       emits "BoardLinked"
     end
@@ -96,17 +97,17 @@ Hecks.bluebook "Clients" do
 
   policy "AskIfTheRepoIsPrivate" do
     on  "Client.RepoRequested"
-    ask :is_private, with: { name: :name }
+    ask :is_private, with: { name: :client }
   end
 
   policy "RecordThePrivateRepo" do
     on      "Client.RepoChecked"
-    trigger Client::RecordRepoCreated, with: { name: :name }
+    trigger Client::RecordRepoCreated, with: { client: :name }
   end
 
   policy "RefuseTheRepoNotPrivate" do
     on      "Client.RepoUnchecked"
-    trigger Client::RefuseRepo, with: { name: :name }
+    trigger Client::RefuseRepo, with: { client: :name }
   end
 
   aggregate "Engagement" do
@@ -116,7 +117,7 @@ Hecks.bluebook "Clients" do
     identified_by :reference
 
     attribute :reference, Reference
-    attribute :client,    reference_to("Client")
+    reference_to Client
     attribute :interview, InterviewRef
 
     value_object "Reference" do
@@ -129,7 +130,7 @@ Hecks.bluebook "Clients" do
     end
 
     lifecycle :status, default: "begun" do
-      mark :rests, "begun"
+      mark :terminal, "begun"
     end
 
     command "Begin" do
@@ -137,7 +138,7 @@ Hecks.bluebook "Clients" do
       goal "Begin an engagement for a client, citing its interview"
 
       attribute :reference, Reference
-      attribute :client,    reference_to("Client")
+      reference_to Client
       attribute :interview, InterviewRef
 
       emits "EngagementBegun"
