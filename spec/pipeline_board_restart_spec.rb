@@ -49,7 +49,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::BoardRestart do
     expect(described_class.limits(registry)).to eq(refresh_seconds: 60.0, rss_mb: 512.0, age_hours: 24.0,
                                                    min_uptime_seconds: 600.0, loaded_refresh_seconds: 60.0,
                                                    sentinel_seconds: 30.0, sentinel_misses: 4.0,
-                                                   sentinel_cpu_share: 0.9, sentinel_cpu_asks: 20.0)
+                                                   sentinel_cpu_share: 0.9, sentinel_cpu_asks: 20.0, read_duty: 0.1)
   end
 
   it "takes the sentinel's CPU bound from the Hecks world" do

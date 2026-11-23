@@ -16,7 +16,7 @@ module Hecks
         # The limits when the Hecks world declares no `board_restart` line.
         DEFAULTS = { rss_mb: 1024, age_hours: 24, refresh_seconds: 30, min_uptime_seconds: 600,
                      loaded_refresh_seconds: 60, sentinel_seconds: 30, sentinel_misses: 4,
-                     sentinel_cpu_share: 0.9, sentinel_cpu_asks: 20 }.freeze
+                     sentinel_cpu_share: 0.9, sentinel_cpu_asks: 20, read_duty: 0.1 }.freeze
         # The resident-memory line of `/proc/self/status`, in kilobytes.
         PROC_RSS = /VmRSS:\s+(\d+)/
 

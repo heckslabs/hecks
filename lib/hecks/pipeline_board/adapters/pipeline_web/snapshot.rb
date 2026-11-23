@@ -4,6 +4,7 @@ require "time"
 require "json"
 require "digest"
 require_relative "../board_restart"
+require_relative "../read_pace"
 require_relative "../load_guard"
 require_relative "../load_history"
 require_relative "../pipeline_stages/standing_since"
@@ -36,7 +37,8 @@ module Hecks
           limits = BoardRestart.limits(registry)
           restart = settings.fetch(:restart) { BoardRestart.new(limits: limits) }
           new(source: source, background: settings.fetch(:background, true), every: limits[:refresh_seconds],
-              after_read: restart.method(:check), loaded_every: limits[:loaded_refresh_seconds],
+              read_duty: limits[:read_duty], after_read: restart.method(:check),
+              loaded_every: limits[:loaded_refresh_seconds],
               stand: standing(registry, settings.fetch(:load_guard, true)))
         end
 
@@ -66,8 +68,11 @@ module Hecks
         # @param pace [Hash] `after_read:` runs after each read, such as the check that restarts a
         #   board grown too large; `loaded_every:` is the seconds between reads while the machine
         #   is loaded (`every` when none is given); `stand:` answers the load guard, or nil, when
-        #   the snapshot starts; `wait:` stands in for the sleep that holds a loaded machine's read
+        #   the snapshot starts; `wait:` stands in for the sleep that holds a loaded machine's read;
+        #   `clock:` answers monotonic seconds; `read_duty:` is the share of time reading may take,
+        #   a costlier read being followed by a longer rest (see {ReadPace})
         def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, **pace)
+          @read_pace = ReadPace.new(duty: pace.fetch(:read_duty, 0), every: every, clock: method(:monotonic))
           @source = source
           @every = every
           @pace = { loaded_every: every }.merge(pace.compact)
@@ -118,7 +123,7 @@ module Hecks
 
         def refresh_forever
           loop do
-            read_once
+            @read_pace.measure { read_once }
             after_read_once
             rest
           end
@@ -129,11 +134,17 @@ module Hecks
         def rest
           began = monotonic
           @wake.pop(timeout: @every)
-          left = @pace[:loaded_every] - (monotonic - began)
-          @pace.fetch(:wait) { method(:sleep) }.call(left) if left.positive? && @guard&.loaded?
+          left = rest_floor - (monotonic - began)
+          @pace.fetch(:wait) { method(:sleep) }.call(left) if left.positive?
         end
 
-        def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        # The least rest this read is owed: the loaded period while the machine is loaded, or what
+        # the read's cost asks, whichever is longer.
+        def rest_floor
+          [(@guard&.loaded? ? @pace[:loaded_every] : 0), @read_pace.floor].max
+        end
+
+        def monotonic = (@pace[:clock] || -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }).call
 
         # Runs the after-read check; a check that raises, such as a restart that cannot exec, is
         # recorded and the loop goes on, so a failed check never freezes the board.
