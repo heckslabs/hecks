@@ -46,7 +46,7 @@ module Hecks
       def reading
         raise PipelineBoard::Unavailable, "no domain is booted here to read the wiring from" unless @registry
 
-        @lock.synchronize { @graph.merge(look_locked) }
+        @lock.synchronize { look_locked.then { |held| @graph.merge(held) } }
       end
 
       # @return [Hash, nil] the graph's digest as `{digest:}`: read afresh when no reader holds the
