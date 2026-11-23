@@ -55,7 +55,7 @@ module Hecks
       def leftovers(removed: "", held: "")
         ids = ids_of(removed)
         lines = ["footprint  #{footprint.line}"] + plan_lines(ids) + residue_lines(ids, delete: false)
-        { text: (lines + worktree_lines(held, remove: false) + orphans.lines).join("\n") }
+        { text: (lines + worktree_lines(held, remove: false) + orphans.lines(held: names(held))).join("\n") }
       end
 
       # @param removed [Hash, String] the short ids of the removed sessions, possibly none
@@ -66,7 +66,7 @@ module Hecks
       def sweep(removed: "", held: "", **)
         ids = ids_of(removed)
         before = footprint.line
-        lines = stop_spares(ids) + residue_lines(ids, delete: true) + worktree_lines(held, remove: true) + orphans.reap
+        lines = stop_spares(ids) + residue_lines(ids, delete: true) + worktree_lines(held, remove: true) + reaped(held)
         { report: { value: (["before  #{before}"] + lines + ["after   #{footprint.line}"]).join("\n") } }
       end
 
@@ -135,6 +135,8 @@ module Hecks
       end
 
       def table = (@table ||= ProcessTable.new(shell: @shell))
+
+      def reaped(held) = orphans.reap(held: names(held))
 
       def orphans = Orphans.new(table: table, killer: @killer, tmp: @tmps)
 

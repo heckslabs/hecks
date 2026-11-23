@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "orphans/strays"
 require_relative "orphans/rules"
 require_relative "orphans/halting"
 require_relative "orphans/directories"
@@ -34,15 +35,19 @@ module Hecks
                                          now: now, cwds: -> { table.working_directories })
         end
 
+        # @param held [Array<String>] the branches an open item or a live run holds
         # @return [Array<String>] a line for each leftover, changing nothing
-        def lines
-          rules.leftovers.map { |entry| describe("leftover", entry) } +
+        def lines(held: [])
+          @held = held
+          rules.leftovers.map { |entry| describe(kind_of(entry), entry) } +
             @directories.stale.map { |path| "stale push directory  #{path}" }
         end
 
         # Stops the leftover processes and deletes the stale directories.
+        # @param held [Array<String>] the branches an open item or a live run holds
         # @return [Array<String>] a line for each action taken
-        def reap
+        def reap(held: [])
+          @held = held
           outcome = Halting.new(table: @table, killer: @killer, pause: @pause).call(rules.stoppable)
           rules.leftovers.map { |entry| describe(VERDICTS.fetch(outcome.fetch(entry.pid, :stopped)), entry) } +
             @directories.stale.map { |path| @directories.delete(path) }
@@ -50,7 +55,9 @@ module Hecks
 
         private
 
-        def rules = (@rules ||= Rules.new(table: @table, entries: @table.entries))
+        def rules = (@rules ||= Rules.new(table: @table, entries: @table.entries, held: @held))
+
+        def kind_of(entry) = rules.strays.include?(entry) ? "stray" : "leftover"
 
         def describe(kind, entry) = "#{kind}  pid=#{entry.pid}  age=#{entry.age}s  #{entry.command[0, 120]}"
       end
