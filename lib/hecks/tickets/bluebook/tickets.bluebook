@@ -2739,6 +2739,23 @@ Hecks.bluebook "Tickets" do
     count
   end
 
+  # The sprint's weather, read from the work items scheduled into it: what they were sized at and what
+  # they spent. A done item stays in its sprint until the sprint closes, so a day reads whole. An
+  # item with no size adds nothing to the first, and a sprint with no items answers neither.
+  read_model "PomodorosSizedBySprint" do
+    description "The pomodoros the work items of each sprint were sized at, added up."
+    include Work
+    group_by :sprint
+    sum :pomodoros
+  end
+
+  read_model "PomodorosSpentBySprint" do
+    description "The pomodoros the work items of each sprint spent, added up."
+    include Work
+    group_by :sprint
+    sum :pomodoros_spent
+  end
+
   read_model "FindingsByStatus" do
     description "How many findings stand in each status."
     include Finding
