@@ -36,4 +36,8 @@ RSpec.describe Hecks::Bluebook::ModelCheck::PersistenceChecks do
   it "reports nothing when a default covers the rest" do
     expect(findings(bind("Plant::Bloom", "Heki"), bind(nil, "Memory"))).to be_empty
   end
+
+  it "does not count a store built on Memory, such as the decision files, as persisting" do
+    expect(findings(bind("Plant::Bloom", "DecisionFiles"))).to be_empty
+  end
 end
