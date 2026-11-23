@@ -7,8 +7,8 @@ module Hecks
   module Adapters
     class MainIntegration
       # What a boarding refuses to push, read from the range origin/main does not hold: a commit
-      # message with an agent's attribution trailer, and a change to the version file unless the tip is
-      # the commit the release cut made (`ReleaseCutMark`). Each refusal names what it found.
+      # message with an agent's attribution trailer, and a change to the version file unless the
+      # tip is the commit the release cut made (`ReleaseCutMark`). Each refusal names what it found.
       class RangeGuard
         # The message lines that stop a boarding, each with the name its refusal gives it.
         FORBIDDEN_LINES = {

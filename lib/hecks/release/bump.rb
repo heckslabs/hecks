@@ -8,10 +8,14 @@ module Hecks
     #
     # The files are `lib/hecks/version.rb`, `rust/host/HECKS_RELEASE`, `packages/hecks-client`, the
     # README's "Current release" lines and a dated `## [X.Y.Z]` heading in `CHANGELOG.md` that takes
-    # the entries under `## [Unreleased]`. It reads and writes files under one root and runs nothing.
+    # the entries under `## [Unreleased]`. It reads and writes files under one root, runs nothing.
     module Bump
       # The levels a release has, highest first.
       LEVELS = %w[major minor patch].freeze
+
+      # Where `VERSION` is declared, and the heading the unreleased entries sit under.
+      VERSION_DECLARATION = /VERSION = "([^"]+)"/
+      UNRELEASED_HEADING = /^## \[Unreleased\][^\n]*\n/
 
       # The files a bump changes, relative to the checkout.
       FILES = %w[lib/hecks/version.rb rust/host/HECKS_RELEASE packages/hecks-client/package.json
@@ -22,7 +26,7 @@ module Hecks
       # @param current [String] a version such as `7.1.0`
       # @param level [String] `major`, `minor` or `patch`
       # @return [String] the version a release of that level follows it with
-      # @raise [ArgumentError] when the level is not one of {LEVELS}
+      # @raise [ArgumentError] when the level is not one of `LEVELS`
       def next_version(current, level)
         raise ArgumentError, "a release level is major, minor or patch, not #{level.inspect}" unless LEVELS.include?(level)
 
@@ -39,7 +43,7 @@ module Hecks
       # @return [String] the new version
       def apply(root, level:, date:)
         version_file = File.join(root, "lib/hecks/version.rb")
-        current = File.read(version_file)[/VERSION = "([^"]+)"/, 1]
+        current = File.read(version_file)[VERSION_DECLARATION, 1]
         version = next_version(current, level)
         rewrite(version_file) { |text| text.sub(%(VERSION = "#{current}"), %(VERSION = "#{version}")) }
         write_others(root, current, version, date)
@@ -58,7 +62,7 @@ module Hecks
 
       # @return [String] the changelog with the unreleased entries under a dated heading
       def heading(text, version, date)
-        text.sub(/^## \[Unreleased\][^\n]*\n/) { "## [Unreleased]\n\n## [#{version}] - #{date}\n" }
+        text.sub(UNRELEASED_HEADING) { "## [Unreleased]\n\n## [#{version}] - #{date}\n" }
       end
 
       # @return [void]

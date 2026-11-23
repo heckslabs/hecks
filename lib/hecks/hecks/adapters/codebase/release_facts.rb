@@ -15,8 +15,8 @@ module Hecks
       # It reads the branch, the lane a release is cut from (the `Lane` row that feeds a tag),
       # whether `HEAD` is that lane's `origin/` branch (after a fetch), whether the tree is
       # clean, the gem's version and the client package's, whether the changelog has a heading for
-      # the version, and where a tag for the version already points. Nothing is changed but the remote-tracking
-      # refs a fetch updates.
+      # the version, and where a tag for the version already points. Nothing is changed but the
+      # remote-tracking refs a fetch updates.
       class ReleaseFacts
         # The line of `lib/hecks/version.rb` that declares the version.
         VERSION_LINE = /^\s*VERSION\s*=\s*"(?<version>[^"]+)"/

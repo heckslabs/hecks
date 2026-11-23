@@ -7,13 +7,13 @@ require_relative "main_integration/release_cut_mark"
 
 module Hecks
   module Adapters
-    # The `Cutting` port's adapter for `NextRelease`: writes the bump of the version as one commit on
-    # local main and boards it through the push train. Nothing is tagged or published here;
+    # The `Cutting` port's adapter for `NextRelease`: writes the bump of the version as one commit
+    # on local main and boards it through the push train. Nothing is tagged or published here;
     # `release.yml` does that from `stable` once the bump has been promoted.
     #
     # It refuses a checkout that is not clean, not on `main`, or not level with `origin/main`, and
-    # remembers the commit it made (`MainIntegration::ReleaseCutMark`) so the boarding guard lets the
-    # version change through.
+    # remembers the commit it made (`MainIntegration::ReleaseCutMark`) so the boarding guard
+    # lets the version change through.
     class ReleaseCutting
       # The trailers that say who made the commit, as the push train asks of every commit.
       RUN_TRAILER = "Hecks-Run: release-cut"
@@ -48,7 +48,8 @@ module Hecks
       private
 
       def ready!
-        raise ConsoleCapture::Failure, "the checkout is not on main" unless git!("rev-parse", "--abbrev-ref", "HEAD").strip == "main"
+        branch = git!("rev-parse", "--abbrev-ref", "HEAD").strip
+        raise ConsoleCapture::Failure, "the checkout is not on main" unless branch == "main"
         raise ConsoleCapture::Failure, "the checkout is not clean" unless git!("status", "--porcelain").strip.empty?
 
         git!("fetch", "origin", "main")

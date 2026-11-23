@@ -714,10 +714,8 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  # The outside the next release is read from: git's view of `origin/stable` (the changes no tag covers,
-  # the age of the oldest, whether a bump waits for its tag, whether a change added a concept or carries
-  # a translation edge) and the soak settings of the `stable` `Lane` row. The clock is read there, never
-  # in the bluebook. It judges nothing; a checkout git cannot read is refused by name.
+  # The outside the next release is read from: git's view of origin/stable and the soak settings of
+  # the `stable` `Lane` row, with the clock read there and never in the bluebook. It judges nothing.
   Hecks::NextRelease.port "Surveying" do
     asks "Survey", to: NextRelease do
       attribute :run, CutKey
@@ -726,8 +724,7 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  # The outside that writes the bump of the version as one commit on local main and boards it through the
-  # push train. It refuses a checkout that is not clean, not on main or not level with origin/main.
+  # The outside that writes the bump as one commit on local main and boards it through the push train.
   Hecks::NextRelease.port "Cutting" do
     asks "Bump", to: NextRelease do
       attribute :run,   CutKey

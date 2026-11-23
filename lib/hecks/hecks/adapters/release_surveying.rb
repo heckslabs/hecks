@@ -24,6 +24,9 @@ module Hecks
 
       SECONDS_A_DAY = 86_400
 
+      # Where `lib/hecks/version.rb` declares the version.
+      VERSION_DECLARATION = /VERSION = "([^"]+)"/
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `root:` the checkout, `clock:` a call giving the seconds, `commands:`
       #   as `Release::Runner::Commands` runs processes
@@ -75,7 +78,7 @@ module Hecks
 
       def bump_pending?(tip)
         text = @git.read("show", "#{tip}:lib/hecks/version.rb")
-        version = text[/VERSION = "([^"]+)"/, 1]
+        version = text[VERSION_DECLARATION, 1]
         !@git.capture("rev-parse", "-q", "--verify", "refs/tags/v#{version}").success?
       end
 

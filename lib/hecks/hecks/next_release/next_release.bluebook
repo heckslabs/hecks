@@ -2,16 +2,8 @@ Hecks.bluebook "Hecks" do
   domain_module "NextRelease" do
     vision "A release cuts itself: once the oldest change stable holds that no tag covers has soaked, the next version is bumped."
 
-    # One look, on a promotion to stable or a beat of the clock, at whether the next release is due
-    # (ADR 0221). The `Surveying` port reads the facts (how many changes no tag covers, the age in
-    # whole days of the oldest, whether a bump already waits for its tag, whether a change added a
-    # concept or carries a translation edge, and the soak settings of the `stable` `Lane` row); the
-    # policies below compare them. The level is the highest among the changes: a translation edge
-    # makes it major and waits `major_soak_days`, a new concept makes it minor, anything else is a
-    # patch, and both of those wait `soak_days`. The `Cutting` port writes the bump as one commit
-    # through the train; `release.yml` tags and publishes it from `stable`.
     aggregate "NextRelease" do
-      description "One look at whether stable's oldest unreleased change has soaked, and the cut of the next version when it has."
+      description "One look, on a promotion or a beat, at whether stable's oldest unreleased change has soaked, and the cut of the next version (ADR 0221) when it has."
 
       attribute :run,             CutKey
       attribute :unreleased,      Count, optional: true
