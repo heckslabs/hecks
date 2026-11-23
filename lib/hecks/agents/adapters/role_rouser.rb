@@ -56,6 +56,17 @@ module Hecks
         { recipient: { value: role } }
       end
 
+      # Whether any session holds the role, so a fallback to a role nobody holds is spent once.
+      #
+      # @param recipient [Hash, String] the role the message is addressed to
+      # @return [Hash{Symbol => Object}] `recipient:` the role, passed back for the policy
+      # @raise [Unreachable] naming the role no session holds
+      def holds(recipient:, **)
+        role = recipient.is_a?(Hash) ? recipient[:value].to_s : recipient.to_s
+        holder(role) or raise Unreachable, "no session holds the role #{role}"
+        { recipient: { value: role } }
+      end
+
       private
 
       def holder(role)
