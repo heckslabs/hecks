@@ -12,7 +12,7 @@ module AgentRunResumeHelpers
     printf 'backgrounded · stand-in-session\\n'
   SH
 
-  # Gives the group a scratch directory holding the stand-in `claude`, first on the PATH.
+  # Gives the group a scratch directory holding the stand-in `claude`, first on the search path.
   def self.included(group)
     group.let(:scratch) { File.realpath(Dir.mktmpdir("agent-resume")) }
     group.around { |example| with_stand_in { example.run } }
