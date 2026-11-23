@@ -90,7 +90,7 @@ module Hecks
       # @param session [Hash, String] the run key, or a session id
       # @return [Hash{Symbol => Hash}] `report:` the seat woken in place, and `run:` its run key
       # @raise [ConsoleCapture::Failure] when no session holds the key or the wake was not in place
-      def wake(session:, **)
+      def awaken(session:, **)
         key = plain(session)
         { report: { value: @waking.wake(key) }, run: { value: @waking.holder(key)[:run] } }
       end

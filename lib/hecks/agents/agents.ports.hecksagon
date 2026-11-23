@@ -218,7 +218,7 @@ Hecks.hecksagon "Agents" do
       refuses "SessionWakeRefused"
     end
 
-    asks "Wake", to: Fleet do
+    asks "Awaken", to: Fleet do
       attribute :session, FleetSession
       answers "SessionWoken"
       refuses "SessionWakeRefused"
