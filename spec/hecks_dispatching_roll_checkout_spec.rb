@@ -43,9 +43,40 @@ RSpec.describe "a roll heard in a worktree" do
 
   it "fills with the main checkout as the repo, not the worktree it runs in" do
     allow(Hecks::Adapters::Dispatching::Launcher).to receive(:new).and_call_original
+    allow(checkout).to receive(:home).and_return(@main)
     allow(Dir).to receive(:pwd).and_return(@tree)
     rolling({}).roll
 
     expect(Hecks::Adapters::Dispatching::Launcher).to have_received(:new).with(@main, anything).at_least(:once)
+  end
+end
+
+RSpec.describe "a roll heard from another repository's directory" do
+  include RollForwardFixtures
+  include RollCheckoutFixtures
+
+  let(:checkout) { Hecks::Adapters::Dispatching::Checkout }
+  let(:launcher) { Hecks::Adapters::Dispatching::Launcher }
+
+  around do |example|
+    Dir.mktmpdir do |dir|
+      @elsewhere, = repository_with_worktree(dir)
+      example.run
+    end
+  end
+
+  before { Hecks::Adapters::Dispatching::LastRoll.reset! }
+
+  it "names the Hecks checkout from where its code lives" do
+    expect(checkout.home).to eq(checkout.main(File.expand_path("..", __dir__)))
+  end
+
+  it "fills into the Hecks checkout, not the repository the session stands in", :aggregate_failures do
+    allow(launcher).to receive(:new).and_call_original
+    allow(Dir).to receive(:pwd).and_return(@elsewhere)
+    rolling({}).roll
+
+    expect(launcher).to have_received(:new).with(checkout.home, anything).at_least(:once)
+    expect(launcher).not_to have_received(:new).with(@elsewhere, anything)
   end
 end
