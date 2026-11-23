@@ -2426,6 +2426,61 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  # A seat's place in the Agents event log: the id of the last event it has heard, so what is past it is
+  # unread. The Consumer shape of event_delivery.bluebook, kept here because the inbox hook reads it
+  # from agents.db with no boot and Agents does not attach EventDelivery.
+  aggregate "SeatCursor" do
+    description "One seat's cursor over the Agents event log: the position of the last event it has heard. A message addressed to the seat is unread while its event is past the cursor, and read once the cursor has moved over it."
+
+    identified_by :seat
+
+    attribute :seat, SeatKey
+    attribute :position, EventPosition
+
+    # The run key a session reads its inbox by.
+    value_object "SeatKey" do
+      attribute :value, String, matches: :present
+      invariant("a cursor belongs to a seat") { !value.to_s.empty? }
+    end
+
+    # The id of an event in the log; zero is before every event.
+    value_object "EventPosition" do
+      attribute :value, Integer, default: 0
+      invariant("a position is not negative") { !value.negative? }
+    end
+
+    command "Open" do
+      role "System"
+      goal "Start a seat's cursor at the newest event, so a seat reads from now and hears none of the past"
+
+      attribute :seat, SeatKey, sets: true
+      attribute :to, EventPosition
+
+      sets :position, to: :to
+
+      emits "SeatCursorOpened"
+    end
+
+    command "Advance" do
+      role "System"
+      goal "Move a seat's cursor over the messages its session was handed"
+
+      reference_to SeatCursor
+      attribute :to, EventPosition
+
+      given("a cursor never moves back") { to.value >= position.value }
+
+      sets :position, to: :to
+
+      emits "SeatCursorAdvanced"
+    end
+
+    query "All" do
+      description "Every seat's cursor, with the position it has read to."
+      order_by :seat
+    end
+  end
+
   # The spool a send appends to, taken a line at a time: each line becomes a Message, the ledger.
   # A replayed line is refused by its key, and a sender is trusted as written (stamped unverified).
   # See docs/findings/mail-spool-2026-11.md.
@@ -2537,10 +2592,24 @@ Hecks.bluebook "Agents" do
     # The line is sent as written; a duplicate key is refused by `Send`, so a replay adds nothing.
     policy "SendTheLine" do
       on      "MailSpool.MailLineRead"
-      where   { !message.value.to_s.empty? }
+      where   { !message.value.to_s.empty? && advance.value.to_s.empty? && open.value.to_s.empty? }
       trigger Message::Send, with: { message: :message, recipient: :recipient, sender: :sender,
                                      kind: :kind, body: :body, in_reply_to: :in_reply_to,
                                      asker_role: :asker_role }
+    end
+
+    # A mark line moves a seat's cursor; one the cursor already stands past is refused by `Advance`, a no-op.
+    policy "AdvanceTheSeat" do
+      on      "MailSpool.MailLineRead"
+      where   { !advance.value.to_s.empty? }
+      trigger SeatCursor::Advance, with: { seat: :advance, to: :to }
+    end
+
+    # A seat that had no cursor starts at the newest event its first mark names.
+    policy "OpenTheSeat" do
+      on      "MailSpool.MailLineRead"
+      where   { !open.value.to_s.empty? }
+      trigger SeatCursor::Open, with: { seat: :open, to: :to }
     end
 
     # The cursor moves once the line is taken, so a crash before it reads the line again.
