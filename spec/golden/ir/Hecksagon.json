@@ -285,6 +285,911 @@
       "acknowledgements": [
         {
           "finding": "no_command_surface",
+          "reason": "a clock is declared on the hecksagon; the command it dispatches does the changing",
+          "subject": null
+        }
+      ],
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "ClockName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "cron",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "CronExpression"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "zone",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "ZoneName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "every",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "Duration"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "at",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "Instant"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "dispatch",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "DispatchedCommand"
+        }
+      ],
+      "commands": [
+
+      ],
+      "created_by": null,
+      "description": "A driving adapter that dispatches one command on a schedule (ADR 0184). Declared in a hecksagon with exactly one trigger: `cron` (five fields, in UTC unless `zone:` names an IANA zone), `every` (a duration such as 15m or 1h) or `at` (one ISO-8601 instant). Its firing goes through the normal dispatch path, so the command's givens, role and governance apply, and is recorded with the source `clock`. A domain that declares clocks admits them with `driven_by \"Clock\"`.",
+      "entities": [
+
+      ],
+      "formerly_known_as": null,
+      "identified_by": [
+        "name.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": null,
+      "name": "Clock",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a clock is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ClockName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "value",
+                      "to_s",
+                      "split"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 5
+                }
+              },
+              "canonical": "value.to_s.split.size == 5",
+              "description": "a cron expression has five fields"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CronExpression"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a zone is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "ZoneName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "^[0-9]+[smhd]$",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Duration"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "an instant is given"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Instant"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "^[A-Za-z0-9_:]+\\.[A-Za-z0-9_]+$",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "DispatchedCommand"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "word",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Body",
+              "default": null,
+              "list": false,
+              "name": "body",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inner",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "opens",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": "",
+              "list": false,
+              "name": "resolves_via",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": "",
+              "list": false,
+              "name": "disambiguator",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "word",
+                "cron"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "cron"
+              ]
+            ],
+            [
+              [
+                "word",
+                "every"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "every"
+              ]
+            ],
+            [
+              [
+                "word",
+                "at"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "at"
+              ]
+            ],
+            [
+              [
+                "word",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "dispatch"
+              ]
+            ]
+          ],
+          "name": "KeywordSeed"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "keyword",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "named",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ArgumentKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "required",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::PairsShape",
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "variadic",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "blank_message",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "keyword",
+                "cron"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "cron"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "cron"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "zone"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "zone"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "every"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "every"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "at"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "at"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "dispatch"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "with"
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "with"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Clock"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "role"
+              ]
+            ]
+          ],
+          "name": "ArgumentSeed"
+        }
+      ]
+    },
+    {
+      "acknowledgements": [
+        {
+          "finding": "no_command_surface",
           "reason": "a port is declared on the hecksagon and exposes translations; the commands they trigger do the changing",
           "subject": null
         }
@@ -2311,6 +3216,32 @@
             [
               [
                 "word",
+                "clock"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Clock"
+              ],
+              [
+                "opens",
+                "Clock"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
                 "translates"
               ],
               [
@@ -2705,6 +3636,36 @@
               [
                 "keyword",
                 "translates"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "clock"
               ],
               [
                 "context",
