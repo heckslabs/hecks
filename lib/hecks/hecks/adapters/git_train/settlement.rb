@@ -16,7 +16,8 @@ module Hecks
       #
       # It works on the boarded branch only: the checkout must have it checked out and clean, and
       # it must still name the boarded commit. Its own commit names the ledger paths it wrote, so
-      # nothing staged is swept in. Landings during the drift checks leave the settled commit carried.
+      # nothing staged is swept in. A landing during the drift checks leaves the settled commit
+      # carried.
       #
       # A branch other than main is rebased onto its remote; only a ledger conflict is resolved
       # (the upstream copy is taken), and any other aborts the rebase by path.
