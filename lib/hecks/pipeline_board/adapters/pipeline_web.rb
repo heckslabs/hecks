@@ -4,6 +4,7 @@ require "tmpdir"
 require_relative "pipeline_stages"
 require_relative "pipeline_wiring"
 require_relative "pipeline_web/streaming"
+require_relative "pipeline_web/step_keys"
 require_relative "pipeline_web/actions"
 require_relative "pipeline_web/ended_run"
 require_relative "pipeline_web/stamped_stream"
@@ -104,9 +105,8 @@ module Hecks
         return [action, resumable(fields)] if action == "reply"
         return [action, discardable(fields)] if action == "discard"
         return [action, fields.merge(repo: @launcher_root)] if action == "review"
-        return [action, fields.merge(repo: @launcher_root, key: "plan-#{Time.now.to_i}")] if action == "plan"
 
-        [action, fields]
+        [action, PipelineBoard::StepKeys.fill(action, fields, @launcher_root)]
       end
 
       # A reply resumes the blocked session the page named, in the session's own directory. The
