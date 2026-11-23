@@ -105,8 +105,14 @@ RSpec.describe "the DSL surface is fully covered" do
       # spec/driving_adapters/driven_by_spec.rb. `revisions` is tested in
       # spec/hecksagon_revisions_spec.rb, and `inline_reactions` in
       # spec/hecksagon_inline_reactions_spec.rb.
+      # `clock` and `clocks` are tested in spec/driving_adapters/clock_spec.rb.
       %i[binds subscribe subscriptions port_impl attaches driven_by
-         attachments translates bounded method_missing revisions inline_reactions]
+         attachments translates bounded method_missing revisions inline_reactions clock clocks]
+    ],
+    "ClockBuilder"                => [
+      Hecks::Bluebook::DSL::ClockBuilder,
+      # Each word is tested in spec/driving_adapters/clock_spec.rb and clock_schedule_spec.rb.
+      %i[cron every at dispatch build]
     ],
     "ContextMapBuilder"           => [
       Hecks::Bluebook::DSL::ContextMapBuilder,

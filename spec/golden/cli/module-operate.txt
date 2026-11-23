@@ -19,6 +19,9 @@ commands:
     smoke_test!
     smoke_http!
     bootstrap_admin!
+  Clock:
+    …
+    run!
   Host:
     …
     check_era!
@@ -29,6 +32,10 @@ queries (nothing here changes anything):
     …
     follow
     feed
+  Clock:
+    …
+    next
+    launch_files
   Introspection:
     …
     ir

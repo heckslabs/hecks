@@ -301,6 +301,28 @@ account.ports.map(&:name)  # => ["RiskFeed"]
 account.ports.first.operations.map(&:hecks_name)  # => ["Flag"]
 ```
 
+## clock
+
+<!-- generated:begin word=clock -->
+`clock name do ... end` — opens a `Clock` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+A clock: a driving adapter that dispatches one command on a schedule (ADR 0184). The block names
+exactly one trigger (`cron`, `every` or `at`) and the command with `dispatch`; see the Clock
+reference page. The hecksagon admits it with `driven_by "Clock"`, or boot refuses it, naming the
+clock. Each clock runs in a process of its own, `hecks Clock.run! domain.value=<dir>
+clock.value=<name>`, and `hecks Clock.next domain.value=<dir>` says when each fires next.
+
+```ruby
+morning = Hecks::Bluebook::Clock.new(name: "Morning", trigger: :cron, expression: "30 6 * * *",
+                                     zone: "America/Phoenix", command: "Loan.OpenLoan")
+morning.command_name  # => "OpenLoan"
+```
+
 ## translates
 
 <!-- generated:begin word=translates -->

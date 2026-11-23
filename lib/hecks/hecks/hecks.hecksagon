@@ -117,6 +117,19 @@ Hecks.hecksagon "Hecks" do
     answers_query "Feed"
   end
 
+  # A clock runs in this process until it is stopped; the adapter boots the target domain and
+  # dispatches its clock's command at each tick (ADR 0184).
+  Hecks::Clock.port "ClockRunning" do
+    asks "RunClock", to: Clock do
+      attribute :run, ClockKey
+      answers "ClockRan"
+      refuses "ClockRefused"
+    end
+
+    answers_query "Next"
+    answers_query "LaunchFiles"
+  end
+
   Hecks::Operation.port "Terminal" do
     asks "Open", to: Operation do
       attribute :run, OperationKey
