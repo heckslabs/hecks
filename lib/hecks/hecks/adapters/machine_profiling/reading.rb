@@ -18,21 +18,36 @@ module Hecks
         FREE_PAGES = /Pages (?:free|inactive):\s+(\d+)/
 
         # @param run [#call] runs a command and answers its output, "" when it fails
-        def initialize(run: method(:shell))
+        # @param meminfo [String] the kernel's memory listing, read where `sysctl` has no answer
+        def initialize(run: method(:shell), meminfo: "/proc/meminfo")
           @run = run
+          @meminfo = meminfo
         end
 
         # @return [Hash{Symbol => Object}] the profile's measures and its fingerprint
         def facts
           perf = number("sysctl -n hw.perflevel0.physicalcpu", Etc.nprocessors)
           eff = number("sysctl -n hw.perflevel1.physicalcpu", 0)
-          memory = number("sysctl -n hw.memsize", 0) / 1_048_576
+          memory, free = memory_and_free
           { performance_cores: perf, efficiency_cores: eff, cores: perf + eff, memory_mb: memory,
-            free_memory_mb: free_memory(memory), free_disk_gb: free_disk,
-            fingerprint: "p#{perf}-e#{eff}-#{memory}" }.merge(UNMEASURED)
+            free_memory_mb: free, free_disk_gb: free_disk,
+            fingerprint: "p#{perf}-e#{eff}-#{memory.to_i}" }.merge(UNMEASURED)
         end
 
         private
+
+        # Memory and what is free of it, in megabytes; nil for each the machine does not say.
+        def memory_and_free
+          total = number("sysctl -n hw.memsize", 0) / 1_048_576
+          return [total, free_memory(total)] if total.positive?
+
+          listed = File.read(@meminfo)
+          [kilobytes(listed, "MemTotal"), kilobytes(listed, "MemAvailable")]
+        rescue SystemCallError
+          [nil, nil]
+        end
+
+        def kilobytes(listing, name) = listing[/^#{name}:\s+(\d+)/, 1]&.to_i&./(1024)
 
         def free_memory(memory)
           pages = @run.call("vm_stat")
