@@ -33,9 +33,7 @@ Hecks.bluebook "Clients" do
       attribute :value, String, matches: :present
     end
 
-    value_object "FileContent" do
-      attribute :value, String
-    end
+    value_object "FileContent", String
 
     # None, asked for, or created: no state says public, and a created repository is one the port
     # answered private.
