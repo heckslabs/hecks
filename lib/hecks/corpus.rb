@@ -75,6 +75,8 @@ module Hecks
       ci_workflows:   "lib/hecks/ci_workflows/*.bluebook",
       # The Interviews bluebook boots from its own directory beside its hecksagon (ADR 0194).
       interviews:     "lib/hecks/interviews/*.bluebook",
+      # The Clients bluebook boots from its own directory beside its hecksagon.
+      clients:        "lib/hecks/clients/*.bluebook",
       # The LiveDiscovery bluebook boots from its own directory beside its hecksagon.
       live_discovery: "lib/hecks/live_discovery/*.bluebook",
       # The StaffEngineer bluebook boots from its own directory beside its hecksagon.

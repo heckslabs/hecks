@@ -1,0 +1,13 @@
+# The ports Clients asks of the outside. The one ask names the question and never says how it is
+# answered: no adapter ships here, so until one is bound the answer is a refusal.
+Hecks.hecksagon "Clients" do
+  # Whether the client's repository is private. Asked before a repository is recorded created, so
+  # "never public" is a fact read at that moment and not a flag the domain stores.
+  Clients::Client.port "ClientRepo" do
+    asks "IsPrivate", to: Client do
+      attribute :name, Name
+      answers "RepoChecked"
+      refuses "RepoUnchecked"
+    end
+  end
+end

@@ -1,0 +1,147 @@
+# Clients: the people the owner works for, each with a private repo of its own and sometimes a board.
+# The bluebook keeps a link per client and nothing of the client's work or material, and it names an
+# Interview only by reference. It stands apart from the Hecks map.
+
+Hecks.bluebook "Clients" do
+  vision "A client has a name, a repository that exists only once it is answered private, and an optional board; an engagement ties it to an interview."
+
+  supporting
+
+  aggregate "Client" do
+    description "One client: its name, where its private repository stands, and the links to its repository and board."
+    created_by "Client.open!"
+
+    identified_by :name
+
+    attribute :name,  Name
+    attribute :repo,  RepoLink, optional: true
+    attribute :board, BoardLink, optional: true
+
+    value_object "Name" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "RepoLink" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "BoardLink" do
+      attribute :value, String, matches: :present
+    end
+
+    # None, asked for, or created: no state says public, and a created repository is one the port
+    # answered private.
+    lifecycle :status, default: "none" do
+      mark :rests, "none"
+      mark :terminal, "created"
+      transition "RequestRepo"       => "requested", from: "none"
+      transition "RecordRepoCreated" => "created",   from: "requested"
+      transition "RefuseRepo"        => "none",      from: "requested"
+    end
+
+    command "Open" do
+      role "Owner"
+      goal "Open a client by name, with no repository yet"
+
+      attribute :name, Name
+
+      emits "ClientOpened"
+    end
+
+    command "RequestRepo" do
+      role "Owner"
+      goal "Ask for the client's private repository, to be created once the owner says so"
+
+      reference_to Client
+
+      given("a repository is requested only while the client has none") { status == "none" }
+
+      emits "RepoRequested"
+    end
+
+    command "RecordRepoCreated" do
+      role "System"
+      policy_only
+      goal "Record the repository created, once it was answered private"
+
+      reference_to Client
+      attribute :repo, RepoLink, optional: true
+
+      given("a repository is created only after it was requested") { status == "requested" }
+
+      emits "RepoCreated"
+    end
+
+    command "RefuseRepo" do
+      role "System"
+      policy_only
+      goal "Drop the request: the repository was not answered private"
+
+      reference_to Client
+
+      emits "RepoRefused"
+    end
+
+    command "LinkBoard" do
+      role "Owner"
+      goal "Keep the link to the client's own board, where it has one"
+
+      reference_to Client
+      attribute :board, BoardLink
+
+      sets :board
+
+      emits "BoardLinked"
+    end
+  end
+
+  policy "AskIfTheRepoIsPrivate" do
+    on  "Client.RepoRequested"
+    ask :is_private, with: { name: :client }
+  end
+
+  policy "RecordThePrivateRepo" do
+    on      "Client.RepoChecked"
+    trigger Client::RecordRepoCreated, with: { client: :name }
+  end
+
+  policy "RefuseTheRepoNotPrivate" do
+    on      "Client.RepoUnchecked"
+    trigger Client::RefuseRepo, with: { client: :name }
+  end
+
+  aggregate "Engagement" do
+    description "One piece of work for a client, citing the interview that began it."
+    created_by "Engagement.begin!"
+
+    identified_by :reference
+
+    attribute :reference, Reference
+    reference_to Client
+    attribute :interview, InterviewRef
+
+    value_object "Reference" do
+      attribute :value, String, matches: :present
+    end
+
+    # The Interview, by its reference: the Interview keeps its own record, and Clients has no edge to it.
+    value_object "InterviewRef" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "begun" do
+      mark :terminal, "begun"
+    end
+
+    command "Begin" do
+      role "Owner"
+      goal "Begin an engagement for a client, citing its interview"
+
+      attribute :reference, Reference
+      reference_to Client
+      attribute :interview, InterviewRef
+
+      emits "EngagementBegun"
+    end
+  end
+end
