@@ -35,6 +35,10 @@ commands:
   Question:
     …
     escalate!
+  Responder:
+    …
+    switch_on!
+    switch_off!
 
 queries (nothing here changes anything):
   AgentRun:
