@@ -29,7 +29,8 @@ RSpec.describe "AgentRun closing a request nothing will act on" do
   it "closes a refused run past its age, with the reason", :aggregate_failures do
     expect(refused_run("c-old")[:status]).to eq("refused")
     expect(close("c-old", held: false)).to include("AgentRunClosed")
-    expect(store.find("c-old")).to include(status: "closed", refusal: "nothing will act on it")
+    closed = store.find("c-old")
+    expect([closed[:status], closed[:refusal].value]).to eq(["closed", "nothing will act on it"])
   end
 
   it "keeps a request whose work item is still planned and ranked" do
