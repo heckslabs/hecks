@@ -50,7 +50,9 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
     def lines(role) = guard.server_env(role: { value: role })[:text].lines.map(&:chomp)
 
     it "restricts the orchestrator to the commands of its rows the Hecks domain has", :aggregate_failures do
-      expect(lines("orchestrator")).to include("HECKS_SERVER_TOOLS=commands", "HECKS_SERVER_DOMAINS=lib/hecks/hecks")
+      expect(lines("orchestrator")).to include("HECKS_SERVER_TOOLS=commands")
+      expect(lines("orchestrator").grep(/HECKS_SERVER_DOMAINS=/).first.split("=").last.split(":"))
+        .to include("lib/hecks/hecks", "lib/hecks/tickets")
       expect(lines("orchestrator").last).to include("agent_run.check_all", "send_train.board")
     end
 

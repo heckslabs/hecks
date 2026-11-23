@@ -2,6 +2,7 @@ require_relative "../../runtime/errors"
 require_relative "../../storehouse/confinement"
 require_relative "mcp_scope/closed_role"
 require_relative "mcp_scope/launcher_door"
+require_relative "mcp_scope/domain_reach"
 
 module Hecks
   module Adapters
@@ -12,6 +13,7 @@ module Hecks
       class McpScope
         include ClosedRole
         include LauncherDoor
+        include DomainReach
 
         ENV_PREFIX         = "HECKS_SERVER_".freeze
         TOOLS_VARIABLE     = "HECKS_SERVER_TOOLS".freeze
@@ -130,8 +132,10 @@ module Hecks
         # @param args [Hash, nil] the arguments the caller gave it; see `admit_arguments!`
         # @raise [Runtime::TypeMismatch] when the command is not on the list or an argument is
         #   refused
-        def admit_command!(runtime, command, args = nil)
+        def admit_command!(runtime, command, args = nil, domain: nil)
           return unless commands_mode?
+
+          admit_command_domain!(domain)
 
           verbs = Storehouse.verbs_for(runtime, [command, *allowed_commands])
           unless verbs.first && verbs.drop(1).include?(verbs.first)
@@ -148,10 +152,10 @@ module Hecks
         # @param runtime [Runtime::Dispatcher] the booted domain
         # @param steps [Array<Hash>] the batch, each `{"command" => ..., "args" => ...}`
         # @raise [Runtime::TypeMismatch] when a step names a command off the list or a bad argument
-        def admit_steps!(runtime, steps)
+        def admit_steps!(runtime, steps, domain: nil)
           Array(steps).each do |step|
             step = {} unless step.is_a?(Hash)
-            admit_command!(runtime, step["command"], step["args"])
+            admit_command!(runtime, step["command"], step["args"], domain: domain)
           end
         end
 
@@ -168,14 +172,6 @@ module Hecks
           return unless restricted?
 
           ArgumentPolicy.admit!(args, mode_label, question)
-        end
-
-        # The one domain a restricted server serves, when it serves exactly one: a call may leave
-        # `domain:` out and get it. Nil for an unrestricted server and for one that names several.
-        #
-        # @return [String, nil] the domain path as `HECKS_SERVER_DOMAINS` named it, resolved
-        def default_domain
-          @allowed_domains.first if restricted? && @allowed_domains.size == 1
         end
 
         # The arguments with the default domain filled in when the caller left it out.
