@@ -59,6 +59,18 @@ RSpec.describe Hecks::Adapters::Sweeping::Orphans do
     expect(stopped(kept)).to eq([])
   end
 
+  it "keeps an editor, a grep and a tail that only name serve.rb", :aggregate_failures do
+    named = ["vim mockup/serve.rb", "grep serve.rb log", "tail -f serve.rb"]
+
+    expect(stopped(named.each_with_index.map { |c, i| entry(40 + i, late, c) })).to eq([])
+  end
+
+  it "stops a detached tick by its own pid, leaving what it runs" do
+    tick = entry(21, late, "exe/hecks Ticker.tick!", ppid: 1)
+
+    expect(stopped([tick, entry(26, late, "git", ppid: 21)])).to eq([21])
+  end
+
   it "stops only the stray's own pid, never its children" do
     kid = entry(26, late, "git status", ppid: 21)
 

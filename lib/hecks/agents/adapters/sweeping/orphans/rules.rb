@@ -21,7 +21,7 @@ module Hecks
           LAUNCHER = %r{\A(?:\S*/)?(?:bundle\s+exec\s+)?(?:ruby\s+(?:-\S+(?:\s+[^-\s]\S*)?\s+)*)?(?:\S*/)?exe/hecks(?:\s|\z)}
           # Launchers that run detached or for a long time on purpose: servers, the push train, the
           # QA and catcher ticks, a gate, a spec run, a landing and a wait on an event.
-          KEPT = /serve!|present!|compose!|preview!|\bmcp\b|mcp!|SendTrain|send_train|sweep\.tick|quality_control|
+          KEPT = /Ticker\.tick!|serve!|present!|compose!|preview!|\bmcp\b|mcp!|SendTrain|send_train|sweep\.tick|quality_control|
                   Operation\.(run|follow)|gate_run|run_impacted_specs|run_spec_|push_rehearsal|landing\.(land|finish|train)|
                   agent_?run\.check_all/ix
           # What a leftover launcher's children keep running: a session and a build are not stopped
