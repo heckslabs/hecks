@@ -17,7 +17,7 @@ RSpec.describe "the sprint's sized and spent pomodoros" do
                                                      pomodoros_spent: { value: spent })
   end
 
-  def read(name) = hecks.query("Tickets.#{name}").first[:items]
+  def read(name) = hecks.query("Tickets.#{name}").first[:works]
 
   before do
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { Hecks::Adapters::WorkAreas.new(registry: hecks.registry) }) do
