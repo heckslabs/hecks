@@ -655,6 +655,30 @@ Hecks.behaviors "Tickets" do
     expect status: "started", pomodoros: { value: 3 }
   end
 
+  test "Close asks the WorkSpend port, and a finished sized item shows its size beside what it spent" do
+    tests "Close", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sp1" }, title: { value: "Sized and run" }, pomodoros: { value: 3 }
+    input  work: { value: "sp1" }, no_change: { value: "a verify" }
+    expect status: "done", pomodoros: { value: 3 }, emits: ["WorkFinished", "SpendRead", "SpendRecorded"]
+  end
+
+  test "RecordSpend sets the pomodoros spent of a finished item and leaves its size" do
+    tests "RecordSpend", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sp2" }, title: { value: "Spent" }, pomodoros: { value: 2 }
+    input  work: { value: "sp2" }, pomodoros_spent: { value: 5 }
+    expect pomodoros: { value: 2 }, pomodoros_spent: { value: 5 }
+  end
+
+  test "RecordSpend replaces what a yield recorded with the sum over every run" do
+    tests "RecordSpend", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sp3" }, title: { value: "Yielded" }, pomodoros: { value: 2 }
+    setup  "Tickets::Work.Start", work: { value: "sp3" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
+    setup  "Tickets::Work.Yield", work: { value: "sp3" }, reason: { value: "area taken" }, pomodoros_spent: { value: 1 }
+    input  work: { value: "sp3" }, pomodoros_spent: { value: 4 }
+    expect pomodoros_spent: { value: 4 }
+  end
+
   test "Size refuses a done work item" do
     tests "Size", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "sz4" }, title: { value: "Over" }
