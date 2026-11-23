@@ -1,0 +1,52 @@
+Hecks.behaviors "MachineProfile" do
+  vision "A machine's profile is taken as facts, and the capacity settings are derived from it by declared formulas inside declared bounds."
+
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon", "environments/memory.world", modules: :all
+
+  test "Take records one machine profile" do
+    tests "Take", on: "Profile"
+    input run: "profile-1", fingerprint: "p8-e4-36864", performance_cores: 8, efficiency_cores: 4, cores: 12,
+          memory_mb: 36_864, free_memory_mb: 20_000, free_disk_gb: 400, resident_mb: 300, coder_mb: 900
+    expect emits: ["Taken"]
+  end
+
+  test "Derive answers one setting from the profile" do
+    tests "Derive", on: "Profile", kind: :query
+    input run: "profile-1", setting: "heavy_jobs"
+    expect count: 1
+  end
+
+  test "Take records a turn on a machine" do
+    tests "Take", on: "Turn"
+    input fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "the cold share held"
+    expect emits: ["TurnTaken"]
+  end
+
+  test "A turn is refused while the machine's previous turn awaits its verdict" do
+    tests "Take", on: "Turn"
+    setup  "Hecks::Turn.Take", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "first"
+    input fingerprint: "p8-e4-36864", setting: "spec_workers", before: "4", after: "5", reason: "second"
+    expect refused: "already exists"
+  end
+
+  test "A turn that held is kept as a correction" do
+    tests "Keep", on: "Turn"
+    setup  "Hecks::Turn.Take", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "first"
+    input fingerprint: "p8-e4-36864", factor: 1.5, kept_on: "2026-11-22"
+    expect emits: ["TurnKept"]
+  end
+
+  test "A turn that hurt is reverted" do
+    tests "Revert", on: "Turn"
+    setup  "Hecks::Turn.Take", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "first"
+    input fingerprint: "p8-e4-36864"
+    expect emits: ["TurnReverted"]
+  end
+
+  test "A correction outside its range is refused" do
+    tests "Keep", on: "Turn"
+    setup  "Hecks::Turn.Take", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "first"
+    input fingerprint: "p8-e4-36864", factor: 9.0, kept_on: "2026-11-22"
+    expect refused: "factor"
+  end
+end

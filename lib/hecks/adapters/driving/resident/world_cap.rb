@@ -1,3 +1,5 @@
+require "hecks/hecks/adapters/machine_profiling"
+
 module Hecks
   module Adapters
     module Driving
@@ -25,6 +27,9 @@ module Hecks
             end
             nil
           end
+
+          # @return [Integer, nil] the `residents` the machine's profile derives, nil when none
+          def derived = Hecks::Adapters::MachineProfiling.of("residents")
 
           # @return [Integer, nil] the cap a world file's `resident` line declares
           def declared(path)
