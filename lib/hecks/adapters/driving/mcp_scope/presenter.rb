@@ -85,7 +85,9 @@ module Hecks
              "of only #{COMMANDS_VARIABLE}: #{commands.join(", ")}; refuses behaviors and every other tool.",
              "run reads the list across the attached bluebooks and refuses a command that declares confirm; " \
              "dispatch reads it against the domain's own bluebook only.",
-             "domain: boots only #{DOMAINS_VARIABLE}: #{domains.join(", ")}.",
+             "domain: boots only #{DOMAINS_VARIABLE}: #{domains.join(", ")}, and the directories directly " \
+             "under them for reads; a read of a bluebook the home domain attaches answers from the home " \
+             "domain's kept rows, and dispatch runs only in the Hecks domain.",
              "Commands mode limits reach and identifies no one; role: stays self-asserted and it is not authentication."]
           end
         end

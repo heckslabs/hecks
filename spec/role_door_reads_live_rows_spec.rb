@@ -17,7 +17,7 @@ RSpec.describe "a role's hecks door reading kept rows" do
   end
 
   it "answers the kept Tenant row through a declared query" do
-    text = door_answer("query", { "domain" => "lib/hecks/tenancy", "question" => "active", "summary" => "proof" })
+    text = door_answer("query", { "domain" => "lib/hecks/tenancy", "question" => "tenant.active", "summary" => "proof" })
     expect(text).to include(RoleDoorKeptCheckout::SLUG)
   end
 
