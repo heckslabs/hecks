@@ -4,7 +4,7 @@ require_relative "../../support/persistence_adapter_examples"
 
 # The shared `events` table of a Sqlite database, compacted past a window: the oldest events are
 # dropped while every follower's count position stays where it was.
-RSpec.describe Hecks::Adapters::Sqlite, "event compaction" do
+RSpec.describe Hecks::Adapters::Sqlite, "#compact_events!" do
   include_context "with the Pizzas Order adapter helpers"
 
   around do |example|
