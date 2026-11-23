@@ -99,6 +99,14 @@ Hecks.hecksagon "Agents" do
       answers "MessageWoken"
       refuses "WakeUnreachable"
     end
+
+    # The unread fallback: resumes an idle holder through Claude messaging; a working one is refused by name.
+    asks "Resume", to: Message do
+      attribute :message, MessageKey
+      attribute :now, MessageInstant
+      answers "MessageResumed"
+      refuses "WakeUnreachable"
+    end
   end
 
   # Which paths a submitted branch changed against main, read in its checkout. Bound by
