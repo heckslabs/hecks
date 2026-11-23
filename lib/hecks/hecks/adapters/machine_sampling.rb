@@ -66,11 +66,16 @@ module Hecks
         marks = Marks.of(@registry)
         refuse_a_repeat(marks[:interval], held)
         gauges = metered(@readings.call).merge(niced: @niceness.call)
-        states = States.new(gauges, marks, History.new(@registry).states).to_h
+        states = States.new(judged(gauges), marks, History.new(@registry).states).to_h
         gauges.merge(states, CapBounds.of(@registry), taken_at: @stamp.call)
       end
 
       private
+
+      # The gauges the states are judged on: with Roundhouse's load the one recorded, the load alone
+      # decides the load state, rise and fall alike, so the CPU's idle share cannot hold a load that
+      # has fallen under its low mark above it. The recorded gauges keep `cpu_idle`.
+      def judged(gauges) = gauges[:source] == "roundhouse" ? gauges.merge(cpu_idle: nil) : gauges
 
       # The machine's gauges, the load read as the `load_average` dial names.
       def gauges = Readings.new(minutes: LoadAverage.minutes(@registry)).call
