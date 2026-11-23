@@ -13,6 +13,7 @@ commands:
     backfill_projections!
     compact!
     compact_heki!
+    compact_events!
     write_translation!
     reconcile!
     mint_held!
