@@ -1,0 +1,44 @@
+# A bounded step: `increment:` or `decrement:` with `clamp: [min, max]` is one write, whose
+# result is the current value moved by the step, then held inside the range.
+Hecks.bluebook "BoundedStep" do
+  vision "A weight moves by a step in one write and never leaves its range of 0 to 100."
+
+  aggregate "Memory" do
+    description "A memory whose weight grows when recalled and fades with time."
+    attribute :label,  Label
+    attribute :weight, Weight
+    identified_by :label
+
+    value_object("Label")  { attribute :value, String }
+    value_object("Weight") { attribute :value, Integer }
+
+    command "Create" do
+      attribute :label,  Label
+      attribute :weight, Weight
+      sets :label
+      sets :weight
+      emits "MemoryCreated"
+    end
+
+    command "Recall" do
+      reference_to Memory
+      attribute :gain, Weight
+      sets :weight, increment: :gain, clamp: [0, 100]
+      emits "MemoryRecalled"
+    end
+
+    command "Fade" do
+      reference_to Memory
+      attribute :step, Weight
+      sets :weight, decrement: :step, clamp: [0, 100]
+      emits "MemoryFaded"
+    end
+
+    command "Surge" do
+      reference_to Memory
+      attribute :gain, Weight
+      sets :weight, increment: :gain
+      emits "MemorySurged"
+    end
+  end
+end
