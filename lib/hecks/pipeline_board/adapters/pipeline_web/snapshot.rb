@@ -4,6 +4,7 @@ require "time"
 require "json"
 require "digest"
 require_relative "../board_restart"
+require_relative "../read_pace"
 require_relative "../load_guard"
 require_relative "../load_history"
 require_relative "../pipeline_stages/standing_since"
@@ -35,7 +36,7 @@ module Hecks
         def self.kept_small(source:, registry:, settings:)
           limits = BoardRestart.limits(registry)
           restart = settings.fetch(:restart) { BoardRestart.new(limits: limits) }
-          new(source: source, background: settings.fetch(:background, true), every: limits[:refresh_seconds],
+          new(source: source, background: settings.fetch(:background, true), every: limits[:refresh_seconds], read_duty: limits[:read_duty],
               after_read: restart.method(:check), loaded_every: limits[:loaded_refresh_seconds],
               stand: standing(registry, settings.fetch(:load_guard, true)))
         end
@@ -67,7 +68,10 @@ module Hecks
         #   board grown too large; `loaded_every:` is the seconds between reads while the machine
         #   is loaded (`every` when none is given); `stand:` answers the load guard, or nil, when
         #   the snapshot starts; `wait:` stands in for the sleep that holds a loaded machine's read
-        def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, **pace)
+        # @param read_duty [Numeric] the share of time reading may take; a costlier read is followed
+        #   by a longer rest (see {ReadPace})
+        def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, read_duty: 0, **pace)
+          @read_pace = ReadPace.new(duty: read_duty, every: every)
           @source = source
           @every = every
           @pace = { loaded_every: every }.merge(pace.compact)
@@ -118,7 +122,9 @@ module Hecks
 
         def refresh_forever
           loop do
+            began = monotonic
             read_once
+            @cost = monotonic - began
             after_read_once
             rest
           end
@@ -129,8 +135,15 @@ module Hecks
         def rest
           began = monotonic
           @wake.pop(timeout: @every)
-          left = @pace[:loaded_every] - (monotonic - began)
-          @pace.fetch(:wait) { method(:sleep) }.call(left) if left.positive? && @guard&.loaded?
+          left = rest_floor - (monotonic - began)
+          @pace.fetch(:wait) { method(:sleep) }.call(left) if left.positive?
+        end
+
+        # The least rest this read is owed: the loaded period while the machine is loaded, or what
+        # the read's cost asks, whichever is longer.
+        def rest_floor
+          loaded = @guard&.loaded? ? @pace[:loaded_every] : 0
+          [loaded, @read_pace.rest_floor(@cost.to_f)].max
         end
 
         def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
