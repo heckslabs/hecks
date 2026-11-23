@@ -2,10 +2,8 @@ Hecks.bluebook "Messaging" do
   vision "A message tells a recipient something, hangs on whatever carries it, and is heard once."
   supporting
 
-  # What a message means, apart from how it is delivered: delivery is a hecksagon's adapter (a
-  # session, a stream), and the windows and budgets that time it are the attaching app's dials,
-  # given as command arguments with these defaults. An app attaches this member and sends the
-  # kinds and channels it declares here; its own kinds are a follow-up.
+  # Delivery is a hecksagon's adapter; the windows and budgets that time it are the app's
+  # dials, given as command arguments. An app sends the kinds and channels declared here.
   aggregate "Message" do
     description "One message from a sender to a recipient: sent, heard once, then read so an inbox clears itself. It may hang on what carries it, such as a Work item or an order. It grants no approval and changes no permission."
 
