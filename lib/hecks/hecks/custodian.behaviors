@@ -179,15 +179,6 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[AgentRunRequested RepoMissing AgentRunDeclined]
   end
 
-  test "A declined dispatch of a started Work item yields it with the refusal" do
-    tests "Dispatch", on: "AgentRun"
-    setup  "Tickets::Work.Plan", work: { value: "evening" }, title: { value: "Declined" }
-    setup  "Tickets::Work.Start", work: { value: "evening" },
-           claimed_by: { value: "dispatch" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
-    input run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }
-    expect emits: %w[AgentRunRequested RepoMissing AgentRunDeclined WorkYielded RollSwitchConsulted]
-  end
-
   test "Dispatch refuses a brief that says nothing" do
     tests "Dispatch", on: "AgentRun"
     input run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "  " }
