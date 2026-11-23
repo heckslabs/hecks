@@ -120,6 +120,14 @@ RSpec.describe "the expedite lane" do
     expect([plan.chosen.map(&:key), plan.skipped.map(&:key)]).to eq([%w[hot], %w[x]])
   end
 
+  it "starts an expedited item under a load limit above the CPU count, and holds it over that limit" do
+    hot = [item("hot", "expedite")]
+    under = dispatch(hot, [], load: 14.0, max_load: 16.0)
+    over = dispatch(hot, [], load: 16.5, max_load: 16.0)
+
+    expect([under.chosen.map(&:key), over.skipped.map(&:reason)]).to eq([%w[hot], ["skipped: load 16.5 > 16.0"]])
+  end
+
   it "holds an expedited item over the CPU count" do
     plan = dispatch([item("hot", "expedite")], [], load: 12.5)
 
