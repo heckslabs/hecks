@@ -1339,6 +1339,20 @@ Hecks.bluebook "Tickets" do
       emits "WorkOrdered"
     end
 
+    # An open work item already planned is sized, or sized again: Plan sets the pomodoros only when the
+    # item is entered, so this is how an existing item takes a new size. The spent rounds stay as they are.
+    command "Size" do
+      role "Maintainer"
+      goal "Say how many pomodoros an open work item is sized at, replacing any size it had"
+
+      reference_to Work
+      attribute :pomodoros, Pomodoros, sets: true
+
+      given("a done or dropped work item takes no size") { status != "done" && status != "dropped" }
+
+      emits "WorkSized"
+    end
+
     # A started work item is claimed: the second Start on it is refused, since only a planned one
     # starts.
     command "Start" do
