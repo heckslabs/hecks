@@ -1513,6 +1513,18 @@ Hecks.bluebook "Tickets" do
       emits "WorkFinished"
     end
 
+    # The pomodoros an item's runs spent, set when it finishes: the WorkSpend port sums every run of the
+    # item (a yielded run too), so this replaces what `Yield` or `Release` recorded by hand.
+    command "RecordSpend" do
+      role "System"
+      goal "Record the pomodoros spent on a finished work item, as the WorkSpend port read them from its runs"
+
+      reference_to Work
+      attribute :pomodoros_spent, Pomodoros, sets: true
+
+      emits "SpendRecorded"
+    end
+
     command "Drop" do
       role "Maintainer"
       goal "Set a work item aside without doing it, with the reason"
@@ -1737,6 +1749,18 @@ Hecks.bluebook "Tickets" do
     on       "Work.WorkScheduled"
     for_each "Sprint.ClosedOf"
     trigger  Work::Unschedule, with: { work: :work, from: :into }
+  end
+
+  # A finished item asks the WorkSpend port for the pomodoros its runs spent, 25 minutes a round. An
+  # unreadable spend (SpendUnread) fails open, deliberately: `pomodoros_spent` stays as it was.
+  policy "ReadSpendWhenWorkFinished" do
+    on  "Work.WorkFinished"
+    ask :read_spend, with: { work: :work }
+  end
+
+  policy "RecordSpendWhenSpendRead" do
+    on      "Work.SpendRead"
+    trigger Work::RecordSpend, with: { work: :work, pomodoros_spent: :pomodoros_spent }
   end
 
   # A member closing asks the EpicMembers port whether its epic has a member and none open. An item
