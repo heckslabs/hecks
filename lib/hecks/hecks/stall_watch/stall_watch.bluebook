@@ -589,6 +589,32 @@ Hecks.bluebook "Hecks" do
 
         emits StallAbandoned
       end
+
+      value_object "AskedRun", String
+      value_object "AskedText", String
+
+      # The fact that a blocked run's question is a false stall: its stall is closed. Recorded for
+      # the responder of the false-stall family to answer.
+      command "Confirm" do
+        role "System"
+        goal "Record that a run blocked on a question about a stall that was already closed"
+
+        reference_to Stall
+        attribute :run,  AskedRun
+        attribute :text, AskedText
+
+        given("the stall was closed with a reason") { reason != nil && !reason.value.to_s.empty? }
+
+        emits StallConfirmed
+      end
+
+      # The stall a run fixes, when it was closed because its run ended or its subject settled: the fact
+      # that makes a block on it a false stall. A stall not closed has no reason yet.
+      query "SettledOfRun" do
+        description "The closed stall whose key is the run that fixes it, with the reason it was closed, when there is one."
+        attribute :run, String
+        where(stall: :run, reason: { ne: "" })
+      end
     end
 
     # One call to the scrum master for one impediment, keyed by the impediment: the evidence its run

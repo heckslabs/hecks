@@ -27,7 +27,7 @@ Hecks.behaviors "Delegate" do
   test "Admit refuses a responder that is switched off" do
     tests "Admit", on: "Responder"
     setup  "Hecks::Responder.Declare", family: { value: "false-stall" }, spacing: { value: 5 }
-    input  family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "[choose] A or B?" }, now: { value: 100 }
+    input  family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "[choose] A or B?" }, answer: { value: "a" }, now: { value: 100 }
     expect refused: "switched on"
   end
 
@@ -36,7 +36,7 @@ Hecks.behaviors "Delegate" do
     setup  "Hecks::Responder.Declare", family: { value: "false-stall" }, spacing: { value: 5 }
     setup  "Hecks::Responder.RecordReplay", family: { value: "false-stall" }
     setup  "Hecks::Responder.SwitchOn", family: { value: "false-stall" }
-    input  family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "[owner] Release?" }, now: { value: 100 }
+    input  family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "[owner] Release?" }, answer: { value: "a" }, now: { value: 100 }
     expect refused: "owner"
   end
 
@@ -45,7 +45,7 @@ Hecks.behaviors "Delegate" do
     setup  "Hecks::Responder.Declare", family: { value: "false-stall" }, spacing: { value: 5 }
     setup  "Hecks::Responder.RecordReplay", family: { value: "false-stall" }
     setup  "Hecks::Responder.SwitchOn", family: { value: "false-stall" }
-    input  family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "[choose] A or B?" }, now: { value: 100 }
+    input  family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "[choose] A or B?" }, answer: { value: "a" }, now: { value: 100 }
     expect emits: ["ResponderAdmitted"]
   end
 
@@ -54,8 +54,8 @@ Hecks.behaviors "Delegate" do
     setup  "Hecks::Responder.Declare", family: { value: "false-stall" }, spacing: { value: 5 }
     setup  "Hecks::Responder.RecordReplay", family: { value: "false-stall" }
     setup  "Hecks::Responder.SwitchOn", family: { value: "false-stall" }
-    setup  "Hecks::Responder.Admit", family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "q" }, now: { value: 100 }
-    input  family: { value: "false-stall" }, run: { value: "stall-x-2" }, text: { value: "q" }, now: { value: 102 }
+    setup  "Hecks::Responder.Admit", family: { value: "false-stall" }, run: { value: "stall-x-1" }, text: { value: "q" }, answer: { value: "a" }, now: { value: 100 }
+    input  family: { value: "false-stall" }, run: { value: "stall-x-2" }, text: { value: "q" }, answer: { value: "a" }, now: { value: 102 }
     expect refused: "spacing"
   end
 end

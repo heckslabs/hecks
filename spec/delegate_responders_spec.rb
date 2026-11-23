@@ -42,12 +42,10 @@ RSpec.describe "a blocked run's question a fact decides" do
       expect(open_questions).not_to include(fixer)
     end
 
-    it "answers no second question inside its spacing", :aggregate_failures do
-      %w[stall-a-1 stall-a-2].each { |run| settle(run) }
-      orchestrator_blocked_on("stall-a-1", "board fails to load")
-      orchestrator_blocked_on("stall-a-2", "board fails to load")
-      expect(answerers("stall-a-1")).to be_empty
-      expect(answerers("stall-a-2").size).to eq(1)
+    it "answers no second question inside its spacing" do
+      settle(fixer)
+      orchestrator_blocked_on(fixer, "board fails to load in this checkout")
+      expect(admit_refusal("false-stall", Time.now.to_i + 1)).to include("spacing")
     end
   end
 
@@ -60,6 +58,6 @@ RSpec.describe "a blocked run's question a fact decides" do
 
   it "refuses to switch on a responder whose replay has not matched" do
     declare("false-stall")
-    expect(switch_on_refusal("false-stall")).to match(/replay/)
+    expect(switch_on_refusal("false-stall")).to include("replay")
   end
 end
