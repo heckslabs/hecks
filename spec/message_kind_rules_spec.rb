@@ -4,7 +4,7 @@ require "spec_helper"
 # it wakes: declared as rows of the Message aggregate in the Agents bluebook.
 
 RSpec.describe "message channels and kind rules" do
-  let(:kinds) { %w[help question answer check-in report stand-down owner] }
+  let(:kinds) { %w[help question answer check-in report stand-down owner person] }
   let(:root) { File.join(InMemoryDomain::ROOT, "lib/hecks/agents") }
   let(:message) { Hecks.describe(root).registry.bluebooks.fetch("Agents").aggregates.find { |a| a.hecks_name == "Message" } }
 
