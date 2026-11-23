@@ -1950,6 +1950,14 @@ Hecks.bluebook "Tickets" do
     ask     :check_cap, with: { work: :work }
   end
 
+  # A started work item whose session was declined holds a place for nothing, so it goes back to the
+  # plan at once with the refusal. The run is keyed by the work item; a run no work item keys, or an
+  # item no longer started, refuses the yield and nothing changes.
+  policy "YieldWhenItsRunIsDeclined" do
+    on      "AgentRun.AgentRunDeclined"
+    trigger Work::Yield, with: { work: :run, reason: :refusal }
+  end
+
   policy "YieldWhenCapReached" do
     on      "Work.CapRefused"
     trigger Work::Yield, with: { reason: :refusal }

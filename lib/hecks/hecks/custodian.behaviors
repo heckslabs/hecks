@@ -185,7 +185,7 @@ Hecks.behaviors "Custodian" do
     setup  "Tickets::Work.Start", work: { value: "evening" },
            claimed_by: { value: "dispatch" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     input run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }
-    expect emits: %w[AgentRunRequested RepoMissing AgentRunDeclined WorkYielded]
+    expect emits: %w[AgentRunRequested RepoMissing AgentRunDeclined WorkYielded RollSwitchConsulted]
   end
 
   test "Dispatch refuses a brief that says nothing" do
