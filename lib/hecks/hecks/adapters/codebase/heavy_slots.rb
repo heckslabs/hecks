@@ -4,6 +4,7 @@ require "fileutils"
 require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
+require "hecks/hecks/adapters/machine_profiling"
 require_relative "heavy_commands"
 require_relative "holder_mark"
 require_relative "memory_wait"
@@ -35,7 +36,7 @@ module Hecks
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
 
-        # The cap when the world names none: the number `tickets.world` sets.
+        # The cap when neither the world nor the machine's profile names one.
         DEFAULT_CAP = 3
 
         # The environment variable a holder sets for the children it starts.
@@ -62,9 +63,10 @@ module Hecks
         #   the gates the signal fits inside it while the signal drives
         def self.cap_of(root, signal: PressureSignal.at_root(root)) = PressureSignal.places(signal, declared_cap(root))
 
-        # @param root [String] a hecks checkout
-        # @return [Integer] the cap its Tickets world's `heavy_jobs` line sets, else `DEFAULT_CAP`
-        def self.declared_cap(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:cap] || DEFAULT_CAP)
+        # @param dir [String] a hecks checkout
+        # @return [Integer] the cap its Tickets world's `heavy_jobs` line sets (the owner's
+        #   override), else the one the machine's profile derives, else `DEFAULT_CAP`
+        def self.declared_cap(dir) = Integer(RustBuild::WorldRows.row(dir, VERB)[:cap] || MachineProfiling.of(VERB, DEFAULT_CAP))
 
         # Runs a job of a checkout in a place and names any wait at the top of its report.
         #

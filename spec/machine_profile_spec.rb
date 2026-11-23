@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "support/machine_profiles"
 require "hecks/hecks/adapters/machine_profiling"
 
 # The capacity settings derived from a machine profile: the same profile gives the same defaults, a

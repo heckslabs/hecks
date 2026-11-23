@@ -2,6 +2,7 @@
 
 require "etc"
 require "hecks/rust_build/world_rows"
+require "hecks/hecks/adapters/machine_profiling"
 
 module Hecks
   module Adapters
@@ -15,7 +16,7 @@ module Hecks
         # The variable the parallel gem reads for its worker count.
         WORKERS = "PARALLEL_PROCESSOR_COUNT"
 
-        # The cap when the world names none: the number `tickets.world` sets.
+        # The cap when neither the world nor the machine's profile names one.
         DEFAULT_MAX = 6
 
         module_function
@@ -37,8 +38,9 @@ module Hecks
         end
 
         # @param root [String] a hecks checkout
-        # @return [Integer] the cap its Tickets world's `spec_workers` line sets, else `DEFAULT_MAX`
-        def max_of(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:max] || DEFAULT_MAX)
+        # @return [Integer] the cap its Tickets world's `spec_workers` line sets (the owner's
+        #   override), else the one the machine's profile derives, else `DEFAULT_MAX`
+        def max_of(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:max] || MachineProfiling.of(VERB, DEFAULT_MAX))
       end
     end
   end

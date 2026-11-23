@@ -25,8 +25,8 @@ module Hecks
           # (`ENVIRONMENTS`, and one more per value a line brings, named to the resident), so it
           # never refuses a line.
           PER_LINE = %w[HECKS_ENVIRONMENT].freeze
-          # The world's defaults when it declares no `resident` line.
-          DEFAULTS = { idle_seconds: 600.0, worktree_idle_seconds: 120.0, max_residents: Crowd::DEFAULT_CAP.to_f,
+          # The world's defaults when it declares no `resident` line; the cap is the machine's.
+          DEFAULTS = { idle_seconds: 600.0, worktree_idle_seconds: 120.0, max_residents: Crowd.derived_cap.to_f,
                        ready_wait_ms: 400.0, workers: 8.0 }.freeze
           # Settings with no default: a world that does not declare one leaves it unset.
           # `line_seconds` is how long a line may run before the resident ends it ({LineLimit}).
