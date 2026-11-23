@@ -34,3 +34,9 @@ Hecks.hecksagon "EventDelivery" do
   attaches "Governance"
   persisted_by "Memory"
 end
+
+Hecks.hecksagon "Messaging" do
+  # Every command declares a role; same reason as Compliance.
+  attaches "Governance"
+  persisted_by "Memory"
+end
