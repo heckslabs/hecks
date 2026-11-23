@@ -33,6 +33,29 @@ Hecks.behaviors "Clients" do
     expect refused: "a repository is created only after it was requested"
   end
 
+  # A write waits for the port's answers, so a behaviors run shows only the guard: no file is written
+  # to a repository that was not created. The privacy check and the finding are the port spec's.
+  test "a file is not written to a repository that was never created" do
+    tests "WriteRepoFile", on: "Client"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input client: "Rye and Rosemary", path: { value: "notes/first-call.md" }, content: { value: "hello" }
+    expect refused: "a file is written only to a created repository"
+  end
+
+  test "a finding is recorded only for a created repository" do
+    tests "RecordRepoFoundPublic", on: "Client"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input client: "Rye and Rosemary"
+    expect refused: "a finding is recorded only for a created repository"
+  end
+
+  test "a file path that is blank is refused" do
+    tests "WriteRepoFile", on: "Client"
+    setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }
+    input client: "Rye and Rosemary", path: { value: "" }, content: { value: "hello" }
+    expect refused: "RepoPath.value must match"
+  end
+
   test "a board link is kept on the client" do
     tests "LinkBoard", on: "Client"
     setup "Clients::Client.Open", name: { value: "Rye and Rosemary" }

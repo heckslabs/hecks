@@ -15,6 +15,12 @@ module ClientsSpecWorld
         class ClientsSpecRepoStub
           def initialize(aggregate: nil); end
 
+          def create_private(name:, **)
+            raise "the repository was not made" unless (name[:value] || name) == "Rye and Rosemary Bakery"
+
+            { name: name }
+          end
+
           def is_private(name:, **)
             raise "the repository is not private" unless (name[:value] || name) == "Rye and Rosemary Bakery"
 
