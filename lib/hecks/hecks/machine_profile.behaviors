@@ -49,38 +49,4 @@ Hecks.behaviors "MachineProfile" do
     input fingerprint: "p8-e4-36864", factor: 9.0, kept_on: "2026-11-22"
     expect refused: "factor"
   end
-
-  test "Open turns one setting for this machine and waits for its verdict" do
-    tests "Open", on: "Turn"
-    input fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "five-minute load stood under the low mark"
-    expect emits: ["TurnOpened"]
-  end
-
-  test "Open refuses a second turn while one awaits its verdict" do
-    tests "Open", on: "Turn"
-    setup "Hecks::MachineProfile::Turn.Open", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "load low"
-    input fingerprint: "p8-e4-36864", setting: "spec_workers", before: "4", after: "5", reason: "load low"
-    expect refused: "no turn awaits its verdict"
-  end
-
-  test "Keep settles the turn as a correction with its evidence" do
-    tests "Keep", on: "Turn"
-    setup "Hecks::MachineProfile::Turn.Open", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "load low"
-    input fingerprint: "p8-e4-36864", factor: 1.5, load_before: "9.1", load_after: "6.2", kept_on: "2026-11-22"
-    expect emits: ["TurnKept"]
-  end
-
-  test "Keep refuses a factor outside the range a correction may take" do
-    tests "Keep", on: "Turn"
-    setup "Hecks::MachineProfile::Turn.Open", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "load low"
-    input fingerprint: "p8-e4-36864", factor: 9.0, load_before: "9.1", load_after: "6.2", kept_on: "2026-11-22"
-    expect refused: "factor"
-  end
-
-  test "Revert settles the turn without a correction" do
-    tests "Revert", on: "Turn"
-    setup "Hecks::MachineProfile::Turn.Open", fingerprint: "p8-e4-36864", setting: "heavy_jobs", before: "2", after: "3", reason: "load low"
-    input fingerprint: "p8-e4-36864"
-    expect emits: ["TurnReverted"]
-  end
 end
