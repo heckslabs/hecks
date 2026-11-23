@@ -46,7 +46,7 @@ module RollForwardFixtures
   def rolling(world)
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: [], rollable: [], started: [], lessons: [],
                                                                      runs: {})
-    settings = { load: -> { 0.5 }, cpus: 4, work_items: items, runner: ->(*) { raise "no launch" } }
+    settings = { sprint: false, load: -> { 0.5 }, cpus: 4, work_items: items, runner: ->(*) { raise "no launch" } }
     Hecks::Adapters::Rolling.new(registry: registry_of([], world), settings: settings)
   end
 end

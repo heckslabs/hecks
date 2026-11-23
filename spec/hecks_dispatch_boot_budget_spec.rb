@@ -20,7 +20,7 @@ RSpec.describe "a fill under the boot signals" do
 
   def preview(rows, load: 1.0)
     boots = Hecks::Adapters::BootBudget.new(entries: ->(_cutoff) { rows }, now: -> { now })
-    settings = { load: -> { load }, cpus: 12, work_items: work_items, boots: boots }
+    settings = { sprint: false, load: -> { load }, cpus: 12, work_items: work_items, boots: boots }
     adapter = Hecks::Adapters::Dispatching.new(registry: boot_hecks_in_memory.registry, settings: settings)
     adapter.preview(repo: { value: "/repo" })[:text]
   end
@@ -61,7 +61,8 @@ RSpec.describe "a fill under the boot signals" do
     reads = []
     counting = Hecks::Adapters::BootBudget.new(entries: ->(cutoff) { (reads << cutoff) && [] })
     adapter = Hecks::Adapters::Dispatching.new(registry: boot_hecks_in_memory.registry,
-                                               settings: { load: -> { 1.0 }, cpus: 12, work_items: work_items, boots: counting })
+                                               settings: { sprint: false, load: -> { 1.0 }, cpus: 12,
+                                                          work_items: work_items, boots: counting })
     adapter.preview(repo: { value: "/repo" })
     reads.size
   end
