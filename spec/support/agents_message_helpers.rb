@@ -69,6 +69,6 @@ module AgentsMessageHelpers
     { message: key, recipient: to, sender: sender, kind: said.fetch(:kind, "answer"),
       body: said.fetch(:body, "use the smaller version"), in_reply_to: said.fetch(:reply, ""),
       now: said.fetch(:now, 1_000), asker_role: said.fetch(:asker, "") }
-      .transform_values { |value| { value: value } }
+      .merge(said.slice(:priority, :channel)).transform_values { |value| { value: value } }
   end
 end
