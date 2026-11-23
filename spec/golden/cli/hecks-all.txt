@@ -324,8 +324,8 @@ commands:
     InspectionRun.complete! InspectionRun.fault! InspectionRun.examine! InspectionRun.perform!
     Audit.confirm! Audit.fail! Audit.walk! CiLook.look! CiRunRecord.note! AgentRun.begin!
     AgentRun.decline! AgentRun.work! AgentRun.block! AgentRun.finish! AgentRun.fail!
-    AgentRun.tidied! AgentRun.retain! AgentRun.detach! AgentRun.shed! AgentRun.await!
-    AgentRun.answered! AgentRun.fork! AgentRun.rebound! AgentRun.refuse_rebind!
+    AgentRun.tidied! AgentRun.retain! AgentRun.revived! AgentRun.detach! AgentRun.shed!
+    AgentRun.await! AgentRun.answered! AgentRun.fork! AgentRun.rebound! AgentRun.refuse_rebind!
     AgentRun.resume_in_place! AgentRun.unanswered! AgentRun.unresumed! AgentRun.unreached!
     AgentRun.refuse_answer! AgentRun.retired! AgentRun.retire_trial! AgentRun.unretired!
     AgentRun.locate! AgentRun.start! AgentRun.read_job! AgentRun.await_job! AgentRun.review!
