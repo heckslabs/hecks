@@ -3,9 +3,9 @@ require "fileutils"
 require "tmpdir"
 require "hecks/tools/gate_memo/ruby_files"
 
-# The pre-push hook runs with no locale, so Ruby's default external encoding is US-ASCII; the
-# gate memo still reads a Ruby file holding a non-ASCII byte as UTF-8 and finds its requires.
-RSpec.describe "The gate memo reading Ruby files under a US-ASCII locale" do
+# The pre-push hook runs with no locale, so the process reads files as US-ASCII; the gate's memo
+# reads Ruby files as UTF-8 all the same, and a non-ASCII byte neither crashes it nor hides a require.
+RSpec.describe "The gate memo reading a Ruby file with a non-ASCII comment under a US-ASCII locale" do
   let(:root) { Dir.mktmpdir("gate-memo-utf8") }
   let(:ruby) { Hecks::Tools::GateMemo::RubyFiles }
 
@@ -18,32 +18,33 @@ RSpec.describe "The gate memo reading Ruby files under a US-ASCII locale" do
   ensure
     Encoding.default_external = was
     $VERBOSE = verbose
-    FileUtils.rm_rf(root)
   end
 
+  after { FileUtils.rm_rf(root) }
+
   def write(rel, text)
-    FileUtils.mkdir_p(File.dirname(File.join(root, rel)))
-    File.binwrite(File.join(root, rel), text)
+    path = File.join(root, rel)
+    FileUtils.mkdir_p(File.dirname(path))
+    File.binwrite(path, text)
   end
 
   before do
-    write("lib/a.rb", "# café — naïve\nrequire_relative \"b\"\n")
+    write("lib/a.rb", "# café — naive\nrequire_relative \"b\"\n")
     write("lib/b.rb", "B = 1\n")
   end
 
-  it "returns the requires of a file holding a non-ASCII comment" do
+  it "returns the files the file requires" do
     expect(ruby.requires(root, "lib/a.rb")).to eq(["lib/b.rb"])
   end
 
-  it "returns the requires of a file holding an invalid byte" do
-    write("lib/a.rb", "# \xff\nrequire_relative \"b\"\n")
-    expect(ruby.requires(root, "lib/a.rb")).to eq(["lib/b.rb"])
+  it "reads a file holding an invalid byte without raising" do
+    write("lib/c.rb", "# \xFF\nrequire_relative \"b\"\n")
+    expect(ruby.requires(root, "lib/c.rb")).to eq(["lib/b.rb"])
   end
 
-  it "plans an incremental lint when a file requiring a changed one holds non-ASCII text" do
-    was = ruby.hashes(root)
+  it "plans an incremental run, not a full one, when such a file changes" do
+    entry = { "inputs" => ruby.config(root), "files" => ruby.hashes(root) }
     write("lib/b.rb", "B = 2\n")
-    entry = { "inputs" => ruby.config(root), "files" => was }
     expect(ruby.plan(root, entry, ruby.hashes(root)).first).to eq(:incremental)
   end
 end

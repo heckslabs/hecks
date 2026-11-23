@@ -173,7 +173,7 @@ RSpec.describe "Hecks::Tools::GateMemo" do
 
     it "reads a file caught half way through being written once its writer finishes" do
       allow(File).to receive(:read).and_call_original
-      allow(File).to receive(:read).with(memo_file).and_return('{"a":', "{}")
+      allow(File).to receive(:read).with(memo_file, encoding: "UTF-8").and_return('{"a":', "{}")
       allow(Hecks::Tools::GateMemo).to receive(:sleep)
       File.write(memo_file, "x")
 
