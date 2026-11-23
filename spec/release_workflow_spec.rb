@@ -211,4 +211,35 @@ RSpec.describe ".github/workflows/release.yml" do
       expect(names.index("The gem is listed")).to be < names.index("Create the GitHub Release")
     end
   end
+
+  # `stable` can lag `main`, so the release helpers are read from `main`, never from the tree
+  # being released: a stable without them must fail by name, not read as "no release".
+  describe "the release helpers" do
+    let(:detect_steps) { workflow.fetch("jobs").fetch("detect").fetch("steps") }
+    let(:tools) { steps.find { |step| step["with"]&.fetch("path", nil) == ".release-tools" } }
+
+    def helper_lines = code.lines.select { |line| line.include?("-r hecks/release/") }
+
+    it "loads every helper from the tools checkout, never from the released tree", :aggregate_failures do
+      expect(helper_lines.size).to eq(5)
+      expect(helper_lines).to all(include("-I .release-tools/lib"))
+      expect(helper_lines.grep(/-I lib /)).to be_empty
+    end
+
+    it "checks out main's lib/hecks/release beside the tree, in detect and in release", :aggregate_failures do
+      tools_steps = [steps, detect_steps].map { |list| list.find { |s| s.dig("with", "path") == ".release-tools" } }
+
+      expect(tools_steps).to all(include("with" => include("ref" => "main", "sparse-checkout" => "lib/hecks/release")))
+    end
+
+    it "names a helper missing from the tools checkout and stops" do
+      guard = text.lines.grep(%r{test -f \.release-tools/lib/hecks/release}).join
+
+      expect(guard).to include("lookup", "same_release", "approval")
+    end
+
+    it "keeps the tools checkout out of the released tree's status" do
+      expect(code).to include(".git/info/exclude")
+    end
+  end
 end
