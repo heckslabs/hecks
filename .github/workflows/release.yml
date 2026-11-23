@@ -128,24 +128,24 @@ jobs:
           if [ "$EVENT" = "workflow_run" ]; then
             commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
             version="$(git show "$commit:lib/hecks/version.rb" | sed -n 's/^ *VERSION = "\(.*\)".*/\1/p')"
-            found=0
             if [ -n "$version" ]; then
+              found=0
               ruby -I .release-tools/lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "v$version" || found=$?
-            fi
-            # 0: published, 1: GitHub says there is no such release, 2: the lookup failed (the step
-            # has failed by name; a failed lookup is never read as a release still to cut).
-            if [ "$found" = "2" ]; then
-              exit 1
-            elif [ -n "$version" ] && [ "$found" = "0" ]; then
-              pending=false
-            elif [ -n "$version" ]; then
-              tag_exists=false
-              [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
-              if ! COMMIT="$commit" TAG_EXISTS="$tag_exists" \
-                ruby -I .release-tools/lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'; then
-                echo "::notice::v$version is not released: its bump commit carries no approval. Nothing to cut."
-                pending=false
-              fi
+              # 0: published; 10: GitHub says there is no such release; anything else (2: the lookup
+              # failed, 1: Ruby itself died) fails the step by name, never read as a release to cut.
+              case "$found" in
+                0) pending=false ;;
+                10)
+                  tag_exists=false
+                  [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
+                  if ! COMMIT="$commit" TAG_EXISTS="$tag_exists" \
+                    ruby -I .release-tools/lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'; then
+                    echo "::notice::v$version is not released: its bump commit carries no approval. Nothing to cut."
+                    pending=false
+                  fi
+                  ;;
+                *) echo "::error::the release lookup for v$version ended with status $found, neither published (0) nor absent (10)"; exit 1 ;;
+              esac
             fi
           fi
           echo "pending=$pending" >> "$GITHUB_OUTPUT"
@@ -298,10 +298,11 @@ jobs:
 
           found=0
           ruby -I .release-tools/lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "$TAG" || found=$?
+          # 0: published; 10: no such release; anything else (2 failed lookup, 1 Ruby died) fails.
           case "$found" in
             0) echo "release=true" >> "$GITHUB_OUTPUT" ;;
-            1) echo "release=false" >> "$GITHUB_OUTPUT" ;;
-            *) exit 1 ;;
+            10) echo "release=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::the release lookup for $TAG ended with status $found"; exit 1 ;;
           esac
 
       - name: Tag the release commit
@@ -442,6 +443,14 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
           TAG: ${{ steps.release.outputs.tag }}
         run: |
+          # The state step read this a while ago; a release that has appeared since is done.
+          found=0
+          ruby -I .release-tools/lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "$TAG" || found=$?
+          case "$found" in
+            0) echo "::notice::the GitHub Release for $TAG already exists; nothing to create."; exit 0 ;;
+            10) ;;
+            *) echo "::error::the release lookup for $TAG ended with status $found"; exit 1 ;;
+          esac
           awk -v heading="## [$VERSION]" '
             index($0, heading) == 1 { found = 1; next }
             found && /^## \[/ { exit }
@@ -451,5 +460,12 @@ jobs:
             echo "::error::the CHANGELOG section for $VERSION is empty"
             exit 1
           fi
-          gh release create "$TAG" --verify-tag --title "hecks $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md" --latest
+          if ! gh release create "$TAG" --verify-tag --title "hecks $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" --latest > "$RUNNER_TEMP/create.log" 2>&1; then
+            cat "$RUNNER_TEMP/create.log"
+            # Only GitHub's own words for a release that stands count as done.
+            already_exists=false
+            grep -qi 'already_exists\|tag_name already exists' "$RUNNER_TEMP/create.log" && already_exists=true
+            [ "$already_exists" = "true" ] || exit 1
+            echo "::notice::the GitHub Release for $TAG already exists; treating the create as done."
+          fi
