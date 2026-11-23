@@ -11,25 +11,25 @@ module Hecks
         # @param setting [String] a setting a `Formula` row names
         # @param profile [Hash{Symbol => Numeric}] the measures of a profile
         # @param rows [Hash] {Rows}
+        # @param corrections [Hash{String => Float}] kept `Turn` factors of this machine by setting
         # @return [Numeric, nil] the value inside its bounds; nil when no row names the setting
-        def value(setting, profile, rows)
+        def value(setting, profile, rows, corrections = {})
           formula = rows[:formulas][setting]
           return nil unless formula
 
-          bounded(setting, raw(formula, profile, corrected(setting, rows)), profile, rows)
+          bounded(setting, raw(formula, profile, corrections.fetch(setting, 1.0)), profile, rows)
         end
 
         # @return [Hash{String => Numeric}] every derived setting
-        def all(profile, rows) = rows[:formulas].keys.to_h { |setting| [setting, value(setting, profile, rows)] }
+        def all(profile, rows, corrections = {})
+          rows[:formulas].keys.to_h { |setting| [setting, value(setting, profile, rows, corrections)] }
+        end
 
         def raw(formula, profile, factor = 1.0)
           amount = profile.fetch(formula[:measure].to_sym) * formula[:times] * factor / formula[:divisor]
           amount /= profile.fetch(formula[:per].to_sym) unless formula[:per].empty?
           formula[:whole] == "yes" ? amount.floor : amount
         end
-
-        # The kept turn's factor for the setting; one when this machine has kept none.
-        def corrected(setting, rows) = (rows[:corrections] || {}).fetch(setting, 1.0)
 
         def bounded(setting, amount, profile, rows)
           bound = rows[:bounds][setting]
