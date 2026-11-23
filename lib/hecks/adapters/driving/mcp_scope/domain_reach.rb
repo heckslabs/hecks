@@ -2,9 +2,9 @@ module Hecks
   module Adapters
     module Driving
       class McpScope
-        # Which of its allowed domains a restricted server answers a call in, and where it dispatches.
-        # A server may read several domains; a command is allowed by name, so it is dispatched only
-        # in the Hecks domain, never in another domain that happens to have a command of that name.
+        # Which of its allowed domains a restricted server answers a call in, and where it
+        # dispatches. A server may read several domains; a command is allowed by name, so it is
+        # dispatched only in the Hecks domain, never in another domain with a command of that name.
         module DomainReach
           # The Hecks domain, as the tail of its resolved path.
           HECKS_DOMAIN = "/lib/hecks/hecks".freeze
