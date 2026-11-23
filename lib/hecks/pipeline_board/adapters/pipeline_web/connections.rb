@@ -28,6 +28,7 @@ module Hecks
         # Answers a socket beyond the limit with a 503 and closes it.
         def shed(socket)
           socket.write_nonblock(SHED)
+          socket.read_nonblock(4096, exception: false)
         rescue SystemCallError, IOError
           nil
         ensure
