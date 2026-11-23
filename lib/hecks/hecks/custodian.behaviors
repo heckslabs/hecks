@@ -287,13 +287,13 @@ Hecks.behaviors "Custodian" do
   test "CompactEvents is refused until it is confirmed" do
     tests "CompactEvents", on: "SchemaRevision"
     input domain: { value: "examples/pizzas" }, run: { value: "events" }, window_days: { value: 30 }
-    expect refused: "the event compaction is confirmed"
+    expect refused: "the compaction is confirmed"
   end
 
   test "CompactEvents refuses a window that is not a whole number of days" do
     tests "CompactEvents", on: "SchemaRevision"
     input domain: { value: "examples/pizzas" }, run: { value: "events" }, window_days: { value: 0 }, confirm: { value: true }
-    expect refused: "a window is counted in days from one"
+    expect refused: "the window is at least a day"
   end
 
   test "CompactEvents keeps a domain that is not there as a refused change" do

@@ -1327,6 +1327,7 @@ Hecks.bluebook "Bluebook" do
       member script: "translation_audit", section: "Custodian", aggregate: "SchemaRevision", verb: "audit_translation"
       member script: "compact", section: "Custodian", aggregate: "SchemaRevision", verb: "compact"
       member script: "heki_compact", section: "Custodian", aggregate: "SchemaRevision", verb: "compact_heki"
+      member script: "compact_events", section: "Custodian", aggregate: "SchemaRevision", verb: "compact_events"
       member script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", note: "waits: a refusal exits 1 with its reason on stderr"
       member script: "project_cli", section: "Custodian", aggregate: "Launch", verb: "project_cli"
       member script: "hecks_mcp_door", section: "Custodian", aggregate: "Server", verb: "serve_mcp"

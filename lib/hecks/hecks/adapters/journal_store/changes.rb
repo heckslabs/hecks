@@ -5,6 +5,7 @@ require "time"
 require_relative "held_domain"
 require_relative "edge_audit"
 require_relative "compaction"
+require_relative "event_compaction"
 require_relative "../git"
 
 module Hecks
@@ -122,6 +123,12 @@ module Hecks
         def apply_compact(held) = apply_compaction(held, :entries)
 
         def apply_compact_heki(held) = apply_compaction(held, :heki)
+
+        def apply_compact_events(held) = event_compaction(held).apply!.join("\n")
+
+        def event_compaction(held)
+          EventCompaction.new(plain(held[:domain]), window_days: plain(held[:window_days]).to_i)
+        end
 
         def apply_compaction(held, kind)
           Compaction.new(plain(held[:domain]), aggregates: names(held[:aggregates]), kind: kind).apply!.join("\n")
