@@ -7,6 +7,7 @@ require_relative "main_integration/range_guard"
 require_relative "main_integration/trailer_guard"
 require_relative "main_integration/standing"
 require_relative "main_integration/train"
+require_relative "main_integration/main_overlay"
 require_relative "main_integration/command_runner"
 
 module Hecks
@@ -66,12 +67,17 @@ module Hecks
 
       def push(landed, checkout, newer)
         train = MainIntegration::Train.new(runner, root: self.class.train_root || MainIntegration::Train::ROOT)
-        rows = MainIntegration::KeptRows.from_registry(@registry)
-        note = "#{train.refresh(landed)}; #{train.write_overlay(rows, checkout: checkout)}"
+        note = "#{train.refresh(landed)}; #{overlays(train, checkout)}"
         record = train.board(checkout, commit: (landed if newer.positive?))
         pushed = [record["pushed"], record["boarded"], landed].compact.first.to_s
         { outcome: { value: "pushed" }, pushed: { value: pushed },
           report: { value: boarded_line(landed, record, pushed, newer) + "; #{note}" } }
+      end
+
+      # Writes the train's overlay and refreshes the owner's, and says what each did.
+      def overlays(train, checkout)
+        rows = MainIntegration::KeptRows.from_registry(@registry)
+        "#{train.write_overlay(rows, checkout: checkout)}; #{MainIntegration::MainOverlay.new(checkout, rows).refresh}"
       end
 
       # Names the landings above the boarded commit, which stay local for their own boarding.

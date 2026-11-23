@@ -4,8 +4,8 @@ require_relative "support/new_work_started"
 
 # The expedite lane (ADR 0224): a work item `Work.expedite!` marks starts first after a red fix, in
 # the one place outside the cap, past the boot budget and the epic limit, and is held by the load
-# only above the CPU count. A further expedited item takes a regular seat under the cap. The
-# plan and the `WorkLimits` port apply the one rule in `WorkSlots`.
+# only above the higher of the CPU count and the load limit. A further expedited item takes a
+# regular seat under the cap. The plan and the `WorkLimits` port apply the one rule in `WorkSlots`.
 RSpec.describe "the expedite lane" do
   include_context "with new work started"
 
@@ -118,6 +118,14 @@ RSpec.describe "the expedite lane" do
     plan = dispatch([item("hot", "expedite"), item("x")], [], load: 10.5)
 
     expect([plan.chosen.map(&:key), plan.skipped.map(&:key)]).to eq([%w[hot], %w[x]])
+  end
+
+  it "starts an expedited item under a load limit above the CPU count, and holds it over that limit" do
+    hot = [item("hot", "expedite")]
+    under = dispatch(hot, [], load: 14.0, max_load: 16.0)
+    over = dispatch(hot, [], load: 16.5, max_load: 16.0)
+
+    expect([under.chosen.map(&:key), over.skipped.map(&:reason)]).to eq([%w[hot], ["skipped: load 16.5 > 16.0"]])
   end
 
   it "holds an expedited item over the CPU count" do

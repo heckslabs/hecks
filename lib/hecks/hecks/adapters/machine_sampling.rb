@@ -45,7 +45,7 @@ module Hecks
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
-        @readings = settings[:readings] || -> { Readings.new.call }
+        @readings = settings[:readings] || method(:gauges)
         @clock = settings.fetch(:clock, MONOTONIC)
         @stamp = settings.fetch(:stamp, WALL)
         @processes = settings[:processes] || ProcessClasses.new
@@ -71,6 +71,9 @@ module Hecks
       end
 
       private
+
+      # The machine's gauges, the load read as the `load_average` dial names.
+      def gauges = Readings.new(minutes: LoadAverage.minutes(@registry)).call
 
       # Counts the niced Claude processes from `ps`; beside stand-in `readings:` none is read.
       def niceness_in(settings)

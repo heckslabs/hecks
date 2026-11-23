@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../shell"
+require_relative "../load_average"
 require_relative "../dispatching/settings"
 
 module Hecks
@@ -26,8 +27,10 @@ module Hecks
         PRESSURE = /\A\s*(\d+)\s*\z/
 
         # @param shell [#capture] runs a program and answers what it said; the {Shell} when nil
-        def initialize(shell: nil)
+        # @param minutes [Integer] the load average read, the `load_average` dial's (1, 5 or 15)
+        def initialize(shell: nil, minutes: LoadAverage::DEFAULT)
           @shell = shell || Shell.new
+          @minutes = minutes
         end
 
         # @return [Hash{Symbol => Float, nil}] the gauges: `cpu_idle`, `swap_used` (percent),
@@ -82,7 +85,7 @@ module Hecks
 
         def level = pressure(said("sysctl", "-n", "kern.memorystatus_vm_pressure_level"))
 
-        def load = Dispatching::Settings.uptime_load(said("uptime"))
+        def load = Dispatching::Settings.uptime_load(said("uptime"), minutes: @minutes)
       end
     end
   end

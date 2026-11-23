@@ -16,6 +16,7 @@ require_relative "model_check/one_of_checks"
 require_relative "model_check/blank_result_checks"
 require_relative "model_check/aggregate_checks"
 require_relative "model_check/liveness_checks"
+require_relative "model_check/persistence_checks"
 require_relative "model_check/verbs"
 
 module Hecks
@@ -55,6 +56,7 @@ module Hecks
       extend BlankResultChecks
       extend AggregateChecks
       extend LivenessChecks
+      extend PersistenceChecks
       extend Verbs
 
       module_function
@@ -105,6 +107,7 @@ module Hecks
                             options[:global_emitted_events])
           end,
           *acts_as_findings(bluebook, options[:hecksagon]),
+          *persistence_findings(bluebook, options[:hecksagon]),
           *translates_source_findings(bluebook, options[:hecksagon], options[:aggregate_owners])
         ]
       end

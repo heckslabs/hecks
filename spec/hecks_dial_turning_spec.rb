@@ -153,6 +153,12 @@ RSpec.describe Hecks::Adapters::DialTurning do
     expect { described_class::Turnables.value(row, "some") }.to raise_error(ArgumentError, /impacted, quick, off, not "some"/)
   end
 
+  it "turns the load average to 1, 5 or 15 and refuses another figure", :aggregate_failures do
+    row = { setting: "load_average.minutes", kind: "choice", least: "1|5|15" }
+    expect(described_class::Turnables.value(row, "15")).to eq("15")
+    expect { described_class::Turnables.value(row, "7") }.to raise_error(ArgumentError, /1, 5, 15, not "7"/)
+  end
+
   # Turns the verification setting to a word and answers its row as the board reads it.
   def verification_row_after_turning_to(word)
     worlds["main_verification"] = { adapter: "MainVerification", workers: 2, verifies: "impacted" }
