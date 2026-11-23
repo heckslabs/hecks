@@ -3,7 +3,7 @@
 require "spec_helper"
 require_relative "support/standup_fixtures"
 
-# Work.standup counts the bugs the zero-bug policy watches: those open, and those finished since the time.
+# Work.standup counts the bugs the zero-bug policy watches: those open, and those finished.
 RSpec.describe Hecks::Adapters::Standup do
   include StandupFixtures
 
@@ -12,7 +12,9 @@ RSpec.describe Hecks::Adapters::Standup do
      record("done-theme", status: "done"), record("plain-c")]
   end
 
-  def bug(key, status: "planned") = record(key, status: status).tap { |entry| entry.category = RollForwardFixtures::Word.new("bug") }
+  def bug(key, status: "planned")
+    record(key, status: status).tap { |entry| entry.category = RollForwardFixtures::Word.new("bug") }
+  end
 
   it "counts the bugs still open" do
     finished

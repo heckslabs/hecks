@@ -7,6 +7,7 @@ require "hecks/hecks/adapters/machine_sampling/readings"
 require_relative "priority_report"
 require_relative "standup/window"
 require_relative "standup/finished"
+require_relative "standup/bugs"
 require_relative "standup/upcoming"
 require_relative "standup/gauges"
 require_relative "standup/text"
@@ -40,7 +41,8 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when `since` is not a time
       def standup(**held)
         since = window.since(plain(held[:since]))
-        { text: Text.new(since, finished: finished(since), upcoming: upcoming, machine: gauges).to_s }
+        done = finished(since)
+        { text: Text.new(since, finished: done, upcoming: upcoming, machine: gauges, bugs: bugs(done)).to_s }
       end
 
       private
@@ -54,6 +56,9 @@ module Hecks
         path && Finished.new(lines(path), titles).since(since)
       end
 
+      # The bug counts: the keys that finished are the finished lines' keys.
+      def bugs(done) = Bugs.new(records, done.to_a.map { |line| line.split(":").first }).lines
+
       def upcoming = Upcoming.new(report.rows, titles).first(window.upcoming)
 
       def gauges = Gauges.new(readings.call, report.max_load).line
@@ -66,11 +71,12 @@ module Hecks
 
       # Each work item's title by its key.
       def titles
-        @titles ||= work_aggregate.then do |aggregate|
-          records = aggregate ? @registry.repository("Tickets", aggregate).all : []
+        @titles ||= records.then do |records|
           records.to_h { |record| [StartedWork.value(record, :work).to_s, StartedWork.value(record, :title).to_s] }
         end
       end
+
+      def records = (aggregate = work_aggregate) ? @registry.repository("Tickets", aggregate).all : []
 
       def lines(path) = Runtime::EventFeed.new(path: path).read(since: 0, limit: EVERY_LINE)[:events]
 
