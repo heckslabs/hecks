@@ -27,7 +27,7 @@ RSpec.describe "a boarding refreshes the owner's main overlay" do
   end
 
   it "creates no overlay in a checkout that has none", :aggregate_failures do
-    expect(overlay.refresh).to match(/no overlay/)
+    expect(overlay.refresh).to include("no overlay")
     expect(File.exist?(file)).to be(false)
   end
 
@@ -35,20 +35,20 @@ RSpec.describe "a boarding refreshes the owner's main overlay" do
     FileUtils.rm_rf(File.join(root, ".git"))
     File.write(File.join(root, ".git"), "gitdir: elsewhere")
     lag
-    expect(overlay.refresh).to match(/worktree/)
+    expect(overlay.refresh).to include("worktree")
     expect(File.read(file)).not_to include("Sprint")
   end
 
   it "says a current overlay is current" do
     lag
     overlay.refresh
-    expect(overlay.refresh).to match(/current/)
+    expect(overlay.refresh).to include("current")
   end
 
   it "reports and never raises when no row was read", :aggregate_failures do
     lag
     said = Hecks::Adapters::MainIntegration::MainOverlay.new(root, []).refresh
-    expect(said).to match(/kept as it is/)
+    expect(said).to include("kept as it is")
     expect(File.read(file)).not_to include("Sprint")
   end
 end
