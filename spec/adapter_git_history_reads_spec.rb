@@ -17,7 +17,7 @@ module GitHistoryReads
     "claude_cleaning/worktree_check.rb"       => "unpushed commits of a worktree before removal: a checkout fact",
     "codebase/bluebook_extraction.rb"         => "merge-base picks the diff base of the bluebooks a branch changed: ancestry",
     "codebase/impacted_specs.rb"              => "merge-base picks the diff base of a branch: ancestry is git",
-    "codebase/release_facts.rb"               => "trailer of the commit that set the version: message text is git",
+    "release_surveying.rb"                    => "commits since the last tag, their times and the diff of concepts: the next release is git",
     "desktop_alert.rb"                        => "subjects of the commits a push carried, shown in a notification",
     "dispatching/landed_since.rb"             => "commit time of a given sha; no event yet carries the landed time",
     "doctor_reading.rb"                       => "commits main is ahead of origin/main: the remote's state is git",

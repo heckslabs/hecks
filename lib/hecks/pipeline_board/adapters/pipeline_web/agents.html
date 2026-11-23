@@ -297,13 +297,13 @@ const ROLES = {
   pruner: { code: "PR", name: "Pruner", hears: ["LandedWorkFound", "PrunerWoken"], says: [] }
 };
 // Which map line each event travels: from, to. The names are the events of the Agents, Tickets, Delegate, Deliver
-// and Pipeline bluebooks. `you` appears only on Release (PassageReleased); an owner-only ask is shown in Waiting on you. A line with no event of its own (a command, or a session started by hand) is never lit.
+// and Pipeline bluebooks. `you` appears on no line: a release cuts itself, and an owner-only ask is shown in Waiting on you. A line with no event of its own (a command, or a session started by hand) is never lit.
 const EDGES = {
   WorkPlanned: ["planner", "coder"], WorkRouted: ["planner", "coder"],
   PlanReviewRequested: ["coder", "architect"], PlanReviewed: ["architect", "coder"],
   WorkSubmitted: ["coder", "reviewer"], SubmissionReviewRequested: ["coder", "reviewer"], SpecFailureJudged: ["reviewer", "coder"],
   BranchLanded: ["coder", "pipeline"], PassageLanded: ["coder", "pipeline"],
-  LandedWorkFound: ["pipeline", "pruner"], PassageReleased: ["you", "pipeline"]
+  LandedWorkFound: ["pipeline", "pruner"]
 };
 const CODES = { you: "You", pipeline: "Pipeline", ...Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.code])) };
 const HOT_MS = 30 * 60 * 1000;
