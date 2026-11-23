@@ -239,8 +239,9 @@ module Hecks
   end
 end
 
-# A cold boot that asked for phase marks names them too, as a resident's child does.
-if ENV.key?("HECKS_TRACE_TIMING") && !defined?(Hecks::Adapters::Driving::Resident::CHILD)
+# A launcher that asked for phase marks names them on a cold boot too, as a resident's child does;
+# a resident itself, started by that line, is not the launcher.
+if File.basename($PROGRAM_NAME) == "hecks" && ENV.key?("HECKS_TRACE_TIMING")
   require "hecks/adapters/driving/resident/trace"
   Hecks::Adapters::Driving::Resident::Trace.install
 end
