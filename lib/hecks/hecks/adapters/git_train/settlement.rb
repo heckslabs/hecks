@@ -17,13 +17,12 @@ module Hecks
       # It works on the boarded branch only: to change anything, the checkout must have that branch
       # checked out and clean, and the branch must still name the boarded commit. Its own commit
       # names the ledger paths it wrote, so nothing already staged is swept in. Coders land on the
-      # branch while the drift checks run: the settled commit is carried if the branch holds it.
+      # branch while the drift checks run; the settled commit is carried if the branch holds it.
       #
-      # A branch other than main is rebased onto its remote. A rebase stops only on the ledger
-      # file, which is regenerated rather than merged: the upstream copy is taken and the ledger is
-      # settled after. Any other conflict aborts the rebase and is reported by path. Main is never
-      # rebased: it is merged with its remote (`MainMerge`), so the commits open branches and an
-      # open train are built on keep their hashes.
+      # A branch other than main is rebased onto its remote; only a ledger conflict is resolved
+      # (the upstream copy is taken), and any other aborts the rebase by path.
+      # Main is never rebased, which would give its unpushed commits new hashes: the remote is
+      # merged into it (`MainMerge`).
       class Settlement
         include Reading
 
