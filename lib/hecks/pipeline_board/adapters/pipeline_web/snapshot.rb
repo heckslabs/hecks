@@ -23,6 +23,10 @@ module Hecks
       # and a wake does not bring a read forward.
       class Snapshot
         WAITING = { unknown: "the first read is still in progress" }.freeze
+        # The panes a placeholder holds until the first read, each waiting.
+        WAITING_PANES = %i[
+          ci_runs slowest_jobs train_ci_runs train_slowest_jobs train_flakes open_work sessions events fanout
+        ].to_h { |pane| [pane, WAITING] }.freeze
         STALE_AFTER = 2
 
         # A snapshot read at the Hecks world's `board_restart` period, that restarts the board
@@ -179,11 +183,7 @@ module Hecks
         # The seconds between reads now: the loaded period while the guard says so.
         def period = @guard&.loaded? ? @pace[:loaded_every] : @every
 
-        def placeholder
-          { generated_at: @now.call.iso8601, stages: [], metrics: [], ci_runs: WAITING, slowest_jobs: WAITING,
-            train_ci_runs: WAITING, train_slowest_jobs: WAITING, train_flakes: WAITING,
-            open_work: WAITING, sessions: WAITING, events: WAITING, fanout: WAITING }
-        end
+        def placeholder = { generated_at: @now.call.iso8601, stages: [], metrics: [], **WAITING_PANES }
       end
     end
   end
