@@ -37802,6 +37802,24 @@
             [
               [
                 "script",
+                "compact_events"
+              ],
+              [
+                "section",
+                "Custodian"
+              ],
+              [
+                "aggregate",
+                "SchemaRevision"
+              ],
+              [
+                "verb",
+                "compact_events"
+              ]
+            ],
+            [
+              [
+                "script",
                 "vendor_bluebook"
               ],
               [
