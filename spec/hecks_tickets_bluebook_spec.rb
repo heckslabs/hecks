@@ -166,7 +166,7 @@ RSpec.describe "the Tickets bluebook" do
   it "asks only Hecks's own ports from a Work step" do
     asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 
-    expect(asks.map(&:hecks_name)).to contain_exactly(*work_asks)
+    expect(asks.map(&:hecks_name)).to match_array(work_asks)
   end
 
   it "lapses a superseded decision's undone steps" do
