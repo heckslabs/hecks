@@ -63,6 +63,12 @@ RSpec.describe "the Agents fleet of sessions" do
     expect(shell.commands).to be_empty
   end
 
+  it "does not call a session listed idle working whatever its state says" do
+    idle = { "id" => "eeee5555", "sessionId" => "eeee5555-full", "name" => "architect", "state" => "working", "status" => "idle" }
+    shell.listing << idle
+    expect(fleet.examine_resume(session: { value: "eeee5555" }, name: { value: "next" })).to include(working: false)
+  end
+
   it "examines a session to stop by its facts, judging nothing" do
     expect(fleet.examine_stop(session: { value: "bbbb2222" })).to include(pinned: true, run: { value: "" })
   end

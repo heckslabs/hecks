@@ -3,9 +3,11 @@
 require "hecks/hecks/adapters/console_capture"
 require "hecks/hecks/adapters/claude_resolving_shell"
 require "hecks/hecks/adapters/claude_transcript"
+require "hecks/hecks/adapters/listed_status"
 require_relative "fleet_control/listing"
 require_relative "fleet_control/ledger"
 require_relative "fleet_control/transcripts"
+require_relative "fleet_control/waking"
 
 module Hecks
   module Adapters
@@ -25,6 +27,7 @@ module Hecks
         @listing = Listing.new(@shell)
         @ledger = Ledger.new(registry, runs: settings[:runs])
         @transcripts = Transcripts.new(settings[:projects] || File.join(Dir.home, ClaudeTranscript::PROJECTS))
+        @waking = Waking.new(listing: @listing, ledger: @ledger, transcripts: @transcripts, shell: @shell)
       end
 
       # @return [Hash{Symbol => String}] `text:` one line per listed session, with its run
@@ -70,6 +73,26 @@ module Hecks
         busy = working?(entry)
         note = busy ? "session #{entry["id"]} is working: only one not working is resumed" : line(entry)
         facts(entry, session: { value: plain(session) }, name: { value: plain(name) }, working: busy, note: { value: note })
+      end
+
+      # Reads whether the seat that holds a run key is working, and changes nothing.
+      #
+      # @param session [Hash, String] the run key, or a session id
+      # @return [Hash{Symbol => Object}] `session:`, `run:`, `working:` and `note:` that in words
+      # @raise [ConsoleCapture::Failure] when no listed session holds the key
+      def examine_wake(session:, **)
+        found = @waking.holder(plain(session))
+        busy = working?(found[:entry])
+        note = busy ? "session #{found[:entry]["id"]} is working: its inbox hook hands the mail over" : line(found[:entry])
+        { session: { value: plain(session) }, run: { value: found[:run] }, working: busy, note: { value: note } }
+      end
+
+      # @param session [Hash, String] the run key, or a session id
+      # @return [Hash{Symbol => Hash}] `report:` the seat woken in place, and `run:` its run key
+      # @raise [ConsoleCapture::Failure] when no session holds the key or the wake was not in place
+      def awaken(session:, **)
+        key = plain(session)
+        { report: { value: @waking.wake(key) }, run: { value: @waking.holder(key)[:run] } }
       end
 
       # @param session [Hash, String] the session to stop
@@ -133,7 +156,9 @@ module Hecks
         result
       end
 
-      def working?(entry) = entry["state"].to_s == "working" || entry["status"].to_s == "busy"
+      def working?(entry)
+        !ListedStatus.idle?(entry) && (entry["state"].to_s == "working" || entry["status"].to_s == "busy")
+      end
 
       def full_id(entry) = (entry.key?("sessionId") ? entry["sessionId"] : entry["id"]).to_s
 
