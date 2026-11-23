@@ -13,8 +13,8 @@ module Hecks
         # the HTML of each tile a journal line changed, until the reader goes away. It acts when the
         # journal grows, not on a clock.
         #
-        # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring` digest,
-        #   a `tile` fragment or a heartbeat
+        # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring`
+        #   digest, a `tile` fragment or a heartbeat
         def stream(gone: nil, &)
           wiring = @wiring.method(:held_reading)
           PipelineBoard::Stream.new(hub: @pushed.hub, state: method(:state), wiring: wiring, gone: gone).each(&)

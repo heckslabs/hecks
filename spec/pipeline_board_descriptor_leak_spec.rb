@@ -47,6 +47,8 @@ module DescriptorLeakHelpers
       loop do
         answer = open_to(server, "GET / HTTP/1.1\r\n\r\n").read
         return answer if answer.start_with?("HTTP/1.1 503")
+      rescue SystemCallError
+        next
       end
     end
   end
