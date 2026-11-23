@@ -2,7 +2,10 @@
 
 require "socket"
 require "json"
+require "timeout"
 require_relative "accept_loop"
+require_relative "connections"
+require_relative "request_head"
 require_relative "act_route"
 require_relative "path_links"
 require_relative "frame"
@@ -22,6 +25,12 @@ module Hecks
       # `/api/events` holds its connection open as a Server-Sent Events stream.
       class Server
         HOST = "127.0.0.1"
+        # Seconds a connection has to send its request line and headers (and a POST its body)
+        # before the board closes it, so a page opened and abandoned holds no thread or descriptor.
+        # Transport limits, like the accept loop's, not board rules.
+        READ_SECONDS = 10
+        # Connections served at once, streams included; one beyond is answered 503 and closed.
+        MAX_CONNECTIONS = 400
         HTML_TYPE = "text/html; charset=utf-8"
         SCRIPT_TYPE = "text/javascript; charset=utf-8"
         JSON_TYPE = "application/json"
@@ -53,7 +62,7 @@ module Hecks
           @listener = TCPServer.new(HOST, port)
           @address, @port = @listener.local_address.then { |bound| [bound.ip_address, bound.ip_port] }
           @app = app
-          @open = []
+          @open = Connections.new(MAX_CONNECTIONS)
           @accepting = AcceptLoop.new(@listener) { |socket| serve(socket) }
         end
 
@@ -79,31 +88,21 @@ module Hecks
         def stop
           @accepting.stop
           @listener.close
-          @open.each { |socket| socket.close unless socket.closed? }
+          @open.close_all
           @app.close if @app.respond_to?(:close)
         end
 
         private
 
         def serve(socket)
-          @open << socket
-          verb, target = socket.gets.to_s.split
-          headers = read_headers(socket)
+          return @open.shed(socket) unless @open.admit(socket)
+
+          verb, target, headers = Timeout.timeout(READ_SECONDS) { RequestHead.read(socket) }
           answer(socket, verb, headers, *target.to_s.split("?", 2))
-        rescue SystemCallError, IOError
+        rescue SystemCallError, IOError, Timeout::Error
           nil
         ensure
-          socket.close unless socket.closed?
-          @open.delete(socket)
-        end
-
-        def read_headers(socket)
-          headers = {}
-          while (line = socket.gets) && line != "\r\n"
-            key, value = line.split(":", 2)
-            headers[key.to_s.downcase] = value.to_s.strip
-          end
-          headers
+          @open.release(socket)
         end
 
         def answer(socket, verb, headers, path = "", query = nil)
@@ -132,7 +131,7 @@ module Hecks
           refused = ActRoute.refusal(path, headers, origins)
           return reply(socket, refused[0], "text/plain", refused[1]) if refused
 
-          status, body = ActRoute.submit(@app, socket.read(ActRoute.length_of(headers)).to_s)
+          status, body = ActRoute.submit(@app, Timeout.timeout(READ_SECONDS) { socket.read(ActRoute.length_of(headers)) }.to_s)
           reply(socket, status, "application/json", JSON.generate(body))
         end
 
@@ -155,7 +154,7 @@ module Hecks
         def stream(socket)
           socket.write("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n" \
                        "Connection: close\r\n\r\n")
-          @app.stream { |event| socket.write(sse(event)) }
+          @app.stream(gone: -> { Connections.gone?(socket) }) { |event| socket.write(sse(event)) }
         end
       end
     end

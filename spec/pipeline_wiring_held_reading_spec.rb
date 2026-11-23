@@ -40,7 +40,7 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     expect(Timeout.timeout(1) { wiring.held_reading[:digest] }).to eq(held)
   end
 
-  it "answers nothing before a graph has been drawn" do
-    expect(wiring.held_reading).to be_nil
+  it "reads the digest itself when no other reader holds the lock" do
+    expect(wiring.held_reading[:digest]).to eq(wiring.reading[:digest])
   end
 end
