@@ -11,7 +11,8 @@ module Hecks
       # nothing is stored here, so nothing of a client's lands in Hecks. An event is the `-> Placed`
       # half of an action statement, not a kind of its own.
       class DomainDraft
-        # @param proposer [#call] takes an exchange and its number, answers `{kind:, statement:}` Points
+        # @param proposer [#call] takes an exchange and its number, answers `{kind:, statement:}`
+        #   Points
         # @param dispatch [#call] takes a command name and its attributes, like `dispatch_flat`
         # @param reference [String] the interview's reference
         def initialize(proposer:, dispatch:, reference:)
