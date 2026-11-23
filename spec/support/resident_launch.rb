@@ -23,8 +23,9 @@ module ResidentLaunch
 
   ROOT = File.expand_path("../..", __dir__)
   PATHS = Hecks::Adapters::Driving::Resident::Paths
-  # Seconds a resident gets to load the Hecks domain and start listening on a cold cache.
-  STARTUP = 120
+  # Seconds a resident gets to load the Hecks domain and start listening on a cold cache: a CI
+  # runner has taken 88 and a loaded machine more than 120.
+  STARTUP = 240
   # The file every spec process of this checkout locks around an example of these groups. It
   # sits outside the checkout, since a new entry at the checkout's root retires a resident too.
   CHECKOUT_LOCK = File.join(Dir.tmpdir, "hecks-spec-checkout-#{Digest::SHA256.hexdigest(ROOT)[0, 12]}.lock")
@@ -98,14 +99,16 @@ module ResidentLaunch
   end
 
   # Waits until a resident stands, and answers its process id.
+  #
+  # @raise [ThreadParking::NeverReached] naming what the cache directory holds, when none stands
   def wait_for_resident
-    ThreadParking.wait_for(timeout: STARTUP) { resident_pid }
+    waiting_for_one { resident_pid }
     remember_resident(resident_pid)
   end
 
   # Waits until a resident other than `old` stands, and answers its process id.
   def wait_for_new_resident(old)
-    ThreadParking.wait_for(timeout: STARTUP) { resident_pid && resident_pid != old }
+    waiting_for_one { resident_pid && resident_pid != old }
     remember_resident(resident_pid)
   end
 
