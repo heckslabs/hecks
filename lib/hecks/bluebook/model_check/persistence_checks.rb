@@ -6,6 +6,10 @@ module Hecks
       # at exit. An aggregate meant to stay there says so with `persisted_by("Memory")`;
       # a domain that wires nothing, or sets a default, is left alone.
       module PersistenceChecks
+        # The adapters that keep nothing past the process: Memory, and DecisionFiles, a Memory store
+        # filled from files that takes no write.
+        MEMORY_BACKED = %w[Memory DecisionFiles].freeze
+
         # @param bluebook [Bluebook::Declaration] the domain being checked
         # @param hecksagon [Bluebook::Hecksagon, nil] its wiring; `nil` checks nothing
         # @return [Array<Finding>] one `:memory_in_persisted_domain` error per unbound aggregate
@@ -24,8 +28,11 @@ module Hecks
         def store_of(binds)
           return if binds.any? { |bind| bind.aggregate.nil? }
 
-          binds.find { |bind| bind.adapter.to_s != "Memory" }
+          binds.find { |bind| durable?(bind.adapter) }
         end
+
+        # @return [Boolean] whether the adapter keeps records past the process
+        def durable?(adapter) = !MEMORY_BACKED.include?(adapter.to_s)
 
         # @return [Array<Bluebook::Bind>] the hecksagon's `persisted_by` binds, none without one
         def persisted_binds(hecksagon)
