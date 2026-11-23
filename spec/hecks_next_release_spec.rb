@@ -8,11 +8,27 @@ RSpec.describe "the next release is cut after a soak" do
   let(:bumped) { [] }
   let(:quiet) { { unreleased: 3, oldest_days: 8, non_additive: false, added_surface: false, bump_pending: false } }
 
-  # A survey adapter that answers `facts` and a cutting adapter that records the level it was asked for.
+  # Answers the facts it was given, with the soak settings of the stable Lane row.
+  class Survey
+    def initialize(facts) = @facts = facts.transform_values { |fact| { value: fact } }
+
+    def survey(**) = @facts.merge(soak_days: { value: 7 }, major_soak_days: { value: 21 })
+  end
+
+  # Records the level each bump was asked for.
+  class Cutting
+    def initialize(log) = @log = log
+
+    def bump(**held)
+      level = held[:level]
+      @log << (level.is_a?(Hash) ? level[:value] : level)
+      { version: { value: "1.0.0" } }
+    end
+  end
+
   def adapters(facts)
-    survey = Class.new { define_method(:survey) { |**| facts.transform_values { |v| { value: v } }.merge(soak_days: { value: 7 }, major_soak_days: { value: 21 }) } }.new
-    cutting = Class.new { define_method(:bump) { |**held| bumped << held[:level]; { version: { value: "1.0.0" } } } }.new
-    ->(port, _asked) { { "Surveying" => survey, "Cutting" => cutting }[port.to_s] }
+    ports = { "Surveying" => Survey.new(facts), "Cutting" => Cutting.new(bumped) }
+    ->(port, _asked) { ports[port.to_s] }
   end
 
   def beat_with(facts)

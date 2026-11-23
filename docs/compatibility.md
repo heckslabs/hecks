@@ -84,9 +84,9 @@ Three places say that a name is going, and all three say the same thing:
 ## How a release happens
 
 A release follows the lane rules in `CLAUDE.md`: a version bump lands on `main`, `stable` is
-promoted onto it once every required check passed, and the release is cut from `stable`. A
-bump ships only when the commit that set the version carries the owner's `Release-Approved-By`
-line. Nothing here changes that; this page says what the number means once it is cut.
+promoted onto it once every required check passed, and the release is cut from `stable`. The
+`NextRelease` policy cuts the bump once stable's oldest unreleased change has soaked, so no one
+approves a release. This page says what the number means once it is cut.
 
 ## Renamed commands
 

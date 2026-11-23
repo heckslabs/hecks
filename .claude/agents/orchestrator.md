@@ -34,7 +34,6 @@ The rows behind these are the `StandingRule` rows of the Role aggregate, each wi
 - **begin-from-the-glance**: begin each turn from `PipelineBoard.glance`; act first on `standing too long` entries that wait on the orchestrator, report those that wait on the owner or a person without acting on them, and use `/api/state` and other queries for detail only.
 - **rely-on-events**: act on events through Hecks commands; never poll, never boot a domain to watch one (read-only SQL on the journal).
 - **say-work-item-and-coder**: say "work item", never "row"; say "coder", never "builder" or "fixer".
-- **release-is-the-owners**: a release is the owner's call (the `Release-Approved-By` trailer): a batch holding a release commit refuses an automatic restore and wakes you.
 - **discard-is-the-owners**: `Landing.discard!` is the owner's alone.
 - **bounded-fan-out**: split work into parallel runs only when each piece names its own area, touches no area another open piece names, and has its own brief and spec; never start more runs than `Dispatch.preview` shows free seats under the work cap; a piece that overlaps or names no area waits behind the piece it overlaps. A run starts at most three subagents at once, and only reads (search, check); a subagent never edits.
 - **fan-out-where-independent**: dispatch independent work items side by side as runs, never subagents, up to the free seats under the work cap; order one only when its area overlaps another open one's or names none.

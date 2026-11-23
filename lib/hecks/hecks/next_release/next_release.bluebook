@@ -1,0 +1,161 @@
+Hecks.bluebook "Hecks" do
+  domain_module "NextRelease" do
+    vision "A release cuts itself: once the oldest change stable holds that no tag covers has soaked, the next version is bumped."
+
+    # One look, on a promotion to stable or a beat of the clock, at whether the next release is due
+    # (ADR 0221). The `Surveying` port reads the facts (how many changes no tag covers, the age in
+    # whole days of the oldest, whether a bump already waits for its tag, whether a change added a
+    # concept or carries a translation edge, and the soak settings of the `stable` `Lane` row); the
+    # policies below compare them. The level is the highest among the changes: a translation edge
+    # makes it major and waits `major_soak_days`, a new concept makes it minor, anything else is a
+    # patch, and both of those wait `soak_days`. The `Cutting` port writes the bump as one commit
+    # through the train; `release.yml` tags and publishes it from `stable`.
+    aggregate "NextRelease" do
+      description "One look at whether stable's oldest unreleased change has soaked, and the cut of the next version when it has."
+
+      attribute :run,             CutKey
+      attribute :unreleased,      Count, optional: true
+      attribute :oldest_days,     Count, optional: true
+      attribute :bump_pending,    Switch, optional: true
+      attribute :non_additive,    Switch, optional: true
+      attribute :added_surface,   Switch, optional: true
+      attribute :soak_days,       Count, optional: true
+      attribute :major_soak_days, Count, optional: true
+      attribute :level,           Level, optional: true
+      attribute :version,         Version, optional: true
+      attribute :refusal,         CutNote, optional: true
+      identified_by :run
+
+      value_object "CutKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Count", Integer
+
+      value_object "Switch", Boolean
+
+      value_object "Level" do
+        attribute :value, String, one_of: %w[major minor patch]
+      end
+
+      value_object "Version" do
+        attribute :value, String, matches: :version
+      end
+
+      value_object "CutNote" do
+        attribute :value, String, matches: :present
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Cut"     => "due",      from: "requested"
+        transition "Record"  => "cut",      from: "due"
+        transition "Decline" => "declined", from: %w[requested due]
+        mark :terminal, "cut", "declined"
+      end
+
+      command "Look" do
+        role "System"
+        goal "Ask whether stable holds changes no release covers and whether the oldest has soaked"
+
+        attribute :run, CutKey, sets: true
+
+        emits NextReleaseRequested
+      end
+
+      # The rules of a cut: there is a change a release lacks, and no bump already waits for its tag,
+      # so a bump that has not been tagged yet is never followed by a second one.
+      command "Cut" do
+        role "System"
+        goal "Decide that the next release of this level is due, once the facts hold"
+
+        reference_to NextRelease
+        attribute :unreleased,   Count, sets: true
+        attribute :bump_pending, Switch, sets: true
+        attribute :level,        Level, sets: true
+
+        given("stable holds a change no release covers") { unreleased.value > 0 }
+        given("no bump waits for its tag: the last cut is released before the next") { !bump_pending.value }
+
+        emits ReleaseCutDue
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record the version the bump wrote"
+
+        reference_to NextRelease
+        attribute :version, Version, sets: true
+
+        emits ReleaseCutRecorded
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why no release was cut: the facts could not be read, or the bump could not be made"
+
+        reference_to NextRelease
+        attribute :refusal, CutNote, sets: true
+
+        emits ReleaseCutDeclined
+      end
+    end
+
+    # A root, so each beat's look and each promotion's look begin their own chain.
+    policy "LookAtTheNextReleaseWhenPromoted" do
+      on      "PromotionRun.PromotionCompleted"
+      where   { promoted.value }
+      root
+      trigger NextRelease::Look, with: { run: :run }
+    end
+
+    policy "LookAtTheNextReleaseOnTheBeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger NextRelease::Look, with: { run: :beat }
+    end
+
+    policy "SurveyWhenLooking" do
+      on      "NextRelease.NextReleaseRequested"
+      ask     :survey, with: { run: :run }
+    end
+
+    policy "CutAMajorWhenItHasSoaked" do
+      on      "NextRelease.ReleaseSurveyed"
+      where   { unreleased.value > 0 && non_additive.value && oldest_days.value >= major_soak_days.value }
+      trigger NextRelease::Cut, with: { run: :run, unreleased: :unreleased, bump_pending: :bump_pending, level: "major" }
+    end
+
+    policy "CutAMinorWhenItHasSoaked" do
+      on      "NextRelease.ReleaseSurveyed"
+      where   { unreleased.value > 0 && !non_additive.value && added_surface.value && oldest_days.value >= soak_days.value }
+      trigger NextRelease::Cut, with: { run: :run, unreleased: :unreleased, bump_pending: :bump_pending, level: "minor" }
+    end
+
+    policy "CutAPatchWhenItHasSoaked" do
+      on      "NextRelease.ReleaseSurveyed"
+      where   { unreleased.value > 0 && !non_additive.value && !added_surface.value && oldest_days.value >= soak_days.value }
+      trigger NextRelease::Cut, with: { run: :run, unreleased: :unreleased, bump_pending: :bump_pending, level: "patch" }
+    end
+
+    policy "BumpWhenTheCutIsDue" do
+      on      "NextRelease.ReleaseCutDue"
+      ask     :bump, with: { run: :run, level: :level }
+    end
+
+    policy "RecordTheVersionWhenBumped" do
+      on      "NextRelease.ReleaseBumped"
+      trigger NextRelease::Record, with: { run: :run, version: :version }
+    end
+
+    policy "DeclineWhenTheFactsCannotBeRead" do
+      on      "NextRelease.ReleaseSurveyRefused"
+      trigger NextRelease::Decline, with: { run: :run, refusal: :refusal }
+    end
+
+    policy "DeclineWhenTheBumpIsRefused" do
+      on      "NextRelease.ReleaseBumpRefused"
+      trigger NextRelease::Decline, with: { run: :run, refusal: :refusal }
+    end
+  end
+end

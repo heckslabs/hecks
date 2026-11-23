@@ -5615,7 +5615,8 @@ pub struct Lane {
     pub feeds: &'static str,
     pub follows: &'static str,
     pub alert_after: &'static str,
-    pub release_trailer: &'static str,
+    pub soak_days: &'static str,
+    pub major_soak_days: &'static str,
 }
 
 pub const LANE: &[Lane] = &[
@@ -5626,7 +5627,8 @@ pub const LANE: &[Lane] = &[
         feeds: "",
         follows: "",
         alert_after: "",
-        release_trailer: "",
+        soak_days: "",
+        major_soak_days: "",
     },
     Lane {
         name: "stable",
@@ -5635,7 +5637,8 @@ pub const LANE: &[Lane] = &[
         feeds: "edge",
         follows: "main",
         alert_after: "4",
-        release_trailer: "Release-Approved-By",
+        soak_days: "7",
+        major_soak_days: "21",
     },
 ];
 
@@ -5667,8 +5670,12 @@ impl Lane {
                 crate::kernel::Json::Str(self.alert_after.to_string()),
             ),
             (
-                "release_trailer".to_string(),
-                crate::kernel::Json::Str(self.release_trailer.to_string()),
+                "soak_days".to_string(),
+                crate::kernel::Json::Str(self.soak_days.to_string()),
+            ),
+            (
+                "major_soak_days".to_string(),
+                crate::kernel::Json::Str(self.major_soak_days.to_string()),
             ),
         ])
     }
@@ -5683,7 +5690,8 @@ impl Lane {
             "feeds",
             "follows",
             "alert_after",
-            "release_trailer",
+            "soak_days",
+            "major_soak_days",
         ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
@@ -5698,7 +5706,8 @@ impl Lane {
                         "feeds",
                         "follows",
                         "alert_after",
-                        "release_trailer",
+                        "soak_days",
+                        "major_soak_days",
                     ],
                 }
                 .render_args(),
@@ -5734,12 +5743,17 @@ impl Lane {
                 "Lane.alert_after expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("soak_days"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Lane.soak_days expects String, got nil".to_string(),
+            ));
+        }
         if matches!(
-            v.get("release_trailer"),
+            v.get("major_soak_days"),
             None | Some(crate::kernel::Json::Null)
         ) {
             return Err(crate::kernel::Refusal::TypeMismatch(
-                "Lane.release_trailer expects String, got nil".to_string(),
+                "Lane.major_soak_days expects String, got nil".to_string(),
             ));
         }
         for row in LANE {
@@ -5750,9 +5764,10 @@ impl Lane {
                 && v.get("follows").and_then(crate::kernel::Json::as_str) == Some(row.follows)
                 && v.get("alert_after").and_then(crate::kernel::Json::as_str)
                     == Some(row.alert_after)
-                && v.get("release_trailer")
+                && v.get("soak_days").and_then(crate::kernel::Json::as_str) == Some(row.soak_days)
+                && v.get("major_soak_days")
                     .and_then(crate::kernel::Json::as_str)
-                    == Some(row.release_trailer)
+                    == Some(row.major_soak_days)
             {
                 return Ok(row.clone());
             }

@@ -425,7 +425,7 @@ const FIX = {
     changes: "Pushes the commits waiting on origin to origin/main. A CI run starts on the newest one." },
   "Promote": { act: "promote", cmd: "hecks promotion_run.promote! lane=stable --confirm --wait", note: "Stable is behind main. This fast-forwards it onto the newest commit every required check passed on.",
     changes: "Moves origin/stable forward to the newest commit every required check passed on. Stable is what clients pin; a bad commit reaches them once it moves." },
-  "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." }
+  "Release": { note: "A release cuts itself: once the oldest change on stable has soaked, the NextRelease policy bumps the version and release.yml publishes it." }
 };
 let runAction = null, armed = false;
 function resolve(label, detail) {

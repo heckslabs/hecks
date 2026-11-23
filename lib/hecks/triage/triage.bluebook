@@ -106,7 +106,6 @@ Hecks.bluebook "Triage" do
       attribute :releases,   Count
 
       given("a green head is recorded before the tree is restored") { !last_green.value.to_s.empty? }
-      given("a batch holding a release commit is not restored") { releases.value.zero? }
       given("a restore matches the last green head's tree") { tree_match.value == "yes" }
 
       emits IncidentRestored

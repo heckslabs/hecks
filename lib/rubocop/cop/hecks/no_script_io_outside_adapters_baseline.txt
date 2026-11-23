@@ -17,7 +17,6 @@ lib/hecks/quality_control/cli/qa_seed_angles.rb
 lib/hecks/quality_control/cli/qa_seed_targets.rb
 lib/hecks/quality_control/cli/qa_tick.rb
 lib/hecks/query_ir_mcp.rb
-lib/hecks/release/approval.rb
 lib/hecks/release/runner.rb
 lib/hecks/rust_build.rb
 lib/hecks/rust_build/project_rust/codegen_run.rb

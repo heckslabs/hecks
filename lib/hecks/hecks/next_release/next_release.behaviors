@@ -1,0 +1,25 @@
+# NextRelease: the release that cuts itself once stable's oldest unreleased change has soaked
+# (ADR 0221). The Surveying and Cutting ports have no stub here; the policies that weigh their
+# answers are specified through the launcher in spec/hecks_next_release_spec.rb.
+Hecks.behaviors "Hecks" do
+  test "Cut makes the release due when stable holds a change and no bump waits for its tag" do
+    tests "Cut", on: "NextRelease"
+    setup "Hecks::NextRelease.Look", run: { value: "nr-1" }
+    input run: { value: "nr-1" }, unreleased: { value: 3 }, bump_pending: { value: false }, level: { value: "patch" }
+    expect emits: ["ReleaseCutDue"], status: "due"
+  end
+
+  test "Cut refuses while a bump still waits for its tag, so a second bump is never cut" do
+    tests "Cut", on: "NextRelease"
+    setup "Hecks::NextRelease.Look", run: { value: "nr-2" }
+    input run: { value: "nr-2" }, unreleased: { value: 3 }, bump_pending: { value: true }, level: { value: "patch" }
+    expect refused: "no bump waits for its tag"
+  end
+
+  test "Cut refuses when stable holds no change a release lacks" do
+    tests "Cut", on: "NextRelease"
+    setup "Hecks::NextRelease.Look", run: { value: "nr-3" }
+    input run: { value: "nr-3" }, unreleased: { value: 0 }, bump_pending: { value: false }, level: { value: "minor" }
+    expect refused: "stable holds a change no release covers"
+  end
+end

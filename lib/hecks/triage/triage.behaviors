@@ -37,14 +37,6 @@ Hecks.behaviors "Triage" do
     expect emits: ["IncidentRestored"], status: "restored"
   end
 
-  test "Restore refuses a batch that holds a release commit, by name" do
-    tests "Restore", on: "Incident"
-    setup "Triage::Incident.Open", incident: { value: "364303e81f5008d89914b6defd4b97ffa484e981" }, ci_run: { value: "41562200680" }
-    input incident: "364303e81f5008d89914b6defd4b97ffa484e981", restored: { value: "f59c83b3e6d2b677f60c19fb9cccc6e7d38ccbac" },
-          tree_match: { value: "yes" }, last_green: { value: "d7b6a769e1cf2ce7bbcd01d63fb1243981bcb728" }, releases: { value: 1 }
-    expect refused: "a batch holding a release commit is not restored"
-  end
-
   test "Restore refuses when no green head is recorded" do
     tests "Restore", on: "Incident"
     setup "Triage::Incident.Open", incident: { value: "364303e81f5008d89914b6defd4b97ffa484e981" }, ci_run: { value: "41562200680" }

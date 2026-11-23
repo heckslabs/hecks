@@ -36580,7 +36580,17 @@
               "relationship": null
             },
             {
-              "name": "release_trailer",
+              "name": "soak_days",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "major_soak_days",
               "type": "String",
               "list": false,
               "default": null,
@@ -36621,7 +36631,11 @@
                 ""
               ],
               [
-                "release_trailer",
+                "soak_days",
+                ""
+              ],
+              [
+                "major_soak_days",
                 ""
               ]
             ],
@@ -36651,8 +36665,12 @@
                 "4"
               ],
               [
-                "release_trailer",
-                "Release-Approved-By"
+                "soak_days",
+                "7"
+              ],
+              [
+                "major_soak_days",
+                "21"
               ]
             ]
           ]

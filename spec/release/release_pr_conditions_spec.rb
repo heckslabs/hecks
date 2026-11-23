@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/release/approval"
 require "hecks/release/conditions"
 
 # The auto-approval conditions of a release PR, and the trailer an approval writes for the owner.
@@ -40,12 +39,5 @@ RSpec.describe Hecks::Release::Conditions do
   it "finds a dated heading for the version and not a planned one", :aggregate_failures do
     expect(described_class.changelog_dated?(changelog, "7.0.0")).to be(true)
     expect(described_class.changelog_dated?(changelog, "7.0.1")).to be(false)
-  end
-
-  it "accepts the trailer an approval writes, with Chris Young as the approver", :aggregate_failures do
-    message = "Release 7.0.0: the owner's bump\n\nRelease-Approved-By: Chris Young\n"
-
-    expect(Hecks::Release::Approval.verdict(message: message).first).to be(true)
-    expect(Hecks::Release::Approval.approver(message)).to eq("Chris Young")
   end
 end

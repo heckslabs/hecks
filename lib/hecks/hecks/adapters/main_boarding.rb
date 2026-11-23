@@ -16,7 +16,7 @@ module Hecks
     # by boarding the push train in the train's own copy, and answers the commit the remote holds.
     #
     # It refuses, naming why, a run that was not verified, a boarding while another run is being
-    # pushed or watched, and a range carrying an agent's attribution trailer, a release approval or
+    # pushed or watched, and a range carrying an agent's attribution trailer or
     # a version change. A verified commit local main still holds above `origin/main` is boarded
     # even when newer commits landed meanwhile: the train is told the commit, and the newer ones
     # stay local for their own boarding. A commit main does not hold, or that `origin/main`

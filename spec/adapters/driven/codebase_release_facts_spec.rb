@@ -34,12 +34,8 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts do
                              tag_state: { value: "none" }, ships_from: { path: root })
   end
 
-  it "reads whether the commit that set the version carries the approval trailer", :aggregate_failures do
-    expect(found[:approved]).to eq(value: false)
-
-    commands.answer("git", "log", "--first-parent", "-1", "--format=%B", "-G^ *VERSION = ", "--", "lib/hecks/version.rb",
-                    stdout: "Release 9.9.9\n\nRelease-Approved-By: Someone\n")
-    expect(facts.gather("publish")[:approved]).to eq(value: true)
+  it "reads no approval: a release is cut by policy, so no fact of the commit decides it" do
+    expect(found).not_to have_key(:approved)
   end
 
   it "reads the IR version as a dotted number" do
