@@ -534,7 +534,7 @@ Hecks.behaviors "Tickets" do
     setup  "Tickets::Work.Plan", work: { value: "s4" }, title: { value: "An item" }
     setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
     setup  "Tickets::Work.Schedule", work: { value: "s4" }, into: "2026-11-23"
-    setup  "Tickets::Work.Close", work: { value: "s4" }
+    setup  "Tickets::Work.Close", work: { value: "s4" }, no_change: { value: "a verify" }
     input  work: { value: "s4" }
     expect status: "done"
   end
