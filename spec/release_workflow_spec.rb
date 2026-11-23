@@ -79,7 +79,20 @@ RSpec.describe ".github/workflows/release.yml" do
     it "lets detect read GitHub only, never a registry" do
       detect = workflow.fetch("jobs").fetch("detect").to_s
 
-      expect(detect).to include("gh release view").and(satisfy { |text| !text.include?("rubygems") && !text.include?("npmjs") })
+      expect(detect).to include("Lookup.check").and(satisfy { |text| !text.include?("rubygems") && !text.include?("npmjs") })
+    end
+  end
+
+  describe "what already exists" do
+    it "asks GitHub through the lookup that tells a failed call from no release", :aggregate_failures do
+      detect = workflow.fetch("jobs").fetch("detect").to_s
+
+      expect(detect).to include("hecks/release/lookup", "Lookup.check").and(satisfy { |t| !t.include?("gh release view") })
+      expect(step_named("What already exists").fetch("run")).to include("Lookup.check")
+    end
+
+    it "takes a tag on an ancestor with the same version as the release, and never moves a tag" do
+      expect(step_named("What already exists").fetch("run")).to include("SameRelease.stands?", "it is never moved")
     end
   end
 

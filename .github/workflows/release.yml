@@ -27,7 +27,10 @@ name: Release
 # Every step looks at what already exists first and skips it, so a run that stopped halfway, or a
 # release that was already cut by hand, is finished by re-running: the workflow never tags,
 # pushes or releases the same thing twice. A tag that stands on a different commit is an error,
-# never moved.
+# never moved, unless it stands on an ancestor of the release commit that sets the same VERSION
+# (a release branch merged with a merge commit tags the bump on the merged side). Whether a release
+# exists is asked of GitHub with retries; a lookup that errors fails the run by name and is never
+# read as "not released".
 #
 # The npm publish is started with `gh workflow run` rather than left to the tag push: a tag
 # pushed with the workflow's own GITHUB_TOKEN does not trigger other workflows, and the
@@ -113,7 +116,15 @@ jobs:
           if [ "$EVENT" = "workflow_run" ]; then
             commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
             version="$(git show "$commit:lib/hecks/version.rb" | sed -n 's/^ *VERSION = "\(.*\)".*/\1/p')"
-            if [ -n "$version" ] && gh release view "v$version" > /dev/null 2>&1; then
+            found=0
+            if [ -n "$version" ]; then
+              ruby -I lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "v$version" || found=$?
+            fi
+            # 0: published, 1: GitHub says there is no such release, 2: the lookup failed (the step
+            # has failed by name; a failed lookup is never read as a release still to cut).
+            if [ "$found" = "2" ]; then
+              exit 1
+            elif [ -n "$version" ] && [ "$found" = "0" ]; then
               pending=false
             elif [ -n "$version" ]; then
               tag_exists=false
@@ -235,8 +246,13 @@ jobs:
             echo "tagged=false" >> "$GITHUB_OUTPUT"
           elif [ "$remote" = "$SHA" ]; then
             echo "tagged=true" >> "$GITHUB_OUTPUT"
+          elif git merge-base --is-ancestor "$remote" "$SHA" && ruby -I lib -r hecks/release/same_release -e \
+            'exit Hecks::Release::SameRelease.stands?(tag_commit: ARGV[0], commit: ARGV[1], version: ARGV[2]) ? 0 : 1' \
+            "$remote" "$SHA" "$VERSION"; then
+            echo "$TAG stands on ${remote:0:7}, an ancestor of ${SHA:0:7} with the same VERSION; that is this release."
+            echo "tagged=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::$TAG already points at ${remote:0:7} on origin, not at this release commit ${SHA:0:7}; it is never moved. If it was never released, delete it and re-run."
+            echo "::error::$TAG already points at ${remote:0:7} on origin, not at this release commit ${SHA:0:7}; it is never moved. It is not an ancestor of this commit carrying VERSION $VERSION."
             exit 1
           fi
 
@@ -256,11 +272,13 @@ jobs:
             *)   echo "::error::the npm registry answered $npm_status; re-run this workflow"; exit 1 ;;
           esac
 
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "release=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "release=false" >> "$GITHUB_OUTPUT"
-          fi
+          found=0
+          ruby -I lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "$TAG" || found=$?
+          case "$found" in
+            0) echo "release=true" >> "$GITHUB_OUTPUT" ;;
+            1) echo "release=false" >> "$GITHUB_OUTPUT" ;;
+            *) exit 1 ;;
+          esac
 
       - name: Tag the release commit
         if: steps.state.outputs.tagged == 'false'
