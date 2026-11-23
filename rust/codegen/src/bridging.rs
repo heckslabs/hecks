@@ -702,6 +702,22 @@ pub fn clamp_bounds_ints(source: &Json) -> Option<(i64, i64)> {
     Some((min, max))
 }
 
+/// The `[min, max]` integers a bounded step (`increment`/`decrement` with `clamp:`) carries as
+/// `bounds`; `None` when the mutation has none, or they are not two integers.
+pub fn step_bounds_ints(mutation: &Json) -> Option<(i64, i64)> {
+    let items = mutation.get("bounds")?.as_array()?;
+    if items.len() != 2 {
+        return None;
+    }
+    let Some(Number::Int(min)) = items[0].number() else {
+        return None;
+    };
+    let Some(Number::Int(max)) = items[1].number() else {
+        return None;
+    };
+    Some((min, max))
+}
+
 /// An aggregate attribute a creating command's arguments never mention.
 #[allow(
     clippy::unwrap_used,

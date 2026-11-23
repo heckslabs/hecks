@@ -15,7 +15,8 @@ module Hecks
         FIELD_EFFECTS = %i[set append remove increment decrement multiply clamp].freeze
 
         # Declares one mutation this command applies to `target`, its op selected by
-        # whichever single keyword names a source; omitting all of them means `to: target`.
+        # whichever single keyword names a source (`clamp:` beside `increment:` or `decrement:`
+        # bounds that step instead of selecting an op); omitting all of them means `to: target`.
         #
         # @param target [Symbol, String] the field the mutation writes
         # @param positional_to [Object] the source, written without `to:`
@@ -140,8 +141,10 @@ module Hecks
                 "sets :#{target} alone already means the same"
         end
 
-        # Records the one mutation `named` selects, refusing a second op.
+        # Records the one mutation `named` selects, refusing a second op. A step
+        # (`increment:`/`decrement:`) beside `clamp:` is one mutation: the clamp rides as its bounds.
         def record_mutation(word, target, named)
+          named, bounds = split_step_bounds(target, named)
           if named.size > 1
             raise Malformed,
                   "#{@name}'s #{word} :#{target} tries to #{named.keys.join(" and ")} " \
@@ -149,7 +152,8 @@ module Hecks
           end
 
           op, source = named.first
-          @mutations << Mutation.new(target: target.to_sym, op: op, source: normalize_append_source(op, source))
+          @mutations << Mutation.new(target: target.to_sym, op: op, bounds: bounds,
+                                     source: normalize_append_source(op, source))
         end
 
         # The ops `then_set` selects between, in the order its refusals name them.

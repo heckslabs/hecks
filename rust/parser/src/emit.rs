@@ -464,12 +464,19 @@ fn mutation_json(m: &ir::Mutation) -> JsonValue {
             op,
             sign,
             source,
-        } => JsonValue::Object(vec![
-            ("target".to_string(), JsonValue::str(target.clone())),
-            ("op".to_string(), JsonValue::str(op.clone())),
-            ("sign".to_string(), JsonValue::str(sign.clone())),
-            ("source".to_string(), mutation_source_json(source.as_ref())),
-        ]),
+            bounds,
+        } => {
+            let mut fields = vec![
+                ("target".to_string(), JsonValue::str(target.clone())),
+                ("op".to_string(), JsonValue::str(op.clone())),
+                ("sign".to_string(), JsonValue::str(sign.clone())),
+                ("source".to_string(), mutation_source_json(source.as_ref())),
+            ];
+            if let Some(bounds) = bounds {
+                fields.push(("bounds".to_string(), ruby_value_json(bounds)));
+            }
+            JsonValue::Object(fields)
+        }
     }
 }
 

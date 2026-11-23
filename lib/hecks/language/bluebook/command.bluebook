@@ -101,6 +101,9 @@ Hecks.bluebook "Bluebook" do
       attribute :field,  String
       attribute :kind,   String
       attribute :source, String
+      # A bounded step's `[min, max]`, one encoded literal; absent unless an increment or
+      # decrement carries a `clamp:`.
+      attribute :bounds, String, optional: true
     end
 
     # Plain string holder for an aggregate id; the other text value objects mean something else.
@@ -240,11 +243,12 @@ Hecks.bluebook "Bluebook" do
       attribute :field,  FieldRef
       attribute :kind,   FieldRef
       attribute :source, FieldRef
+      attribute :bounds, FieldRef, optional: true
 
       given("a mutation names a target")     { !target.value.to_s.empty? }
       given("a mutation does something")     { !op.value.to_s.empty? }
 
-      sets :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
+      sets :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source, bounds: :bounds }
 
       emits ChangeAttached
     end

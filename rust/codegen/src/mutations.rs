@@ -1553,10 +1553,13 @@ fn emit_mutation_line_body(
                 value_objects_by_name,
             );
             let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
-            let updated = format!(
-                "{vo_type} {{ {field_ident}: {}, ..current }}",
-                arithmetic_field_value(kind, &op, &field_ident, sign, &amount_expr)
-            );
+            let stepped = arithmetic_field_value(kind, &op, &field_ident, sign, &amount_expr);
+            // A bounded step holds the stepped value inside `bounds`, in the same write.
+            let stepped = match crate::bridging::step_bounds_ints(mutation) {
+                Some((min, max)) => format!("({stepped}).clamp({min}, {max})"),
+                None => stepped,
+            };
+            let updated = format!("{vo_type} {{ {field_ident}: {stepped}, ..current }}");
             exemplar.render(
                 "mutation_arithmetic",
                 &[

@@ -76,7 +76,8 @@ module Hecks
 
         def apply_arithmetic(instance, aggregate, mutation, args, pre)
           apply_numeric(instance, aggregate, mutation, args, pre) do |current, amount|
-            @rules.arithmetic(current, amount, mutation.target, @rules.sign_of(mutation.op))
+            stepped = @rules.arithmetic(current, amount, mutation.target, @rules.sign_of(mutation.op))
+            @rules.bounded_step(stepped, mutation.bounds, mutation.target)
           end
         end
 
