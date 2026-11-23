@@ -127,3 +127,13 @@ those sites are:
   the Feature rows and the clock port.
 - **The public surface.** Declaring the public surface is a separate decision. It turns on the
   "removed public command or argument" half of the major rule.
+
+## Landed
+
+The trailer rule is retired and the policy stands (work item `release-cuts-itself-after-a-soak`).
+`NextRelease` (`lib/hecks/hecks/next_release/next_release.bluebook`) is the cut policy; its
+`Surveying` port reads the facts, the `Cutting` port writes the bump, and `soak_days` and
+`major_soak_days` replace `release_trailer` on the `stable` `Lane` row. The level facts are a
+translation edge in the changes (major) and an added aggregate, command, value object, event or
+policy (minor); a Feature row is not yet read. The board's next-release tile and the public
+surface half of the major rule remain open items.

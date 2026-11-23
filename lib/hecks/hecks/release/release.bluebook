@@ -116,7 +116,6 @@ Hecks.bluebook "Hecks" do
       attribute :version,        Version, optional: true
       attribute :client_version, Version, optional: true
       attribute :changelog,      Switch, optional: true
-      attribute :approved,       Switch, optional: true
       attribute :tag_state,      Word, optional: true
       attribute :head,           Word, optional: true
       attribute :ir_version,     Version, optional: true
@@ -162,9 +161,8 @@ Hecks.bluebook "Hecks" do
         mark :failure, "faulted"
         transition "Accept"     => "accepted",  from: "requested"
         transition "AcceptGem"  => "accepted",  from: "requested"
-        transition "Approve"    => "approved",  from: "accepted"
-        transition "Complete"   => "completed", from: %w[accepted approved]
-        transition "Fault"      => "faulted",   from: %w[requested accepted approved]
+        transition "Complete"   => "completed", from: "accepted"
+        transition "Fault"      => "faulted",   from: %w[requested accepted]
         mark :terminal, "completed", "faulted"
       end
 
@@ -212,7 +210,6 @@ Hecks.bluebook "Hecks" do
         attribute :version,        Version, sets: true
         attribute :client_version, Version, sets: true
         attribute :changelog,      Switch, sets: true
-        attribute :approved,       Switch, sets: true
         attribute :tag_state,      Word, sets: true
         attribute :head,           Word, sets: true
         attribute :ir_version,     Version, sets: true
@@ -234,19 +231,6 @@ Hecks.bluebook "Hecks" do
 
 
         emits PublishingAccepted
-      end
-
-      # The release step a person or a policy satisfies: an accepted release is carried out only once
-      # it is approved. The approval fact is `ApproveWhenOwnerApproved` today (the trailer) and a soak
-      # policy later (ADR 0221); this command is the one owner of "the release is approved".
-      command "Approve" do
-        role "System"
-        goal "Record that an accepted release is approved to be carried out"
-
-        reference_to PublishingRun
-        attribute :approved, Switch, optional: true, sets: true
-
-        emits PublishingApproved
       end
 
       # release_gem's one rule: the client package is released beside the gem at the same version.
@@ -327,7 +311,7 @@ Hecks.bluebook "Hecks" do
       trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, release_lane: :release_lane,
                                              on_origin: :on_origin, clean: :clean, version: :version,
                                              client_version: :client_version,
-                                             changelog: :changelog, approved: :approved, tag_state: :tag_state,
+                                             changelog: :changelog, tag_state: :tag_state,
                                              head: :head, ir_version: :ir_version, ships_from: :ships_from }
     end
 
@@ -349,14 +333,6 @@ Hecks.bluebook "Hecks" do
       trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG and tag" }
     end
 
-    # The owner's approval is a fact of the commit (the Release-Approved-By trailer), or a tag that
-    # already stands on the release commit. An accepted release without it waits in `accepted`.
-    policy "ApproveWhenOwnerApproved" do
-      on      "PublishingRun.PublishingAccepted"
-      where   { approved.value || tag_state.value == "at_release_commit" }
-      trigger PublishingRun::Approve, with: { approved: :approved }
-    end
-
     policy "FaultTheGemWhenNotAccepted" do
       on      "PublishingRun.PublishingExamined"
       where do
@@ -365,8 +341,8 @@ Hecks.bluebook "Hecks" do
       trigger PublishingRun::Fault, with: { refusal: "a gem push rule is not met: needs a checkout and the client at the gem's version" }
     end
 
-    policy "PerformPublishingWhenApproved" do
-      on      "PublishingRun.PublishingApproved"
+    policy "PerformPublishingWhenAccepted" do
+      on      "PublishingRun.PublishingAccepted"
       ask     :perform, with: { run: :run }
     end
 
@@ -415,18 +391,17 @@ Hecks.bluebook "Hecks" do
       trigger PublishingRun::Fault, with: { refusal: :refusal }
     end
 
-    # One release cut: examined, accepted, approved, carried out. Promotion is a rule of `Accept`, so
-    # it stands before the saga starts; a fault after the tag is recorded, never undone. No clock
-    # reaches the wait on approval yet (ADR 0169).
+    # One release carried out: examined, accepted, performed. Promotion is a rule of `Accept`, so
+    # it stands before the saga starts; a fault after the tag is recorded, never undone. Nothing
+    # waits on a person: the NextRelease policy decided that this version is due.
     process_manager "ReleaseCut" do
       correlates_by :"run.value"
       starts_on PublishingRun::PublishRequested
       ends_on PublishingRun::PublishingCompleted
 
-      transition PublishingRun::PublishingAccepted => "awaiting_approval", from: "requested"
-      transition PublishingRun::PublishingApproved => "performing", from: "awaiting_approval"
+      transition PublishingRun::PublishingAccepted => "performing", from: "requested"
       transition PublishingRun::PublishingCompleted => "released", from: "performing"
-      transition PublishingRun::PublishingFaulted => "refused", from: %w[requested awaiting_approval]
+      transition PublishingRun::PublishingFaulted => "refused", from: "requested"
       transition PublishingRun::PublishingFaulted => "faulted", from: "performing"
     end
 

@@ -9,7 +9,7 @@ module Hecks
     # `gh release view` exits nonzero both when the release is missing and when the call itself
     # fails (rate limit, outage). Only GitHub's own words "release not found" mean absence; every
     # other answer is a failed lookup, retried and then named, never read as "not released".
-    # Like {Approval} it needs only the standard library, so `release.yml` runs it on the runner.
+    # It needs only the standard library, so `release.yml` runs it on the runner.
     module Lookup
       ABSENT = "release not found"
       ATTEMPTS = 3

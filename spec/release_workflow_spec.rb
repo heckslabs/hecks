@@ -142,32 +142,16 @@ RSpec.describe ".github/workflows/release.yml" do
     expect(names.index("Tag the release commit")).to be < names.index("Push the gem with the API key")
   end
 
-  # A release is the owner's decision: the bump commit must say so, and the check runs before any
-  # tag or push. The decision itself is pinned in spec/release/approval_spec.rb.
-  describe "the owner's approval" do
-    def check = step_named("The version bump carries the owner's approval")
-
-    it "is checked from the commit that set the version, before anything is tagged or pushed", :aggregate_failures do
-      expect(check.fetch("run")).to include("-G'^ *VERSION = '", "hecks/release/approval", "Approval.check")
-      expect(names.index("The version bump carries the owner's approval")).to be < names.index("Tag the release commit")
-      expect(check).not_to have_key("if")
-      expect(check).not_to have_key("continue-on-error")
+  # A release is cut by policy after a soak, so the workflow asks no one: a bump that reached stable
+  # is tagged and published, and an existing tag counts as released.
+  describe "no approval" do
+    it "asks for no approval step and no approved_by input", :aggregate_failures do
+      expect(names).not_to include("The version bump carries the owner's approval")
+      expect(triggers.fetch("workflow_dispatch").fetch("inputs")).not_to have_key("approved_by")
     end
 
-    it "judges the bump from the commit alone, so a merged release branch is read by approval.rb" do
-      expect(check.fetch("run")).to include('COMMIT="$commit"').and(satisfy { |run| !run.include?("COMMIT_MESSAGE") })
-    end
-
-    it "lets an existing tag and a by-hand approval through, and no other run", :aggregate_failures do
-      expect(check.fetch("run")).to include("TAG_EXISTS")
-      expect(triggers.fetch("workflow_dispatch").fetch("inputs").fetch("approved_by")).to include("required" => false)
-      expect(workflow.fetch("jobs").fetch("release").fetch("env")).to include("APPROVED_BY" => "${{ inputs.approved_by }}")
-    end
-
-    it "makes detect skip an unapproved bump quietly instead of failing every promotion" do
-      detect = workflow.fetch("jobs").fetch("detect").to_s
-
-      expect(detect).to include("hecks/release/approval", "pending=false")
+    it "leaves detect to the registry lookup alone" do
+      expect(workflow.fetch("jobs").fetch("detect").to_s).not_to include("approval")
     end
   end
 
@@ -250,7 +234,7 @@ RSpec.describe ".github/workflows/release.yml" do
     def helper_lines = code.lines.select { |line| line.include?("-r hecks/release/") }
 
     it "loads every helper from the tools checkout, never from the released tree", :aggregate_failures do
-      expect(helper_lines.size).to eq(6)
+      expect(helper_lines.size).to eq(4)
       expect(helper_lines).to all(include("-I .release-tools/lib"))
       expect(helper_lines.grep(/-I lib /)).to be_empty
     end
@@ -264,7 +248,7 @@ RSpec.describe ".github/workflows/release.yml" do
     it "names a helper missing from the tools checkout and stops" do
       guard = text.lines.grep(%r{test -f \.release-tools/lib/hecks/release}).join
 
-      expect(guard).to include("lookup", "same_release", "approval")
+      expect(guard).to include("lookup", "same_release")
     end
 
     it "keeps the tools checkout out of the released tree's status" do

@@ -155,11 +155,14 @@ current list of what this repo can do.
   (`exe/hecks agents Script.candidates` lists them).
 - Add `--wait` when you need the result before the next step.
 
-## Releases are the owner's
+## Releases cut themselves
 
-A version bump ships only with a `Release-Approved-By: <name>` line in its commit message. Write it
-only when the owner has said to release; never bump a version or cut a release on your own, and
-never push to `stable`, which is only promoted. Releases and deploys come from `stable`, never `main`.
+No one approves a release. When `stable` holds commits no tag covers and the oldest has stood there
+for `soak_days` (a major waits `major_soak_days`; both are attributes of the `stable` `Lane` row), the
+`NextRelease` policy writes the bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README lines,
+`rust/host/HECKS_RELEASE`, `packages/hecks-client`) as one commit through the train, and `release.yml`
+tags and publishes it from `stable`. A session never bumps a version or cuts a release by hand, and
+never pushes to `stable`, which is only promoted. Releases and deploys come from `stable`, never `main`.
 
 ## Read on demand
 

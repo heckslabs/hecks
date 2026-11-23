@@ -1149,10 +1149,10 @@ Hecks.bluebook "Bluebook" do
     # empty when none does; `follows` is the lane a promotion draws from, or empty. `alert_after`
     # is the whole hours the lane may stand behind the lane it follows before `hecks
     # promotion_run.watch` files a finding, or empty for a lane that is never late.
-    # `release_trailer` is the commit-message trailer a commit that sets the version must carry
-    # (`Release-Approved-By: <name>`) before a release is cut from this lane, or empty for a lane
-    # nothing is released from: the owner decides when a release happens by writing that line in
-    # the bump commit, and `release.yml` and `publishing_run.publish` both refuse a bump without it.
+    # `soak_days` is the whole days the oldest change a release lacks must have stood on the lane
+    # before the next release is cut from it, and `major_soak_days` is the longer wait of a release
+    # whose changes include a shape change that needs a translation edge (ADR 0221); both are empty
+    # for a lane nothing is released from. The owner steers releases by these two values.
     value_object "Lane" do
       attribute :name,        String
       attribute :guarded,     String
@@ -1160,12 +1160,13 @@ Hecks.bluebook "Bluebook" do
       attribute :feeds,       String
       attribute :follows,     String
       attribute :alert_after, String
-      attribute :release_trailer, String
+      attribute :soak_days,   String
+      attribute :major_soak_days, String
 
       member name: "main",   guarded: "yes", pushers: "queue",  feeds: "",     follows: "",     alert_after: "",
-             release_trailer: ""
+             soak_days: "", major_soak_days: ""
       member name: "stable", guarded: "yes", pushers: "green",  feeds: "edge", follows: "main", alert_after: "4",
-             release_trailer: "Release-Approved-By"
+             soak_days: "7", major_soak_days: "21"
     end
 
     # A binary hecks builds once per change to its crate and publishes, so a client that needs the

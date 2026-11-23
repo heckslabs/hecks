@@ -209,9 +209,6 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
       <g class="edge" data-edge="pipeline-pruner" data-ends="pipeline pruner" data-tip="Pipeline → Pruner&#10;LandedWorkFound&#10;When work lands, the pruner removes the finished session and what it left behind.">
         <path class="line" d="M840 480 V441" marker-end="url(#a-ink)"/><path class="flow" d="M840 480 V441"/><path class="hit" d="M840 480 V441"/>
         <text x="848" y="465">LandedWorkFound</text></g>
-      <g class="edge" data-edge="you-pipeline" data-ends="you pipeline" data-tip="You → Pipeline&#10;Release-Approved-By&#10;A release is the one step that waits for you.">
-        <path class="line" d="M1250 72 V477" marker-end="url(#a-ink)"/><path class="flow" d="M1250 72 V477"/><path class="hit" d="M1250 72 V477"/>
-        <text x="1242" y="120" text-anchor="end">Release-Approved-By</text></g>
 
       <g class="node" data-role="planner" tabindex="0">
         <rect class="ring" x="40" y="267" width="160" height="66" rx="10"/><rect class="box" x="40" y="267" width="160" height="66" rx="10"/>
@@ -300,13 +297,13 @@ const ROLES = {
   pruner: { code: "PR", name: "Pruner", hears: ["LandedWorkFound", "PrunerWoken"], says: [] }
 };
 // Which map line each event travels: from, to. The names are the events of the Agents, Tickets, Delegate, Deliver
-// and Pipeline bluebooks. `you` appears only on Release (PassageReleased); an owner-only ask is shown in Waiting on you. A line with no event of its own (a command, or a session started by hand) is never lit.
+// and Pipeline bluebooks. `you` appears on no line: a release cuts itself, and an owner-only ask is shown in Waiting on you. A line with no event of its own (a command, or a session started by hand) is never lit.
 const EDGES = {
   WorkPlanned: ["planner", "coder"], WorkRouted: ["planner", "coder"],
   PlanReviewRequested: ["coder", "architect"], PlanReviewed: ["architect", "coder"],
   WorkSubmitted: ["coder", "reviewer"], SubmissionReviewRequested: ["coder", "reviewer"], SpecFailureJudged: ["reviewer", "coder"],
   BranchLanded: ["coder", "pipeline"], PassageLanded: ["coder", "pipeline"],
-  LandedWorkFound: ["pipeline", "pruner"], PassageReleased: ["you", "pipeline"]
+  LandedWorkFound: ["pipeline", "pruner"]
 };
 const CODES = { you: "You", pipeline: "Pipeline", ...Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.code])) };
 const HOT_MS = 30 * 60 * 1000;

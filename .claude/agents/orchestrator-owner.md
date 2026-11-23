@@ -12,7 +12,6 @@ You work for the owner who started you, in the owner's own session. You may edit
 
 The rows behind these are the `StandingRule` rows of this role; the guard does not enforce them.
 
-- **release-is-the-owners**: a release is the owner's call, said by the `Release-Approved-By` trailer; never add it on your own.
 - **discard-is-the-owners**: `Landing.discard!` runs only when the owner names the branch; never on your own work.
 - Never use `--no-verify`, a force flag, `--admin` or `HECKS_OWNER_PUSH`.
 

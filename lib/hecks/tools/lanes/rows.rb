@@ -7,10 +7,7 @@ module Hecks
     module Lanes
       # The `Lane` rows of the Vocabulary bluebook, checked against what the projection can express.
       module Rows
-        # Empty, or a trailer key of dash-joined words such as `Release-Approved-By`.
-        TRAILER_KEY = /\A([A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*)?\z/
-
-        # Empty, or a whole number of hours.
+        # Empty, or a whole number (hours, or days).
         WHOLE_HOURS = /\A\d*\z/
 
         module_function
@@ -35,14 +32,14 @@ module Hecks
           return "#{name} has guarded #{lane["guarded"].inspect}" unless %w[yes no].include?(lane["guarded"])
           return "#{name} has alert_after #{lane["alert_after"].inspect}, not whole hours" unless hours?(lane)
 
-          return "#{name} has release_trailer #{lane["release_trailer"].inspect}, not a trailer word" unless trailer?(lane)
-
-          follows_problem(lane, names)
+          follows_problem(lane, names) || soak_problem(lane)
         end
 
-        # @return [Boolean] whether `release_trailer` is empty (nothing is released from the lane)
-        #   or a git trailer key such as `Release-Approved-By`
-        def trailer?(lane) = lane["release_trailer"].to_s.match?(TRAILER_KEY)
+        # @return [String, nil] what is wrong with the lane's soak settings, or nil
+        def soak_problem(lane)
+          bad = %w[soak_days major_soak_days].find { |key| !lane[key].to_s.match?(WHOLE_HOURS) }
+          "#{lane["name"]} has #{bad} #{lane[bad].inspect}, not whole days" if bad
+        end
 
         # @return [Boolean] whether `alert_after` is empty (never late) or whole hours
         def hours?(lane) = lane["alert_after"].to_s.match?(WHOLE_HOURS)

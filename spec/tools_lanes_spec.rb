@@ -280,16 +280,17 @@ RSpec.describe Hecks::Tools::Lanes do
       expect { described_class.lanes }.to raise_error(SystemExit).and output(/alert_after "soon", not whole hours/).to_stderr
     end
 
-    it "refuses a release trailer that is not a git trailer word" do
-      rows_are(release_trailer: "Approved By")
+    it "refuses a soak that is not whole days" do
+      rows_are(soak_days: "a week")
 
-      expect { described_class.lanes }.to raise_error(SystemExit).and output(/release_trailer "Approved By"/).to_stderr
+      expect { described_class.lanes }.to raise_error(SystemExit).and output(/soak_days "a week", not whole days/).to_stderr
     end
 
-    it "names the trailer on the lane a release is cut from" do
+    it "names the soak on the lane a release is cut from", :aggregate_failures do
       stable = described_class.lanes.find { |lane| lane["name"] == "stable" }
 
-      expect(stable["release_trailer"]).to eq("Release-Approved-By")
+      expect(stable["soak_days"]).to eq("7")
+      expect(stable["major_soak_days"]).to eq("21")
     end
 
     it "refuses a lane that follows a lane no row names" do

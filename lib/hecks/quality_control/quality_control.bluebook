@@ -2165,12 +2165,11 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
-  # One release PR: the bump of the version on main, opened as a PR and approved on GitHub by the owner. The
-  # approval is written as the release trailer on the merge, which is the line `Hecks::Release::Approval`
-  # reads. A PR is approved only when every auto-approval condition holds (see ReleaseCondition); a failed
-  # condition is a named refusal and nothing is approved.
+  # One release PR: the bump of the version on main, opened as a PR. A PR is approved only when every
+  # auto-approval condition holds (see ReleaseCondition); a failed condition is a named refusal and
+  # nothing is approved. The approval writes no trailer: a release is cut by policy (ADR 0221).
   aggregate "ReleasePR" do
-    description "One release PR: the version bump opened on GitHub, approved by the owner only when every auto-approval condition holds."
+    description "One release PR: the version bump opened on GitHub, approved only when every auto-approval condition holds."
 
     identified_by :release
 
@@ -2197,17 +2196,6 @@ Hecks.bluebook "QualityControl" do
                                          "changelog_undated", "version_mismatch"]
     end
 
-    # The owner who approves each release PR. The trailer line names this person; no other name is approved.
-    value_object "ReleaseApprover" do
-      attribute :value, String, one_of: ["Chris Young"]
-    end
-
-    # The commit-message trailer an approval writes. It is the `release_trailer` of the stable `Lane` row
-    # (Vocabulary), which `Hecks::Release::Approval` reads, so the check accepts what the policy writes.
-    value_object "ReleaseTrailer" do
-      attribute :value, String, one_of: ["Release-Approved-By"]
-    end
-
     # Opens the release PR for a version bump on a branch. The open is answered by the `ReleaseGh` port.
     command "Open" do
       role "Release owner"
@@ -2220,8 +2208,7 @@ Hecks.bluebook "QualityControl" do
       emits "ReleaseOpenRequested"
     end
 
-    # Records the result of the four auto-approval conditions for one release PR. The caller names the approver
-    # and the trailer, which the approval policy passes on to the approval.
+    # Records the result of the four auto-approval conditions for one release PR.
     command "Check" do
       role "Release owner"
       goal "Record which auto-approval condition held for a release PR, naming the first one that failed"
@@ -2229,23 +2216,18 @@ Hecks.bluebook "QualityControl" do
       attribute :release,   ReleaseVersion
       attribute :sha,       MaintenanceSha
       attribute :condition, ReleaseCondition
-      attribute :approver,  ReleaseApprover
-      attribute :trailer,   ReleaseTrailer
 
       emits "ReleaseChecked"
     end
 
-    # Approves a release PR whose conditions all held. Only a condition of `met` is approved; the trailer
-    # is then written on the merge by the `ReleaseGh` port.
+    # Approves a release PR whose conditions all held. Only a condition of `met` is approved.
     command "Approve" do
       role "Release owner"
-      goal "Approve a release PR once every auto-approval condition holds, writing the release trailer for the owner"
+      goal "Approve a release PR once every auto-approval condition holds"
 
       attribute :release,   ReleaseVersion
       attribute :sha,       MaintenanceSha
       attribute :condition, ReleaseCondition
-      attribute :approver,  ReleaseApprover
-      attribute :trailer,   ReleaseTrailer
 
       given("only a release whose conditions all held is approved") { condition.value == "met" }
 
@@ -3058,8 +3040,7 @@ Hecks.bluebook "QualityControl" do
   end
 
   # The release PR chain. A version bump opens its PR; the conditions judged on `ReleaseChecked` either
-  # approve it (every condition `met`) or refuse it by the name of the condition that failed. An approval
-  # writes the release trailer on the merge through the `ReleaseGh` port.
+  # approve it (every condition `met`) or refuse it by the name of the condition that failed.
   policy "OpenOnReleaseRequest" do
     on      "ReleasePR.ReleaseOpenRequested"
     ask     :open_pull_request, with: { release: :release, branch: :branch, sha: :sha }
@@ -3068,19 +3049,13 @@ Hecks.bluebook "QualityControl" do
   policy "ApproveOnConditionsMet" do
     on      "ReleasePR.ReleaseChecked"
     where   { condition.value == "met" }
-    trigger ReleasePR::Approve, with: { release: :release, sha: :sha, condition: :condition,
-                                        approver: :approver, trailer: :trailer }
+    trigger ReleasePR::Approve, with: { release: :release, sha: :sha, condition: :condition }
   end
 
   policy "RefuseOnFailedCondition" do
     on      "ReleasePR.ReleaseChecked"
     where   { condition.value != "met" }
     trigger ReleasePR::Refuse, with: { release: :release, condition: :condition }
-  end
-
-  policy "WriteTrailerOnApproved" do
-    on      "ReleasePR.ReleaseApproved"
-    ask     :write_trailer, with: { approver: :approver, trailer: :trailer }
   end
 
   # ---- The push nudge ----------------------------------------------------------------------------

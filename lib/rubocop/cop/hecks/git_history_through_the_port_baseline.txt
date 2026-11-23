@@ -7,4 +7,3 @@
 # and the cop's baseline methods. Registered here and in .rubocop.yml, not in ADR 0091, which
 # allows no per-file list.
 lib/hecks/fuzzing/combination_miner.rb
-lib/hecks/release/version_commit.rb

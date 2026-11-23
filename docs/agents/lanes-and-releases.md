@@ -3,7 +3,7 @@
 Read this before you board the train, change a lane or a required check, or work on promotion
 or a release. `CLAUDE.md` holds the rules every session needs; this holds the detail. Nothing
 here widens them: an agent never pushes `main` but by the train, never sets `HECKS_OWNER_PUSH`,
-never uses `--no-verify`, and never writes a `Release-Approved-By` line on its own.
+never uses `--no-verify`, and never bumps a version by hand.
 
 ## Two lanes: `main` takes pushes, `stable` is promoted
 
@@ -86,21 +86,16 @@ commit must pass as `RequiredCheck` rows beside them.
   it, then publish from a clean `stable`. `release.yml` enforces it: it runs
   after Promote, releases the commit on `stable` that set the version, and
   refuses any commit `stable` does not contain, a by-hand run included.
-- **A release is the owner's decision.** A bump that lands on `main` ships
-  only if the commit that set the version has a `Release-Approved-By: <name>`
-  line in its message (the `release_trailer` of the `stable` `Lane` row;
-  `lib/hecks/release/approval.rb` decides). Without it `release.yml` releases
-  nothing after a promotion, and refuses a by-hand run before it tags or
-  pushes; `publishing_run.publish!` refuses it too. Write the line only when
-  the user has said to release; never add it on your own, and never bump the
-  version for a fix that can ride `edge` (the tag at `stable`'s head, which a
-  client can pin as "latest certified"). An existing tag counts as approved,
-  so `gh workflow run release.yml -f tag=vX.Y.Z` still finishes a half-cut
-  release; the owner may approve a bump already on `stable` with `-f
-  approved_by=<name>`. Name the pending release while changes accumulate
-  by writing `## [Unreleased] - planned X.Y.Z` on the CHANGELOG heading
-  (`spec/changelog_planned_release_spec.rb` pins the shape); naming it does not
-  approve it.
+- **A release cuts itself after a soak.** Nobody approves it. When `stable` holds
+  commits no tag covers and the oldest has stood there for `soak_days` (a major
+  waits `major_soak_days`; both are attributes of the `stable` `Lane` row), the
+  `NextRelease` policy writes the bump as one commit through the train and
+  `release.yml` tags and publishes it from `stable`. An existing tag counts as
+  released, so `gh workflow run release.yml -f tag=vX.Y.Z` still finishes a
+  half-cut release. Never bump the version by hand, nor for a fix that can ride
+  `edge` (the tag at `stable`'s head, which a client can pin as "latest
+  certified"). The CHANGELOG heading `## [Unreleased] - planned X.Y.Z` names the
+  pending release (`spec/changelog_planned_release_spec.rb` pins the shape).
 - **A red `main` blocks promotion, not pushes.** Fix forward or revert on
   `main`; `stable` does not move until a commit is green. Do not
   cherry-pick onto `stable` unless the user says production is down.
