@@ -61,14 +61,14 @@ module Hecks
           end
 
           def refuse_uninvertible_sources!(command, event, derived)
-            unsupported = derived.reject { |mutation| INVERSE_OP.key?(mutation.op) }
+            unsupported = derived.reject { |mutation| INVERSE_OP.key?(mutation.op) && mutation.bounds.nil? }
             return if unsupported.empty?
 
             raise Malformed,
                   "#{@name}.#{command.hecks_name} corrects #{event.inspect}, reverses: " \
                   "true, but the command(s) that emit it use " \
                   "#{unsupported.map(&:op).uniq.join(", ")} — not statically invertible " \
-                  "(set needs the specific prior value, multiply/clamp are lossy) — " \
+                  "(set needs the specific prior value, multiply/clamp and a clamped step are lossy) — " \
                   "declare the corrective sets by hand instead"
           end
         end

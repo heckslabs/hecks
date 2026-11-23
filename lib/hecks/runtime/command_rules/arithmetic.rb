@@ -156,6 +156,16 @@ module Hecks
           bounded(current * amount, "multiply", current, amount, "*")
         end
 
+        # Holds the result of a step inside its declared bounds; a step with none is unchanged.
+        #
+        # @param result [Numeric, Runtime::Value] the current value moved by the step
+        # @param bounds [Array<Numeric>, nil] the `[min, max]` the step was declared with
+        # @param target [Symbol, String] attribute name, used only to word a refusal
+        # @return [Numeric, Runtime::Value] `result`, or `result` held to `[min, max]`
+        def bounded_step(result, bounds, target)
+          bounds ? clamp(result, bounds, target) : result
+        end
+
         # Bounds an attribute's current value into `[min, max]`, on a bare number or on
         # the one numeric field the wrapping value object carries.
         #

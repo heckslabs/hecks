@@ -97,6 +97,8 @@ pub enum Mutation {
         op: String,
         sign: String,
         source: Option<MutationSource>,
+        // A bounded step's `clamp: [min, max]`, an array literal; `None` for every other mutation.
+        bounds: Option<crate::ruby_value::Value>,
     },
 }
 

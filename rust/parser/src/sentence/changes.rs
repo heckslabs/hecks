@@ -299,6 +299,7 @@ impl Parser<'_> {
                 op: op.to_string(),
                 sign: sign.to_string(),
                 source: Some(source),
+                bounds: None,
             });
         }
         Ok(mutations)

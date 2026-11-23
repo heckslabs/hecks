@@ -129,8 +129,8 @@ module Hecks
           classified = mutation.to_h[:source] || {}
 
           [{ target: mutation.target, op: mutation.op, field: mutation.target,
-             kind: classified[:kind],
-             source: scalar_source_text(classified) }]
+             kind: classified[:kind], source: scalar_source_text(classified),
+             bounds: encode_literal(mutation.bounds) }]
         end
 
         # The one text a scalar mutation's source is stored as: an argument or state name, an
