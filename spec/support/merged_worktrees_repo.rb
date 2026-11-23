@@ -20,6 +20,15 @@ module MergedWorktreesRepo
     path
   end
 
+  def outside_dir = File.join(dir, "elsewhere")
+
+  def seat_outside(name, parent: outside_dir)
+    FileUtils.mkdir_p(parent)
+    path = File.join(parent, name)
+    git(root, "worktree", "add", "-q", path, "-b", name)
+    path
+  end
+
   def sweep(now: later, retire: ->(path) { retired << File.basename(path) }, **more)
     described_class.new(root: root, window_minutes: 30, now: -> { now }, retire: retire,
                         open: ->(name) { open_work.include?(name) }, **more).sweep

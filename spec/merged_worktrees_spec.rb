@@ -1,5 +1,6 @@
 require "spec_helper"
 require_relative "support/merged_worktrees_repo"
+require "hecks/hecks/adapters/session_reaping"
 
 # The reap retires a coder's worktree once its branch is on main and nothing in it is at risk.
 RSpec.describe Hecks::Adapters::ClaudeCleaning::MergedWorktrees, "#sweep" do
@@ -49,6 +50,57 @@ RSpec.describe Hecks::Adapters::ClaudeCleaning::MergedWorktrees, "#sweep" do
     it "keeps a worktree that is not on a branch" do
       git(root, "worktree", "add", "-q", "--detach", File.join(root, ".claude", "worktrees", "loose"))
       expect(kept).to eq(["loose"])
+    end
+  end
+
+  context "when a worktree stands outside the checkout" do
+    it "retires a merged, clean one under a listed directory by the same rules" do
+      seat_outside("landed-away")
+      expect(sweep(outside: [outside_dir])[:removed]).to eq(["landed-away"])
+    end
+
+    it "leaves it alone when no outside directory is listed" do
+      seat_outside("landed-away")
+      expect(sweep[:removed]).to eq([])
+    end
+
+    it "keeps one that holds an uncommitted file or a commit origin lacks" do
+      File.write(File.join(seat_outside("dirty-away"), "scratch.txt"), "x")
+      commit(seat_outside("unlanded-away"), "more")
+      expect(sweep(outside: [outside_dir])[:kept].map(&:first)).to eq(%w[dirty-away unlanded-away])
+    end
+
+    it "keeps one whose Work is still open" do
+      seat_outside("open-away")
+      open_work << "open-away"
+      expect(sweep(outside: [outside_dir])[:kept].map(&:first)).to eq(["open-away"])
+    end
+
+    it "does not match a sibling directory that only shares the prefix" do
+      seat_outside("landed-away", parent: "#{outside_dir}-old")
+      expect(sweep(outside: [outside_dir])[:removed]).to eq([])
+    end
+
+    it "counts in-tree and outside worktrees against one cap" do
+      seat("in-tree")
+      seat_outside("away")
+      expect(sweep(outside: [outside_dir], cap: 1)[:removed].length).to eq(1)
+    end
+
+    context "with the real retirement" do
+      let(:real) { Hecks::Adapters::SessionReaping.new(registry: nil).method(:retire) }
+
+      it "removes the worktree from disk and its branch" do
+        path = seat_outside("landed-away")
+        sweep(outside: [outside_dir], retire: real)
+        expect(File.exist?(path)).to be(false)
+      end
+
+      it "keeps by name the worktree the sweep runs from inside" do
+        path = seat_outside("standing-in")
+        kept = Dir.chdir(path) { sweep(outside: [outside_dir], retire: real)[:kept].map(&:first) }
+        expect(kept).to eq(["standing-in"])
+      end
     end
   end
 end
