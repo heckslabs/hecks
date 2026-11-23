@@ -529,6 +529,16 @@ Hecks.behaviors "Tickets" do
     expect status: "closed"
   end
 
+  test "Unschedule frees a done work item from its sprint" do
+    tests "Unschedule", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "s4" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    setup  "Tickets::Work.Schedule", work: { value: "s4" }, into: "2026-11-23"
+    setup  "Tickets::Work.Close", work: { value: "s4" }
+    input  work: { value: "s4" }
+    expect status: "done"
+  end
+
   test "Declare puts a working agreement in force" do
     tests "Declare", on: "WorkingAgreement"
     input agreement: { value: "pair-on-red" }, text: { value: "Pair on every red main" }, kind: { value: "practice" }
