@@ -11,6 +11,12 @@ Hecks.behaviors "StallWatch" do
     expect count: 0
   end
 
+  test "Impediments named by one stall answers nothing where the world keeps no tap" do
+    tests "Impediments", on: "StallWatch", kind: :query
+    input run: "look-1", stall: "held-lock"
+    expect count: 0
+  end
+
   test "Relieved answers nothing where the world keeps no tap" do
     tests "Relieved", on: "StallWatch", kind: :query
     input run: "look-1"
