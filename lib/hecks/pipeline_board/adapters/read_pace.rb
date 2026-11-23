@@ -10,10 +10,26 @@ module Hecks
       class ReadPace
         # @param duty [Numeric] the share of time the board may spend reading; 0 for no bound
         # @param every [Numeric] the seconds between reads
-        def initialize(duty:, every:)
+        # @param clock [#call] answers monotonic seconds
+        def initialize(duty:, every:, clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) })
           @duty = duty.to_f
           @every = every.to_f
+          @clock = clock
+          @cost = 0.0
         end
+
+        # Runs a read and keeps what it cost.
+        # @yield the read
+        # @return [Object] what the read answered
+        def measure
+          began = @clock.call
+          yield
+        ensure
+          @cost = @clock.call - began
+        end
+
+        # @return [Numeric] the rest the last measured read is owed (see {#rest_floor})
+        def floor = rest_floor(@cost)
 
         # @param cost [Numeric] seconds the last read took
         # @return [Numeric] the seconds the next read waits at least, counted from the rest's
