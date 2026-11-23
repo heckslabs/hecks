@@ -2016,6 +2016,13 @@ Hecks.bluebook "Tickets" do
     trigger Work::Refuse, with: { work: :work, detail: :detail }
   end
 
+  # A landing job that died with nothing recorded planned the item's branch again the same way: the
+  # next coder reads the last line of the job's log as the reason.
+  policy "RefuseWorkWhenALandingJobFaulted" do
+    on      "LandingJobFault.FaultedWorkFound"
+    trigger Work::Refuse, with: { work: :work, detail: :detail }
+  end
+
   # The third refusal of one work item drops it, the refusals as the reason, and files a finding so
   # a person sees it on the pipeline board.
   policy "DropWorkWhenLandingRefusedThrice" do

@@ -358,7 +358,8 @@ commands:
     Stagger.admit! Question.ask! Question.offer! Question.seat! Question.close! Question.drop!
     Question.release! Responder.declare! Responder.record_replay! Responder.admit!
     AnswerDesk.open! AnswerDesk.take! AnswerDesk.free! ComputeMeter.open! ComputeMeter.read!
-    ComputeMeter.work_session! ComputeMeter.waste_session! ComputeMeter.land! Restoration.record!
+    ComputeMeter.work_session! ComputeMeter.waste_session! ComputeMeter.land!
+    LandingJobFault.report! LandingJobFault.find_faulted_work! Restoration.record!
     Restoration.decline! Restoration.restore! ShallowCheck.pass! ShallowCheck.refuse!
     ShallowCheck.shallow_check! ShallowCheck.shallow_switch! EarlyCi.start! EarlyCi.open!
     EarlyCi.observe! EarlyCi.withdraw! EarlyCi.close! EarlyCi.decline! EarlyCi.branch_ci!

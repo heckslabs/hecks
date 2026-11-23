@@ -2,11 +2,13 @@
 # PostToolUse hook for every tool: hands the session the messages sent to its run, so a message
 # sent with `Message.send!` is heard within one tool step.
 #
-# The per-step check is a read-only lookup with sqlite3 and boots nothing: the session is mapped
-# to its run through the AgentRun ledger (or a registered HandRun), and the run's unread messages
-# are read from the Agents ledger. Hecks boots only when a message is waiting, to record it handed
-# over with `Message.receive!`; the Message bluebook then marks it read itself. A message whose
-# hand-over fails stays sent and is offered again next step; one whose read is refused stays delivered.
+# The step is a read-only lookup with sqlite3 and boots nothing: the session is mapped to its run
+# through the AgentRun ledger (or a registered HandRun), and the MessageAddressed events for that
+# run past its seat's cursor are read from the Agents event log. The cursor is the seat's SeatCursor
+# row plus any advance still waiting in the mail spool; a seat with none reads from now. The hook
+# builds each message's text in order and marks the cursor (mail_mark.sh, one spool line) only up to
+# the last message of the unbroken prefix it printed: a message whose text could not be built, and
+# everything after it, is offered again next step.
 # Ledgers are found under $HECKS_DEV_DIR or ~/.claude/hecks-dev. This hook decides nothing.
 set -u
 
@@ -23,19 +25,35 @@ run="$(lookup "$dev/agent_run.db" "select json_extract(run,'\$.value') from agen
 [ -n "$run" ] || exit 0
 run="$(printf '%s' "$run" | tr -cd 'A-Za-z0-9._~-')"
 
-rows="$(lookup -json "$dev/agents.db" "select json_extract(message,'\$.value') as id, json_extract(sender,'\$.value') as sender, json_extract(kind,'\$.value') as kind, json_extract(body,'\$.value') as body from message where status='sent' and json_extract(recipient,'\$.value')='$run' order by id")"
+spool="${HECKS_MAIL_SPOOL:-$dev/mail/spool.jsonl}"
+d="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+db="$dev/agents.db"
+
+stored="$(lookup "$db" "select json_extract(position,'\$.value') from seat_cursor where json_extract(seat,'\$.value')='$run' limit 1")"
+waiting=""
+[ -f "$spool" ] && waiting="$(jq -rs --arg run "$run" '[.[] | select(.advance==$run or .open==$run) | .to] | max // empty' "$spool" 2>/dev/null)"
+position="$(printf '%s\n%s\n' "$stored" "$waiting" | grep -E '^[0-9]+$' | sort -n | tail -1)"
+
+if [ -z "$position" ]; then
+  newest="$(lookup "$db" "select coalesce(max(id),0) from events")"
+  [ "${newest:-0}" -gt 0 ] && "$d/.claude/hooks/mail_mark.sh" open "$run" "$newest"
+  exit 0
+fi
+
+# The recipient a message has now is the latest one an event of it names (a routed message moves).
+rows="$(lookup -separator $'\t' "$db" "select a.id, a.payload from events a where a.name='MessageAddressed' and a.id>$position and (select json_extract(r.payload,'\$.recipient.value') from events r where r.aggregate_id=a.aggregate_id and r.name in ('MessageAddressed','MessageStamped','MessageRouted') order by r.id desc limit 1)='$run' order by a.id")"
 [ -n "$rows" ] || exit 0
 
-d="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 text=""
-while IFS= read -r id; do
-  "$d/exe/hecks" agents Message.receive! "to=$id" "reader=$session" >/dev/null 2>&1 || continue
-  line="$(printf '%s' "$rows" | jq -r --arg id "$id" '.[] | select(.id==$id) | "Message \(.id) from \(.sender) (\(.kind)): \(.body)"')"
+last=""
+while IFS=$'\t' read -r id payload; do
+  line="$(printf '%s' "$payload" | jq -r --arg run "$run" '"Message \(.message.value) from \(.sender.value) (\(.kind.value)): \(.body.value)\nYou may decline. To answer: exe/hecks agents Message.send! message.value=<new key> recipient.value=\(.sender.value) sender.value=\($run) kind.value=answer body.value=<your answer> in_reply_to.value=\(.message.value)\n"' 2>/dev/null)" || break
+  [ -n "$line" ] || break
   text="$text$line
-You may decline. To answer: exe/hecks agents Message.send! message.value=<new key> recipient.value=$(printf '%s' "$rows" | jq -r --arg id "$id" '.[]|select(.id==$id)|.sender') sender.value=$run kind.value=answer body.value=<your answer> in_reply_to.value=$id
-
 "
-done < <(printf '%s' "$rows" | jq -r '.[].id')
+  last="$id"
+done <<< "$rows"
 
-[ -n "$text" ] || exit 0
+[ -n "$last" ] || exit 0
 jq -n --arg t "$text" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $t}}'
+"$d/.claude/hooks/mail_mark.sh" advance "$run" "$last"

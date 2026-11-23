@@ -52,6 +52,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The Work item a faulted landing job's branch was cut for, found by the same adapter `Landing` asks.
+  Hecks::LandingJobFault.port "LandedWork" do
+    asks "FindFaultedWork", to: LandingJobFault do
+      attribute :branch, Word
+      attribute :refusal, Report
+      answers "FaultedWorkFound"
+      refuses "NoFaultedWork"
+    end
+  end
+
   Hecks::BehaviorsCoverage.port "BehaviorsCounting" do
     asks "Count", to: BehaviorsCoverage do
       attribute :run, RunKey
