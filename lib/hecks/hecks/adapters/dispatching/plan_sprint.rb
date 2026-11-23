@@ -23,7 +23,7 @@ module Hecks
 
         private
 
-        # What stops an item, in order: the sprint, what holds it, the bug seat, the stops, the limits.
+        # What stops an item, in order: sprint, holds, bug seat, stops, limits.
         def first_reason(item)
           sprint_reason(item) || held_reason(item) || bug_reason(item) || stop_reason(item) || limit_reason(item)
         end
