@@ -449,9 +449,9 @@ Hecks.bluebook "Hecks" do
 
       lifecycle :status, default: "requested" do
         mark :failure, "failed"
-        transition "Stop" => "stopped", from: "requested"
-        transition "Fail" => "failed",  from: "requested"
-        mark :terminal, "failed", "stopped"
+        transition "Stop" => "ended",  from: "requested"
+        transition "Fail" => "failed", from: "requested"
+        mark :terminal, "failed", "ended"
       end
 
       # Runs one clock until it is stopped, or for `ticks` ticks: `hecks Clock.run!
