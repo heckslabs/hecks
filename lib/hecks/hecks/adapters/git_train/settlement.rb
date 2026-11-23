@@ -3,6 +3,7 @@
 require "open3"
 require_relative "reading"
 require_relative "branch_guard"
+require_relative "main_merge"
 require_relative "named_commit"
 require_relative "drift_checks"
 require_relative "train_env"
@@ -13,16 +14,20 @@ module Hecks
       # What a boarding does to a checkout before its carriage carries it: brings the branch up to
       # its remote, and settles an additive shape change into a commit the carriage then pushes.
       #
-      # It works on the boarded branch only: to change anything, the checkout must have that branch
-      # checked out and clean, and the branch must still name the boarded commit. Its own commit
-      # names the ledger paths it wrote, so nothing already staged is swept in. Coders land on the
-      # branch while the drift checks run: the settled commit is carried if the branch holds it.
+      # It works on the boarded branch only: the checkout must have it checked out and clean, and
+      # it must still name the boarded commit. Its own commit names the ledger paths it wrote, so
+      # nothing staged is swept in. A landing during the drift checks leaves the settled commit
+      # carried.
       #
-      # A rebase stops only on the ledger file, which is regenerated rather than merged: the
-      # upstream copy is taken and the ledger is settled after. Any other conflict aborts the
-      # rebase and is reported by path.
+      # A branch other than main is rebased onto its remote; only a ledger conflict is resolved
+      # (the upstream copy is taken), and any other aborts the rebase by path.
+      # Main is never rebased, which would give its unpushed commits new hashes: the remote is
+      # merged into it (`MainMerge`).
       class Settlement
         include Reading
+
+        # The branch whose commits are never rewritten.
+        MAIN = "main"
 
         # The shape ledger a Hecks checkout keeps, beside the bluebooks it records.
         LEDGER = "lib/hecks/hecks/shapes.json"
@@ -94,7 +99,10 @@ module Hecks
         def rebase
           @guard.clean!
           @guard.unmoved!(@expected)
-          rebase_onto_remote
+          return rebase_onto_remote unless @branch == MAIN
+
+          MainMerge.new(@git, @checkout, tracking: tracking, ledger: LEDGER).run
+          @expected = @guard.head
         end
 
         def rebase_onto_remote

@@ -23,6 +23,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
   end
 
   def commit(name, dir: work, text: name)
+    FileUtils.mkdir_p(File.dirname(File.join(dir, name)))
     File.write(File.join(dir, name), text)
     git("add", name, dir: dir)
     git("commit", "-q", "-m", name, dir: dir)
@@ -52,6 +53,14 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     end
   end
 
+  # An unpushed commit with a branch cut from it, and a train merge arriving on origin.
+  def unpushed_under(branch)
+    commit("unpushed")
+    git("branch", branch)
+    push_elsewhere("train-merge")
+    git("rev-parse", "HEAD")
+  end
+
   def train = described_class.new(mint: still_mint, runner: method(:gh))
 
   def carry = train.carry(checkout: { value: work })
@@ -75,6 +84,14 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect(carry[:outcome]).to eq(value: "queued")
     expect(git("log", "--format=%s", "origin/main", dir: work)).to include("local-only", "remote-only")
     expect(git("rev-parse", "HEAD", dir: work)).to eq(git("rev-parse", "origin/main", dir: work))
+  end
+
+  it "boards main without rewriting an unpushed commit that a branch is built on", :aggregate_failures do
+    unpushed = unpushed_under("open-work")
+    carry
+
+    expect(git("rev-list", "origin/main").lines.map(&:strip)).to include(unpushed)
+    expect(git("merge-base", "open-work", "main")).to eq(unpushed)
   end
 
   it "aborts a rebase that conflicts outside the ledger, and says which path", :aggregate_failures do
@@ -141,6 +158,41 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
       push_elsewhere("remote-only")
 
       expect(settlement.run(git("rev-parse", "main"))).to eq(git("rev-parse", "main"))
+    end
+
+    # Both sides write the ledger, so merging main conflicts on it.
+    def conflict_on_ledger
+      ledger = described_class::Settlement::LEDGER
+      stub_const("Hecks::Adapters::GitTrain::Settlement::SETTLE", ["true"].freeze)
+      commit(ledger, text: "local")
+      push_elsewhere(ledger, text: "remote")
+      ledger
+    end
+
+    # A feature branch that diverged from its pushed copy, and the commit it named at boarding.
+    def diverged_feature
+      git("checkout", "-q", "-b", "feature")
+      git("push", "-q", "origin", "feature")
+      other = File.join(scratch, "other")
+      git("clone", "-q", "-b", "feature", File.join(scratch, "origin.git"), other, dir: scratch)
+      commit("remote-one", dir: other)
+      git("push", "-q", "origin", "feature", dir: other)
+      commit("local-one")
+      git("rev-parse", "feature")
+    end
+
+    it "merges main rather than rebasing it, and takes the remote's copy of a conflicting ledger" do
+      ledger = conflict_on_ledger
+      settlement.run(git("rev-parse", "main"))
+
+      expect(File.read(File.join(work, ledger))).to eq("remote")
+    end
+
+    it "still rebases a branch other than main onto its remote" do
+      boarded = diverged_feature
+      rebased = described_class::Settlement.new(git_adapter, work, branch: "feature", remote: "origin")
+
+      expect(rebased.run(boarded)).not_to eq(boarded)
     end
 
     context "with a shape ledger to settle" do

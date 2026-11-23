@@ -872,6 +872,24 @@
             [
               [
                 "domain",
+                "Tickets"
+              ],
+              [
+                "aggregate",
+                "Sprint"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a sprint is opened by one call and scheduled into by later ones"
+              ]
+            ],
+            [
+              [
+                "domain",
                 "Agents"
               ],
               [
