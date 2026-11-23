@@ -680,6 +680,9 @@ fn build_mutation(
     })
 }
 
+/// The named ops of a `sets` row and, when a step carries a clamp, that clamp's bounds.
+type StepSplit<'a> = (Vec<(&'a str, &'a str)>, Option<ruby_value::Value>);
+
 /// A step (`increment:`/`decrement:`) beside `clamp:` is one mutation: the clamp is held apart as
 /// the step's bounds, which must be two numbers in order. Any other pairing is left whole.
 fn split_step_bounds<'a>(
@@ -687,7 +690,7 @@ fn split_step_bounds<'a>(
     line: usize,
     target: &str,
     named: Vec<(&'a str, &'a str)>,
-) -> ParseResult<(Vec<(&'a str, &'a str)>, Option<ruby_value::Value>)> {
+) -> ParseResult<StepSplit<'a>> {
     let steps = named
         .iter()
         .filter(|(op, _)| matches!(*op, "increment" | "decrement"))
