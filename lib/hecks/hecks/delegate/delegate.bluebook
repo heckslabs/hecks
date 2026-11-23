@@ -4050,11 +4050,9 @@ Hecks.bluebook "Hecks" do
         trigger Question::Ask, with: { run: :run, text: :detail }
       end
 
-      # A fact decides the false-stall family: the stall the blocked run fixes was already closed,
-      # its subject settled or its run ended. The stall confirms it, or refuses for want of a closed one, the
-      # responder is consulted for it, and its answer drops the question before the question is
-      # offered a seat. Declared before `OfferTheQuestion`, so the responder hears the question
-      # first; an answered question is no longer asked, so its offer is refused and no seat opens.
+      # A false stall is a fixer blocked on a stall already closed: the stall confirms it, the
+      # responder answers, and the answered question is no longer offered a seat. Declared before
+      # `OfferTheQuestion`, so the responder hears the question first.
       policy "ConfirmTheStallOfTheBlockedRun" do
         on      "Question.QuestionAsked"
         root
@@ -4243,10 +4241,6 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # A responder answers one family of blocked-run questions that a fact decides, as itself, so a
-    # block the ledger already settles waits seconds and not a seat. It answers nothing until a
-    # replay of the lead's past answers of its family matched (`RecordReplay`, then `SwitchOn`),
-    # never a question that is the owner's or a review's, and never twice inside its spacing.
     aggregate "Responder" do
       description "One family of blocked-run questions a fact decides: declared switched off, switched on only after a replay of the lead's past answers matched, and spaced so it answers no faster than its spacing."
 
