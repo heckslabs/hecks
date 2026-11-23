@@ -1917,7 +1917,7 @@ Text that must not be blank.
 
 ## Release PR
 
-> One release PR: the version bump opened on GitHub, approved by the owner only when every auto-approval condition holds.
+> One release PR: the version bump opened on GitHub, approved only when every auto-approval condition holds.
 
 **Always true**
 
@@ -1927,9 +1927,9 @@ Text that must not be blank.
 
 #### Approve
 
-Approve a release PR once every auto-approval condition holds, writing the release trailer for the owner. Done by the release owner.
+Approve a release PR once every auto-approval condition holds. Done by the release owner.
 
-Needs a release ([Release version](#release-version)), a sha (Maintenance sha), a condition ([Release condition](#release-condition)), an approver ([Release approver](#release-approver)), and a trailer ([Release trailer](#release-trailer)).
+Needs a release ([Release version](#release-version)), a sha (Maintenance sha), and a condition ([Release condition](#release-condition)).
 
 Allowed only when: only a release whose conditions all held is approved.
 
@@ -1939,7 +1939,7 @@ Records [Release approved](#release-approved).
 
 Record which auto-approval condition held for a release PR, naming the first one that failed. Done by the release owner.
 
-Needs a release ([Release version](#release-version)), a sha (Maintenance sha), a condition ([Release condition](#release-condition)), an approver ([Release approver](#release-approver)), and a trailer ([Release trailer](#release-trailer)).
+Needs a release ([Release version](#release-version)), a sha (Maintenance sha), and a condition ([Release condition](#release-condition)).
 
 Records [Release checked](#release-checked).
 
@@ -1965,7 +1965,7 @@ Records [Release refused](#release-refused).
 
 #### Release approved
 
-Recorded after [Approve](#approve). Prompts [Write trailer on approved](#write-trailer-on-approved).
+Recorded after [Approve](#approve).
 
 #### Release checked
 
@@ -1993,15 +1993,7 @@ When [Release open requested](#release-open-requested) happens, Release pr::rele
 
 When [Release checked](#release-checked) happens, [Release PR](#release-pr) is asked to [Refuse](#refuse).
 
-#### Write trailer on approved
-
-When [Release approved](#release-approved) happens, Release pr::release gh is asked to Write trailer.
-
 ### What it is made of
-
-#### Release approver
-
-One of Chris Young.
 
 #### Release branch
 
@@ -2010,10 +2002,6 @@ Text that must not be blank.
 #### Release condition
 
 One of met, not_on_stable_head, checks_not_green, changelog_undated, or version_mismatch.
-
-#### Release trailer
-
-One of Release-Approved-By.
 
 #### Release version
 

@@ -1926,22 +1926,22 @@ section.searching > p { display: none; }
 </section>
 <section id="release-pr">
 <h2>Release PR</h2>
-<p class="about">One release PR: the version bump opened on GitHub, approved by the owner only when every auto-approval condition holds.</p>
+<p class="about">One release PR: the version bump opened on GitHub, approved only when every auto-approval condition holds.</p>
 <p class="caption">Always true</p>
 <ul class="rules"><li>A release names a semantic version.</li></ul>
 <h3 class="group" id="actions-13">Actions</h3>
 <div class="terms">
 <article class="term" id="approve">
 <h4>Approve</h4>
-<p>Approve a release PR once every auto-approval condition holds, writing the release trailer for the owner. Done by the release owner.</p>
-<p>Needs a release (<a href="#release-version">Release version</a>), a sha (Maintenance sha), a condition (<a href="#release-condition">Release condition</a>), an approver (<a href="#release-approver">Release approver</a>), and a trailer (<a href="#release-trailer">Release trailer</a>).</p>
+<p>Approve a release PR once every auto-approval condition holds. Done by the release owner.</p>
+<p>Needs a release (<a href="#release-version">Release version</a>), a sha (Maintenance sha), and a condition (<a href="#release-condition">Release condition</a>).</p>
 <p class="rule">Allowed only when: only a release whose conditions all held is approved.</p>
 <p>Records <a href="#release-approved">Release approved</a>.</p>
 </article>
 <article class="term" id="check-2">
 <h4>Check</h4>
 <p>Record which auto-approval condition held for a release PR, naming the first one that failed. Done by the release owner.</p>
-<p>Needs a release (<a href="#release-version">Release version</a>), a sha (Maintenance sha), a condition (<a href="#release-condition">Release condition</a>), an approver (<a href="#release-approver">Release approver</a>), and a trailer (<a href="#release-trailer">Release trailer</a>).</p>
+<p>Needs a release (<a href="#release-version">Release version</a>), a sha (Maintenance sha), and a condition (<a href="#release-condition">Release condition</a>).</p>
 <p>Records <a href="#release-checked">Release checked</a>.</p>
 </article>
 <article class="term" id="open-5">
@@ -1962,7 +1962,7 @@ section.searching > p { display: none; }
 <div class="terms">
 <article class="term" id="release-approved">
 <h4>Release approved</h4>
-<p>Recorded after <a href="#approve">Approve</a>. Prompts <a href="#write-trailer-on-approved">Write trailer on approved</a>.</p>
+<p>Recorded after <a href="#approve">Approve</a>.</p>
 </article>
 <article class="term" id="release-checked">
 <h4>Release checked</h4>
@@ -1991,17 +1991,9 @@ section.searching > p { display: none; }
 <h4>Refuse on failed condition</h4>
 <p>When <a href="#release-checked">Release checked</a> happens, <a href="#release-pr">Release PR</a> is asked to <a href="#refuse">Refuse</a>.</p>
 </article>
-<article class="term" id="write-trailer-on-approved">
-<h4>Write trailer on approved</h4>
-<p>When <a href="#release-approved">Release approved</a> happens, Release pr::release gh is asked to Write trailer.</p>
-</article>
 </div>
 <h3 class="group" id="what-it-is-made-of-13">What it is made of</h3>
 <div class="terms">
-<article class="term" id="release-approver">
-<h4>Release approver</h4>
-<p>One of Chris Young.</p>
-</article>
 <article class="term" id="release-branch">
 <h4>Release branch</h4>
 <p>Text that must not be blank.</p>
@@ -2009,10 +2001,6 @@ section.searching > p { display: none; }
 <article class="term" id="release-condition">
 <h4>Release condition</h4>
 <p>One of met, not_on_stable_head, checks_not_green, changelog_undated, or version_mismatch.</p>
-</article>
-<article class="term" id="release-trailer">
-<h4>Release trailer</h4>
-<p>One of Release-Approved-By.</p>
 </article>
 <article class="term" id="release-version">
 <h4>Release version</h4>
