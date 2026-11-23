@@ -43,6 +43,7 @@ RSpec.describe "a roll heard in a worktree" do
 
   it "fills with the main checkout as the repo, not the worktree it runs in" do
     allow(Hecks::Adapters::Dispatching::Launcher).to receive(:new).and_call_original
+    allow(checkout).to receive(:home).and_return(@main)
     allow(Dir).to receive(:pwd).and_return(@tree)
     rolling({}).roll
 
