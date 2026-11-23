@@ -825,6 +825,8 @@ Hecks.bluebook "Tickets" do
 
     lifecycle :status, default: "open" do
       transition "Close" => "closed", from: "open"
+      mark :terminal, "closed"
+      mark :rests,    "open"
     end
 
     command "Open" do
