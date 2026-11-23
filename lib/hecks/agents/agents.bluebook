@@ -2350,6 +2350,13 @@ Hecks.bluebook "Agents" do
       order_by :message
     end
 
+    query "ChannelPosts" do
+      description "The messages posted to one shared channel (help, all or train), oldest first: what the owner reads on the board."
+      attribute :channel, Channel
+      where(channel: :channel)
+      order_by :message
+    end
+
     query "Unread" do
       description "The sent messages no session has heard and Claude messaging has not yet resumed a holder for: what a sweep falls back on once their window passes."
       where(status: "sent", "fallen_back_at.value": 0)

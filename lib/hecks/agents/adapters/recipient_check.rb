@@ -70,11 +70,17 @@ module Hecks
         raise Unaddressable.new("no-ledger", NO_LEDGER) unless ledger?
 
         id = plain(recipient)
+        return { recipient: { value: id } } if id == OWNER
+
         run = runs[id]
         return { recipient: { value: id } } if live?(run) || (run.nil? && (hand_live?(id) || held?(id)))
 
         raise refusal(id, run)
       end
+
+      # The owner is a person, not a run: mail to the owner is always addressable and waits in the
+      # owner's inbox, which the board and `Message.inbox recipient=owner` read.
+      OWNER = "owner"
 
       # The refusal of a boot that holds no AgentRun ledger: `exe/hecks agents` boots Agents alone.
       NO_LEDGER = "the AgentRun ledger is not booted here, so no recipient can be judged: " \
