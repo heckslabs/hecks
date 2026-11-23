@@ -16,7 +16,7 @@ module Hecks
       DEFAULT_PATH = "~/.claude/hecks-dev/mail/spool.jsonl"
 
       # The fields a spool line carries, each answered as `{ value: }`.
-      FIELDS = %w[message recipient sender kind body in_reply_to asker_role].freeze
+      FIELDS = %w[message recipient sender kind body in_reply_to asker_role advance open to].freeze
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `path:` the spool file (default {DEFAULT_PATH})
@@ -35,7 +35,7 @@ module Hecks
           fields = parsed(text)
           return answer(pass, fields, index + 1) if fields
         end
-        { pass: pass, message: { value: "" } }
+        FIELDS.to_h { |key| [key.to_sym, { value: "" }] }.merge(pass: pass)
       end
 
       # @param pass [Hash] the pass asking
@@ -58,14 +58,22 @@ module Hecks
 
       def parsed(text)
         fields = JSON.parse(text)
+        fields = marked(fields) if fields.is_a?(Hash) && fields["message"].to_s == ""
         fields if fields.is_a?(Hash) && fields["message"].to_s != ""
       rescue JSON::ParserError
         nil
       end
 
+      # A mark line (`mail_mark.sh`) names a seat and a position, and is kept under a message key of
+      # its own so the pass takes it like any line.
+      def marked(fields)
+        seat = fields.values_at("advance", "open").find { |name| name.to_s != "" }
+        fields.merge("message" => "mark-#{seat}-#{fields["to"]}") if seat && fields["to"]
+      end
+
       def answer(pass, fields, number)
         FIELDS.to_h { |key| [key.to_sym, { value: fields[key].to_s }] }
-              .merge(pass: pass, line: { value: number })
+              .merge(pass: pass, line: { value: number }, to: { value: fields["to"].to_i })
       end
     end
   end
