@@ -27,7 +27,7 @@ RSpec.describe "a filling held to one work item, read through the launcher" do
   end
 
   def stand_in(started: 3, cap: 8)
-    Hecks::Adapters::Dispatching.new(settings: { load: -> { 1.5 }, cpus: 4, cap: cap, runner: runner,
+    Hecks::Adapters::Dispatching.new(settings: { sprint: false, load: -> { 1.5 }, cpus: 4, cap: cap, runner: runner,
                                                  work_items: work_items(started) })
   end
 

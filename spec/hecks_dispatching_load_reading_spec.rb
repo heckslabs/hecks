@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Dispatching::LoadReading do
   def work_items = instance_double(items_class, planned: [item], started: [], runs: {})
 
   def report(uptime:, loads:)
-    stand_ins = { load: -> { uptime }, cpus: 10, cap: 8, work_items: work_items, reviews: [], loads: loads }
+    stand_ins = { sprint: false, load: -> { uptime }, cpus: 10, cap: 8, work_items: work_items, reviews: [], loads: loads }
     Hecks::Adapters::Dispatching.new(settings: stand_ins).preview(repo: "/repo")[:text]
   end
 

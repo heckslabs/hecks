@@ -10,7 +10,7 @@ RSpec.describe "a fill with a work item held for its area" do
   def preview
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems,
                             planned: [item("w1", "w1 area names nothing: lib/nope"), item("w2")], started: [], runs: {})
-    Hecks::Adapters::Dispatching.new(settings: { load: -> { 0.5 }, cpus: 4, work_items: items })
+    Hecks::Adapters::Dispatching.new(settings: { sprint: false, load: -> { 0.5 }, cpus: 4, work_items: items })
                                 .preview(repo: "/repo")[:text]
   end
 

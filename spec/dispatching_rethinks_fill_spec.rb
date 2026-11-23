@@ -11,7 +11,7 @@ RSpec.describe "a fill after the architect's rethinks" do
   def preview(count)
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: [item("w1"), item("w2")], started: [], runs: {})
     reviews = Array.new(count) { |index| review("w1", index) }
-    Hecks::Adapters::Dispatching.new(settings: { load: -> { 0.5 }, cpus: 4, work_items: items, reviews: reviews })
+    Hecks::Adapters::Dispatching.new(settings: { sprint: false, load: -> { 0.5 }, cpus: 4, work_items: items, reviews: reviews })
                                 .preview(repo: "/repo")[:text]
   end
 

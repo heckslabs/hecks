@@ -20,7 +20,8 @@ module DispatchPauseFixtures
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: [pause_item("zz-named"), pause_item("aa-other")],
                                                                      started: [], lessons: [], runs: {})
     Hecks::Adapters::Dispatching.new(registry: registry_of([], world),
-                                     settings: { load: -> { 0.5 }, cpus: 4, cap: 8, runner: pause_runner, work_items: items })
+                                     settings: { sprint: false, load: -> { 0.5 }, cpus: 4, cap: 8,
+                                                 runner: pause_runner, work_items: items })
   end
 
   def named_fill(world)

@@ -20,7 +20,7 @@ RSpec.describe "a confirmed filling, settled through the launcher" do
   def stand_in
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: %w[gap-a gap-b].map { |key| item(key) },
                                                                     started: [], runs: {}, lessons: [])
-    Hecks::Adapters::Dispatching.new(settings: { load: -> { 1.0 }, cpus: 8, work_items: items, runner: runner })
+    Hecks::Adapters::Dispatching.new(settings: { sprint: false, load: -> { 1.0 }, cpus: 8, work_items: items, runner: runner })
   end
 
   # The identity port keeps a real adapter, so the launcher still mints the filling's run key.

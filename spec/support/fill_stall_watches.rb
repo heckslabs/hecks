@@ -21,7 +21,7 @@ module FillStallWatches
   end
 
   def stall_settings
-    { load: -> { stall_machine[:load] }, cpus: 10, cap: stall_machine[:cap], work_items: stall_work_items,
+    { sprint: false, load: -> { stall_machine[:load] }, cpus: 10, cap: stall_machine[:cap], work_items: stall_work_items,
       boots: Hecks::Adapters::BootBudget.new(entries: ->(_cutoff) { [] }, now: -> { stall_now.last }),
       now: -> { stall_now.last }, runner: ->(*) { raise "no launch" } }
   end

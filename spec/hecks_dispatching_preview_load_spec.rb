@@ -13,7 +13,8 @@ RSpec.describe "a preview while the load blocks every start" do
   end
 
   def preview
-    Hecks::Adapters::Dispatching.new(settings: { load: -> { 8.3 }, cpus: 8, cap: 8, work_items: work_items, reviews: [] })
+    Hecks::Adapters::Dispatching.new(settings: { sprint: false, load: -> { 8.3 }, cpus: 8, cap: 8,
+                                                work_items: work_items, reviews: [] })
                                 .preview(repo: "/repo")[:text]
   end
 

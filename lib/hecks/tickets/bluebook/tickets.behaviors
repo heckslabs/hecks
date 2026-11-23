@@ -149,6 +149,13 @@ Hecks.behaviors "Tickets" do
     expect status: "planned", batch: { value: "" }
   end
 
+  test "Categorize sorts an open work item as a bug" do
+    tests "Categorize", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w44" }, title: { value: "Broken" }, area: [{ value: "lib/a.rb" }]
+    input  work: { value: "w44" }, category: { value: "bug" }
+    expect category: { value: "bug" }
+  end
+
   test "Start refuses a sweep item outside its batch" do
     tests "Start", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w43" }, title: { value: "Wording" }, area: [{ value: "docs/a.md" }]

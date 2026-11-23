@@ -19,8 +19,10 @@ module Hecks
         def fuse_stop = protecting ? protecting.stop : machine.boot_stop
 
         # @return [Hash] the plan's boot holds: `budget:` why every coder waits, `storm:` why one
-        #   item's own run waits
-        def protection_limits = { budget: fuse_stop, storm: machine.method(:storm_reason) }
+        #   item's own run waits, `sprint:` whether only sprint items and bugs start
+        def protection_limits
+          { budget: fuse_stop, storm: machine.method(:storm_reason), sprint: @standins.fetch(:sprint, true) }
+        end
 
         # @return [String] `; <the protection clause>` with the switch on, else nothing
         def protection_clause = protecting ? "; #{protecting.clause}" : ""

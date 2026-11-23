@@ -40,7 +40,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
 
   def adapter(planned, started: [], **standins)
     items = work_items_double(planned, started)
-    described_class.new(settings: { load: -> { 1.5 }, cpus: 4, work_items: items, runner: runner, **standins })
+    described_class.new(settings: { sprint: false, load: -> { 1.5 }, cpus: 4, work_items: items, runner: runner, **standins })
   end
 
   def report(held)
