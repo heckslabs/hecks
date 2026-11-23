@@ -20,9 +20,9 @@ RSpec.describe "the Agents plan review verdict reaching its coder once" do
     expect(events_named("PlanReviewed").size).to eq(1)
   end
 
-  it "takes a real verdict after one that checked nothing" do
+  it "refuses a verdict after one that checked nothing, so a new review asks again" do
     unverified = answer(request, "unverified")
-    expect(answer(unverified, "sound").verdict.value).to eq("sound")
+    expect { answer(unverified, "sound") }.to raise_error(Hecks::Runtime::GivenNotMet, /no verdict yet/)
   end
 
   it "refuses a judged verdict for the same judge run twice" do

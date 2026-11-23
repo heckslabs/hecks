@@ -779,6 +779,7 @@ Hecks.bluebook "Agents" do
     attribute :limit, TimeLimit, optional: true
     attribute :ended_at, Instant, optional: true
     attribute :reminded_at, Instant, optional: true
+    attribute :answered, Answered, optional: true
     attribute :asks, AskCount, optional: true
     attribute :role, RoleRef, optional: true
     attribute :repo, RepoPath, optional: true
@@ -795,6 +796,9 @@ Hecks.bluebook "Agents" do
     end
 
     value_object "Verdict", String
+
+    # True once the architect's verdict is recorded: the command's own `verdict` hides the stored one from a rule.
+    value_object "Answered", Boolean
 
     # The architect's closing text: the findings behind the verdict, kept with it.
     value_object "FindingsText", String
@@ -883,6 +887,10 @@ Hecks.bluebook "Agents" do
         verdict.value == "unverified" || findings == nil || !findings.value.start_with?("Nothing was checked")
       end
       given("the review did not end without a verdict") { ended_at == nil || ended_at.value == 0 }
+      # A second answer, `unverified` included, is refused: a new review asks again.
+      given("the review has no verdict yet") { answered != true }
+
+      sets :answered, to: true
 
       emits "PlanReviewed"
     end
