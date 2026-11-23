@@ -26,7 +26,7 @@ module Hecks
         private
 
         def merge_of(key)
-          out = run("log", "main", "--first-parent", "--merges", "-1", "--format=%H %cI", "--grep=Merge branch '#{key}'")
+          out = run("log", "main", "--merges", "-1", "--format=%H %cI", "--fixed-strings", "--grep=#{key}")
           out.split.then { |parts| parts if parts.size == 2 }
         end
 
