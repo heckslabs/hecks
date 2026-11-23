@@ -7,7 +7,10 @@ require "hecks/hecks/adapters/machine_sampling"
 # under the low mark leaves the load below however busy the CPU looks, as one over the high mark
 # leaves it above, so a rise is cleared by the next calm reading.
 RSpec.describe "the machine's load read from Roundhouse" do
-  before { Hecks::Adapters::MachineSampling.last = nil }
+  before do
+    Hecks::Adapters::MachineSampling.last = nil
+    allow(Hecks::Adapters::MachineProfiling).to receive(:of).and_return(nil)
+  end
 
   def registry(roundhouse)
     world = Hecks::Bluebook::World.new(domain: "Tickets", settings: { "metering" => { roundhouse: roundhouse } })
