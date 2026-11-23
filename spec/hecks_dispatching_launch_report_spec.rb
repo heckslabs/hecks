@@ -31,7 +31,7 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
   def report(keys, answers = {})
     items = instance_double(described_class::WorkItems, planned: keys.map { |key| item(key) }, started: [], runs: {},
                                                         lessons: [])
-    adapter = described_class.new(settings: { load: -> { 1.0 }, cpus: 4, work_items: items, runner: runner(answers) })
+    adapter = described_class.new(settings: { sprint: false, load: -> { 1.0 }, cpus: 4, work_items: items, runner: runner(answers) })
     adapter.choose(repo: "/repo", confirm: { value: true }).dig(:report, :value)
   end
 
