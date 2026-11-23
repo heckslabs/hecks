@@ -34,7 +34,7 @@ RSpec.describe Hecks::Adapters::Standup do
     described_class.new(registry: tickets.registry, settings: stand_ins).standup[:text]
   end
 
-  it "answers over the booted Tickets bluebook with the four sections" do
-    expect(booted_text.scan(/^\S.*:$/).size).to eq(4)
+  it "answers over the booted Tickets bluebook with the five sections" do
+    expect(booted_text.scan(/^\S.*:$/).size).to eq(5)
   end
 end

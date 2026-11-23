@@ -3,7 +3,7 @@
 module Hecks
   module Adapters
     class Standup
-      # The text of a standup: four headed sections a blank line apart, each line indented under
+      # The text of a standup: five headed sections a blank line apart, each line indented under
       # its heading, and a line that says so when a section holds nothing.
       class Text
         # What the blocked section says while the stall ledger cannot list its open stalls.
@@ -13,11 +13,13 @@ module Hecks
         # @param finished [Array<String>, nil] the finished work items; nil when no tap is declared
         # @param upcoming [Array<String>] the next planned work items
         # @param machine [String] the machine's gauges in one line
-        def initialize(since, finished:, upcoming:, machine:)
+        # @param bugs [Array<String>] the open and finished bug counts
+        def initialize(since, finished:, upcoming:, machine:, bugs: [])
           @since = since
           @finished = finished
           @upcoming = upcoming
           @machine = machine
+          @bugs = bugs
         end
 
         # @return [String] the standup, ending in a newline
@@ -26,7 +28,7 @@ module Hecks
         private
 
         def sections
-          [["Finished since #{Time.at(@since).utc.iso8601}:", finished], ["Blocked or old:", [UNLISTED]],
+          [["Finished since #{Time.at(@since).utc.iso8601}:", finished], ["Bugs:", @bugs], ["Blocked or old:", [UNLISTED]],
            ["Starts next:", either(@upcoming, "nothing is planned")],
            ["Load and memory:", either([@machine].reject(&:empty?), "the machine gave no reading")]]
         end
