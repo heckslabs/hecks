@@ -12,7 +12,7 @@ module AgentsFleetHelpers
 
   # A shell that answers `claude agents` with the listing and every other command with `ok`.
   class RecordingShell
-    attr_reader :commands
+    attr_reader :commands, :listing
 
     def initialize(listing, succeeds: true)
       @listing = listing
