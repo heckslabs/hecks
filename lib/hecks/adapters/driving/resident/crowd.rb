@@ -29,6 +29,9 @@ module Hecks
             end
           end
 
+          # @return [Integer] the cap the machine's profile derives, {DEFAULT_CAP} when it cannot
+          def derived_cap = WorldCap.derived || DEFAULT_CAP
+
           # @return [Integer] how many residents may stand: what the last resident read from the
           #   world, else the default
           def cap

@@ -54,8 +54,8 @@ RSpec.describe "the resident cap the world declares" do
     expect(crowd.cap_for(@root)).to eq(5)
   end
 
-  it "reads the cap the committed world declares" do
+  it "leaves the cap to the machine's profile where the committed world declares none" do
     real = File.expand_path("..", __dir__)
-    expect(resident::WorldCap.for(real)).to be_a(Integer)
+    expect([resident::WorldCap.for(real), resident::Crowd.derived_cap]).to match([nil, be_a(Integer)])
   end
 end
