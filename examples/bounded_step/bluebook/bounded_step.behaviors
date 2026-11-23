@@ -1,0 +1,40 @@
+Hecks.behaviors "BoundedStep" do
+  vision "A weight moves by a step in one write and never leaves its range of 0 to 100."
+
+  loads "bounded_step.bluebook"
+
+  test "a gain past the upper bound lands on the bound" do
+    tests "Recall", on: "Memory"
+    setup "Create", label: { value: "m" }, weight: { value: 90 }
+    input memory: "m", gain: { value: 15 }
+    expect weight: { value: 100 }
+  end
+
+  test "a gain inside the range is exact" do
+    tests "Recall", on: "Memory"
+    setup "Create", label: { value: "m" }, weight: { value: 40 }
+    input memory: "m", gain: { value: 15 }
+    expect weight: { value: 55 }
+  end
+
+  test "a fade past the lower bound lands on the lower bound" do
+    tests "Fade", on: "Memory"
+    setup "Create", label: { value: "m" }, weight: { value: 1 }
+    input memory: "m", step: { value: 2 }
+    expect weight: { value: 0 }
+  end
+
+  test "a fade inside the range is exact" do
+    tests "Fade", on: "Memory"
+    setup "Create", label: { value: "m" }, weight: { value: 50 }
+    input memory: "m", step: { value: 2 }
+    expect weight: { value: 48 }
+  end
+
+  test "an unbounded gain is unchanged and may pass the range" do
+    tests "Surge", on: "Memory"
+    setup "Create", label: { value: "m" }, weight: { value: 95 }
+    input memory: "m", gain: { value: 15 }
+    expect weight: { value: 110 }
+  end
+end

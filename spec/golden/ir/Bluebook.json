@@ -8277,6 +8277,16 @@
               "pattern": null,
               "relationship": null,
               "type": "FieldRef"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "bounds",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "FieldRef"
             }
           ],
           "emits": [
@@ -8334,6 +8344,7 @@
           "mutations": [
             {
               "fields": {
+                "bounds": ":bounds",
                 "field": ":field",
                 "kind": ":kind",
                 "op": ":op",
@@ -9109,6 +9120,16 @@
               "list": false,
               "name": "source",
               "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "bounds",
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"

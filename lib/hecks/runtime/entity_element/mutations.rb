@@ -16,6 +16,7 @@ module Hecks
           def attribute = entity.attribute(target)
           def source_value = rules.resolve_source(mutation.source, args)
           def current = pre[target]
+          def bounds = mutation.bounds
 
           # @return [Symbol] the mutation's op (`:increment`, `:set`, ...)
           def op = mutation.op
@@ -94,7 +95,8 @@ module Hecks
 
         def apply_arithmetic(app)
           apply_numeric(app) do |current, amount|
-            app.rules.arithmetic(current, amount, app.target, app.rules.sign_of(app.op))
+            stepped = app.rules.arithmetic(current, amount, app.target, app.rules.sign_of(app.op))
+            app.rules.bounded_step(stepped, app.bounds, app.target)
           end
         end
 

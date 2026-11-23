@@ -146,7 +146,13 @@ module Hecks
           # shape `:append` does.
           return base.merge(fields: appended(bindings)) if ["append", "delegate", "corrects"].include?(oper)
 
-          base.merge(source: classified(bindings.first))
+          base.merge(source: classified(bindings.first)).merge(bounds_of(bindings.first))
+        end
+
+        # A bounded step's `[min, max]`, stored as one encoded literal; absent for any other row.
+        def bounds_of(binding)
+          held = text(binding[:bounds])
+          held.to_s.empty? ? {} : { bounds: decode_literal(held) }
         end
 
         # Rebuilds an append's own field -> source map from its flattened per-binding rows.
