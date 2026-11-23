@@ -4,6 +4,7 @@ require "time"
 require "hecks/agents/adapters/hand_run_hold"
 require_relative "plain_sweep"
 require_relative "reap_report"
+require_relative "merged_worktrees"
 require_relative "../claude_jobs"
 require_relative "../session_reaping"
 
@@ -33,15 +34,45 @@ module Hecks
         #   kept K: <name> (<reason>)`
         # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
         def sweep_plain(**held)
-          return signalbox_report if ReapingSwitch.on?(@registry)
+          report = ReapingSwitch.on?(@registry) ? signalbox_report : plain_report(held)
+          tidied = tidy_worktrees
+          report[:report][:value] = "#{report[:report][:value]}#{worktree_words(tidied)}"
+          report
+        end
 
+        private
+
+        def plain_report(held)
           records = @runs.run_records
           swept = sweeper.call(listing, records.map { |run| run[:session] })
           since = held[:since].is_a?(Hash) ? held[:since][:value] : held[:since]
           { report: { value: ReapReport.new(records).line(since, swept) } }
         end
 
-        private
+        # The coder worktrees the reap retires with no session to reach them: only when the world's
+        # `reaping` line gives `merged_worktrees_after_minutes`, the minutes a worktree must stand.
+        def tidy_worktrees
+          minutes = reaping_line[:merged_worktrees_after_minutes].to_i
+          return { removed: [], kept: [] } unless minutes.positive?
+
+          reaping = SessionReaping.new(registry: @registry)
+          MergedWorktrees.new(root: @tuning[:repo] || primary_checkout, window_minutes: minutes, now: clock,
+                              retire: reaping.method(:retire),
+                              open: ->(branch) { reaping.facts({ work: branch }, "")[:work_open] }).sweep
+        end
+
+        # The checkout the repository lives in, which the worktrees stand under, from wherever the
+        # reap runs.
+        def primary_checkout
+          common = @shell.capture("git", "-C", Dir.pwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
+          File.dirname(common.out.strip)
+        end
+
+        def worktree_words(tidied)
+          return "" if tidied[:removed].empty? && tidied[:kept].empty?
+
+          "; retired #{tidied[:removed].length} merged worktrees, kept #{tidied[:kept].length}"
+        end
 
         def sweeper
           PlainSweep.new(window: window, now: clock, transcript: @transcript, remove: method(:refusal_of),
