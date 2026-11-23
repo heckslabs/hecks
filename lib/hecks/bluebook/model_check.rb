@@ -91,7 +91,6 @@ module Hecks
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
           *reference_findings(bluebook),
           *aggregate_findings(bluebook),
-          *persistence_findings(bluebook, options[:hecksagon]),
           *saga_findings_of(bluebook, options[:global_emitted_events]),
           *reaction_findings(bluebook, options),
           *unused_ask_findings(bluebook),
@@ -108,6 +107,7 @@ module Hecks
                             options[:global_emitted_events])
           end,
           *acts_as_findings(bluebook, options[:hecksagon]),
+          *persistence_findings(bluebook, options[:hecksagon]),
           *translates_source_findings(bluebook, options[:hecksagon], options[:aggregate_owners])
         ]
       end
