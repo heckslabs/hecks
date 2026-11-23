@@ -3,6 +3,7 @@
 require "open3"
 require_relative "reading"
 require_relative "branch_guard"
+require_relative "main_merge"
 require_relative "named_commit"
 require_relative "drift_checks"
 require_relative "train_env"
@@ -18,11 +19,16 @@ module Hecks
       # names the ledger paths it wrote, so nothing already staged is swept in. Coders land on the
       # branch while the drift checks run: the settled commit is carried if the branch holds it.
       #
-      # A rebase stops only on the ledger file, which is regenerated rather than merged: the
-      # upstream copy is taken and the ledger is settled after. Any other conflict aborts the
-      # rebase and is reported by path.
+      # A branch other than main is rebased onto its remote. A rebase stops only on the ledger
+      # file, which is regenerated rather than merged: the upstream copy is taken and the ledger is
+      # settled after. Any other conflict aborts the rebase and is reported by path. Main is never
+      # rebased: it is merged with its remote (`MainMerge`), so the commits open branches and an
+      # open train are built on keep their hashes.
       class Settlement
         include Reading
+
+        # The branch whose commits are never rewritten.
+        MAIN = "main"
 
         # The shape ledger a Hecks checkout keeps, beside the bluebooks it records.
         LEDGER = "lib/hecks/hecks/shapes.json"
@@ -94,7 +100,10 @@ module Hecks
         def rebase
           @guard.clean!
           @guard.unmoved!(@expected)
-          rebase_onto_remote
+          return rebase_onto_remote unless @branch == MAIN
+
+          MainMerge.new(@git, @checkout, tracking: tracking, ledger: LEDGER).run
+          @expected = @guard.head
         end
 
         def rebase_onto_remote
