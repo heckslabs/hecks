@@ -3,8 +3,9 @@ require "fileutils"
 require "tmpdir"
 require "hecks/tools/gate_memo/ruby_files"
 
-# The pre-push hook runs with no locale, so the process reads files as US-ASCII; the gate's memo
-# reads Ruby files as UTF-8 all the same, and a non-ASCII byte neither crashes it nor hides a require.
+# The pre-push hook runs with no locale, so the process reads files as plain ASCII; the gate's
+# memo reads Ruby files as UTF-8 all the same, and a non-ASCII byte neither crashes it nor hides a
+# require.
 RSpec.describe "The gate memo reading a Ruby file with a non-ASCII comment under a US-ASCII locale" do
   let(:root) { Dir.mktmpdir("gate-memo-utf8") }
   let(:ruby) { Hecks::Tools::GateMemo::RubyFiles }
