@@ -454,6 +454,24 @@ Hecks.behaviors "Agents" do
     expect emits: ["HandRunEnded"]
   end
 
+  test "Answer refuses a second verdict on a review that holds one" do
+    tests "Answer", on: "PlanReview"
+    setup  "Agents::PlanReview.Request", run: { value: "r-once1" }, work: { value: "w-once1" }, hops: { value: 1 },
+           role: { value: "architect" }, repo: { value: "/tmp" }, plan: { value: "a plan that is long enough" }
+    setup  "Agents::PlanReview.Answer", plan_review: "r-once1", verdict: { value: "sound" }
+    input  plan_review: "r-once1", verdict: { value: "rethink" }
+    expect refused: "the review has no verdict yet"
+  end
+
+  test "Judge refuses a verdict already judged for the judge's run" do
+    tests "Judge", on: "Verdict"
+    setup  "Agents::Verdict.Judge", run: { value: "r-once2" }, work: { value: "w-once2" }, role: { value: "architect" },
+           answer: { value: "sound: build it" }
+    input  run: { value: "r-once2" }, work: { value: "w-once2" }, role: { value: "architect" },
+           answer: { value: "rethink: no" }
+    expect refused: "already exists"
+  end
+
   test "Record refuses a sound verdict whose findings say nothing was checked" do
     tests "Record", on: "PlanReview"
     input  run: { value: "r-nc1" }, work: { value: "w-nc1" }, verdict: { value: "sound" },
