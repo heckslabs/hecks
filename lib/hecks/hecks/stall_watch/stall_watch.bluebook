@@ -139,7 +139,7 @@ Hecks.bluebook "Hecks" do
                named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
-               closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
+               closes: "AgentRunStarted,AgentRunDeclined,AgentRunClosed", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
         # The standing seat (`orchestrator-seat`, the run `StartTheStandingSeatWhenWoken` in
