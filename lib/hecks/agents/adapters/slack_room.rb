@@ -6,11 +6,12 @@ require "hecks/agents/adapters/slack_socket"
 
 module Hecks
   module Adapters
-    # The `RoomHearing` port's adapter for `CrewRoom`: answers `Hear` by opening the Slack Socket Mode
-    # connection and appending each crew-room post to the mail spool until the connection closes.
+    # The `RoomHearing` port's adapter for `CrewRoom`: answers `Hear` by opening the Slack
+    # Socket Mode connection and appending each crew-room post to the mail spool until it closes.
     #
-    # The app token, the owner's Slack user ID and the room's channel ID are read once, at start, with
-    # `op read` from the `op://` references in `slack_listener.env`; no value is kept in a file.
+    # The app token, the owner's Slack user ID and the room's channel ID are read once, at
+    # start, with `op read` from the `op://` references in `slack_listener.env`; no value is
+    # kept in a file.
     class SlackRoom
       # The references file beside this adapter.
       REFERENCES = File.expand_path("slack_listener.env", __dir__)
@@ -25,7 +26,8 @@ module Hecks
       AGENTS = %w[orchestrator scrum-master architect reviewer coder].freeze
 
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `agents:` names, `spool:` path, `reader:` answers an `op://` reference
+      # @param settings [Hash] `agents:` names, `spool:` path, `reader:` answers an
+      #   `op://` reference
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil)
         @settings = settings
