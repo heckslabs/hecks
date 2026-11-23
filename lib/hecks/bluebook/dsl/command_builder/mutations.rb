@@ -15,17 +15,16 @@ module Hecks
         FIELD_EFFECTS = %i[set append remove increment decrement multiply clamp].freeze
 
         # Declares one mutation this command applies to `target`, its op selected by
-        # whichever single keyword names a source (`clamp:` beside `increment:` or `decrement:`
-        # bounds that step instead of selecting an op); omitting all of them means `to: target`.
+        # whichever single keyword names a source; omitting all of them means `to: target`.
+        # `clamp:` beside `increment:` or `decrement:` bounds that step.
         #
         # @param target [Symbol, String] the field the mutation writes
         # @param positional_to [Object] the source, written without `to:`
         # @param ops [Hash] at most one of `to:`, `append:`, `increment:`, `decrement:`,
-        #   `multiply:`, `clamp:` (the `[min, max]` pair to bound the current value to),
-        #   `remove:`; a Symbol `to:` equal to `target` is redundant and refused
+        #   `multiply:`, `clamp:` (a `[min, max]` pair), `remove:`; a Symbol `to:` equal to
+        #   `target` is redundant and refused
         # @return [void]
-        # @raise [Bluebook::DSL::Malformed] if `to:` redundantly repeats `target`, or more than
-        #   one op-selecting keyword is given
+        # @raise [Bluebook::DSL::Malformed] if `to:` repeats `target`, or two ops are given
         # @raise [ArgumentError] on any other keyword
         def sets_impl(target, positional_to = UNSET, **ops)
           refuse_unknown_ops!(ops, KWARG_TO_OP.keys)
@@ -141,8 +140,8 @@ module Hecks
                 "sets :#{target} alone already means the same"
         end
 
-        # Records the one mutation `named` selects, refusing a second op. A step
-        # (`increment:`/`decrement:`) beside `clamp:` is one mutation: the clamp rides as its bounds.
+        # Records the one mutation `named` selects, refusing a second op. A step beside
+        # `clamp:` is one mutation: the clamp rides as its bounds.
         def record_mutation(word, target, named)
           named, bounds = split_step_bounds(target, named)
           if named.size > 1
