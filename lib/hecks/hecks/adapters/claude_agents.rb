@@ -81,8 +81,8 @@ module Hecks
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
       # the named agent. With no agent named the session runs `claude`'s default, so nothing is
-      # asked. A run that names no directory works in the main checkout of the repository the
-      # process stands in, and the answer records it.
+      # asked. A run that names no directory works in the Hecks checkout, wherever the process
+      # stands, and the answer records it.
       #
       # @param held [Hash] the `AgentRun` record: `repo` when one is named, and `agent` when one is
       # @return [Hash{Symbol => Object}] `repo:` the directory, `report:` that it is there,
@@ -91,7 +91,7 @@ module Hecks
       #   session of the run's pinned role
       # @raise [ConsoleCapture::Failure] when it is not a directory, or `claude` names no agents
       def locate(**held)
-        repo = plain(held[:repo]) || Dispatching::Checkout.main(Dir.pwd)
+        repo = plain(held[:repo]) || Dispatching::Checkout.home
         raise ConsoleCapture::Failure, "#{repo} is not a directory" unless File.directory?(repo.to_s)
 
         { repo: { value: repo }, report: { value: "#{repo} is a directory" }, **@agents.listing(repo, plain(held[:agent])),

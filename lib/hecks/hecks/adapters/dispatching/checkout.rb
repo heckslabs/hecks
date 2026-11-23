@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../shell"
+require_relative "../main_launcher"
 
 module Hecks
   module Adapters
@@ -32,6 +33,13 @@ module Hecks
           path = common.out.strip
           File.basename(path) == ".git" ? File.dirname(path) : path
         end
+
+        # The Hecks checkout, found from where this code lives and never from the directory the
+        # process stands in: a dispatch heard by a session in another repository still runs in
+        # Hecks. Outside a git checkout (an installed gem) it is the directory the code sits in.
+        #
+        # @return [String] the main checkout's absolute path
+        def self.home = main(MainLauncher::CHECKOUT)
 
         # The worktree that has a branch checked out, so a command acting on `main` from a linked
         # worktree acts on the checkout `main` stands in.
