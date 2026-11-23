@@ -31,12 +31,16 @@ RSpec.describe "the trace's marks of a write" do
     expect(written).to eq([])
   end
 
+  def cascading
+    Class.new do
+      define_method(:react) { |events| events.size > 1 ? nil : react(%i[event cascade]) }
+      private :react
+      prepend Hecks::Adapters::Driving::Resident::Trace::Marks::Reactions
+    end
+  end
+
   it "names the reactions of a write once, not once per reaction it causes" do
-    klass = Class.new
-    klass.define_method(:react) { |events| events.empty? ? nil : react([]) }
-    klass.send(:private, :react)
-    klass.prepend(marks::Reactions)
-    klass.new.send(:react, [:event])
+    cascading.new.send(:react, [:event])
     expect(written.count("reactions_begin")).to eq(1)
   end
 
