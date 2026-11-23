@@ -40,7 +40,8 @@ Every command and query this module lists for a person, generated from its blueb
 
 One brief handed to a background Claude session: started and tracked, or refused with the reason.
 
-- `hecks AgentRun.dispatch! [<repo>] brief= [agent=] [works_as=] [work=] [parent=]`: Hand one brief to a background Claude session working in a directory
+- `hecks AgentRun.dispatch! [<repo>] brief= [agent=] [works_as=] [work=] [parent=] now=`: Hand one brief to a background Claude session working in a directory
+- `hecks AgentRun.close! <to> [age=] refusal= now= [--held]`: Close a refused or requested run past its age with the reason, unless a ranked work item holds it
 - `hecks AgentRun.check! <to>`: Read the state a started session's job is in, and record it when it changed
 - `hecks AgentRun.tidy! <to> now=`: Remove the finished session of one run, unless it is still working, a coder waiting on a person, or taken over
 - `hecks AgentRun.release! <to>`: Review a kept run at the next reap, without waiting for its retry time
