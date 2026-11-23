@@ -84,4 +84,21 @@ RSpec.describe "the Agents message unread fallback" do
       expect(resumed.map(&:first).last).to eq("id-orchestrator")
     end
   end
+
+  context "with a role no session holds" do
+    def recipients = { "owner" => live_run, "orchestrator" => live_run }
+
+    it "records the fall back once, so the next sweep finds the message spent", :aggregate_failures do
+      send_message(to: "owner")
+      fall_back("m1", 1_400)
+      expect(recorded).to include("FallBackFoundNoHolder")
+      expect { fall_back("m1", 1_500) }.to raise_error(Hecks::Runtime::GivenNotMet, /already fell back|fallen back/)
+    end
+
+    it "leaves the message out of the unread listing once spent" do
+      send_message(to: "owner")
+      fall_back("m1", 1_400)
+      expect(Hecks::Agents::Message.unread).to be_empty
+    end
+  end
 end

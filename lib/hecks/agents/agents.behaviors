@@ -354,6 +354,14 @@ Hecks.behaviors "Agents" do
     expect refused: "FallBack refused — the message has waited its window unread"
   end
 
+  test "GiveUpFallBack refuses a message that is not sent" do
+    tests "GiveUpFallBack", on: "Message"
+    setup  "Agents::Message.Send", message: { value: "m7" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "how is it going" }
+    input  message: { value: "m7" }, now: { value: 1_400 }
+    expect refused: "GiveUpFallBack refused — status is \"refused\", and GiveUpFallBack moves it only from \"sent\""
+  end
+
   test "Send refuses a message kind it does not know" do
     tests "Send", on: "Message"
     input  message: { value: "m4" }, recipient: { value: "run-a" }, sender: { value: "miette" },
