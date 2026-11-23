@@ -7,7 +7,7 @@ module Hecks
     # the runtime builds an adapter afresh for each ask; a spec calls {reset!} first and may call
     # {visibility=} to make a repository public, so a refusal can be seen.
     class ClientRepoStub
-      Refused = Class.new(StandardError)
+      class Refused < StandardError; end
 
       class << self
         # @return [Hash{String => Hash{String => String}}] files written, by repository then path
@@ -34,8 +34,8 @@ module Hecks
 
       # @return [Hash] the name, when the repository reads as private
       # @raise [Refused] when it does not
-      def is_private(name:, **)
-        raise Refused, "the repository is not private" unless private?(name)
+      def confirm_private(name:, **)
+        raise Refused, "the repository is not private" unless listed_private?(name)
 
         { name: name }
       end
@@ -43,7 +43,7 @@ module Hecks
       # @return [Hash] what was asked, when the repository reads as private
       # @raise [Refused] when it does not
       def check_before_write(name:, path:, content:, **)
-        is_private(name: name)
+        confirm_private(name: name)
         { name: name, path: path, content: content }
       end
 
@@ -52,14 +52,16 @@ module Hecks
       # @return [Hash] what was written
       # @raise [Refused] when the repository does not read as private
       def write_file(name:, path:, content:, **)
-        is_private(name: name)
+        confirm_private(name: name)
         self.class.repos.fetch(plain(name))[plain(path)] = plain(content)
         { name: name, path: path }
       end
 
+      alias is_private confirm_private
+
       private
 
-      def private?(name) = self.class.repos.key?(plain(name)) && self.class.visibility == "private"
+      def listed_private?(name) = self.class.repos.key?(plain(name)) && self.class.visibility == "private"
 
       def plain(value) = value.is_a?(Hash) ? value[:value] : value
     end
