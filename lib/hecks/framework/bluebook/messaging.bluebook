@@ -97,7 +97,7 @@ Hecks.bluebook "Messaging" do
 
     lifecycle :status, default: "sent" do
       transition "Receive" => "delivered", from: "sent"
-      transition "Read" => "read", from: %w[sent delivered]
+      transition "Read" => "read", from: ["sent", "delivered"]
       mark :rests, "sent"
     end
 
@@ -153,7 +153,7 @@ Hecks.bluebook "Messaging" do
       emits "MessageDelivered"
     end
 
-    command "Read", from: %w[sent delivered] do
+    command "Read", from: ["sent", "delivered"] do
       role "Operator"
       goal "Record that a message was read, so it leaves its recipient's inbox"
 
@@ -171,7 +171,7 @@ Hecks.bluebook "Messaging" do
     query "Inbox" do
       description "The unread messages for one recipient, sent or heard, each with its sender, kind, body, what it hangs on and the message it answers."
       attribute :recipient, RecipientName
-      where(status: { in: %w[sent delivered] }, recipient: :recipient)
+      where(status: { in: ["sent", "delivered"] }, recipient: :recipient)
       order_by :message
     end
 
