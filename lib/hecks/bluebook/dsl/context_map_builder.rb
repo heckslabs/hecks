@@ -48,6 +48,10 @@ module Hecks
           )
         end
 
+        # @return [Array<String>] the names of the contexts declared so far, for a rule that
+        #   holds one context apart from every other
+        def context_names = @contexts.map(&:name)
+
         # Declares two contexts apart: any coupling between them is an error.
         def separate_ways(left, right)
           @separate_ways << [left.to_s, right.to_s]

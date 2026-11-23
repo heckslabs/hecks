@@ -13,6 +13,9 @@ RSpec.describe "The Hecks context map's Clients boundary" do
 
   def findings(*edges) = Hecks::Bluebook::ModelCheck.context_map_findings(declared, edges)
 
+  # The errors a single coupling draws; the map's other relationships go unused beside one edge.
+  def errors(*edges) = findings(*edges).select { |finding| finding.severity == :error }
+
   it "declares the Clients context" do
     expect(declared.context_names).to include("Clients")
   end
@@ -29,12 +32,12 @@ RSpec.describe "The Hecks context map's Clients boundary" do
   %w[shared_kernel acl subscription customer_supplier].each do |kind|
     it "refuses a #{kind} coupling between a public context and Clients, either way round", :aggregate_failures do
       [edge("Tickets", "Clients", kind), edge("Clients", "Tickets", kind)].each do |coupling|
-        expect(findings(coupling).map(&:kind)).to eq([:separate_ways_violated])
+        expect(errors(coupling).map(&:kind)).to eq([:separate_ways_violated])
       end
     end
   end
 
   it "refuses the Hecks context itself attaching Clients" do
-    expect(findings(edge("Hecks", "Clients", "shared_kernel")).map(&:severity)).to eq([:error])
+    expect(errors(edge("Hecks", "Clients", "shared_kernel")).map(&:kind)).to eq([:separate_ways_violated])
   end
 end
