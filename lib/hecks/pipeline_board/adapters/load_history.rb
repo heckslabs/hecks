@@ -10,7 +10,7 @@ module Hecks
   module Adapters
     module PipelineBoard
       # The machine's load over the last hours, for the board's load chart. A serving board samples
-      # the 1-minute load average every few seconds on a thread of its own, through
+      # the load average the dial names every few seconds on a thread of its own, through
       # {LoadGuard.reading}, which starts no program, so the chart never adds to what it draws.
       #
       # The board restarts itself whenever its code moves, so the samples are also kept in one
