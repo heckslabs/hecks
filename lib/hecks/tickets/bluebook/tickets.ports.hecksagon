@@ -157,6 +157,12 @@ end
     answers_query "Standup"
   end
 
+  # The velocity of a day: the hours of work finished, recorded or INFERRED from git, read and never
+  # written.
+  Tickets::Work.port "Velocity" do
+    answers_query "Velocity"
+  end
+
   # The done work items whose branch main does not contain, read and never written.
   Tickets::Work.port "DoneOffMain" do
     answers_query "DoneOffMain"
