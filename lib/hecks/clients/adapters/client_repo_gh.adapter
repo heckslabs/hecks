@@ -1,0 +1,7 @@
+# Binds the `ClientRepo` port to `ClientRepoGh`, which creates a client's repository private and writes files to it through `gh`.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/clients/adapters/client_repo_gh"
+
+Hecks.adapter "ClientRepoGh" do
+  port "ClientRepo"
+end

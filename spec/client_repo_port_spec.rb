@@ -25,11 +25,26 @@ module ClientRepoPortWorld
 
   # Opens the bakery, asks for its repository and has the first call's notes written.
   def write_notes(runtime, content: "the first call")
-    runtime.dispatch_flat("Clients::Client.Open", name: { value: NAME })
-    runtime.dispatch_flat("Clients::Client.RequestRepo", client: NAME)
-    runtime.dispatch_flat("Clients::Client.WriteRepoFile", client: NAME, path: { value: "notes/call.md" },
+    runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery })
+    runtime.dispatch_flat("Clients::Client.RequestRepo", client: bakery)
+    runtime.dispatch_flat("Clients::Client.WriteRepoFile", client: bakery, path: { value: "notes/call.md" },
                                                            content: { value: content })
   end
+
+  # Opens the bakery, has its repository made, finds it public and asks for a file to be written.
+  def write_to_public(runtime)
+    runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery })
+    runtime.dispatch_flat("Clients::Client.RequestRepo", client: bakery)
+    stub.visibility = "public"
+    runtime.dispatch_flat("Clients::Client.WriteRepoFile", client: bakery, path: { value: "a.md" },
+                                                           content: { value: "x" })
+  end
+
+  # @return [Class] the stub standing for the port
+  def stub = STUB
+
+  # @return [String] the invented bakery's name
+  def bakery = NAME
 
   # @return [Array<String>] the names of the events recorded so far
   def event_names(runtime) = runtime.events.map(&:name)
@@ -41,7 +56,7 @@ RSpec.describe "the ClientRepo port" do
   it "has the stub record a file written to the bakery's private repository" do
     booted do |runtime|
       write_notes(runtime)
-      expect(STUB.repos.dig(NAME, "notes/call.md")).to eq("the first call")
+      expect(stub.repos.dig(bakery, "notes/call.md")).to eq("the first call")
     end
   end
 
@@ -54,27 +69,22 @@ RSpec.describe "the ClientRepo port" do
 
   it "refuses a write to a repository found public, and records the finding" do
     booted do |runtime|
-      runtime.dispatch_flat("Clients::Client.Open", name: { value: NAME })
-      runtime.dispatch_flat("Clients::Client.RequestRepo", client: NAME)
-      STUB.visibility = "public"
-      runtime.dispatch_flat("Clients::Client.WriteRepoFile", client: NAME, path: { value: "a.md" }, content: { value: "x" })
+      write_to_public(runtime)
       expect(event_names(runtime)).to include("RepoFoundPublic")
     end
   end
 
   it "writes nothing to a repository found public" do
     booted do |runtime|
-      runtime.dispatch_flat("Clients::Client.Open", name: { value: NAME })
-      runtime.dispatch_flat("Clients::Client.RequestRepo", client: NAME)
-      STUB.visibility = "public"
-      runtime.dispatch_flat("Clients::Client.WriteRepoFile", client: NAME, path: { value: "a.md" }, content: { value: "x" })
-      expect(STUB.repos.fetch(NAME)).to be_empty
+      write_to_public(runtime)
+      expect(stub.repos.fetch(bakery)).to be_empty
     end
   end
 
   it "binds no gh adapter in a stub boot" do
     booted do |runtime|
-      expect(runtime.registry.adapters.values.map(&:name)).to eq(["ClientRepoStub"])
+      bound = runtime.registry.adapters.values.select { |adapter| adapter.port == "ClientRepo" }
+      expect(bound.map(&:name)).to eq(["ClientRepoStub"])
     end
   end
 
