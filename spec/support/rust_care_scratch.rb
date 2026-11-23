@@ -1,5 +1,5 @@
-# Helpers for the spec of a beat that prunes the Rust build dirs: a booted Hecks whose two ports are
-# the real adapters over stand-ins for the volume, the gone worktrees, the build lock and the delete.
+# Helpers for the spec of a beat that prunes the Rust build dirs: a booted Hecks whose two ports
+# are the real adapters over stand-ins for the volume, gone worktrees, build lock and delete.
 module RustCareScratch
   def beat(free_gb: 200, gone: false, locked: false)
     registry = boot_hecks_in_memory(File.expand_path("../../lib/hecks/hecks", __dir__)).registry

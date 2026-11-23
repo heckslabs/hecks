@@ -91,6 +91,20 @@ module Hecks
         base["HECKS_NO_BUILD_LOCK"] == "1" || !base[HELD].to_s.empty? || !base["CI"].to_s.empty?
       end
 
+      # @param file [String] the lock file
+      # @return [Boolean] whether another process holds the lock now; it is not taken
+      def held?(file: path)
+        return false unless File.exist?(file)
+
+        File.open(file, File::RDWR) do |handle|
+          free = handle.flock(File::LOCK_EX | File::LOCK_NB)
+          handle.flock(File::LOCK_UN) if free
+          !free
+        end
+      rescue SystemCallError
+        false
+      end
+
       # @return [String] the lock file, under the cache directory
       def path = File.join(BuildPolicy.cache_root, "build.lock")
 

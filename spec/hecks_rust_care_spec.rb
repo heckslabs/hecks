@@ -8,7 +8,7 @@ RSpec.describe "the Rust build dirs are pruned on a beat" do
   include RustCareScratch
 
   let(:modes) { [] }
-  let(:pruner) { ->(mode) { (modes << mode) && 3 * 1_048_576 } }
+  let(:pruner) { ->(mode) { (modes << mode) && (3 * 1_048_576) } }
 
   it "prunes the whole cache when free disk is under the world's line", :aggregate_failures do
     expect(beat(free_gb: 10)).to include("RustCareDue", "RustCareHeard", "RustPruned", "RustCareSettled")
