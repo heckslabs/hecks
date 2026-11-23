@@ -233,7 +233,7 @@ RSpec.describe ".github/workflows/release.yml" do
     end
 
     it "names a helper missing from the tools checkout and stops" do
-      guard = text.lines.grep(/test -f \.release-tools\/lib\/hecks\/release/).join
+      guard = text.lines.grep(%r{test -f \.release-tools/lib/hecks/release}).join
 
       expect(guard).to include("lookup", "same_release", "approval")
     end
