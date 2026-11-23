@@ -55,6 +55,7 @@ Hecks.bluebook "Agents" do
       # Reads of the sessions; Fleet.stop! and Fleet.resume! stay the operator's.
       member role: "orchestrator", pattern: "Fleet.sessions"
       member role: "orchestrator", pattern: "Fleet.topic"
+      member role: "orchestrator", pattern: "Fleet.wake!"
       member role: "orchestrator", pattern: "PlanReview.answer!"
       # Hands a question whose answer is the owner's to the owner, unanswered, and frees its seat.
       member role: "orchestrator", pattern: "Question.escalate!"
@@ -145,6 +146,8 @@ Hecks.bluebook "Agents" do
       member role: "staff-engineer", pattern: "Message.undelivered"
       member role: "staff-engineer", pattern: "Message.receive!"
       member role: "staff-engineer", pattern: "Message.read!"
+      # Wakes the idle seat that holds a run key, so mail to it is read without the owner.
+      member role: "staff-engineer", pattern: "Fleet.wake!"
       # The planner drafts and reads: the open Work items, the epics and reviews, git history; its one
       # write is the Work item it is told to create.
       member role: "planner", pattern: "Work.undone"
@@ -4966,10 +4969,11 @@ Hecks.bluebook "Agents" do
       # A stop `claude` carried out is `ended`: the session ended, and the steering did not fail.
       transition "RecordStop"   => "ended", from: "requested"
       transition "RecordResume" => "resumed", from: "requested"
+      transition "RecordWake"   => "woken", from: "requested"
       transition "Decline"      => "refused", from: "requested"
-      mark :terminal, "ended", "resumed", "refused"
+      mark :terminal, "ended", "resumed", "woken", "refused"
       # A steering that ended frees the session's key, so the same session is stopped or resumed again.
-      mark :reusable, "ended", "resumed", "refused"
+      mark :reusable, "ended", "resumed", "woken", "refused"
     end
 
     command "Stop" do
@@ -4989,6 +4993,27 @@ Hecks.bluebook "Agents" do
       attribute :name,    FleetName,    sets: true
 
       emits "FleetResumeRequested"
+    end
+
+    # The session is named by the run key that holds it (`Fleet.wake! to=<run key>`) or its id.
+    command "Wake" do
+      role "Operator"
+      goal "Wake the idle seat that holds a run key, in the same session, with the line telling it to read its inbox"
+
+      attribute :session, FleetSession, sets: true
+
+      emits "FleetWakeRequested"
+    end
+
+    command "RecordWake" do
+      role "System"
+      goal "Record that the seat was woken in place, and the run that holds it"
+
+      reference_to Fleet
+      attribute :report, FleetSummary, sets: true
+      attribute :run,    FleetRun,     sets: true
+
+      emits "FleetWoken"
     end
 
     command "RecordStop" do
@@ -5069,6 +5094,34 @@ Hecks.bluebook "Agents" do
       on      "Fleet.ResumeExamined"
       where   { working != true }
       ask     :revive, with: { session: :session, name: :name }
+    end
+
+    # A seat that is working is left alone: its inbox hook hands the mail over at its next tool call.
+    policy "ExamineBeforeWaking" do
+      on      "Fleet.FleetWakeRequested"
+      ask     :examine_wake, with: { session: :session }
+    end
+
+    policy "RefuseToWakeAWorkingSeat" do
+      on      "Fleet.WakeExamined"
+      where   { working == true }
+      trigger Fleet::Decline, with: { refusal: :note }
+    end
+
+    policy "WakeTheIdleSeat" do
+      on      "Fleet.WakeExamined"
+      where   { working != true }
+      ask     :wake, with: { session: :session }
+    end
+
+    policy "RecordTheWake" do
+      on      "Fleet.SessionWoken"
+      trigger Fleet::RecordWake, with: { report: :report, run: :run }
+    end
+
+    policy "RecordTheRefusedWake" do
+      on      "Fleet.SessionWakeRefused"
+      trigger Fleet::Decline, with: { refusal: :refusal }
     end
 
     policy "RecordTheStop" do

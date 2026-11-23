@@ -11,7 +11,10 @@ RSpec.describe Hecks::Adapters::ClaudeResumption do
   let(:commands) { [] }
 
   def wake(entry)
-    allow(shell).to receive(:capture) { |*args, **| commands << args && result }
+    allow(shell).to receive(:capture) do |*args, **|
+      commands << args
+      result
+    end
     described_class.new("claude", shell, patience: 0).call("abcdef1", entry, "go", env: {}, chdir: Dir.pwd)
   end
 

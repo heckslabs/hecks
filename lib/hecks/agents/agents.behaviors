@@ -512,4 +512,10 @@ Hecks.behaviors "Agents" do
     input  pass: { value: "beat-6" }, line: { value: 0 }
     expect refused: "a line number is positive"
   end
+
+  test "Wake refuses a seat when no session can be examined for the run key" do
+    tests "Wake", on: "Fleet"
+    input  session: { value: "architect" }
+    expect emits: ["FleetWakeRequested", "SessionWakeRefused", "FleetRefused"]
+  end
 end
