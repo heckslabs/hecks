@@ -54,6 +54,14 @@ One thing an operator ran against a domain, and how it ended.
 - `hecks Operation.follow [<domain>] [aggregate=] [since=] [wait=] [interval=] [names=] [--from-now]`: A domain's persisted event log past a cursor, for tailing it call by call. The domain is a directory (a word with a path separator) or the name of a bluebook the Hecks domain boots, such as Hecks or Tickets; a bare word is a bluebook name first, then a directory; with none named it is the Hecks domain.
 - `hecks Operation.feed [<aggregate>] [since=] [names=] [limit=]`: The event tap past a sequence number, filtered by aggregate and event name. It reads the log only, so it boots nothing that acts; `names` is comma separated.
 
+### Clock
+
+One clock of a domain, run until stopped, and how its run ended.
+
+- `hecks Clock.run! <domain> clock= [ticks=]`: Run one clock a domain declares, dispatching its command at each tick until stopped
+- `hecks Clock.next <domain>`: Each clock a domain declares, its trigger, the command it dispatches and when it next fires.
+- `hecks Clock.launch_files <domain>`: The process files that run a domain's clocks, one process per clock: a Procfile line each and a launchd property list each.
+
 ### Host
 
 A running rust/host, and the version and era it last reported.

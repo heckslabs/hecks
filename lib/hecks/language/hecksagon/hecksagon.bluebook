@@ -40,7 +40,8 @@ Hecks.bluebook "Hecksagon" do
       invariant("an attachment comes from the gem or from vendor") { source == "gem" || source == "vendor" }
     end
 
-    # A driving adapter this hecksagon admits: `value` names one of `Ruby`, `Cli`, `Json` or `Mcp`.
+    # A driving adapter this hecksagon admits: `value` names one of `Ruby`, `Cli`, `Json`, `Mcp`,
+    # `Web` or `Clock`; a hecksagon that declares a `clock` must admit `Clock` by name.
     # A domain that declares none is open to all of them; one that declares any is reached through
     # those and refused by the rest.
     value_object "DrivingAdapter" do
@@ -122,6 +123,9 @@ Hecks.bluebook "Hecksagon" do
       # Accepts in-process reactions on an adapter with no outbox, where a crash can lose them (ADR 0182).
       member word: "inline_reactions", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "inline_reactions"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
+      # A clock that dispatches one command on a schedule (ADR 0184). No `calls:`:
+      # HecksagonBuilder#clock is an ordinary method, found before `word_gate`.
+      member word: "clock",           context: "Hecksagon",     body: "keywords", inner: "Clock",         opens: "Clock",         fills: ""
       # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
       # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.
       member word: "translates",      context: "Hecksagon",     body: "keywords", inner: "Policy",        opens: "Policy",        fills: ""
@@ -154,6 +158,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "driven_by",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "driving"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "clock",           context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
 
     end
   end
