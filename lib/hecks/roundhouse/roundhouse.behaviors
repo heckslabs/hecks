@@ -204,4 +204,118 @@ Hecks.behaviors "Roundhouse" do
           share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
     expect emits: %w[SessionAdmitted SessionStarted]
   end
+
+  # ---- The arms: a run is tagged with how its Work item was authored, and compared on the same change ----
+
+  # The fixed history: two bluebook runs (input 100000 and 140000, mean 120000) and two direct runs
+  # (300000 and 260000, mean 280000) on one change, and one run nobody tagged.
+  test "a run with no tag is shown as untagged" do
+    tests "Roundhouse::ArmRun.Untagged", kind: :query
+    setup "Roundhouse::ArmRun.Record", run: { value: "r1" }, item: { value: "w-a" }, change: { value: "change-1" }, arm: { value: "bluebook" },
+          input: { value: 100000 }, output: { value: 20000 }, cache: { value: 500000 }, minutes: { value: 30 },
+          rounds: { value: 1 }, red_trains: { value: 0 }, defects: { value: 0 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r2" }, item: { value: "w-b" }, change: { value: "change-1" }, arm: { value: "bluebook" },
+          input: { value: 140000 }, output: { value: 30000 }, cache: { value: 600000 }, minutes: { value: 50 },
+          rounds: { value: 2 }, red_trains: { value: 0 }, defects: { value: 1 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r3" }, item: { value: "w-c" }, change: { value: "change-1" }, arm: { value: "direct" },
+          input: { value: 300000 }, output: { value: 60000 }, cache: { value: 900000 }, minutes: { value: 90 },
+          rounds: { value: 3 }, red_trains: { value: 1 }, defects: { value: 2 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r4" }, item: { value: "w-d" }, change: { value: "change-1" }, arm: { value: "direct" },
+          input: { value: 260000 }, output: { value: 50000 }, cache: { value: 800000 }, minutes: { value: 70 },
+          rounds: { value: 2 }, red_trains: { value: 0 }, defects: { value: 0 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r5" }, item: { value: "w-e" }, arm: { value: "untagged" },
+          input: { value: 90000 }, output: { value: 10000 }, cache: { value: 0 }, minutes: { value: 20 },
+          rounds: { value: 1 }, red_trains: { value: 0 }, defects: { value: 0 }
+    expect count: 1
+  end
+
+  test "the tagged runs are listed apart from the untagged one" do
+    tests "Roundhouse::ArmRun.ByArm", kind: :query
+    setup "Roundhouse::ArmRun.Record", run: { value: "r1" }, item: { value: "w-a" }, change: { value: "change-1" }, arm: { value: "bluebook" },
+          input: { value: 100000 }, output: { value: 20000 }, cache: { value: 500000 }, minutes: { value: 30 },
+          rounds: { value: 1 }, red_trains: { value: 0 }, defects: { value: 0 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r2" }, item: { value: "w-b" }, change: { value: "change-1" }, arm: { value: "bluebook" },
+          input: { value: 140000 }, output: { value: 30000 }, cache: { value: 600000 }, minutes: { value: 50 },
+          rounds: { value: 2 }, red_trains: { value: 0 }, defects: { value: 1 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r3" }, item: { value: "w-c" }, change: { value: "change-1" }, arm: { value: "direct" },
+          input: { value: 300000 }, output: { value: 60000 }, cache: { value: 900000 }, minutes: { value: 90 },
+          rounds: { value: 3 }, red_trains: { value: 1 }, defects: { value: 2 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r4" }, item: { value: "w-d" }, change: { value: "change-1" }, arm: { value: "direct" },
+          input: { value: 260000 }, output: { value: 50000 }, cache: { value: 800000 }, minutes: { value: 70 },
+          rounds: { value: 2 }, red_trains: { value: 0 }, defects: { value: 0 }
+    setup "Roundhouse::ArmRun.Record", run: { value: "r5" }, item: { value: "w-e" }, arm: { value: "untagged" },
+          input: { value: 90000 }, output: { value: 10000 }, cache: { value: 0 }, minutes: { value: 20 },
+          rounds: { value: 1 }, red_trains: { value: 0 }, defects: { value: 0 }
+    expect count: 5
+  end
+
+  test "an arm that is not bluebook, direct or untagged is refused" do
+    tests "Record", on: "ArmRun"
+    input run: { value: "r6" }, item: { value: "w-f" }, arm: { value: "handmade" }, input: { value: 1 }, output: { value: 1 },
+          cache: { value: 0 }, minutes: { value: 1 }, rounds: { value: 0 }, red_trains: { value: 0 }, defects: { value: 0 }
+    expect refused: "a run is bluebook, direct or untagged"
+  end
+
+  test "an untagged run cannot claim a matched change" do
+    tests "Record", on: "ArmRun"
+    input run: { value: "r7" }, item: { value: "w-g" }, change: { value: "change-1" }, arm: { value: "untagged" }, input: { value: 1 },
+          output: { value: 1 }, cache: { value: 0 }, minutes: { value: 1 }, rounds: { value: 0 }, red_trains: { value: 0 },
+          defects: { value: 0 }
+    expect refused: "a run with a matched change is tagged, never untagged"
+  end
+
+  # Known per-arm difference: 280000 less 120000 is 160000 tokens saved per landed item.
+  test "the arms differ by a known number of input tokens per landed item" do
+    tests "Compare", on: "ArmComparison"
+    input comparison: { value: "change-1:input" }, measure: { value: "input" }, bluebook_runs: { value: 2 }, direct_runs: { value: 2 },
+          bluebook: { value: 120000 }, direct: { value: 280000 }, reading: { value: "reading" }, difference: { value: 160000 },
+          authoring: { value: 400000 }, break_even: { value: 3 }
+    expect emits: ["ArmCompared"]
+  end
+
+  # Known break-even: 400000 of authoring over 160000 saved per item is 2.5, so 3 changes.
+  test "a break-even that is not the authoring cost over the difference, rounded up, is refused" do
+    tests "Compare", on: "ArmComparison"
+    input comparison: { value: "change-1:input" }, measure: { value: "input" }, bluebook_runs: { value: 2 }, direct_runs: { value: 2 },
+          bluebook: { value: 120000 }, direct: { value: 280000 }, reading: { value: "reading" }, difference: { value: 160000 },
+          authoring: { value: 400000 }, break_even: { value: 2 }
+    expect refused: "a break-even pays back the authoring cost"
+  end
+
+  test "a difference that is not the direct figure less the bluebook figure is refused" do
+    tests "Compare", on: "ArmComparison"
+    input comparison: { value: "change-1:minutes" }, measure: { value: "minutes" }, bluebook_runs: { value: 2 }, direct_runs: { value: 2 },
+          bluebook: { value: 40 }, direct: { value: 80 }, reading: { value: "reading" }, difference: { value: 30 }
+    expect refused: "the difference is the direct arm's figure less the bluebook arm's"
+  end
+
+  test "with no direct run there is no matched baseline and the reading says no reading" do
+    tests "Compare", on: "ArmComparison"
+    input comparison: { value: "change-2:input" }, measure: { value: "input" }, bluebook_runs: { value: 1 }, direct_runs: { value: 0 },
+          reading: { value: "no reading" }
+    expect emits: ["ArmCompared"]
+  end
+
+  test "a reading claimed with no matched baseline is refused" do
+    tests "Compare", on: "ArmComparison"
+    input comparison: { value: "change-2:input" }, measure: { value: "input" }, bluebook_runs: { value: 1 }, direct_runs: { value: 0 },
+          reading: { value: "reading" }, bluebook: { value: 100 }, direct: { value: 0 }, difference: { value: -100 }
+    expect refused: "a reading needs a matched baseline: a run on each arm"
+  end
+
+  test "no reading never carries a difference of zero" do
+    tests "Compare", on: "ArmComparison"
+    input comparison: { value: "change-2:input" }, measure: { value: "input" }, bluebook_runs: { value: 1 }, direct_runs: { value: 0 },
+          reading: { value: "no reading" }, difference: { value: 0 }
+    expect refused: "no reading carries no difference, no figures and no break-even, never zero"
+  end
+
+  # ADR 0220's usage reading is not live: a run recorded with no token reading carries none, which
+  # is no reading, never zero.
+  test "a run with no usage reading is recorded with no token figures" do
+    tests "Record", on: "ArmRun"
+    input run: { value: "r8" }, item: { value: "w-h" }, change: { value: "change-3" }, arm: { value: "bluebook" },
+          minutes: { value: 40 }, rounds: { value: 1 }, red_trains: { value: 0 }, defects: { value: 0 }
+    expect emits: ["ArmRunRecorded"]
+  end
 end
