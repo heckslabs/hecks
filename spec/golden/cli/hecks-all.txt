@@ -116,6 +116,10 @@ commands:
   Question:
     …
     escalate!
+  Responder:
+    …
+    switch_on!
+    switch_off!
   Restoration:
     …
     make!
@@ -216,6 +220,7 @@ commands:
     backfill_projections!
     compact!
     compact_heki!
+    compact_events!
     write_translation!
     reconcile!
     mint_held!
@@ -350,7 +355,8 @@ commands:
     PlainSession.discard! PlainSession.examine! PlainSession.withdraw! SessionCleanup.record!
     SessionCleanup.decline! SessionCleanup.reap! SessionCleanup.clean! SessionCleanup.mark!
     SessionCleanup.sweep_plain! ReapTurn.open! ReapTurn.take! ReapTurn.free! Stagger.open!
-    Stagger.admit! Question.ask! Question.seat! Question.close! Question.drop! Question.release!
+    Stagger.admit! Question.ask! Question.offer! Question.seat! Question.close! Question.drop!
+    Question.release! Responder.declare! Responder.record_replay! Responder.admit!
     AnswerDesk.open! AnswerDesk.take! AnswerDesk.free! ComputeMeter.open! ComputeMeter.read!
     ComputeMeter.work_session! ComputeMeter.waste_session! ComputeMeter.land! Restoration.record!
     Restoration.decline! Restoration.restore! ShallowCheck.pass! ShallowCheck.refuse!
@@ -406,7 +412,7 @@ commands:
     PromotionRun.fault! PromotionRun.examine! PromotionRun.perform! Registry.complete!
     Registry.abandon! Registry.tag! Package.complete! Package.abandon! Package.pin! Server.accept!
     Server.complete! Server.fault! Server.serve! Server.examine! Server.perform!
-    StallWatch.detect! Stall.file! Stall.abandon! ScrumWake.call! HelpWanted.raise!
+    StallWatch.detect! Stall.file! Stall.abandon! Stall.confirm! ScrumWake.call! HelpWanted.raise!
     HelpWanted.brief! HelpWanted.close! Launch.finish! Launch.stop! Launch.write! Launch.scaffold!
     Launch.write_rails! TestSuiteRun.accept! TestSuiteRun.complete! TestSuiteRun.fault!
     TestSuiteRun.examine! TestSuiteRun.perform! FuzzRun.conclude! FuzzRun.halt! FuzzRun.sweep!
@@ -565,6 +571,9 @@ queries (nothing here changes anything):
     relieved
     unraised
     abandoned
+  Stall:
+    …
+    settled_of_run
   TestSuiteRun:
     …
     shard_specs

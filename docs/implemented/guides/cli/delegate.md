@@ -105,6 +105,13 @@ One question a blocked run asks the orchestrator: asked, seated with an orchestr
 
 - `hecks Question.escalate! <to>`: Hand a seated question to the owner, unanswered, and free its seat
 
+### Responder
+
+One family of blocked-run questions a fact decides: declared switched off, switched on only after a replay of the lead's past answers matched, and spaced so it answers no faster than its spacing.
+
+- `hecks Responder.switch_on! <to>`: Switch a responder on, once a replay of its family matched
+- `hecks Responder.switch_off! <to>`: Switch a responder off
+
 ### AnswerDesk
 
 The seats of the orchestrator runs that answer questions, at most two taken at once.

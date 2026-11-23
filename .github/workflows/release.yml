@@ -109,6 +109,18 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_run' && 'stable' || '' }}
           fetch-depth: 0
+      # The helpers are the workflow's own, so they come from `main`, never from the tree being
+      # released: `stable` can lag and lack them, and a load failure must not read as "no release".
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: .release-tools
+          sparse-checkout: lib/hecks/release
+      - name: The release helpers are present
+        run: |
+          echo ".release-tools/" >> .git/info/exclude
+          for h in lookup same_release approval; do test -f .release-tools/lib/hecks/release/$h.rb || { echo "::error::hecks/release/$h.rb is missing from main's checkout"; exit 1; }; done
+
       - name: Is the release of this version still to cut
         id: check
         run: |
@@ -118,7 +130,7 @@ jobs:
             version="$(git show "$commit:lib/hecks/version.rb" | sed -n 's/^ *VERSION = "\(.*\)".*/\1/p')"
             found=0
             if [ -n "$version" ]; then
-              ruby -I lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "v$version" || found=$?
+              ruby -I .release-tools/lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "v$version" || found=$?
             fi
             # 0: published, 1: GitHub says there is no such release, 2: the lookup failed (the step
             # has failed by name; a failed lookup is never read as a release still to cut).
@@ -130,7 +142,7 @@ jobs:
               tag_exists=false
               [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
               if ! COMMIT="$commit" TAG_EXISTS="$tag_exists" \
-                ruby -I lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'; then
+                ruby -I .release-tools/lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'; then
                 echo "::notice::v$version is not released: its bump commit carries no approval. Nothing to cut."
                 pending=false
               fi
@@ -162,6 +174,18 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_run' && 'stable' || '' }}
           fetch-depth: 0
+
+      # The helpers are the workflow's own, so they come from `main`, never from the tree being
+      # released: `stable` can lag and lack them, and a load failure must not read as "no release".
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: .release-tools
+          sparse-checkout: lib/hecks/release
+      - name: The release helpers are present
+        run: |
+          echo ".release-tools/" >> .git/info/exclude
+          for h in lookup same_release approval; do test -f .release-tools/lib/hecks/release/$h.rb || { echo "::error::hecks/release/$h.rb is missing from main's checkout"; exit 1; }; done
 
       # The commit that set the current version, so a later commit on `stable` that does not touch
       # it is not mistaken for a new release (the tag stands on the commit that set the version).
@@ -207,7 +231,7 @@ jobs:
           tag_exists=false
           [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
           COMMIT="$commit" TAG_EXISTS="$tag_exists" \
-            ruby -I lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'
+            ruby -I .release-tools/lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'
 
       - name: The files agree on one version
         id: release
@@ -246,7 +270,7 @@ jobs:
             echo "tagged=false" >> "$GITHUB_OUTPUT"
           elif [ "$remote" = "$SHA" ]; then
             echo "tagged=true" >> "$GITHUB_OUTPUT"
-          elif git merge-base --is-ancestor "$remote" "$SHA" && ruby -I lib -r hecks/release/same_release -e \
+          elif git merge-base --is-ancestor "$remote" "$SHA" && ruby -I .release-tools/lib -r hecks/release/same_release -e \
             'exit Hecks::Release::SameRelease.stands?(tag_commit: ARGV[0], commit: ARGV[1], version: ARGV[2]) ? 0 : 1' \
             "$remote" "$SHA" "$VERSION"; then
             echo "$TAG stands on ${remote:0:7}, an ancestor of ${SHA:0:7} with the same VERSION; that is this release."
@@ -273,7 +297,7 @@ jobs:
           esac
 
           found=0
-          ruby -I lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "$TAG" || found=$?
+          ruby -I .release-tools/lib -r hecks/release/lookup -e 'exit Hecks::Release::Lookup.check(ARGV[0])' "$TAG" || found=$?
           case "$found" in
             0) echo "release=true" >> "$GITHUB_OUTPUT" ;;
             1) echo "release=false" >> "$GITHUB_OUTPUT" ;;
