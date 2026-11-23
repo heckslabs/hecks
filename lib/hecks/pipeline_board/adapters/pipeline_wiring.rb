@@ -46,10 +46,22 @@ module Hecks
       def reading
         raise PipelineBoard::Unavailable, "no domain is booted here to read the wiring from" unless @registry
 
-        @lock.synchronize do
-          refresh
-          @graph.merge(digest: @digest)
+        @lock.synchronize { look_locked.then { |held| @graph.merge(held) } }
+      end
+
+      # @return [Hash, nil] the graph's digest as `{digest:}`: read afresh when no reader holds the
+      #   lock, else the one last drawn, without waiting for the rebuild under way; nil before any
+      #   graph was drawn, or when no registry is booted here
+      def held_reading
+        return @held unless @lock.try_lock
+
+        begin
+          look_locked
+        ensure
+          @lock.unlock
         end
+      rescue PipelineBoard::Unavailable
+        nil
       end
 
       # @return [String] the digest of the graph
@@ -64,6 +76,14 @@ module Hecks
       attr_reader :registry
 
       private
+
+      # Looks at the files and answers the digest; called with the lock held.
+      def look_locked
+        raise PipelineBoard::Unavailable, "no domain is booted here to read the wiring from" unless @registry
+
+        refresh
+        @held
+      end
 
       # Looks at the bluebook files once in `wiring_look_seconds` at most: every open stream asks
       # on every journal line, and a look stats every declaration file.
@@ -100,6 +120,7 @@ module Hecks
       def store(graph)
         @graph = graph
         @digest = Digest::SHA1.hexdigest(JSON.generate(graph))
+        @held = { digest: @digest }.freeze
         @problem = nil
       end
     end

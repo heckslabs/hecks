@@ -3,6 +3,7 @@
 require "tmpdir"
 require_relative "pipeline_stages"
 require_relative "pipeline_wiring"
+require_relative "pipeline_web/streaming"
 require_relative "pipeline_web/actions"
 require_relative "pipeline_web/ended_run"
 require_relative "pipeline_web/stamped_stream"
@@ -28,6 +29,7 @@ module Hecks
     class PipelineWeb
       include PipelineBoard::PanelServing
       include PipelineBoard::Drawing
+      include PipelineBoard::Streaming
 
       PAGE = File.expand_path("pipeline_web/page.html", __dir__)
       WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
@@ -229,15 +231,6 @@ module Hecks
       rescue PipelineBoard::Unavailable => e
         { unknown: e.message }
       end
-
-      # Yields each event the held state lists once and again when its reactions change, the state
-      # whenever it changes, the wiring's digest whenever the bluebooks are drawn differently, and
-      # the HTML of each tile a journal line changed, until the reader goes away. It acts when the
-      # journal grows, not on a clock.
-      #
-      # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring` digest,
-      #   a `tile` fragment or a heartbeat
-      def stream(&) = PipelineBoard::Stream.new(hub: @pushed.hub, state: method(:state), wiring: method(:wiring)).each(&)
     end
   end
 end
