@@ -66,6 +66,17 @@ end
     end
   end
 
+  # The pomodoros a finished work item's runs spent: every AgentRun that names it, from its start to
+  # its SessionFinished, in 25-minute rounds rounded up. A rule has no ceiling or event times, so the
+  # port reads them. An item no run names spent none.
+  Tickets::Work.port "WorkSpend" do
+    asks "ReadSpend", to: Work do
+      attribute :work, WorkKey
+      answers "SpendRead"
+      refuses "SpendUnread"
+    end
+  end
+
   # The cap on started work items, which reads the other work items, as a bluebook rule cannot. The
   # cap is the world's `work_limit` setting.
   Tickets::Work.port "WorkLimits" do
