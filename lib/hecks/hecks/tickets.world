@@ -69,10 +69,9 @@ Hecks.world "Tickets" do
   # on memory as before while the signal is dark. Off until the owner turns it.
   signalbox_response "Signalbox", drives: false
   dispatch_max_load "Dispatch", limit: 10.0
-  # `load_average` names which average every reader of the machine's load takes: 1, 5 or 15 minutes. The
-  # fill's `dispatch_max_load`, the expedite bar, the Machine's marks and the board's guard read this one
-  # figure. 5 is smoother than the 1-minute figure the fill used to start in a dip of; the same 10.0 now
-  # compares against a lower, steadier number, so the limit may want a turn down.
+  # `load_average`: the 1, 5 or 15-minute figure every load reader takes (the fill, the expedite bar, the
+  # Machine's marks, the board). 5 is steadier than 1, so the same `dispatch_max_load` admits more: turn it
+  # down if the load runs over.
   load_average "Dispatch", minutes: 5
   # `roundhouse: true` moves every Delegate reader of load from `uptime` to Roundhouse's `Load`
   # query (ADR 0222, metering); off, each Machine reading keeps it beside as `metered_load`.
