@@ -3972,6 +3972,19 @@ Hecks.bluebook "Hecks" do
         emits "QuestionAsked"
       end
 
+      # The offer of a question to the desk: refused once an answer closed or dropped it, so a seat
+      # is opened only for a question still waiting for one.
+      command "Offer" do
+        role "System"
+        goal "Offer a question that still waits for an answer to the orchestrator's desk"
+
+        reference_to Question
+
+        given("the question still waits for a seat") { status == "asked" }
+
+        emits "QuestionOffered"
+      end
+
       command "Seat" do
         role "System"
         goal "Record that an orchestrator run was seated to answer the question"
@@ -4065,13 +4078,35 @@ Hecks.bluebook "Hecks" do
         trigger Question::Ask, with: { run: :run, text: :detail }
       end
 
-      policy "OpenTheAnswerDesk" do
+      # A false stall is a fixer blocked on a stall already closed: the stall confirms it, the
+      # responder answers, and the answered question is no longer offered a seat. Declared before
+      # `OfferTheQuestion`, so the responder hears the question first.
+      policy "ConfirmTheStallOfTheBlockedRun" do
         on      "Question.QuestionAsked"
+        root
+        trigger Stall::Confirm, with: { stall: :run, run: :run, text: :text }
+      end
+
+      policy "ConsultTheFalseStallResponder" do
+        on      "Stall.StallConfirmed"
+        trigger Responder::Admit,
+                with: { family: "false-stall", run: :run, text: :text,
+                        answer: "[responder false-stall] The stall you fix was already settled: its subject " \
+                                "settled or its run ended, so nothing is left to fix. End your turn." }
+      end
+
+      policy "OfferTheQuestion" do
+        on      "Question.QuestionAsked"
+        trigger Question::Offer, with: { run: :run }
+      end
+
+      policy "OpenTheAnswerDesk" do
+        on      "Question.QuestionOffered"
         trigger AnswerDesk::Open, with: { desk: "orchestrator", run: :run }
       end
 
       policy "TakeAnAnswerSeat" do
-        on      "Question.QuestionAsked"
+        on      "Question.QuestionOffered"
         trigger AnswerDesk::Take, with: { desk: "orchestrator", run: :run }
       end
 
@@ -4232,6 +4267,121 @@ Hecks.bluebook "Hecks" do
         end
         trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
       end
+    end
+
+    aggregate "Responder" do
+      description "One family of blocked-run questions a fact decides: declared switched off, switched on only after a replay of the lead's past answers matched, and spaced so it answers no faster than its spacing."
+
+      identified_by :family
+
+      attribute :family,   FamilyKey
+      attribute :lit,      Lit
+      attribute :replayed, Lit
+      attribute :spacing,  Spacing
+      attribute :last_at,  AnsweredAt
+
+      value_object "FamilyKey" do
+        attribute :value, String, matches: :present
+        invariant("a responder names its family") { !value.to_s.empty? }
+      end
+
+      # One while the flag stands, zero while it does not.
+      value_object "Lit" do
+        attribute :value, Integer, default: 0
+        invariant("a flag stands or it does not") { [0, 1].include?(value) }
+      end
+
+      value_object "Spacing" do
+        attribute :value, Integer, default: 5
+        invariant("a spacing is not negative") { !value.negative? }
+      end
+
+      value_object "AnsweredAt" do
+        attribute :value, Integer, default: 0
+      end
+
+      value_object "ResponderRun", String
+      value_object "ResponderText", String
+      value_object "ResponderAnswer", String
+
+      command "Declare" do
+        role "System"
+        goal "Declare a family's responder, switched off and its replay unmatched"
+
+        attribute :family,  FamilyKey, sets: true
+        attribute :spacing, Spacing, sets: true
+
+        sets :lit, to: { value: 0 }
+        sets :replayed, to: { value: 0 }
+        sets :last_at, to: { value: 0 }
+
+        emits ResponderDeclared
+      end
+
+      command "RecordReplay" do
+        role "System"
+        goal "Record that a replay of the lead's past answers of the family matched the responder's"
+
+        reference_to Responder
+
+        sets :replayed, to: { value: 1 }
+
+        emits ReplayRecorded
+      end
+
+      command "SwitchOn" do
+        role "Operator"
+        goal "Switch a responder on, once a replay of its family matched"
+
+        reference_to Responder
+
+        given("a replay of the lead's past answers matched before the responder is switched on") { replayed.value == 1 }
+
+        sets :lit, to: { value: 1 }
+
+        emits ResponderSwitchedOn
+      end
+
+      command "SwitchOff" do
+        role "Operator"
+        goal "Switch a responder off"
+
+        reference_to Responder
+
+        sets :lit, to: { value: 0 }
+
+        emits ResponderSwitchedOff
+      end
+
+      command "Admit" do
+        role "System"
+        goal "Admit one answer of the family to a blocked run's question, as the responder"
+
+        reference_to Responder
+        attribute :run,  ResponderRun
+        attribute :text, ResponderText
+        attribute :answer, ResponderAnswer
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now, AnsweredAt
+        needs :now
+
+        given("the responder is switched on") { lit.value == 1 }
+        given("a question that is the owner's or a review's is never a responder's") do
+          !text.value.start_with?("[owner]") && !text.value.start_with?("[review]")
+        end
+        given("the last answer was at least the spacing ago") { last_at.value + spacing.value <= now.value }
+
+        sets :last_at, to: :now
+
+        emits ResponderAdmitted
+      end
+    end
+
+    # The admitted responder answers the run as itself: the sender is named in the answer, and the
+    # run's answer closes or drops its question (`CloseTheAnsweredQuestion`).
+    policy "AnswerAsTheResponder" do
+      on      "Responder.ResponderAdmitted"
+      trigger AgentRun::Answer, with: { run: :run, answer: :answer }
     end
 
     # The seats of the orchestrator runs that answer questions: at most two at once, so a burst of
