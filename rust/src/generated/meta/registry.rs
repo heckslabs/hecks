@@ -7278,10 +7278,11 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "Translation",
                                 "TranslationAggregate",
                                 "ContextMap",
+                                "Clock",
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if !["none", "keywords", "source", "rows"]
@@ -7381,10 +7382,11 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "Translation",
                                 "TranslationAggregate",
                                 "ContextMap",
+                                "Clock",
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if !["none", "keywords", "source", "rows"]
@@ -7513,10 +7515,11 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "Translation",
                                 "TranslationAggregate",
                                 "ContextMap",
+                                "Clock",
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if let Some(v) = &args.at {
@@ -7624,10 +7627,11 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "Translation",
                                 "TranslationAggregate",
                                 "ContextMap",
+                                "Clock",
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if let Some(v) = &args.at {

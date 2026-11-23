@@ -1,0 +1,97 @@
+Hecks.bluebook "Hecksagon" do
+  aggregate "Clock" do
+    description "A driving adapter that dispatches one command on a schedule (ADR 0184). Declared in a hecksagon with exactly one trigger: `cron` (five fields, in UTC unless `zone:` names an IANA zone), `every` (a duration such as 15m or 1h) or `at` (one ISO-8601 instant). Its firing goes through the normal dispatch path, so the command's givens, role and governance apply, and is recorded with the source `clock`. A domain that declares clocks admits them with `driven_by \"Clock\"`."
+    acknowledges :no_command_surface, "a clock is declared on the hecksagon; the command it dispatches does the changing"
+
+    identified_by ClockName, as: :name
+
+    attribute :cron,     CronExpression, optional: true
+    attribute :zone,     ZoneName, optional: true
+    attribute :every,    Duration, optional: true
+    attribute :at,       Instant, optional: true
+    attribute :dispatch, DispatchedCommand, optional: true
+
+    value_object "ClockName" do
+      attribute :value, String
+      invariant("a clock is named") { !value.to_s.empty? }
+    end
+
+    # Five fields: minute, hour, day of month, month, day of week.
+    value_object "CronExpression" do
+      attribute :value, String
+      invariant("a cron expression has five fields") { value.to_s.split.size == 5 }
+    end
+
+    # An IANA zone, such as America/Phoenix.
+    value_object "ZoneName" do
+      attribute :value, String
+      invariant("a zone is named") { !value.to_s.empty? }
+    end
+
+    # A whole number of seconds, minutes, hours or days: 30s, 15m, 1h, 1d.
+    value_object "Duration" do
+      attribute :value, String, pattern: '^[0-9]+[smhd]$'
+    end
+
+    # One ISO-8601 instant with its offset, such as 2026-11-23T06:30:00-07:00.
+    value_object "Instant" do
+      attribute :value, String
+      invariant("an instant is given") { !value.to_s.empty? }
+    end
+
+    # `Aggregate.Command`, as a policy's `on` names an event.
+    value_object "DispatchedCommand" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_:]+\.[A-Za-z0-9_]+$'
+    end
+
+    # Keyword rows for Clock; SyntaxBoot discovers every aggregate-local seed table.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "cron",     context: "Clock", body: "none", inner: "", opens: "", fills: "cron"
+      member word: "every",    context: "Clock", body: "none", inner: "", opens: "", fills: "every"
+      member word: "at",       context: "Clock", body: "none", inner: "", opens: "", fills: "at"
+      member word: "dispatch", context: "Clock", body: "none", inner: "", opens: "", fills: "dispatch"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "cron",     context: "Clock", at: "1", named: "",     kind: "text",  required: "true",  fills: "cron"
+      member keyword: "cron",     context: "Clock", at: "",  named: "zone", kind: "text",  required: "false", fills: "zone"
+      member keyword: "every",    context: "Clock", at: "1", named: "",     kind: "text",  required: "true",  fills: "every"
+      member keyword: "at",       context: "Clock", at: "1", named: "",     kind: "text",  required: "true",  fills: "at"
+      member keyword: "dispatch", context: "Clock", at: "1", named: "",     kind: "text",  required: "true",  fills: "dispatch"
+      # The command's arguments: a literal, or a symbol naming what the firing knows
+      # (`:fire_date`, `:fire_time`, `:firing_id`).
+      member keyword: "dispatch", context: "Clock", at: "",  named: "with", kind: "pairs", required: "false", fills: "with", pairs_shape: "verbatim"
+      # The role the firing dispatches as, for a command that declares one.
+      member keyword: "dispatch", context: "Clock", at: "",  named: "as",   kind: "text",  required: "false", fills: "role"
+
+    end
+  end
+end
