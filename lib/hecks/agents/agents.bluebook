@@ -2004,9 +2004,10 @@ Hecks.bluebook "Agents" do
       attribute :value, String, matches: :present
     end
 
-    # What the message is, to a session or back from one: `owner` holds the owner's verbatim words.
+    # What the message is, to a session or back from one: `owner` holds the owner's verbatim words
+    # and `person` a post from anyone else in the crew room, who may talk but not command.
     value_object "MessageKind" do
-      attribute :value, String, one_of: %w[help question answer check-in report stand-down owner]
+      attribute :value, String, one_of: %w[help question answer check-in report stand-down owner person]
     end
 
     # Whether the message may interrupt: a normal one waits for the recipient's next turn when it is
@@ -2034,6 +2035,7 @@ Hecks.bluebook "Agents" do
       member kind: "report",     route: "train",  reply_expected: "false"
       member kind: "stand-down", route: "direct", reply_expected: "false"
       member kind: "owner",      route: "direct", reply_expected: "true"
+      member kind: "person",     route: "direct", reply_expected: "true"
     end
 
     # Who a channel post wakes: `help` wakes only the scrum master, which is where a help call is
