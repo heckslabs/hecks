@@ -90,5 +90,70 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
     end
+
+    # A turn refers to a machine by its fingerprint, not by a profile run: a later profile of the same
+    # machine keeps its turns, and a new machine finds none and starts from its derived values.
+    aggregate "Turn" do
+      description "The one automatic turn of a setting on this machine, taken, then kept or reverted. A kept turn is the correction to that setting's derived default, with its evidence: the setting, what it stood at before and after, the reason and the day. The machine turns one setting at a time: a turn is refused while the previous one awaits its verdict."
+
+      attribute :fingerprint, Word
+      attribute :setting,     Word
+      attribute :before,      Word
+      attribute :after,       Word
+      attribute :reason,      Word
+      attribute :factor,      Factor, optional: true
+      attribute :kept_on,     Word, optional: true
+      identified_by :fingerprint
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      # What a kept turn multiplies its setting's derived value by, before the bound holds it.
+      value_object "Factor" do
+        attribute :value, Float
+        invariant("a factor is between a quarter and four") { value >= 0.25 && value <= 4.0 }
+      end
+
+      lifecycle :status, default: "pending" do
+        mark :failure, "reverted"
+        transition "Keep"   => "kept",     from: "pending"
+        transition "Revert" => "reverted", from: "pending"
+        mark :terminal, "kept", "reverted"
+      end
+
+      command "Take" do
+        role "System"
+        goal "Record one automatic turn of a setting on this machine, with its reason"
+
+        attribute :fingerprint, Word, sets: true
+        attribute :setting,     Word, sets: true
+        attribute :before,      Word, sets: true
+        attribute :after,       Word, sets: true
+        attribute :reason,      Word, sets: true
+
+        emits TurnTaken
+      end
+
+      command "Keep" do
+        role "System"
+        goal "Keep the pending turn as this machine's correction to its setting"
+
+        reference_to Turn
+        attribute :factor,  Factor, sets: true
+        attribute :kept_on, Word, sets: true
+
+        emits TurnKept
+      end
+
+      command "Revert" do
+        role "System"
+        goal "Turn the setting back and record that the pending turn did not hold"
+
+        reference_to Turn
+
+        emits TurnReverted
+      end
+    end
   end
 end
