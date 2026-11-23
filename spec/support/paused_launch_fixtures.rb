@@ -25,7 +25,8 @@ module PausedLaunchFixtures
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: [pause_item("zz-named"), pause_item("aa-other")],
                                                                      started: [], lessons: [], runs: {})
     Hecks::Adapters::Dispatching.new(registry: registry_of([], { roll_forward: true }),
-                                     settings: { load: -> { 0.5 }, cpus: 4, cap: 8, runner: runner, work_items: items })
+                                     settings: { sprint: false, load: -> { 0.5 }, cpus: 4, cap: 8,
+                                                 runner: runner, work_items: items })
   end
 
   def confirmed(adapter, **held)
