@@ -3,7 +3,8 @@ require_relative "support/machine_profiles"
 require "hecks/hecks/adapters/machine_profiling"
 
 # A kept turn is a correction to the derived default for this machine: it moves the value, and the
-# value still stays inside its declared bounds. A machine with no kept turn starts from the derivation.
+# value still stays inside its declared bounds. A machine with no kept turn starts from the
+# derivation.
 RSpec.describe Hecks::Adapters::MachineProfiling do
   include MachineProfiles
 
