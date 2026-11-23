@@ -1,0 +1,18 @@
+Hecks.behaviors "MachineProfile" do
+  vision "A machine's profile is taken as facts, and the capacity settings are derived from it by declared formulas inside declared bounds."
+
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon", "environments/memory.world", modules: :all
+
+  test "Take records one machine profile" do
+    tests "Take", on: "Profile"
+    input run: "profile-1", fingerprint: "p8-e4-36864", performance_cores: 8, efficiency_cores: 4, cores: 12,
+          memory_mb: 36_864, free_memory_mb: 20_000, free_disk_gb: 400, resident_mb: 300, coder_mb: 900
+    expect emits: ["Taken"]
+  end
+
+  test "Derive answers one setting from the profile" do
+    tests "Derive", on: "Profile", kind: :query
+    input run: "profile-1", setting: "heavy_jobs"
+    expect count: 1
+  end
+end
