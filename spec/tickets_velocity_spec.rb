@@ -7,7 +7,7 @@ require "hecks/tickets/bluebook/adapters/velocity"
 
 # Work.velocity reports the hours of work finished on a day: a work item that recorded the
 # pomodoros it spent counts them at 25 minutes each, and one that recorded none is read from git
-# history as an INFERRED span from its branch's first commit to its merge.
+# history as an inferred span from its branch's first commit to its merge.
 RSpec.describe Hecks::Adapters::Velocity do
   let(:tap) { File.join(Dir.mktmpdir("velocity"), "events.jsonl") }
   let(:spans) { { "inferred-one" => 3 * 3600, "no-commits" => nil } }
@@ -21,10 +21,18 @@ RSpec.describe Hecks::Adapters::Velocity do
     JSON.generate(kind: "event", at: "#{day}T10:00:00Z", aggregate: "Tickets::Work", id: key, event: "WorkFinished", seq: 1)
   end
 
+  def registry
+    bluebook = double(aggregates: [double(hecks_name: "Work")])
+    double(bluebook: bluebook, repository: double(all: entries))
+  end
+
+  def lines(day)
+    [finish("recorded-one", day), finish("inferred-one", day), finish("no-commits", day),
+     finish("other-day", "2026-11-22")]
+  end
+
   def text(day = "2026-11-23")
-    File.write(tap, [finish("recorded-one", day), finish("inferred-one", day), finish("no-commits", day),
-                     finish("other-day", "2026-11-22")].join("\n"))
-    registry = double(bluebook: nil, repository: double(all: entries))
+    File.write(tap, lines(day).join("\n"))
     stand_ins = { tap: tap, span: ->(key) { spans[key] } }
     described_class.new(registry: registry, settings: stand_ins).velocity(day: { value: day })[:text]
   end

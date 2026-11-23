@@ -1606,6 +1606,15 @@ Hecks.bluebook "Tickets" do
       returns Document
     end
 
+    # The velocity of a day, read and never written: the work items the tap shows finished that day, in
+    # hours. A recorded spend counts its pomodoros at 25 minutes; an item with none is read from git
+    # (first commit to merge on main) and marked INFERRED.
+    query "Velocity" do
+      description "The hours of work finished on a day (today when none is given): each finished work item as the pomodoros it spent at 25 minutes each, or, when it recorded none, the span from its branch's first commit to its merge on main marked INFERRED, then the recorded, INFERRED and total hours. Read-only."
+      attribute :day, WorkText, optional: true
+      returns Document
+    end
+
     # The sweep for work finished with no code on main: a read, never a write. Each line is the local
     # branch of a done work item whose tip `main` does not contain, then each done item that no landed
     # Landing names and that records neither a landing nor a no-change reason, as `key - -`.
