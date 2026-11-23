@@ -1,6 +1,7 @@
 require_relative "../../bluebook/hecksagon"
 require_relative "../adapter_namespace"
 require_relative "hecksagon_rules"
+require_relative "clock_rules"
 require_relative "revisions_rule"
 require_relative "ask_verification"
 require_relative "query_verification"
@@ -18,6 +19,7 @@ module Hecks
       # port's verb, and every world default is usable. `verify!` runs it all at boot.
       module Verification
         include HecksagonRules
+        include ClockRules
         include RevisionsRule
         include AskVerification
         include QueryVerification
@@ -141,6 +143,7 @@ module Hecks
         def verify_hecksagon!(hecksagon, open_stores: true)
           refuse_ungoverned_roles!(hecksagon)
           refuse_unknown_driving!(hecksagon)
+          refuse_unadmitted_clocks!(hecksagon)
           refuse_revisions_on_other_adapter!(hecksagon)
           refuse_unwired_attachments!(hecksagon)
           refuse_bounded_without_acl!(hecksagon)

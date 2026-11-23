@@ -142,6 +142,7 @@ pub enum Context {
     Translation,
     Translationaggregate,
     Contextmap,
+    Clock,
 }
 
 impl crate::kernel::Fielded for Context {
@@ -173,6 +174,7 @@ impl crate::kernel::Fielded for Context {
                 Self::Translation => "Translation".to_string(),
                 Self::Translationaggregate => "TranslationAggregate".to_string(),
                 Self::Contextmap => "ContextMap".to_string(),
+                Self::Clock => "Clock".to_string(),
             }))),
             _ => None,
         }
@@ -212,6 +214,7 @@ impl Context {
             Self::Translation => "Translation",
             Self::Translationaggregate => "TranslationAggregate",
             Self::Contextmap => "ContextMap",
+            Self::Clock => "Clock",
         };
         crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
     }
@@ -297,6 +300,7 @@ impl Context {
             "Translation" => Ok(Self::Translation),
             "TranslationAggregate" => Ok(Self::Translationaggregate),
             "ContextMap" => Ok(Self::Contextmap),
+            "Clock" => Ok(Self::Clock),
             _ => Err(crate::kernel::Refusal::InvariantViolation(
                 crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                     r#type: "Context",
@@ -325,6 +329,7 @@ impl Context {
                         "Translation",
                         "TranslationAggregate",
                         "ContextMap",
+                        "Clock",
                     ],
                     offered: candidate.inspect().as_str(),
                 }
@@ -2952,6 +2957,7 @@ pub fn dispatch_keyword(
         "Translation",
         "TranslationAggregate",
         "ContextMap",
+        "Clock",
     ]
     .contains(&args.context.value.as_str())
     {
@@ -2984,6 +2990,7 @@ pub fn dispatch_keyword(
                     "Translation",
                     "TranslationAggregate",
                     "ContextMap",
+                    "Clock",
                 ],
                 offered: format!("{:?}", args.context.value).as_str(),
             }
@@ -3285,6 +3292,7 @@ impl KeywordArgs {
             "Translation",
             "TranslationAggregate",
             "ContextMap",
+            "Clock",
         ]
         .contains(&context.value.as_str())
         {
@@ -3317,6 +3325,7 @@ impl KeywordArgs {
                         "Translation",
                         "TranslationAggregate",
                         "ContextMap",
+                        "Clock",
                     ],
                     offered: format!("{:?}", context.value).as_str(),
                 }
@@ -3681,6 +3690,7 @@ pub fn dispatch_argument(
         "Translation",
         "TranslationAggregate",
         "ContextMap",
+        "Clock",
     ]
     .contains(&args.context.value.as_str())
     {
@@ -3713,6 +3723,7 @@ pub fn dispatch_argument(
                     "Translation",
                     "TranslationAggregate",
                     "ContextMap",
+                    "Clock",
                 ],
                 offered: format!("{:?}", args.context.value).as_str(),
             }
@@ -4065,6 +4076,7 @@ impl ArgumentArgs {
             "Translation",
             "TranslationAggregate",
             "ContextMap",
+            "Clock",
         ]
         .contains(&context.value.as_str())
         {
@@ -4097,6 +4109,7 @@ impl ArgumentArgs {
                         "Translation",
                         "TranslationAggregate",
                         "ContextMap",
+                        "Clock",
                     ],
                     offered: format!("{:?}", context.value).as_str(),
                 }

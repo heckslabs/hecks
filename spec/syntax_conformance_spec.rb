@@ -68,7 +68,8 @@ RSpec.describe "the declared syntax" do
     "Adapter"              => D::AdapterBuilder,
     "Translation"          => D::TranslationBuilder,
     "TranslationAggregate" => D::TranslationAggregateBuilder,
-    "ContextMap"           => D::ContextMapBuilder
+    "ContextMap"           => D::ContextMapBuilder,
+    "Clock"                => D::ClockBuilder
   }.freeze
 
   # Public methods a bluebook word could never mean: builder bookkeeping, the
@@ -101,6 +102,7 @@ RSpec.describe "the declared syntax" do
       binds:          "the builder's own collected Bind records, read by whoever owns them",
       subscriptions:  "the builder's own collected subscription strings, read by whoever owns them",
       attachments:    "the builder's own collected attachments (name and source), read by whoever owns them",
+      clocks:         "the builder's own collected Clock records, read by whoever owns them",
       # The open verb catch-all: `persisted_by "Heki"` bare reaches
       # HecksagonBuilder#method_missing — the verb is whichever bind-shaped
       # word a domain declares, not a closed set this table could enumerate.
@@ -545,7 +547,9 @@ RSpec.describe "the declared syntax" do
     # `Translation`'s words fill the Translation aggregate; `TranslationAggregate`'s
     # words fill the nested TranslationAggregate aggregate one level in.
     "Translation"          => %w[Translation],
-    "TranslationAggregate" => %w[TranslationAggregate]
+    "TranslationAggregate" => %w[TranslationAggregate],
+    # A hecksagon's `clock` words fill the Clock aggregate of the Hecksagon grammar.
+    "Clock"                => %w[Clock]
   }.freeze
 
   # Hecksagon/World are sibling bluebooks, not aggregates inside Bluebook, so

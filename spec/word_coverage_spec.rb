@@ -96,6 +96,10 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
+    "every (Clock)"                     =>
+                                           "no example domain runs on a schedule, and a clock in a corpus hecksagon would " \
+                                           "start nothing the parity corpus checks. The word is exercised by " \
+                                           "spec/driving_adapters/clock_spec.rb and clock_schedule_spec.rb.",
     "revisions (Hecksagon)"             =>
                                            "Postgres-only, and no tracked parity corpus binds a Postgres adapter, so no " \
                                            "corpus hecksagon sets it. The word is exercised by spec/hecksagon_revisions_spec.rb.",

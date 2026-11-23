@@ -1,5 +1,6 @@
 require_relative "word_gate"
 require_relative "hecksagon_builder/bluebook_scope"
+require_relative "clock_builder"
 module Hecks
   module Bluebook
     module DSL
@@ -41,7 +42,7 @@ module Hecks
         # are refused by name so the file fails at the line, not later as an unknown adapter.
         RETIRED_WORDS = %w[capabilities concerns annotate].freeze
 
-        attr_reader :binds, :subscriptions, :attachments
+        attr_reader :binds, :subscriptions, :attachments, :clocks
 
         def initialize(domain)
           @domain             = domain
@@ -49,6 +50,7 @@ module Hecks
           @subscriptions      = []
           @attachments        = []
           @driving            = []
+          @clocks             = []
           @bounded            = false
           @translates         = []
           @revisions          = false
@@ -81,8 +83,16 @@ module Hecks
         # Subscribes to an event from outside this domain's own bluebook.
         def subscribe(event) = @subscriptions << event.to_s
 
-        # Admits a driving adapter (`Ruby`, `Cli`, `Json` or `Mcp`) to reach this domain. Once any
-        # is declared, the adapters left out refuse the domain; none declared leaves it open.
+        # Declares a clock that dispatches one command on a schedule (ADR 0184). The hecksagon must
+        # also admit it with `driven_by "Clock"`, or boot refuses it by name.
+        #
+        # @param name [String] the clock's name, unique in the hecksagon
+        # @return [void]
+        def clock(name, &) = @clocks << ClockBuilder.build(name, &)
+
+        # Admits a driving adapter (`Ruby`, `Cli`, `Json`, `Mcp`, `Web` or `Clock`) to reach this
+        # domain. Once any is declared, the adapters left out refuse the domain; none declared
+        # leaves it open.
         #
         # @param adapter [String, Symbol] the adapter's name
         # @return [void]
@@ -143,7 +153,7 @@ module Hecks
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
                         attachments: @attachments, bounded: @bounded, translates: @translates,
-                        driving: @driving, revisions: @revisions, inline_reactions: @inline_reactions)
+                        driving: @driving, clocks: @clocks, revisions: @revisions, inline_reactions: @inline_reactions)
         end
 
         # Loads a bluebook the gem carries and records it as attached from the gem.
