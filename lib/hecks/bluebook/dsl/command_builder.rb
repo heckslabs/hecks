@@ -4,6 +4,7 @@ require_relative "audience_word"
 require_relative "command_builder/owner"
 require_relative "command_builder/rules"
 require_relative "command_builder/mutations"
+require_relative "command_builder/step_bounds"
 require_relative "command_builder/folded_sets"
 require_relative "command_builder/implicit_attributes"
 require_relative "command_builder/operands"
@@ -26,6 +27,7 @@ module Hecks
         include AudienceWord
         include ImplicitAttributes
         include Operands
+        include StepBounds
         include FoldedSets
 
         # Sentinel for "this keyword was never passed" — distinct from Ruby's own

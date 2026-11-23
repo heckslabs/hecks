@@ -501,6 +501,22 @@ fn command_skip_reason_with(
         })
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
+    // A bounded step is generated for an Integer target with integer bounds only.
+    let unsupported_bounded: Vec<String> = arithmetic_targets
+        .iter()
+        .filter(|m| m.get("bounds").is_some())
+        .filter(|m| {
+            let integer = matches!(
+                crate::bridging::arithmetic_target_field(m, aggregate, value_objects_by_name),
+                Some((_, _, crate::bridging::NumericKind::Integer))
+            );
+            !integer || crate::bridging::step_bounds_ints(m).is_none()
+        })
+        .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
+        .collect();
+    if !unsupported_bounded.is_empty() {
+        return Some(skip("bounded_step", format!("sets :{} increment/decrement with clamp isn't an Integer field with integer bounds — not generated yet", unsupported_bounded.join(", "))));
+    }
     if !unsupported_arithmetic.is_empty() {
         return Some(skip("arithmetic", format!("sets :{} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", "))));
     }

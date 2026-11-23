@@ -16,15 +16,15 @@ module Hecks
 
         # Declares one mutation this command applies to `target`, its op selected by
         # whichever single keyword names a source; omitting all of them means `to: target`.
+        # `clamp:` beside `increment:` or `decrement:` bounds that step.
         #
         # @param target [Symbol, String] the field the mutation writes
         # @param positional_to [Object] the source, written without `to:`
         # @param ops [Hash] at most one of `to:`, `append:`, `increment:`, `decrement:`,
-        #   `multiply:`, `clamp:` (the `[min, max]` pair to bound the current value to),
-        #   `remove:`; a Symbol `to:` equal to `target` is redundant and refused
+        #   `multiply:`, `clamp:` (a `[min, max]` pair), `remove:`; a Symbol `to:` equal to
+        #   `target` is redundant and refused
         # @return [void]
-        # @raise [Bluebook::DSL::Malformed] if `to:` redundantly repeats `target`, or more than
-        #   one op-selecting keyword is given
+        # @raise [Bluebook::DSL::Malformed] if `to:` repeats `target`, or two ops are given
         # @raise [ArgumentError] on any other keyword
         def sets_impl(target, positional_to = UNSET, **ops)
           refuse_unknown_ops!(ops, KWARG_TO_OP.keys)
@@ -140,8 +140,10 @@ module Hecks
                 "sets :#{target} alone already means the same"
         end
 
-        # Records the one mutation `named` selects, refusing a second op.
+        # Records the one mutation `named` selects, refusing a second op. A step beside
+        # `clamp:` is one mutation: the clamp rides as its bounds.
         def record_mutation(word, target, named)
+          named, bounds = split_step_bounds(target, named)
           if named.size > 1
             raise Malformed,
                   "#{@name}'s #{word} :#{target} tries to #{named.keys.join(" and ")} " \
@@ -149,7 +151,8 @@ module Hecks
           end
 
           op, source = named.first
-          @mutations << Mutation.new(target: target.to_sym, op: op, source: normalize_append_source(op, source))
+          @mutations << Mutation.new(target: target.to_sym, op: op, bounds: bounds,
+                                     source: normalize_append_source(op, source))
         end
 
         # The ops `then_set` selects between, in the order its refusals name them.

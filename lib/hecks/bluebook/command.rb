@@ -7,7 +7,7 @@ module Hecks
   module Bluebook
     Given = Struct.new(:description, :canonical, :predicate, :ast, keyword_init: true)
 
-    Mutation = Struct.new(:target, :op, :source, keyword_init: true) do
+    Mutation = Struct.new(:target, :op, :source, :bounds, keyword_init: true) do
       include Hecks::IR
       include Behaviour::Mutation
 
@@ -30,11 +30,14 @@ module Hecks
       # @return [Hash{Symbol => Object}] the declared emission — `super`'s fixed
       #   head, plus `fields:` (a Hash of bound field values) for an
       #   append-shaped op, or `source:` (`classified_source`'s own result) for
-      #   any other
+      #   any other; `bounds:` last, only when a step carries a clamp
       def to_h
-        return super.merge(fields: appended_fields) if [:append, :delegate, :corrects].include?(op)
-
-        super.merge(source: classified_source)
+        written = if [:append, :delegate, :corrects].include?(op)
+                    super.merge(fields: appended_fields)
+                  else
+                    super.merge(source: classified_source)
+                  end
+        bounds ? written.merge(bounds: bounds) : written
       end
     end
 

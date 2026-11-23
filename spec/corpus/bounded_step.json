@@ -1,0 +1,78 @@
+{
+  "name": "bounded_step-parity",
+  "note": "bounded_step: a step past the upper bound lands on it, a step past the lower bound lands on it, and an in-range step is exact.",
+  "domain": "examples/bounded_step",
+  "expectations": {
+    "events": 5
+  },
+  "steps": [
+    {
+      "verb": "BoundedStep::Memory.Create",
+      "args": {
+        "label": {
+          "value": "m1"
+        },
+        "weight": {
+          "value": 90
+        }
+      }
+    },
+    {
+      "verb": "BoundedStep::Memory.Recall",
+      "args": {
+        "label": {
+          "value": "m1"
+        },
+        "gain": {
+          "value": 15
+        }
+      }
+    },
+    {
+      "verb": "BoundedStep::Memory.Fade",
+      "args": {
+        "label": {
+          "value": "m1"
+        },
+        "step": {
+          "value": 130
+        }
+      }
+    },
+    {
+      "verb": "BoundedStep::Memory.Recall",
+      "args": {
+        "label": {
+          "value": "m1"
+        },
+        "gain": {
+          "value": 25
+        }
+      }
+    },
+    {
+      "verb": "BoundedStep::Memory.Fade",
+      "args": {
+        "label": {
+          "value": "m1"
+        },
+        "step": {
+          "value": 5
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "BoundedStep::Memory#m1": {
+        "label": {
+          "value": "m1"
+        },
+        "weight": {
+          "value": 20
+        }
+      }
+    }
+  }
+}

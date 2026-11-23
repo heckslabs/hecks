@@ -92,7 +92,7 @@ module Hecks
           return Mutation.new(target: target, op: op, source: appended(change[:fields])) if [:append, :delegate,
                                                                                              :corrects].include?(op)
 
-          Mutation.new(target: target, op: op, source: classified(change[:source]))
+          Mutation.new(target: target, op: op, source: classified(change[:source]), bounds: change[:bounds])
         end
 
         # Reads an append mutation's field bindings back off their declared rows.

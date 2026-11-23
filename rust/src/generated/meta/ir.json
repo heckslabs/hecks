@@ -7922,6 +7922,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "bounds",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -11171,6 +11181,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "bounds",
+              "type": "FieldRef",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -11231,7 +11251,8 @@
                 "op": ":op",
                 "field": ":field",
                 "kind": ":kind",
-                "source": ":source"
+                "source": ":source",
+                "bounds": ":bounds"
               }
             }
           ],

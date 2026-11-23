@@ -101,6 +101,9 @@ Hecks.bluebook "Bluebook" do
       attribute :field,  String
       attribute :kind,   String
       attribute :source, String
+      # A bounded step's `[min, max]`, one encoded literal; absent unless an increment or
+      # decrement carries a `clamp:`.
+      attribute :bounds, String, optional: true
     end
 
     # Plain string holder for an aggregate id; the other text value objects mean something else.
@@ -240,11 +243,12 @@ Hecks.bluebook "Bluebook" do
       attribute :field,  FieldRef
       attribute :kind,   FieldRef
       attribute :source, FieldRef
+      attribute :bounds, FieldRef, optional: true
 
       given("a mutation names a target")     { !target.value.to_s.empty? }
       given("a mutation does something")     { !op.value.to_s.empty? }
 
-      sets :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
+      sets :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source, bounds: :bounds }
 
       emits ChangeAttached
     end
@@ -401,6 +405,8 @@ Hecks.bluebook "Bluebook" do
       member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
       member keyword: "ensures",         context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
       member keyword: "needs",           context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "fact"
+      # `clamp:` beside `increment:` or `decrement:` is not a second op: it rides as that
+      # mutation's `bounds`, so the step and its range are one write.
       member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
       member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "literal",  required: "false", fills: "source", selects: "op=set"
       member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "literal",  required: "false", fills: "source", selects: "op=append"

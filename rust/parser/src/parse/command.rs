@@ -345,6 +345,7 @@ fn fold_sets(
         op: "set".to_string(),
         sign: mutation_sign("set").to_string(),
         source: Some(ir::MutationSource::Argument(name.to_string())),
+        bounds: None,
     });
     Ok(())
 }
@@ -608,6 +609,8 @@ fn build_mutation(
     .filter_map(|(key, op)| super::named_raw(args, key).map(|raw| (op, raw)))
     .collect();
 
+    let (named, bounds) = split_step_bounds(file, line, &target, named)?;
+
     if named.len() > 1 {
         return Err(Diagnostic::new(file, line, format!("'sets :{target}' tries more than one operation at once — one mutation, one meaning")));
     }
@@ -619,6 +622,7 @@ fn build_mutation(
             op: "set".to_string(),
             sign: mutation_sign("set").to_string(),
             source: Some(ir::MutationSource::Argument(target)),
+            bounds: None,
         });
     }
 
@@ -672,7 +676,53 @@ fn build_mutation(
         op: op.to_string(),
         sign: mutation_sign(op).to_string(),
         source: Some(source),
+        bounds,
     })
+}
+
+/// The named ops of a `sets` row and, when a step carries a clamp, that clamp's bounds.
+type StepSplit<'a> = (Vec<(&'a str, &'a str)>, Option<ruby_value::Value>);
+
+/// A step (`increment:`/`decrement:`) beside `clamp:` is one mutation: the clamp is held apart as
+/// the step's bounds, which must be two numbers in order. Any other pairing is left whole.
+fn split_step_bounds<'a>(
+    file: &str,
+    line: usize,
+    target: &str,
+    named: Vec<(&'a str, &'a str)>,
+) -> ParseResult<StepSplit<'a>> {
+    let steps = named
+        .iter()
+        .filter(|(op, _)| matches!(*op, "increment" | "decrement"))
+        .count();
+    let clamp = named.iter().find(|(op, _)| *op == "clamp");
+    let Some((_, raw)) = clamp.filter(|_| steps == 1 && named.len() == 2) else {
+        return Ok((named, None));
+    };
+    let bounds = ruby_value::read(raw.trim());
+    let number = |value: &ruby_value::Value| match value {
+        ruby_value::Value::Int(n) => Some(*n as f64),
+        ruby_value::Value::Float(f) => Some(*f),
+        _ => None,
+    };
+    let ordered = match &bounds {
+        ruby_value::Value::Array(items) if items.len() == 2 => {
+            matches!((number(&items[0]), number(&items[1])), (Some(low), Some(high)) if low <= high)
+        }
+        _ => false,
+    };
+    if !ordered {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "'sets :{target}' clamp: {} is not a [min, max] pair of numbers in order",
+                raw.trim()
+            ),
+        ));
+    }
+    let rest = named.into_iter().filter(|(op, _)| *op != "clamp").collect();
+    Ok((rest, Some(bounds)))
 }
 
 /// `delegates_to "Entity.Command", with: { key: :arg }`: a passthrough mutation.
