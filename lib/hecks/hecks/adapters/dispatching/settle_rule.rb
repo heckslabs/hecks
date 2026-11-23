@@ -22,7 +22,7 @@ module Hecks
         def of(items, machine, repo:, sessions: nil)
           { landed: LandedSince.new(items, repo: repo), gone: machine,
             sessions: sessions || ClaudeSessions.listing(machine),
-            orphans: OrphanedWork.new(items, min_age: machine.run_gone_minutes * 60),
+            orphans: OrphanedWork.new(items, min_age: machine.start_window_seconds),
             stall: stall(items) }
         end
 
