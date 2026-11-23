@@ -14,7 +14,9 @@ module Hecks
       ABSENT = "release not found"
       ATTEMPTS = 3
       FOUND = 0
-      MISSING = 1
+      # Not 1: a Ruby that dies (a helper that cannot load, an exception) exits 1, and that must
+      # never read as "no release".
+      MISSING = 10
       FAILED = 2
 
       module_function
@@ -41,17 +43,23 @@ module Hecks
       # @param runner [#call] returns [status, output] for a tag
       # @param out [#puts] where a failure is named
       # @param sleeper [#call] waits the given seconds between attempts
-      # @return [Integer] 0 when the release exists, 1 when it does not, 2 when the lookup failed
+      # @return [Integer] 0 when the release exists, 10 when it does not, 2 when the lookup failed
       def check(tag, runner: method(:gh), out: Kernel, sleeper: ->(seconds) { sleep(seconds) })
-        last = nil
         ATTEMPTS.times do |attempt|
-          last = verdict(**named(runner.call(tag)))
+          last = attempt_verdict(runner, tag)
           return code(last) unless last == :failed
 
           sleeper.call(5 * (attempt + 1)) if attempt < ATTEMPTS - 1
         end
         out.puts("::error::release lookup failed for #{tag}: GitHub did not say whether it exists")
         FAILED
+      end
+
+      # @return [Symbol] the verdict of one try; a runner that raises (no `gh`) is :failed
+      def attempt_verdict(runner, tag)
+        verdict(**named(runner.call(tag)))
+      rescue StandardError
+        :failed
       end
 
       # @return [Hash] the runner's answer as verdict keywords
