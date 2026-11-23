@@ -13,12 +13,20 @@ RSpec.describe "the session inbox watch" do
   let(:dev) { File.join(dir, "dev") }
   let(:session) { "aedefaa0-1111-2222-3333-444444444444" }
 
+  let(:ledger_sql) do
+    <<~SQL
+      create table hand_run (run TEXT, session TEXT);
+      create table seat_cursor (seat TEXT, position TEXT);
+      create table events (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, aggregate TEXT, aggregate_id TEXT, payload TEXT, occurred_at TEXT);
+    SQL
+  end
+
   before do
     FileUtils.mkdir_p([File.join(dir, "exe"), File.join(dir, ".claude"), dev])
     FileUtils.cp_r(File.join(root, ".claude/hooks"), File.join(dir, ".claude"))
     stand_in_launcher
     sql("agent_run.db", "create table agent_run (run TEXT, session TEXT, status TEXT);")
-    sql("agents.db", "create table hand_run (run TEXT, session TEXT);")
+    sql("agents.db", ledger_sql)
   end
 
   after { FileUtils.remove_entry(dir) }
@@ -44,7 +52,12 @@ RSpec.describe "the session inbox watch" do
     out.lines(chomp: true)
   end
 
-  def inbox(*ids) = File.write(File.join(dir, "inbox"), ids.map { |id| %("id": "#{id}") }.join("\n"))
+  def inbox(*ids, to: "run-a")
+    event = "insert into events (name, aggregate, aggregate_id, payload) values ('MessageAddressed', 'Message', "
+    payload = %('{"recipient":{"value":"#{to}"}}')
+    rows = ids.map { |id| "#{event}'#{id}', #{payload});" }
+    sql("agents.db", "insert into seat_cursor values ('{\"value\":\"#{to}\"}', '{\"value\":0}'); #{rows.join}")
+  end
 
   it "names a started run's key and the Monitor command that watches it", :aggregate_failures do
     sql("agent_run.db", "insert into agent_run values ('{\"value\":\"run-a\"}', '{\"value\":\"aedefaa0\"}', 'started');")
@@ -67,9 +80,16 @@ RSpec.describe "the session inbox watch" do
   end
 
   it "resolves the key when it is asked, so a run registered after the start is heard" do
-    inbox("m9")
+    inbox("m9", to: "late")
     sql("agents.db", "insert into hand_run values ('{\"value\":\"late\"}', '{\"value\":\"aedefaa0\"}');")
     expect(watch_lines.join).to include("m9", "late")
+  end
+
+  it "reads the cursor with no boot of the launcher", :aggregate_failures do
+    sql("agent_run.db", "insert into agent_run values ('{\"value\":\"run-a\"}', '{\"value\":\"aedefaa0\"}', 'started');")
+    inbox("m1")
+    expect(watch_lines).to match([a_string_including("m1")])
+    expect(File.exist?(File.join(dir, "calls"))).to be(false)
   end
 
   it "says nothing while there is no mail" do
