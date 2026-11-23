@@ -134,7 +134,7 @@ module Hecks
 
         # @return [Array<String>] the Ruby files that `rel` requires inside the checkout
         def requires(root, rel)
-          source = File.read(File.join(root, rel))
+          source = File.read(File.join(root, rel), encoding: "UTF-8").scrub
           source.scan(REQUIRE).filter_map do |relative, name|
             relative ? resolve_relative(rel, name) : resolve_library(name)
           end
