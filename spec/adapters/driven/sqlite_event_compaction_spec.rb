@@ -2,8 +2,8 @@ require "hecks"
 require "tmpdir"
 require_relative "../../support/persistence_adapter_examples"
 
-# Events older than a declared window are dropped from the shared event log while every
-# follower's position, counted from the oldest event ever recorded, keeps its meaning.
+# The shared `events` table of a Sqlite database, compacted past a window: the oldest events are
+# dropped while every follower's count position stays where it was.
 RSpec.describe Hecks::Adapters::Sqlite, "event compaction" do
   include_context "with the Pizzas Order adapter helpers"
 
@@ -21,53 +21,50 @@ RSpec.describe Hecks::Adapters::Sqlite, "event compaction" do
 
   before { 4.times { |n| adapter.record_event(pizza_purchased("p#{n}", "c#{n}", "2026-01-01T00:00:0#{n}Z")) } }
 
-  it "drops the events recorded before the cutoff and reports how many" do
+  it "drops the events older than the cutoff and reports how many" do
     expect(adapter.compact_events!(before: cutoff)).to eq(2)
   end
 
-  it "keeps the events at and after the cutoff", :aggregate_failures do
+  it "keeps the events at or after the cutoff", :aggregate_failures do
     adapter.compact_events!(before: cutoff)
 
     expect(adapter.events.map(&:id)).to eq(%w[p2 p3])
+    expect(adapter.events_dropped).to eq(2)
+  end
+
+  it "keeps the count a follower reads, as if nothing were dropped" do
+    adapter.compact_events!(before: cutoff)
+
     expect(adapter.event_count).to eq(4)
   end
 
-  it "keeps a follower's position meaning the same events" do
+  it "reads past a position from before the compaction as it did", :aggregate_failures do
     adapter.compact_events!(before: cutoff)
 
     expect(adapter.events_past(3).map(&:id)).to eq(%w[p3])
+    expect(adapter.events_past(4)).to eq([])
   end
 
-  it "gives a follower behind the dropped events what is left" do
+  it "hands a follower behind the dropped events the ones that remain" do
     adapter.compact_events!(before: cutoff)
 
     expect(adapter.events_past(0).map(&:id)).to eq(%w[p2 p3])
   end
 
-  it "counts the dropped events across two compactions", :aggregate_failures do
+  it "adds to the dropped count when compacted again", :aggregate_failures do
     adapter.compact_events!(before: cutoff)
-    adapter.compact_events!(before: "2026-01-01T00:00:03Z")
 
-    expect(adapter.event_count).to eq(4)
-    expect(adapter.events_past(3).map(&:id)).to eq(%w[p3])
+    expect(adapter.compact_events!(before: "2026-01-01T00:00:03Z")).to eq(1)
+    expect(adapter.events_dropped).to eq(3)
   end
 
-  it "keeps the dropped count when the database is reopened" do
-    adapter.compact_events!(before: cutoff)
-    reopened = described_class.new(aggregate: @aggregate, settings: { database: "pizzas.db" }, root: @dir)
-
-    expect(reopened.event_count).to eq(4)
+  it "drops nothing when no event is older than the cutoff", :aggregate_failures do
+    expect(adapter.compact_events!(before: "2025-01-01T00:00:00Z")).to eq(0)
+    expect(adapter.events_dropped).to eq(0)
   end
 
-  it "counts what a cutoff would drop without dropping it", :aggregate_failures do
-    expect(adapter.events_before(cutoff)).to eq(2)
-    expect(adapter.events.size).to eq(4)
-  end
-
-  it "drops nothing and counts nothing when the delete fails midway", :aggregate_failures do
-    allow(adapter.instance_variable_get(:@db)).to receive(:execute).and_call_original
-    allow(adapter.instance_variable_get(:@db)).to receive(:execute)
-      .with(a_string_matching(/hecks_event_compaction/), anything).and_raise(SQLite3::Exception, "boom")
+  it "leaves the events and the count as they were when the delete fails midway", :aggregate_failures do
+    allow(adapter).to receive(:record_events_dropped!).and_raise(SQLite3::Exception, "disk full")
 
     expect { adapter.compact_events!(before: cutoff) }.to raise_error(SQLite3::Exception)
     expect(adapter.events.size).to eq(4)

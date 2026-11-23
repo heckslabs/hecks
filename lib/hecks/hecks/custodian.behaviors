@@ -291,6 +291,42 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[HekiCompactionRequested SchemaRevisionRefused SchemaRevisionAbandoned]
   end
 
+  test "CompactEvents is refused until it is confirmed" do
+    tests "CompactEvents", on: "SchemaRevision"
+    input domain: { value: "examples/pizzas" }, run: { value: "events" }, window_days: { value: 30 }
+    expect refused: "the event compaction is confirmed"
+  end
+
+  test "CompactEvents refuses a window that is not a whole number of days" do
+    tests "CompactEvents", on: "SchemaRevision"
+    input domain: { value: "examples/pizzas" }, run: { value: "events" }, window_days: { value: 0 }, confirm: { value: true }
+    expect refused: "a window is counted in days from one"
+  end
+
+  test "CompactEvents keeps a domain that is not there as a refused change" do
+    tests "CompactEvents", on: "SchemaRevision"
+    input domain: { value: "/tmp/hecks-behaviors-absent/events-domain" }, run: { value: "events" }, window_days: { value: 30 }, confirm: { value: true }
+    expect emits: %w[EventCompactionRequested SchemaRevisionRefused SchemaRevisionAbandoned]
+  end
+
+  test "CompactEvents refuses a run that is not confirmed" do
+    tests "CompactEvents", on: "SchemaRevision"
+    input domain: { value: "examples/pizzas" }, run: { value: "events" }, window_days: { value: 30 }
+    expect refused: "confirmed"
+  end
+
+  test "CompactEvents refuses a window of no days" do
+    tests "CompactEvents", on: "SchemaRevision"
+    input domain: { value: "examples/pizzas" }, run: { value: "events" }, window_days: { value: 0 }, confirm: { value: true }
+    expect refused: "window"
+  end
+
+  test "CompactEvents keeps a domain that is not there as a refused change" do
+    tests "CompactEvents", on: "SchemaRevision"
+    input domain: { value: "/tmp/hecks-behaviors-absent/event-domain" }, run: { value: "events" }, window_days: { value: 30 }, confirm: { value: true }
+    expect emits: %w[EventCompactionRequested SchemaRevisionRefused SchemaRevisionAbandoned]
+  end
+
   test "ProjectRust refuses a domain whose name cannot be a Rust module" do
     tests "ProjectRust", on: "Build"
     input domain: { value: "examples/Pizzas" }, run: { value: "rust" }
