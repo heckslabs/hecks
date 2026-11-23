@@ -594,4 +594,49 @@ Hecks.behaviors "Tickets" do
           mark: { value: "folded" }
     expect refused: "a folded agreement names its principle"
   end
+
+  test "Size sets the pomodoros of a planned work item" do
+    tests "Size", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sz1" }, title: { value: "Unsized" }
+    input  work: { value: "sz1" }, pomodoros: { value: 4 }
+    expect status: "planned", pomodoros: { value: 4 }
+  end
+
+  test "Size resets the pomodoros of an already sized work item" do
+    tests "Size", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sz2" }, title: { value: "Sized" }, pomodoros: { value: 2 }
+    input  work: { value: "sz2" }, pomodoros: { value: 7 }
+    expect pomodoros: { value: 7 }
+  end
+
+  test "Size sizes a started work item" do
+    tests "Size", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sz3" }, title: { value: "Underway" }
+    setup  "Tickets::Work.Start", work: { value: "sz3" }
+    input  work: { value: "sz3" }, pomodoros: { value: 3 }
+    expect status: "started", pomodoros: { value: 3 }
+  end
+
+  test "Size refuses a done work item" do
+    tests "Size", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sz4" }, title: { value: "Over" }
+    setup  "Tickets::Work.Close", work: { value: "sz4" }, no_change: { value: "a verify" }
+    input  work: { value: "sz4" }, pomodoros: { value: 1 }
+    expect refused: "a done or dropped work item takes no size"
+  end
+
+  test "Size refuses a dropped work item" do
+    tests "Size", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sz5" }, title: { value: "Gone" }
+    setup  "Tickets::Work.Drop", work: { value: "sz5" }, reason: { value: "not needed" }
+    input  work: { value: "sz5" }, pomodoros: { value: 1 }
+    expect refused: "a done or dropped work item takes no size"
+  end
+
+  test "Size refuses a negative size" do
+    tests "Size", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "sz6" }, title: { value: "Negative" }
+    input  work: { value: "sz6" }, pomodoros: { value: -1 }
+    expect refused: "a pomodoro count is not negative"
+  end
 end
