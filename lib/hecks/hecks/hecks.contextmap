@@ -25,6 +25,7 @@ Hecks.context_map "Hecks" do
   context "Agents"
   context "Triage"
   context "Interviews"
+  context "Protocols"
   context "Delivery"
   context "Signalbox"
   context "Clients"
@@ -35,7 +36,7 @@ Hecks.context_map "Hecks" do
   # `model_check` as `separate_ways_violated`, whatever its kind. The list is every context above;
   # spec/context_map_clients_spec.rb fails when a context is added without joining it.
   %w[Hecks Governance Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets
-     Composer QualityControl Coder Fixer PipelineBoard Pipeline Agents Triage Interviews Delivery Signalbox].each { |name| separate_ways name, "Clients" }
+     Composer QualityControl Coder Fixer PipelineBoard Pipeline Agents Triage Interviews Protocols Delivery Signalbox].each { |name| separate_ways name, "Clients" }
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
