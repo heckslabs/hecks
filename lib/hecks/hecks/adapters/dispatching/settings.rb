@@ -46,6 +46,13 @@ module Hecks
         # is taken for gone when `claude` cannot be asked.
         GONE = "run_gone_after"
 
+        # The world verb that carries the minutes a start may go without a session before its item
+        # is yielded.
+        START = "start_session_window"
+
+        # Minutes a start may show no session when the world names none.
+        START_MINUTES = 5
+
         # The world verb that carries where `claude` is installed, tried when `PATH` has none.
         EXECUTABLE = "claude_executable"
 
@@ -147,6 +154,10 @@ module Hecks
         # @return [Integer] the minutes a started run may show no process, commit or change before
         #   it is gone, when `claude` cannot list sessions
         def run_gone_minutes = Integer(declared(GONE)[:minutes] || GONE_MINUTES)
+
+        # @return [Integer] the seconds a start may go with no run behind it before its item is
+        #   yielded back to the plan
+        def start_window_seconds = Integer(declared(START)[:minutes] || START_MINUTES) * 60
 
         # @return [Integer] the minutes a session `claude` lists as stopped may stand over a started
         #   run that shows no process, commit or change before the run is gone

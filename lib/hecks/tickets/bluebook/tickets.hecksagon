@@ -12,6 +12,9 @@ Hecks.hecksagon "Tickets" do
 
   # The Hecks domain's landing job died with nothing recorded: RefuseWorkWhenALandingJobFaulted reacts.
   subscribe "Hecks.FaultedWorkFound"
+
+  # The Hecks domain declined a run: YieldWhenItsRunIsDeclined returns the run's started work item.
+  subscribe "Hecks.AgentRunDeclined"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

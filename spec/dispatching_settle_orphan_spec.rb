@@ -35,4 +35,25 @@ RSpec.describe "the settle of a started work item with no live run" do
   }.each do |name, given|
     it("leaves an item #{name}, saying so") { expect(settle(**instance_exec(&given))).to match([/\Aleft w: /]) }
   end
+
+  it "yields an item whose only run row is from an earlier start, older than its claim" do
+    old = { "w" => { status: "started", started_at: "2026-11-17T08:00:00Z", session: "s" } }
+    expect(settle(runs: old)).to eq(["yielded w"])
+  end
+
+  it "leaves an item whose run began after its claim" do
+    fresh = { "w" => { status: "started", started_at: "2026-11-17T10:01:00Z", session: "s" } }
+    expect(settle(runs: fresh)).to match([/\Aleft w: /])
+  end
+
+  it "counts a run row with no readable start as an earlier start" do
+    blank = { "w" => { status: "started", started_at: "", session: "s" } }
+    expect(settle(runs: blank)).to eq(["yielded w"])
+  end
+
+  it "reads the start window from the world, in seconds" do
+    verbs = Struct.new(:rows) { def for_verb(_verb) = rows }.new({ minutes: 3 })
+    registry = Struct.new(:verbs) { def world(_name) = verbs }.new(verbs)
+    expect(Hecks::Adapters::Dispatching::Settings.new(registry).start_window_seconds).to eq(180)
+  end
 end
