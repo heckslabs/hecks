@@ -2,7 +2,8 @@
 
 require "spec_helper"
 
-# The agents page draws the owner on no line: a release cuts itself, and an owner-only ask is shown elsewhere.
+# The agents page draws the owner on no line: a release cuts itself, and an owner-only ask
+# is shown elsewhere.
 RSpec.describe "the agents page comms diagram" do
   let(:html) { File.read(File.expand_path("../lib/hecks/pipeline_board/adapters/pipeline_web/agents.html", __dir__)) }
   let(:ends) { html.scan(/data-edge="[^"]+" data-ends="([^"]+)"/).flatten.map(&:split) }
