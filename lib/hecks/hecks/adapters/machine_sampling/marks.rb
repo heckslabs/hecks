@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/machine_profiling"
+
 module Hecks
   module Adapters
     class MachineSampling
@@ -49,7 +51,14 @@ module Hecks
         # @param declared [Hash] a `machine_marks` line, as the world declares it
         # @return [Hash{Symbol => Float}] the line's marks laid over the defaults
         def self.laid_over(declared)
-          DEFAULTS.merge(declared.slice(*DEFAULTS.keys)) { |_key, _default, given| given.to_f }
+          derived_defaults.merge(declared.slice(*DEFAULTS.keys)) { |_key, _default, given| given.to_f }
+        end
+
+        # @return [Hash{Symbol => Float}] the defaults with the load marks the machine's profile
+        #   derives in place of the fixed ones; a declared mark still wins over them
+        def self.derived_defaults
+          derived = %i[load_low load_high].to_h { |key| [key, MachineProfiling.of(key.to_s)] }.compact
+          DEFAULTS.merge(derived.transform_values(&:to_f))
         end
       end
     end

@@ -1,3 +1,5 @@
+require "hecks/hecks/adapters/machine_profiling"
+
 module Hecks
   module Adapters
     module Driving
@@ -17,14 +19,18 @@ module Hecks
           module_function
 
           # @param root [String] the checkout
-          # @return [Integer, nil] the `max_residents` the world declares, nil when none is readable
+          # @return [Integer, nil] the `max_residents` the world declares (the owner's override),
+          #   else the one the machine's profile derives, nil when neither is readable
           def for(root)
             FILES.each do |file|
               cap = declared(File.join(root, file))
               return cap if cap
             end
-            nil
+            derived
           end
+
+          # @return [Integer, nil] the `residents` the machine's profile derives, nil when none
+          def derived = Hecks::Adapters::MachineProfiling.of("residents")
 
           # @return [Integer, nil] the cap a world file's `resident` line declares
           def declared(path)

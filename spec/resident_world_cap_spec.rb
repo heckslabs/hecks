@@ -49,7 +49,13 @@ RSpec.describe "the resident cap the world declares" do
     expect(resident::WorldCap.for(@root)).to eq(4)
   end
 
-  it "falls back to the remembered cap when no world declares one" do
+  it "derives the cap from the machine's profile when no world declares one" do
+    allow(Hecks::Adapters::MachineProfiling).to receive(:of).with("residents").and_return(7)
+    expect(resident::WorldCap.for(@root)).to eq(7)
+  end
+
+  it "falls back to the remembered cap when no world declares one and none can be derived" do
+    allow(Hecks::Adapters::MachineProfiling).to receive(:of).with("residents").and_return(nil)
     crowd.remember(5)
     expect(crowd.cap_for(@root)).to eq(5)
   end

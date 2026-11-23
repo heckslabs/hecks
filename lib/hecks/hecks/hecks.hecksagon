@@ -298,6 +298,12 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unraised"
   end
 
+  # Read-only: the capacity settings the `Profile` aggregate's Formula and Bound rows derive from the
+  # facts of this machine. The adapter measures cores, memory and disk and decides nothing.
+  Hecks::Profile.port "Deriving" do
+    answers_query "Derive"
+  end
+
   # Read-only: the event tap's lines in a window, counted as gross events, finished items and the
   # finished per 1,000 events. The adapter reads the log as the `Feed` query does and boots no domain.
   Hecks::Pace.port "Pacing" do
