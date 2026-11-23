@@ -14,10 +14,9 @@ module Hecks
       # @param setting [String] `residents`, `heavy_jobs`, `spec_workers`, `load_low` or `load_high`
       # @param profile [Hash, nil] the profile's measures; this machine's, read once, when absent
       # @param default [Numeric, nil] what to answer when it cannot be derived
-      # @param corrections [Hash{String => Float}] kept `Turn` factors of this machine by setting
       # @return [Numeric, nil] the derived value, the default when it cannot be derived
-      def self.of(setting, default = nil, profile: nil, corrections: {})
-        Derivation.value(setting, profile || standing, Rows.from_file, corrections) || default
+      def self.of(setting, default = nil, profile: nil)
+        Derivation.value(setting, profile || standing, Rows.from_file) || default
       rescue StandardError
         default
       end
