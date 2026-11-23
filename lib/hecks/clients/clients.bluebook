@@ -35,6 +35,13 @@ Hecks.bluebook "Clients" do
 
     value_object "FileContent", String
 
+    # The owner's words to open a client, kept on the command alone: "new client: <name>" is the words
+    # "new client:" and the name they name.
+    value_object "Phrase" do
+      attribute :words, String, matches: :present
+      attribute :named, String, matches: :present
+    end
+
     # None, asked for, or created: no state says public, and a created repository is one the port
     # answered private.
     lifecycle :status, default: "none" do
@@ -47,16 +54,23 @@ Hecks.bluebook "Clients" do
 
     command "Open" do
       role "Owner"
-      goal "Open a client by name, with no repository yet"
+      goal "Open a client by name on the owner's words, and ask for its private repository"
 
-      attribute :name, Name
+      attribute :name,   Name
+      attribute :phrase, Phrase
+
+      # The phrase shows the name was stated twice; the barrier is the Owner role.
+      given("the owner said new client: and this client's name") {
+        phrase.words == "new client:" && phrase.named == name.value
+      }
 
       emits "ClientOpened"
     end
 
     command "RequestRepo" do
-      role "Owner"
-      goal "Ask for the client's private repository, to be created once the owner says so"
+      role "System"
+      policy_only
+      goal "Ask for the client's private repository, once the owner's words opened the client"
 
       reference_to Client
 
@@ -148,9 +162,14 @@ Hecks.bluebook "Clients" do
     end
   end
 
+  policy "RequestTheRepoOnOpening" do
+    on      "Client.ClientOpened"
+    trigger Client::RequestRepo, with: { client: :name }
+  end
+
   policy "CreateThePrivateRepo" do
     on  "Client.RepoRequested"
-    ask :create_private, with: { name: :client }
+    ask :create_private, with: { name: :name }
   end
 
   policy "RefuseTheRepoNotMade" do
