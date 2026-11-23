@@ -60,14 +60,16 @@ RSpec.describe Hecks::Adapters::Codebase::BluebookExtraction do
   end
 
   describe "a language bluebook that refers to an aggregate its sibling declares" do
-    let(:thing) { "Hecks.bluebook \"Lang\" do\n  aggregate \"Thing\" do\n    attribute :name, Name\n    identified_by :name\n    value_object(\"Name\", String)\n    command(\"Make\") { emits \"Made\" }\n  end\nend\n" }
-    let(:part) do
-      "Hecks.bluebook \"Lang\" do\n  aggregate \"Part\" do\n    attribute :name, Name\n    identified_by :name\n    value_object(\"Name\", String)\n    reference_to Thing\n    " \
-        "command(\"Fit\") { emits \"Fitted\" }\n  end\nend\n"
+    let(:part) { lang_aggregate("Part", "reference_to Thing") }
+
+    define_method(:lang_aggregate) do |name, extra|
+      "Hecks.bluebook \"Lang\" do\n  aggregate \"#{name}\" do\n    attribute :name, Name\n    " \
+        "identified_by :name\n    value_object(\"Name\", String)\n    #{extra}\n    " \
+        "command(\"Go\") { emits \"Gone\" }\n  end\nend\n"
     end
 
     before do
-      write("lib/hecks/language/bluebook/thing.bluebook", thing)
+      write("lib/hecks/language/bluebook/thing.bluebook", lang_aggregate("Thing", ""))
       write("lib/hecks/language/bluebook/part.bluebook", part)
       git("add", ".")
       git("commit", "-q", "-m", "language")
