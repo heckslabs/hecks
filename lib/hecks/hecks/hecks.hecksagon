@@ -765,6 +765,27 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a beat reaches to weigh the Rust build dirs: free gigabytes against the Hecks world's
+  # `disk_space` line, and gone worktrees' dirs. It answers the prune due with its mode, else defers.
+  Hecks::RustCare.port "Gauging" do
+    asks "Weigh", to: RustCare do
+      attribute :run, CareKey
+      answers "RustCareDue"
+      refuses "RustCareDeferred"
+    end
+  end
+
+  # The outside a due prune is run through: `RustBuild::Prune` in this process, whole under `pressure`
+  # and only the gone worktrees' build dirs under `gone`; it answers the megabytes freed.
+  Hecks::RustCare.port "Trimming" do
+    asks "Trim", to: RustCare do
+      attribute :run,  CareKey
+      attribute :mode, CareNote
+      answers "RustPruned"
+      refuses "RustPruneRefused"
+    end
+  end
+
   # The outside a beat reaches to purge the AgentRun file's delivered outbox rows settled before
   # `outbox_hours`, in batches under the file's write lock; with none to purge, or the file held
   # or not in SQLite, it is deferred by name.

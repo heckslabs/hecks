@@ -108,6 +108,14 @@ Hecks.behaviors "Hecks" do
     expect refused: "never-beat"
   end
 
+  # A beat's look cannot be set up here (see above); the beat's prune is specified in
+  # spec/hecks_rust_care_spec.rb.
+  test "Settle refuses a prune of a look that was never heard" do
+    tests "Settle", on: "RustCare"
+    input  rust_care: "never-look", outcome: { value: "freed 3 MB" }
+    expect refused: "never-look"
+  end
+
   # The saga leg that parks the run (ci_running to needs_human) is held in
   # spec/hecks_integration_release_by_landed_spec.rb.
   test "Release records a run released by its landed commit alone" do
