@@ -15,6 +15,13 @@ module Hecks
           )
         SQL
 
+        EVENT_COMPACTION = <<~SQL.freeze
+          CREATE TABLE IF NOT EXISTS hecks_event_compaction (
+            id      INTEGER PRIMARY KEY CHECK (id = 1),
+            dropped INTEGER NOT NULL DEFAULT 0
+          )
+        SQL
+
         ENTRY_TABLE = <<~SQL.freeze
           CREATE TABLE IF NOT EXISTS %<table>s (
             sequence     INTEGER PRIMARY KEY AUTOINCREMENT,

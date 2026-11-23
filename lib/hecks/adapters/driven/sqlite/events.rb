@@ -35,6 +35,7 @@ module Hecks
         # @return [Array<Runtime::Event>] the events after those; `[]` when there are none
         # @raise [SQLite3::Exception] if a statement fails
         def events_past(position)
+          position = [position - events_dropped, 0].max if position.positive?
           anchor = @event_anchor&.first == position ? @event_anchor.last : event_id_at(position)
           rows = @db.execute("SELECT * FROM events WHERE id > ? ORDER BY id", [anchor])
           @event_anchor = [position + rows.size, rows.empty? ? anchor : rows.last["id"]]
@@ -45,7 +46,42 @@ module Hecks
         #
         # @return [Integer] how many events the shared table holds
         # @raise [SQLite3::Exception] if the statement fails
-        def event_count = @db.get_first_value("SELECT COUNT(*) FROM events").to_i
+        def event_count = @db.get_first_value("SELECT COUNT(*) FROM events").to_i + events_dropped
+
+        # Counts the events recorded before `cutoff`, without dropping them.
+        #
+        # @param cutoff [String] an ISO 8601 UTC time; events with an earlier `occurred_at` count
+        # @return [Integer] how many events a compaction at `cutoff` would drop
+        # @raise [SQLite3::Exception] if the statement fails
+        def events_before(cutoff)
+          @db.get_first_value("SELECT COUNT(*) FROM events WHERE occurred_at < ?", [cutoff]).to_i
+        end
+
+        # Drops the events recorded before `cutoff`, and counts them as dropped so `event_count`
+        # and the positions `events_past` takes keep meaning what they meant. The delete and the
+        # count move together or not at all. Positions shift by the dropped count, so the remembered
+        # anchor is forgotten; the row ids themselves never move.
+        #
+        # @param cutoff [String] an ISO 8601 UTC time; events with an earlier `occurred_at` go
+        # @return [Integer] how many events were dropped
+        # @raise [SQLite3::Exception] if a statement fails; nothing is then dropped
+        def compact_events!(before:)
+          @db.transaction do
+            @db.execute("DELETE FROM events WHERE occurred_at < ?", [before])
+            removed = @db.changes
+            record_events_dropped!(removed)
+            @event_anchor = nil
+            removed
+          end
+        end
+
+        # How many events compaction has dropped from the oldest end of the log.
+        #
+        # @return [Integer] `0` when nothing was ever dropped
+        # @raise [SQLite3::Exception] if the statement fails
+        def events_dropped
+          @db.get_first_value("SELECT dropped FROM hecks_event_compaction").to_i
+        end
 
         # Reads back one record's recorded events, oldest first — pushed down as a `WHERE`
         # clause (`hecks_events_aggregate_id_idx`) instead of filtering `#events`'s whole-table
@@ -65,6 +101,11 @@ module Hecks
         end
 
         private
+
+        def record_events_dropped!(removed)
+          @db.execute("INSERT INTO hecks_event_compaction (id, dropped) VALUES (1, ?) " \
+                      "ON CONFLICT (id) DO UPDATE SET dropped = dropped + excluded.dropped", [removed])
+        end
 
         # The id of the event at `position`, counted from one: 0 before the first event, and the
         # newest id when the table holds fewer events than that.
