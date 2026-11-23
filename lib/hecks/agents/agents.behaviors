@@ -383,6 +383,13 @@ Hecks.behaviors "Agents" do
     expect refused: "a message body is at most 2000 characters; split it"
   end
 
+  test "Send accepts a post from a person in the crew room" do
+    tests "Send", on: "Message"
+    input  message: { value: "slack-p1" }, recipient: { value: "orchestrator" }, sender: { value: "Dana" },
+           kind: { value: "person" }, body: { value: "how is the train" }
+    expect kind: { value: "person" }
+  end
+
   test "Send refuses a kind the old protocol named and the new one does not" do
     tests "Send", on: "Message"
     input  message: { value: "m7" }, recipient: { value: "run-a" }, sender: { value: "miette" },
