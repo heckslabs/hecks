@@ -559,6 +559,27 @@ Hecks.behaviors "Agents" do
     expect status: "dry"
   end
 
+  # The crew room is heard by the listener the laptop starts; the post it hears is a spool line.
+  test "Open starts hearing the crew room" do
+    tests "Open", on: "CrewRoom"
+    input  room: { value: "crew" }
+    expect status: "requested"
+  end
+
+  test "Open refuses a room already open" do
+    tests "Open", on: "CrewRoom"
+    setup  "Agents::CrewRoom.Open", room: { value: "crew" }
+    input  room: { value: "crew" }
+    expect refused: "Open creates a CrewRoom that already exists"
+  end
+
+  test "Close ends a room that was open" do
+    tests "Close", on: "CrewRoom"
+    setup  "Agents::CrewRoom.Open", room: { value: "crew" }
+    input  crew_room: "crew"
+    expect status: "closed"
+  end
+
   test "Ingest refuses a pass that already ran" do
     tests "Ingest", on: "MailSpool"
     setup  "Agents::MailSpool.Ingest", pass: { value: "beat-2" }
