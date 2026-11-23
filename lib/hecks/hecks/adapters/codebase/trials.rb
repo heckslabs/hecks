@@ -72,7 +72,7 @@ module Hecks
 
         def machine_load
           require_relative "../dispatching/settings"
-          Dispatching::Settings.uptime_load
+          Dispatching::Settings.uptime_load(minutes: 1)
         rescue StandardError
           nil
         end
