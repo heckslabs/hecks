@@ -30,7 +30,7 @@ module Hecks
         # @return [Object] the decoded JSON
         # @raise [JSON::ParserError] when the file still does not parse
         def parse(file, tries = 3)
-          JSON.parse(File.read(file))
+          JSON.parse(File.read(file, encoding: "UTF-8"))
         rescue JSON::ParserError
           tries -= 1
           raise if tries.zero?
