@@ -181,4 +181,44 @@ Hecks.behaviors "Protocols" do
           message: { value: "m-13" }, now: { value: 101 }
     expect emits: %w[VoteCast AgreementAgreed]
   end
+
+  test "Enter records a carried agreement as accepted with its Decider evidence, owing nothing" do
+    tests "Enter", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-20" },
+          text: { value: "Done means seen working in the real pipeline" }, proposer: { value: "scrum-master" },
+          affects: { value: "|coder|reviewer|" }, touches_owner: { value: "no" }, owed: { value: 2 }
+    input agreement: { value: "WA-20" }, evidence: { value: "msg-retro-closed-agreements-20261122" }
+    expect emits: ["AgreementEntered"], status: "accepted", owed: { value: 0 },
+           evidence: { value: "msg-retro-closed-agreements-20261122" }
+  end
+
+  test "Enter is refused without the Decider evidence" do
+    tests "Enter", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-21" }, text: { value: "No evidence" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
+          touches_owner: { value: "no" }, owed: { value: 1 }
+    input agreement: { value: "WA-21" }, evidence: { value: "" }
+    expect refused: "evidence"
+  end
+
+  test "Enter is refused for an agreement that touches the owner" do
+    tests "Enter", on: "Agreement"
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-22" }, text: { value: "Spend" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
+          touches_owner: { value: "yes" }, owed: { value: 1 }
+    input agreement: { value: "WA-22" }, evidence: { value: "msg-1" }
+    expect refused: "touches the owner"
+  end
+
+  test "Accepted lists the accepted agreements by reference" do
+    tests "Accepted", on: "Agreement", kind: :query
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-30" }, text: { value: "Second" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
+          touches_owner: { value: "no" }, owed: { value: 1 }
+    setup "Protocols::Agreement.Enter", agreement: { value: "WA-30" }, evidence: { value: "msg-2" }
+    setup "Protocols::Agreement.Propose", reference: { value: "WA-31" }, text: { value: "Still open" },
+          proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
+          touches_owner: { value: "no" }, owed: { value: 1 }
+    expect count: 1, reference: { value: "WA-30" }
+  end
 end
