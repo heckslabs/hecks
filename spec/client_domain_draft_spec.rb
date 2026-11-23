@@ -48,9 +48,10 @@ RSpec.describe Hecks::Clients::Draft::DomainDraft do
       .to eq([["Order", 2], ["Order: Place -> Placed", 2]])
   end
 
-  it "refuses a turn past the exchanges recorded" do
-    expect { draft.turn({}, 7) }.not_to raise_error
-    expect(state[:points]).to be_empty
+  it "leaves a turn past the exchanges recorded to the domain to refuse" do
+    far = described_class.new(proposer: ScriptedProposer.new(7 => [["thing", "Ghost"]]), dispatch: dispatch,
+                              reference: "BAKE-1")
+    expect { far.turn({}, 7) }.to raise_error(StandardError, /exchange/i)
   end
 
   it "leaves a rejected Point out of the text" do
@@ -60,17 +61,25 @@ RSpec.describe Hecks::Clients::Draft::DomainDraft do
     expect(draft_text).not_to include("Paperbook")
   end
 
-  it "drafts Order, Loaf and Bake in the client's words, staged clean" do
+  def accept_the_draft
     propose_all
-    accept_where { |kind, _| %w[thing action rule].include?(kind) }
+    accept_where { |kind, words| %w[thing action rule].include?(kind) && words != "Paperbook" }
+  end
+
+  it "drafts Order, Loaf and Bake in the client's words" do
+    accept_the_draft
     expect(draft_text).to include('aggregate "Order"', 'aggregate "Loaf"', 'command "Bake"',
                                   '# "A list of loaves, and a few cakes now and then."')
-    expect(draft.check(subject: "Orders", interview: state)[:verdict]).to be_ok
+  end
+
+  it "stages the draft clean" do
+    accept_the_draft
+    expect(draft.check(subject: "Orders", interview: state)[:verdict].clean).to be(true)
   end
 
   it "keeps Hecks Tickets empty when work and decision Points are accepted on a client interview" do
     propose_all
     accept_where { |kind, _| %w[work decision].include?(kind) }
-    expect(hecks.registry.bluebooks.map(&:name)).not_to include("Tickets")
+    expect(hecks.registry.event_log.map(&:name)).not_to include(match(/Work|Adr/))
   end
 end
