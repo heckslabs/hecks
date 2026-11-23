@@ -1036,9 +1036,7 @@ Hecks.bluebook "Tickets" do
       invariant("a step is not negative") { !value.negative? }
     end
 
-    # What kind of work an item is, or which theme it belongs to (the eight values after `tooling`), one per item.
-    # A `bug` is filed with it (`Work.plan! category=bug`) so the zero-bug policy has a count; it takes the
-    # place of the item's theme, and a later `Categorize` overwrites it. It never decides whether two items clash: that is the
+    # What kind of work an item is, or which theme it belongs to (the eight values after `tooling`), one per item; a `bug` is filed with `Work.plan! category=bug`. It never decides whether two items clash: that is the
     # path claim in `area`. A `sweep` item is only a wording, rename, comment or docs change: it never
     # starts alone, and Delegate's SweepBatch gathers the open ones into one batch work item.
     value_object "Category" do
