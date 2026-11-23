@@ -67,7 +67,7 @@ module Hecks
       # A mark line (`mail_mark.sh`) names a seat and a position, and is kept under a message key of
       # its own so the pass takes it like any line.
       def marked(fields)
-        seat = fields["advance"] || fields["open"]
+        seat = fields.values_at("advance", "open").find { |name| name.to_s != "" }
         fields.merge("message" => "mark-#{seat}-#{fields["to"]}") if seat && fields["to"]
       end
 

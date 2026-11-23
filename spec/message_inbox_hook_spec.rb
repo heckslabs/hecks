@@ -12,7 +12,6 @@ RSpec.describe "the message inbox hook" do
   let(:root) { File.expand_path("..", __dir__) }
   let(:dir) { Dir.mktmpdir("message_inbox") }
   let(:dev) { File.join(dir, "dev") }
-  let(:spool) { File.join(dev, "mail", "spool.jsonl") }
 
   let(:runs_sql) do
     <<~SQL
@@ -55,7 +54,8 @@ RSpec.describe "the message inbox hook" do
   def say(key: "m1", to: "run-a", body: "use the smaller version", payload: nil)
     fields = { message: key, recipient: to, sender: "miette", kind: "answer", body: body, in_reply_to: "" }
     json = payload || JSON.generate(fields.transform_values { |value| { value: value } })
-    ledger("insert into events (name, aggregate, aggregate_id, payload) values ('MessageAddressed', 'Message', '#{key}', '#{json}');")
+    ledger("insert into events (name, aggregate, aggregate_id, payload) " \
+           "values ('MessageAddressed', 'Message', '#{key}', '#{json}');")
   end
 
   def step(session: "aedefaa0-1111-2222-3333-444444444444")
@@ -67,6 +67,8 @@ RSpec.describe "the message inbox hook" do
   def context(out) = JSON.parse(out).dig("hookSpecificOutput", "additionalContext")
 
   def calls = File.exist?(File.join(dir, "calls")) ? File.read(File.join(dir, "calls")) : ""
+
+  def spool = File.join(dev, "mail", "spool.jsonl")
 
   def marks = File.exist?(spool) ? File.readlines(spool).map { |line| JSON.parse(line) } : []
 
