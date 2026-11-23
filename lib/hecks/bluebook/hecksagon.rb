@@ -1,4 +1,5 @@
 require_relative "behaviour/hecksagon"
+require_relative "clock"
 require_relative "keyword_fields"
 require_relative "lent"
 require_relative "../ir"
@@ -95,21 +96,22 @@ module Hecks
         subscriptions:    -> { subscriptions.map(&:to_s) },
         attachments:      -> { attachments.map(&:to_h) },
         driving:          -> { driving.map(&:to_s) },
+        clocks:           -> { clocks.map(&:to_h) },
         bounded:          :bounded?,
         translates:       -> { translates.map(&:to_s) },
         revisions:        :revisions?,
         inline_reactions: :inline_reactions?
       )
 
-      attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving
+      attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving, :clocks
 
       # The driving adapters `driven_by` can name.
-      DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp Web].freeze
+      DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp Web Clock].freeze
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         binds: [], subscriptions: [], attachments: [], bounded: false, translates: [], driving: [],
-        revisions: false, inline_reactions: false
+        clocks: [], revisions: false, inline_reactions: false
       }.freeze
 
       # @param domain [String, Symbol] the domain this hecksagon wires
@@ -122,6 +124,7 @@ module Hecks
       #   (consumer-owned; `attaches` marks attached bluebooks bounded on the registry instead)
       # @param translates [Array<String>] names of `translates` ACL blocks declared here
       # @param driving [Array<String>] the driving adapters `driven_by` admits; empty admits all
+      # @param clocks [Array<Bluebook::Clock>] the clocks declared, each dispatching one command
       # @param revisions [Boolean] whether the Postgres adapter keeps the revision layout
       def initialize(domain:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
@@ -129,6 +132,7 @@ module Hecks
         @bounded            = @bounded ? true : false
         @translates         = Array(@translates).map(&:to_s)
         @driving            = Array(@driving).map(&:to_s)
+        @clocks             = Array(@clocks)
         @revisions          = @revisions ? true : false
         @inline_reactions   = @inline_reactions ? true : false
       end

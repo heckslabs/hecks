@@ -404,6 +404,118 @@ Hecks.bluebook "Hecks" do
       trigger Operation::Fail, with: { refusal: :refusal }
     end
 
+    # A clock a domain's hecksagon declares, run in a process of its own until it is stopped
+    # (ADR 0184): one process per clock, each firing dispatched through the normal path with the
+    # source `clock`. The schedule and the sleeping live in the ClockRunning adapter, not here.
+    aggregate "Clock" do
+      description "One clock of a domain, run until stopped, and how its run ended."
+
+      attribute :run,     ClockKey
+      attribute :domain,  DomainDirectory
+      attribute :clock,   ClockName
+      attribute :ticks,   TickCount, optional: true
+      attribute :output,  Output, optional: true
+      attribute :refusal, Output, optional: true
+      identified_by :run
+
+      value_object "ClockKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # The domain directory whose hecksagon declares the clock.
+      value_object "DomainDirectory" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # A clock's name, as its hecksagon declares it.
+      value_object "ClockName" do
+        attribute :value, String, matches: :present
+      end
+
+      # How many ticks to handle before stopping; a run without it goes on until stopped.
+      value_object "TickCount" do
+        attribute :value, Integer
+
+        invariant("a run handles at least one tick") { value >= 1 }
+      end
+
+      value_object "Output" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "failed"
+        transition "Stop" => "ended",  from: "requested"
+        transition "Fail" => "failed", from: "requested"
+        mark :terminal, "failed", "ended"
+      end
+
+      # Runs one clock until it is stopped, or for `ticks` ticks: `hecks Clock.run!
+      # domain.value=<dir> clock.value=<name>`. Each firing is logged on stderr.
+      command "Run" do
+        role "Operator"
+        goal "Run one clock a domain declares, dispatching its command at each tick until stopped"
+
+        attribute :run,    ClockKey,        sets: true
+        attribute :domain, DomainDirectory, sets: true
+        attribute :clock,  ClockName,       sets: true
+        attribute :ticks,  TickCount,       optional: true, sets: true
+
+        emits ClockRunRequested
+      end
+
+      command "Stop" do
+        role "System"
+        goal "Record that a clock's run ended, and how many ticks fired"
+
+        reference_to Clock
+        attribute :output, Output, sets: true
+
+        emits ClockStopped
+      end
+
+      command "Fail" do
+        role "System"
+        goal "Record that a clock could not run, and why"
+
+        reference_to Clock
+        attribute :refusal, Output, sets: true
+
+        emits ClockFailed
+      end
+
+      query "Next" do
+        description "Each clock a domain declares, its trigger, the command it dispatches and when it next fires."
+        attribute :domain, DomainDirectory
+        returns Document
+      end
+
+      query "LaunchFiles" do
+        description "The process files that run a domain's clocks, one process per clock: a Procfile line each and a launchd property list each."
+        attribute :domain, DomainDirectory
+        returns Document
+      end
+    end
+
+    policy "RunWhenClockRequested" do
+      on      "Clock.ClockRunRequested"
+      ask     :run_clock, with: { run: :run }
+    end
+
+    policy "RecordTheClockStop" do
+      on      "Clock.ClockRan"
+      trigger Clock::Stop, with: { output: :output }
+    end
+
+    policy "RecordTheClockRefusal" do
+      on      "Clock.ClockRefused"
+      trigger Clock::Fail, with: { refusal: :refusal }
+    end
+
     aggregate "Host" do
       description "A running rust/host, and the version and era it last reported."
 
