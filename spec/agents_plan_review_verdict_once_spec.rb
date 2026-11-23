@@ -14,7 +14,7 @@ RSpec.describe "the Agents plan review verdict reaching its coder once" do
     expect { answer(answered, "rethink") }.to raise_error(Hecks::Runtime::GivenNotMet, /no verdict yet/)
   end
 
-  it "tells the coder of a review once when a second verdict is refused" do
+  it "tells the coder of a review once when a second verdict is refused", :aggregate_failures do
     answered = answer(request)
     expect { answer(answered) }.to raise_error(Hecks::Runtime::GivenNotMet)
     expect(events_named("PlanReviewed").size).to eq(1)
