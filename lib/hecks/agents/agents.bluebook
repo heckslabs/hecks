@@ -208,6 +208,19 @@ Hecks.bluebook "Agents" do
       member role: "architect", pattern: "git show"
       member role: "architect", pattern: "git log"
       member role: "architect", pattern: "git merge-base"
+      # The architect reads the code and the board to review a plan: a search of the checkout (the
+      # tool reads any path the process can, so the rows are read-only, not path-scoped) and the
+      # reads of the Work items, the epics, the reviews and the pipeline board. No command is added.
+      member role: "architect", pattern: "grep"
+      member role: "architect", pattern: "rg"
+      member role: "architect", pattern: "find"
+      member role: "architect", pattern: "Work.undone"
+      member role: "architect", pattern: "Work.show"
+      member role: "architect", pattern: "Work.under"
+      member role: "architect", pattern: "Epic.ranked"
+      member role: "architect", pattern: "PlanReview.reviews"
+      member role: "architect", pattern: "PipelineBoard.glance"
+      member role: "architect", pattern: "PipelineBoard.snapshot"
     end
 
     # The flags a read-only shell row refuses or limits it to, so the guard holds no flag list. `deny`
@@ -228,6 +241,9 @@ Hecks.bluebook "Agents" do
              allow: "-a -r -v -vv --list --show-current --merged --no-merged"
       member role: "planner", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
       member role: "architect", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
+      member role: "architect", command: "find", allow: "",
+             deny: "-exec -execdir -ok -okdir -delete -fprint -fprint0 -fprintf -fls"
+      member role: "architect", command: "rg", allow: "", deny: "--pre --hostname-bin -z --search-zip"
       member role: "scrum-master", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
       member role: "product-owner", command: "git", allow: "", deny: "--output -o --ext-diff --textconv --exec"
     end
