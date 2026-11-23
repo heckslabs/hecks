@@ -25,11 +25,15 @@ RSpec.describe "the SQLite sidecar files of the Protocols stores" do
     expect(untracked_databases).to be_empty
   end
 
-  it "leaves no untracked database file after an agreement is entered" do
+  def enter_an_agreement
     ProtocolsKeptStore.boot(root, rows)
     Protocols::Agreement.propose!(reference: { value: "WA-1" }, text: { value: "Done means seen working" },
                                   proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
                                   touches_owner: { value: "no" }, owed: { value: 1 })
+  end
+
+  it "leaves no untracked database file after an agreement is entered", :aggregate_failures do
+    enter_an_agreement
     expect(Dir.children(root).grep(/-wal\z/)).not_to be_empty
     expect(untracked_databases).to be_empty
   end
