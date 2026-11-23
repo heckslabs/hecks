@@ -23,18 +23,21 @@ module ClientRepoPortWorld
     end
   end
 
+  # Opens the bakery on the owner's words, which asks for its repository.
+  def open_bakery(runtime)
+    runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery }, phrase: { words: "new client:", named: bakery })
+  end
+
   # Opens the bakery, asks for its repository and has the first call's notes written.
   def write_notes(runtime, content: "the first call")
-    runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery })
-    runtime.dispatch_flat("Clients::Client.RequestRepo", client: bakery)
+    open_bakery(runtime)
     runtime.dispatch_flat("Clients::Client.WriteRepoFile", client: bakery, path: { value: "notes/call.md" },
                                                            content: { value: content })
   end
 
   # Opens the bakery, has its repository made, finds it public and asks for a file to be written.
   def write_to_public(runtime)
-    runtime.dispatch_flat("Clients::Client.Open", name: { value: bakery })
-    runtime.dispatch_flat("Clients::Client.RequestRepo", client: bakery)
+    open_bakery(runtime)
     stub.visibility = "public"
     runtime.dispatch_flat("Clients::Client.WriteRepoFile", client: bakery, path: { value: "a.md" },
                                                            content: { value: "x" })
