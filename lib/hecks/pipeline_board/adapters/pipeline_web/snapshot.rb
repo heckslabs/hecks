@@ -72,7 +72,7 @@ module Hecks
         #   `clock:` answers monotonic seconds; `read_duty:` is the share of time reading may take,
         #   a costlier read being followed by a longer rest (see {ReadPace})
         def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, **pace)
-          @read_pace = ReadPace.new(duty: pace.fetch(:read_duty, 0), every: every)
+          @read_pace = ReadPace.new(duty: pace.fetch(:read_duty, 0), every: every, clock: method(:monotonic))
           @source = source
           @every = every
           @pace = { loaded_every: every }.merge(pace.compact)
@@ -123,9 +123,7 @@ module Hecks
 
         def refresh_forever
           loop do
-            began = monotonic
-            read_once
-            @cost = monotonic - began
+            @read_pace.measure { read_once }
             after_read_once
             rest
           end
@@ -143,8 +141,7 @@ module Hecks
         # The least rest this read is owed: the loaded period while the machine is loaded, or what
         # the read's cost asks, whichever is longer.
         def rest_floor
-          loaded = @guard&.loaded? ? @pace[:loaded_every] : 0
-          [loaded, @read_pace.rest_floor(@cost.to_f)].max
+          [(@guard&.loaded? ? @pace[:loaded_every] : 0), @read_pace.floor].max
         end
 
         def monotonic = (@pace[:clock] || -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }).call
