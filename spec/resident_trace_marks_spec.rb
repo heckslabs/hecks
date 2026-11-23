@@ -1,6 +1,7 @@
 require "spec_helper"
 require "open3"
 require "rbconfig"
+require "tmpdir"
 require "hecks/adapters/driving/resident/server"
 require "hecks/adapters/driving/resident/client"
 
@@ -57,12 +58,15 @@ RSpec.describe "the trace's marks of a write" do
   end
 
   describe "a cold boot, with no resident to fork it" do
-    it "puts the marks on the dispatcher before the domain boots" do
-      lib = File.expand_path("../lib", __dir__)
-      code = 'require "hecks"; puts Hecks::Runtime::Dispatcher.ancestors.map(&:to_s).grep(/Marks/)'
-      out, = Open3.capture2({ "HECKS_TRACE_TIMING" => "1", "PATH" => ENV.fetch("PATH"), "HOME" => Dir.home },
-                            RbConfig.ruby, "-I", lib, "-e", code)
-      expect(out).to include("Marks::Reactions")
+    def ancestry(dir)
+      script = File.join(dir, "hecks")
+      File.write(script, 'require "hecks"; puts Hecks::Runtime::Dispatcher.ancestors.map(&:to_s)')
+      env = { "HECKS_TRACE_TIMING" => "1", "PATH" => ENV.fetch("PATH"), "HOME" => Dir.home }
+      Open3.capture2(env, RbConfig.ruby, "-I", File.expand_path("../lib", __dir__), script).first
+    end
+
+    it "puts the marks on the dispatcher when the launcher asked for them" do
+      Dir.mktmpdir { |dir| expect(ancestry(dir)).to include("Marks::Reactions") }
     end
   end
 end
