@@ -27,6 +27,13 @@ Hecks.context_map "Hecks" do
   context "Interviews"
   context "Delivery"
   context "Signalbox"
+  context "Clients"
+
+  # Client material never enters the public repo: Clients (its own bluebook, each client's record
+  # kept as a link to its private repository) is separate ways from every other context, Hecks
+  # included. Any attach, subscription, translation or `across` policy either way is refused by
+  # `model_check` as `separate_ways_violated`, whatever its kind.
+  (context_names - ["Clients"]).each { |name| separate_ways name, "Clients" }
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
