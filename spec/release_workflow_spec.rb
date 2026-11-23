@@ -91,13 +91,13 @@ RSpec.describe ".github/workflows/release.yml" do
 
     it "lets detect act on 0 and 10 only, and fail on anything else", :aggregate_failures do
       expect(detect_run).to match(/case "\$found" in\s+0\) pending=false/)
-      expect(detect_run).to include("10)", "*) exit 1")
+      expect(detect_run).to include("10)", "*) echo", "exit 1")
     end
 
     it "lets the state step read 0 as released, 10 as not, and fail on anything else", :aggregate_failures do
       run = step_named("What already exists").fetch("run")
 
-      expect(run).to include('0) echo "release=true"', '10) echo "release=false"', "*) exit 1")
+      expect(run).to include('0) echo "release=true"', '10) echo "release=false"', "*) echo", "exit 1")
     end
 
     it "asks again before creating the release, and creates nothing when it exists", :aggregate_failures do
@@ -250,7 +250,7 @@ RSpec.describe ".github/workflows/release.yml" do
     def helper_lines = code.lines.select { |line| line.include?("-r hecks/release/") }
 
     it "loads every helper from the tools checkout, never from the released tree", :aggregate_failures do
-      expect(helper_lines.size).to eq(5)
+      expect(helper_lines.size).to eq(6)
       expect(helper_lines).to all(include("-I .release-tools/lib"))
       expect(helper_lines.grep(/-I lib /)).to be_empty
     end
