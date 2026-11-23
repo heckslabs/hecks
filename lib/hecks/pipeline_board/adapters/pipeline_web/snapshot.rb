@@ -36,8 +36,9 @@ module Hecks
         def self.kept_small(source:, registry:, settings:)
           limits = BoardRestart.limits(registry)
           restart = settings.fetch(:restart) { BoardRestart.new(limits: limits) }
-          new(source: source, background: settings.fetch(:background, true), every: limits[:refresh_seconds], read_duty: limits[:read_duty],
-              after_read: restart.method(:check), loaded_every: limits[:loaded_refresh_seconds],
+          new(source: source, background: settings.fetch(:background, true), every: limits[:refresh_seconds],
+              read_duty: limits[:read_duty], after_read: restart.method(:check),
+              loaded_every: limits[:loaded_refresh_seconds],
               stand: standing(registry, settings.fetch(:load_guard, true)))
         end
 
@@ -67,12 +68,11 @@ module Hecks
         # @param pace [Hash] `after_read:` runs after each read, such as the check that restarts a
         #   board grown too large; `loaded_every:` is the seconds between reads while the machine
         #   is loaded (`every` when none is given); `stand:` answers the load guard, or nil, when
-        #   the snapshot starts; `wait:` stands in for the sleep that holds a loaded machine's read; `clock:` answers
-        #   monotonic seconds
-        # @param read_duty [Numeric] the share of time reading may take; a costlier read is followed
-        #   by a longer rest (see {ReadPace})
-        def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, read_duty: 0, **pace)
-          @read_pace = ReadPace.new(duty: read_duty, every: every)
+        #   the snapshot starts; `wait:` stands in for the sleep that holds a loaded machine's read;
+        #   `clock:` answers monotonic seconds; `read_duty:` is the share of time reading may take,
+        #   a costlier read being followed by a longer rest (see {ReadPace})
+        def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, **pace)
+          @read_pace = ReadPace.new(duty: pace.fetch(:read_duty, 0), every: every)
           @source = source
           @every = every
           @pace = { loaded_every: every }.merge(pace.compact)
