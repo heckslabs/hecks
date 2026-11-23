@@ -83,6 +83,35 @@ RSpec.describe ".github/workflows/release.yml" do
     end
   end
 
+  # Exit 1 is what a crashed Ruby leaves, so only 0 (published) and 10 (no release) are answers.
+  describe "reading the lookup's exit status" do
+    let(:detect_run) do
+      workflow.fetch("jobs").fetch("detect").fetch("steps").find { |s| s["id"] == "check" }.fetch("run")
+    end
+
+    it "lets detect act on 0 and 10 only, and fail on anything else", :aggregate_failures do
+      expect(detect_run).to match(/case "\$found" in\s+0\) pending=false/)
+      expect(detect_run).to include("10)", "*) exit 1")
+    end
+
+    it "lets the state step read 0 as released, 10 as not, and fail on anything else", :aggregate_failures do
+      run = step_named("What already exists").fetch("run")
+
+      expect(run).to include('0) echo "release=true"', '10) echo "release=false"', "*) exit 1")
+    end
+
+    it "asks again before creating the release, and creates nothing when it exists", :aggregate_failures do
+      run = step_named("Create the GitHub Release").fetch("run")
+
+      expect(run).to include("Lookup.check").and match(/0\) .*exit 0/)
+      expect(run.index("Lookup.check")).to be < run.index("gh release create")
+    end
+
+    it "counts GitHub's 'already exists' answer to a create as done" do
+      expect(step_named("Create the GitHub Release").fetch("run")).to include("already_exists")
+    end
+  end
+
   describe "what already exists" do
     it "asks GitHub through the lookup that tells a failed call from no release", :aggregate_failures do
       detect = workflow.fetch("jobs").fetch("detect").to_s
