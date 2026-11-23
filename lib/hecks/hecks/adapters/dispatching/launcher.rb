@@ -64,7 +64,7 @@ module Hecks
           started = StepOutcome.new(@runner.call(start_argv(item, minutes)), reaches: "started")
           return [:held, held_line(item)] if started.refused_at?("started")
 
-          checked(item, "start", started)
+          started_clear(item, started)
           enlist(item)
           dispatch(item, brief(item, limit: limit, held: held, batch: BatchBrief.text(item), **lines))
           [:started, started_line(item, started.note)]
@@ -159,6 +159,13 @@ module Hecks
         # Runs one step and answers its outcome; a step whose command did not do its part raises
         # with the command's own reason.
         def step(item, name, argv, reaches: nil) = checked(item, name, StepOutcome.new(@runner.call(argv), reaches: reaches))
+
+        # A start that reached started is clear to launch unless the owner's pause stopped it
+        # afterwards: then no session starts and the work item goes back to the plan.
+        def started_clear(item, started)
+          checked(item, "start", started)
+          raise ConsoleCapture::Failure, started.note if started.stopped?
+        end
 
         # The outcome when its command did its part; otherwise it raises with the command's reason.
         def checked(item, name, outcome)

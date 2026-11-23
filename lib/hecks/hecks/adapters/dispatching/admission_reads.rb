@@ -20,8 +20,14 @@ module Hecks
         # @param item [Plan::Item] the chosen work item
         # @return [FillReport::Outcome, nil] the wait, nil when the item may start
         def waiting_outcome(item)
-          refused = admission_before_start(item)
+          refused = paused_before_start || admission_before_start(item)
           FillReport::Outcome.new(:waiting, "#{item.key} waits: #{refused}") if refused
+        end
+
+        # The owner's pause, read again just before each start, so a pause that lands mid-fill
+        # starts nothing more and leaves the item planned.
+        def paused_before_start
+          "#{WorkLimits::STOPPED}: #{WorkLimits::SWITCH} is off" unless machine.switch_on?
         end
 
         # The plan's beat was read when the fill began; a start is ruled on a beat read just before
