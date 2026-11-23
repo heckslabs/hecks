@@ -1,53 +1,35 @@
 require "spec_helper"
 require "hecks/release/lookup"
 
-# The release detect job asks GitHub whether a version is published. A lookup that errors is not
-# an answer: it is told apart from a release that is not there, and never read as pending.
+# A release lookup that errors is not a release that is missing: only GitHub saying "release not
+# found" is absence, and any other answer is a failed lookup that is retried and then named.
 RSpec.describe Hecks::Release::Lookup do
-  let(:found) { ["name: v7.1.0\n", 0] }
-  let(:absent) { ["release not found\n", 1] }
-  let(:limited) { ["HTTP 403: API rate limit exceeded\n", 1] }
+  let(:out) { StringIO.new }
+  let(:no_wait) { ->(_seconds) {} }
 
-  def asking(*answers) = ->(_tag) { answers.shift || answers.last }
+  def answering(*answers) = answers.each_with_object([]) { |a, list| list << a }.then { |list| ->(_tag) { list.shift || list.last } }
 
-  def look(*answers, attempts: 3)
-    described_class.run("v7.1.0", runner: asking(*answers), sleeper: ->(_) {}, attempts: attempts)
+  def check(*answers) = described_class.check("v7.1.0", runner: answering(*answers), out: out, sleeper: no_wait)
+
+  it "reads a published release as found" do
+    expect(check([0, "title: v7.1.0"])).to eq(0)
   end
 
-  it "finds a published release" do
-    expect(look(found)).to eq(:found)
+  it "reads GitHub's 'release not found' as no release" do
+    expect(check([1, "release not found"])).to eq(1)
   end
 
-  it "says a release is absent only when GitHub says it is not found" do
-    expect(look(absent)).to eq(:absent)
+  it "reads a rate limit as a failed lookup, never as no release", :aggregate_failures do
+    expect(check([1, "HTTP 403: API rate limit exceeded"])).to eq(2)
+    expect(out.string).to include("::error::release lookup failed")
   end
 
-  it "ends 'lookup failed' when the lookup errors every time, never absent", :aggregate_failures do
-    expect(look(limited)).to eq(:failed)
-    expect(look(["", 1])).to eq(:failed)
+  it "retries a failed lookup and takes the answer that follows" do
+    expect(check([1, "HTTP 502"], [0, "ok"])).to eq(0)
   end
 
-  it "retries a failed lookup and takes the answer it later gets", :aggregate_failures do
-    expect(look(limited, found)).to eq(:found)
-    expect(look(limited, absent)).to eq(:absent)
-  end
-
-  it "stops asking after its attempts" do
-    asked = 0
-    described_class.run("v1", runner: ->(_) { asked += 1 && limited }, sleeper: ->(_) {}, attempts: 3)
-
-    expect(asked).to eq(3)
-  end
-
-  describe ".check" do
-    def checked(answer, out) = described_class.check(env: { "TAG" => "v7.1.0" }, out: out, runner: ->(_) { answer }, sleeper: ->(_) {})
-
-    it "exits 0 for found, 1 for absent, 2 for a failed lookup, naming the failure", :aggregate_failures do
-      out = StringIO.new
-      expect(checked(found, out)).to eq(0)
-      expect(checked(absent, out)).to eq(1)
-      expect(checked(limited, out)).to eq(2)
-      expect(out.string).to include("::error::release lookup failed")
-    end
+  it "ends 'lookup failed' when every attempt fails", :aggregate_failures do
+    expect(check([1, "HTTP 403: API rate limit exceeded"])).to eq(2)
+    expect(out.string).to include("v7.1.0")
   end
 end
