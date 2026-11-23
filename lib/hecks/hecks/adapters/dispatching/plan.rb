@@ -129,12 +129,12 @@ module Hecks
         end
 
         # An expedited item passes the boot budget, a pause by load or by the short band, and the
-        # load limit (ADR 0224): memory low, a load over the CPU count, or another expedited item
-        # still holds it.
+        # load limit (ADR 0224): memory low, a load over the higher of the CPU count and the load
+        # limit, or another expedited item still holds it.
         def expedite_stop(item)
           pause = @limits[:paused]
           held = pause unless pause == LOAD_PAUSE || PressureLimits.pause?(pause)
-          held || overloaded(@limits.fetch(:cpus, @limits[:max_load])) || expedite_held(item)
+          held || overloaded([@limits[:cpus], @limits[:max_load]].compact.max) || expedite_held(item)
         end
 
         # The place outside the cap and the regular seats are {WorkSlots}' rule; this names the
