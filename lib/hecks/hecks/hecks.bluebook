@@ -121,6 +121,10 @@ Hecks.bluebook "Hecks" do
                reason: "an exception is seated with the orchestrator by one call and closed by another"
         member domain: "Agents", aggregate: "Turn", checkout: "main",
                reason: "a finished turn is read by the board and the next wake, in processes of their own"
+        member domain: "Protocols", aggregate: "Agreement", checkout: "main",
+               reason: "an agreement is proposed or entered by one call and read, by its number, by every seat's start in a later one"
+        member domain: "Protocols", aggregate: "Vote", checkout: "main",
+               reason: "a vote is cast by one seat's call and counted against the agreement by the calls after it"
         member domain: "Pipeline", aggregate: "Passage", checkout: "main",
                reason: "a passage planned in one call is there for the call that starts its work"
       end

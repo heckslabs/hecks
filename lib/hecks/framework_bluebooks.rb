@@ -8,7 +8,7 @@ module Hecks
   # The bluebooks the gem carries that a hecksagon can attach by name (ADR 0080): the language
   # declared in itself, Expression, Tenancy, Deploy, Site, Tickets, Composer, QualityControl,
   # Fixer, Coder, Bulk, CiPipeline, PipelineBoard, Pipeline, Triage, Interviews,
-  # Signalbox and Roundhouse.
+  # Protocols, Signalbox and Roundhouse.
   # Framework members stay in `Framework`; `table` and `attach!` find a name across both.
   #
   # A bluebook is named by the `Hecks.bluebook "Name"` header of its files, and may span several.
@@ -22,7 +22,7 @@ module Hecks
                composer/bluebook/*.bluebook quality_control/*.bluebook fixer/*.bluebook coder/*.bluebook
                bulk/bluebook/*.bluebook ci_pipeline/*.bluebook pipeline_board/*.bluebook
                pipeline/*.bluebook agents/*.bluebook triage/*.bluebook signalbox/*.bluebook interviews/*.bluebook
-               roundhouse/*.bluebook].freeze
+               protocols/*.bluebook roundhouse/*.bluebook].freeze
 
     # A `Hecks.bluebook "Name"` header line, capturing the bluebook's name.
     BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
