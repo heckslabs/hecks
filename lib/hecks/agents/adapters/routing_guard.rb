@@ -94,7 +94,8 @@ module Hecks
         patterns = rows("RoutingRule", name).map { |row| row[:pattern] }
         return { rows: false, variables: {}, commands: [], unserved: [] } if patterns.empty?
 
-        env = RoleServerEnv.new(patterns: patterns, names: method(:command_names))
+        domains = RoleServerCache.domains(checkout_root)
+        env = RoleServerEnv.new(patterns: patterns, names: method(:command_names), domains: domains)
         { rows: true, variables: env.variables, commands: env.expanded, unserved: env.unserved }
       end
 

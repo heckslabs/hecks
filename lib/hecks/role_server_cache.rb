@@ -101,6 +101,23 @@ module Hecks
       nil
     end
 
+    # Every domain a role's door may read: each top-level directory of `lib/hecks` that holds a
+    # bluebook, sorted. Read from the directories each time, never from the cached file, so a new
+    # domain needs no cache miss.
+    #
+    # @param checkout [String] the checkout
+    # @return [Array<String>] the directories, relative to the checkout
+    def domains(checkout)
+      files = Dir.glob(File.join(checkout, "lib/hecks/*/**/*.bluebook"))
+      files.map { |file| domain_dir(checkout, file) }.uniq.sort
+    end
+
+    # @return [String] the `lib/hecks/<name>` directory a bluebook file sits under
+    def domain_dir(checkout, file)
+      relative = file.delete_prefix("#{checkout}/")
+      File.join(relative.split("/").first(3))
+    end
+
     # @param checkout [String] the checkout
     # @return [String, nil] the file for this state, or nil when the checkout has no agents bluebook
     def path(checkout)

@@ -75,7 +75,7 @@ module Hecks
             return McpScope.new(allowed_domains: [], closed_role: role).unreadable(found.reason) if found.is_a?(Unreadable)
             return McpScope.new(allowed_domains: [], closed_role: role) if found.empty?
 
-            McpScope.new(allowed_domains: [RoleServerCache::DOMAIN], allowed_commands: found)
+            McpScope.new(allowed_domains: RoleServerCache.domains(checkout), allowed_commands: found)
           end
 
           # Loads the framework, works out every role's commands for this checkout and writes them.
