@@ -25,6 +25,17 @@ Hecks.bluebook "Protocols" do
     # The instant after which an absent seat no longer holds the agreement, and when it closed.
     attribute :deadline,      Instant, optional: true
     attribute :closed_at,     Instant, optional: true
+    # The Decider result message that carried an agreement entered after the fact.
+    attribute :evidence,      Evidence, optional: true
+
+    # The accepted agreements, by reference: the read every seat runs at start.
+    query "Accepted" do
+      description "Every accepted agreement, by reference."
+      where(status: "accepted")
+      order_by :reference
+    end
+
+    value_object "Evidence", String
 
     value_object "Reference" do
       attribute :value, String, matches: :present
@@ -59,6 +70,7 @@ Hecks.bluebook "Protocols" do
 
     lifecycle :status, default: "proposed" do
       transition "Accept"   => "accepted",      from: "proposed"
+      transition "Enter"    => "accepted",      from: "proposed"
       transition "Veto"     => "vetoed",        from: "proposed"
       transition "Escalate" => "owner_pending", from: "proposed"
       transition "Close"    => "closed",        from: "proposed"
@@ -147,6 +159,23 @@ Hecks.bluebook "Protocols" do
       given("an agreement that touches the owner is never accepted by the roles") { touches_owner.value == "no" }
 
       emits "AgreementAccepted"
+    end
+
+    # An agreement the crew carried before this record existed: its Decider result is the evidence,
+    # in place of replaying each vote. It never admits one that touches the owner.
+    command "Enter" do
+      role "Maintainer"
+      goal "Record an agreement carried before the record existed as accepted, with its Decider evidence"
+
+      reference_to Agreement
+      attribute :evidence, Evidence, sets: true
+
+      given("an agreement is entered only with the Decider evidence that carried it") { !evidence.to_s.empty? }
+      given("an agreement that touches the owner is never entered by the roles") { touches_owner.value == "no" }
+
+      sets :owed, to: 0
+
+      emits "AgreementEntered"
     end
 
     # The deadline passing frees the agreement from a seat that never answered: it closes without it.

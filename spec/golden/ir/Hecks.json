@@ -1088,6 +1088,42 @@
             [
               [
                 "domain",
+                "Protocols"
+              ],
+              [
+                "aggregate",
+                "Agreement"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "an agreement is proposed or entered by one call and read, by its number, by every seat's start in a later one"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Protocols"
+              ],
+              [
+                "aggregate",
+                "Vote"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a vote is cast by one seat's call and counted against the agreement by the calls after it"
+              ]
+            ],
+            [
+              [
+                "domain",
                 "Pipeline"
               ],
               [

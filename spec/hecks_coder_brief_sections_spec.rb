@@ -105,4 +105,8 @@ RSpec.describe "the Coder brief's standing sections" do
   it "holds the freeze instruction in the bluebook" do
     expect(section(:freeze)).to include("commit and hold", "held for the freeze")
   end
+
+  it "tells the seat to read the crew's accepted working agreements at start" do
+    expect(section(:rules)).to start_with("Start by reading the crew's working agreements: exe/hecks Agreement.accepted")
+  end
 end
