@@ -2,15 +2,10 @@ Hecks.bluebook "Hecks" do
   domain_module "MachineProfile" do
     vision "A machine's capacity settings are derived from what the machine is, by declared formulas inside declared bounds, so a smaller machine gets smaller defaults and a declared setting still wins."
 
-    # The profile is facts an adapter measured (cores, memory, disk, the size of a resident and of a
-    # coder); the domain names no sysctl, disk or clock. A new profile supersedes the old one, kept
-    # by its `fingerprint`: the same machine reads the same fingerprint. The `Formula` and `Bound`
-    # rows are the whole derivation: a setting's value is its measure times `times` over `divisor`
-    # (and over the `per` measure when named), rounded down for a whole setting, then held between
-    # the `Bound` row's least and most (the `most_measure` too, when named). A setting the owner
-    # declares in a world file is the override and wins over the derived value.
+    # The profile holds facts an adapter measured; the Formula and Bound rows are the whole derivation.
+    # A declared world setting is the override and wins. A new profile supersedes the old by fingerprint.
     aggregate "Profile" do
-      description "What this machine is: its cores, memory, free disk and the measured size of a resident and of a coder, and the settings derived from them."
+      description "What this machine is: its cores, memory, free disk and the measured size of a resident and of a coder. Each setting is its Formula row's measure times `times` over `divisor` (and over the `per` measure), rounded down when whole, then held inside its Bound row."
       created_by "Profile.take!"
 
       attribute :run,               RunKey
