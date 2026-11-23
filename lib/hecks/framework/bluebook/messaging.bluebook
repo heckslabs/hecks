@@ -37,17 +37,17 @@ Hecks.bluebook "Messaging" do
 
     # What the message is, and so whether a reply is expected (see KindRule).
     value_object "MessageKind" do
-      attribute :value, String, one_of: %w[help question answer notice report]
+      attribute :value, String, one_of: ["help", "question", "answer", "notice", "report"]
     end
 
     # A normal message waits for its recipient's next turn when posted to a channel; an urgent one does not.
     value_object "Priority" do
-      attribute :value, String, one_of: %w[normal urgent]
+      attribute :value, String, one_of: ["normal", "urgent"]
     end
 
     # The shared places a message may be posted to; empty on a direct message.
     value_object "Channel" do
-      attribute :value, String, one_of: %w[help all train]
+      attribute :value, String, one_of: ["help", "all", "train"]
     end
 
     # What each kind decides: where it routes (`direct` or a channel) and whether a reply is expected.
