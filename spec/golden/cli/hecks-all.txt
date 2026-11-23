@@ -88,6 +88,7 @@ commands:
   AgentRun:
     …
     dispatch!
+    close!
     check!
     tidy!
     release!
@@ -582,7 +583,7 @@ queries (nothing here changes anything):
     ConformanceRun.conformance_faulted StyleRun.style_outcome StyleRun.style_faulted
     InspectionRun.inspection_outcome InspectionRun.inspections_faulted Audit.verdict
     Audit.unproven AgentRun.tidyable AgentRun.running AgentRun.started_of_run AgentRun.last_report
-    AgentRun.ended AgentRun.gone AgentRun.declined Roll.latest Question.open
+    AgentRun.ended AgentRun.gone AgentRun.closable AgentRun.declined Roll.latest Question.open
     Question.seated_of_run Question.seated_of_work Question.of_run Question.asked_of_run
     SendTrain.outcome SendTrain.queued Integration.outcome LanguageRun.language_outcome
     LanguageRun.language_faulted CodemodRun.codemod_outcome CodemodRun.codemod_faulted
