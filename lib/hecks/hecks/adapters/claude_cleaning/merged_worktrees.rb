@@ -6,16 +6,15 @@ require_relative "worktree_check"
 module Hecks
   module Adapters
     class ClaudeCleaning
-      # Retires the coder worktrees under a checkout's `.claude/worktrees` whose branch is on
-      # `main` and which nothing holds: the ones no session lists, which the sweep of sessions
-      # never reaches. Every live worktree is a directory the file-event daemon watches, so a
-      # landed one left standing costs CPU for nothing.
+      # Retires the coder worktrees whose branch is on `main` and which nothing holds, under a
+      # checkout's `.claude/worktrees` and under any directory listed in `outside:`: the ones no
+      # session lists, which the sweep of sessions never reaches. Every live worktree is a
+      # directory the file-event daemon watches, so a landed one costs CPU for nothing.
       #
       # A worktree is kept, and named with the reason, when it is on no branch or on `main`, when
-      # its Work is still open (a coder cut a moment ago looks merged and clean until its first
-      # edit), when it is younger than the window, when it holds an uncommitted file or a commit
-      # no branch on `origin` holds, or when the retirement refuses it. At most `cap` are retired
-      # in one sweep.
+      # its Work is still open, when it is younger than the window, when it holds an uncommitted
+      # file or a commit no branch on `origin` holds, or when the retirement refuses it. At most
+      # `cap` are retired in one sweep, whichever directory they stand in.
       class MergedWorktrees
         # How many worktrees one sweep retires.
         CAP = 10
@@ -24,7 +23,8 @@ module Hecks
         # @param window_minutes [Integer] how long a worktree stands before it can be retired
         # @param open [#call] given a branch name, whether its Work is still open
         # @param retire [#call] given a worktree's path, removes it; raises when it holds work
-        # @param more [Hash] `now:` the clock answering a Time, `cap:` the most worktrees one sweep
+        # @param more [Hash] `outside:` directories, besides `.claude/worktrees`, whose worktrees
+        #   are swept too; `now:` the clock answering a Time, `cap:` the most worktrees one sweep
         #   retires, `check:` a {WorktreeCheck} and `shell:` a {Shell}
         def initialize(root:, window_minutes:, open:, retire:, **more)
           @root = File.realpath(root)
@@ -33,6 +33,7 @@ module Hecks
           @retire = retire
           @now = more[:now] || -> { Time.now }
           @cap = more[:cap] || CAP
+          @homes = homes(more[:outside])
           @shell = more[:shell] || Shell.new
           @check = more[:check] || WorktreeCheck.new(shell: @shell)
         end
@@ -46,6 +47,13 @@ module Hecks
         end
 
         private
+
+        # The directories a swept worktree may stand under, as real paths ending in a separator, so
+        # a sibling that shares a prefix never matches; a directory that is not there is skipped.
+        def homes(outside)
+          dirs = [File.join(@root, ".claude", "worktrees")] + Array(outside)
+          dirs.filter_map { |dir| File.realpath(dir) + File::SEPARATOR if File.directory?(dir) }
+        end
 
         def settle(tree, result)
           name = File.basename(tree[:path])
@@ -88,7 +96,7 @@ module Hecks
         def entry(block)
           lines = block.lines.map(&:strip)
           path = lines.find { |line| line.start_with?("worktree ") }.to_s.delete_prefix("worktree ")
-          return unless path.start_with?(File.join(@root, ".claude", "worktrees") + File::SEPARATOR)
+          return unless @homes.any? { |home| path.start_with?(home) }
 
           ref = lines.find { |line| line.start_with?("branch ") }
           { path: path, branch: ref&.delete_prefix("branch refs/heads/") }

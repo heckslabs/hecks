@@ -1,5 +1,6 @@
 require "spec_helper"
 require_relative "support/merged_worktrees_repo"
+require "hecks/hecks/adapters/session_reaping"
 
 # The reap retires a coder's worktree once its branch is on main and nothing in it is at risk.
 RSpec.describe Hecks::Adapters::ClaudeCleaning::MergedWorktrees, "#sweep" do
@@ -84,6 +85,22 @@ RSpec.describe Hecks::Adapters::ClaudeCleaning::MergedWorktrees, "#sweep" do
       seat("in-tree")
       seat_outside("away")
       expect(sweep(outside: [outside_dir], cap: 1)[:removed].length).to eq(1)
+    end
+
+    context "with the real retirement" do
+      let(:real) { Hecks::Adapters::SessionReaping.new(registry: nil).method(:retire) }
+
+      it "removes the worktree from disk and its branch" do
+        path = seat_outside("landed-away")
+        sweep(outside: [outside_dir], retire: real)
+        expect(File.exist?(path)).to be(false)
+      end
+
+      it "keeps by name the worktree the sweep runs from inside" do
+        path = seat_outside("standing-in")
+        kept = Dir.chdir(path) { sweep(outside: [outside_dir], retire: real)[:kept].map(&:first) }
+        expect(kept).to eq(["standing-in"])
+      end
     end
   end
 end

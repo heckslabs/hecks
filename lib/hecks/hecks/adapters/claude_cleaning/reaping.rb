@@ -57,8 +57,15 @@ module Hecks
 
           reaping = SessionReaping.new(registry: @registry)
           MergedWorktrees.new(root: @tuning[:repo] || primary_checkout, window_minutes: minutes, now: clock,
+                              outside: outside_prefixes,
                               retire: reaping.method(:retire),
                               open: ->(branch) { reaping.facts({ work: branch }, "")[:work_open] }).sweep
+        end
+
+        # The directories outside the checkout whose worktrees the reap judges too: the `reaping`
+        # line's `outside_worktrees`, with `~` the home directory.
+        def outside_prefixes
+          Array(reaping_line[:outside_worktrees]).map { |dir| File.expand_path(dir) }
         end
 
         # The checkout the repository lives in, which the worktrees stand under, from wherever the
