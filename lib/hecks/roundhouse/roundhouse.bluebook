@@ -544,9 +544,7 @@ Hecks.bluebook "Roundhouse" do
       invariant("a figure is not negative") { !value.negative? }
     end
 
-    value_object "Gap" do
-      attribute :value, Integer
-    end
+    value_object "Gap", Integer
 
     value_object "Reading" do
       attribute :value, String
