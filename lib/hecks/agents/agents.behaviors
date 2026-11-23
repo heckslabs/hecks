@@ -354,6 +354,15 @@ Hecks.behaviors "Agents" do
     expect refused: "FallBack refused — the message has waited its window unread"
   end
 
+  test "FallBack refuses a message whose fall back found no holder, so it is not tried again" do
+    tests "FallBack", on: "Message"
+    setup  "Agents::Message.Send", message: { value: "m7" }, recipient: { value: "run-a" }, sender: { value: "miette" },
+           kind: { value: "question" }, body: { value: "how is it going" }
+    setup  "Agents::Message.GiveUpFallBack", message: { value: "m7" }, now: { value: 4_000_000_000 }
+    input  message: { value: "m7" }, now: { value: 4_000_000_000 }
+    expect refused: "FallBack refused — it has not fallen back yet"
+  end
+
   test "Send refuses a message kind it does not know" do
     tests "Send", on: "Message"
     input  message: { value: "m4" }, recipient: { value: "run-a" }, sender: { value: "miette" },

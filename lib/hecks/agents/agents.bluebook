@@ -2333,6 +2333,18 @@ Hecks.bluebook "Agents" do
       emits "FallBackRecorded"
     end
 
+    command "GiveUpFallBack", from: "sent" do
+      role "System"
+      goal "Record that no session holds an unread message's role, so it falls back once and is not tried again"
+
+      reference_to Message
+      attribute :now, MessageInstant
+
+      sets :fallen_back_at, to: :now
+
+      emits "FallBackFoundNoHolder"
+    end
+
     command "Read", from: %w[sent delivered] do
       role "Operator"
       goal "Record that a session read a message (to=<message>), so it leaves the run's inbox"
@@ -2463,6 +2475,17 @@ Hecks.bluebook "Agents" do
     policy "MessageTheHolderViaClaude" do
       on      "Message.MessageFellBack"
       ask     :resume, with: { message: :message, now: :now }
+    end
+
+    # A role no session holds is spent at once; a working holder is left to try again next sweep.
+    policy "GiveUpOnARoleNobodyHolds" do
+      on      "Message.RoleUnheld"
+      trigger Message::GiveUpFallBack, with: { message: :message, now: :now }
+    end
+
+    policy "AskWhoHoldsTheRole" do
+      on      "Message.MessageFellBack"
+      ask     :holds, with: { message: :message, now: :now }
     end
 
     policy "RecordTheFallBack" do
