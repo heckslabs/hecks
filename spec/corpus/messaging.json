@@ -1,0 +1,29 @@
+{
+  "name": "messaging-parity",
+  "note": "A question is sent to a recipient and hangs on an order; it is heard, then read, which takes it out of the inbox. Proves Send, Receive and Read through the Message lifecycle's sent, delivered and read states.",
+  "expectations": {
+    "events": 3
+  },
+  "steps": [
+    {
+      "verb": "Messaging::Message.Send",
+      "args": {
+        "message": { "value": "m1" },
+        "recipient": { "value": "driver" },
+        "sender": { "value": "baker" },
+        "kind": { "value": "question" },
+        "body": { "value": "Is order 7 out?" },
+        "subject_kind": { "value": "Order" },
+        "subject_ref": { "value": "order-7" }
+      }
+    },
+    {
+      "verb": "Messaging::Message.Receive",
+      "args": { "message": { "value": "m1" }, "reader": { "value": "driver" } }
+    },
+    {
+      "verb": "Messaging::Message.Read",
+      "args": { "message": { "value": "m1" }, "reader": { "value": "driver" } }
+    }
+  ]
+}
