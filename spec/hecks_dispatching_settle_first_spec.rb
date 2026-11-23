@@ -13,10 +13,12 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
   def started_now = done.include?("ended") ? [] : [ended]
 
   def stand_in_items
-    items = instance_double(described_class::WorkItems, planned: [waiting], rollable: [waiting], lessons: [], claimed_at: "",
-                                                        landed_commits: [], landing_in_flight?: false)
+    items = instance_double(described_class::WorkItems, planned: [waiting], rollable: [waiting], lessons: [],
+                                                        claimed_at: "2026-11-17T10:00:00Z", landed_commits: [],
+                                                        landing_in_flight?: false)
     allow(items).to receive(:started) { started_now }
-    allow(items).to receive(:runs).and_return("ended" => { status: "finished", condition: "done" })
+    allow(items).to receive(:runs)
+      .and_return("ended" => { status: "finished", condition: "done", started_at: "2026-11-17T10:01:00Z" })
     items
   end
 
