@@ -154,7 +154,9 @@ Hecks.bluebook "Hecks" do
         transition "Decline" => "refused",  from: "requested"
         transition "Finish"  => "finished", from: "started"
         transition "Fail"    => "finished", from: "started"
-        transition "Revived" => "started",  from: "finished"
+        # `Revived` is guarded by the command, not `from:`: a finished run is reusable, and the lifecycle
+        # check refuses a transition that leaves a reusable state for a live one.
+        transition "Revived" => "started"
         transition "Tidied"  => "tidied",   from: "finished"
         transition "Retired" => "retired",  from: ["started", "finished"]
         transition "Close" => "closed", from: ["requested", "refused"]
@@ -367,6 +369,7 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :condition, Condition, default: "working", sets: true
 
+        given("only a finished run is revived") { status == "finished" }
         sets :kept_at, to: { value: 0 }
 
         emits AgentRunRevived
