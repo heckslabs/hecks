@@ -3,6 +3,7 @@ require "tmpdir"
 require_relative "support/machine_profiles"
 require "hecks/hecks/adapters/codebase/heavy_slots"
 require "hecks/hecks/adapters/machine_sampling/marks"
+require "hecks/adapters/driving/resident/crowd"
 
 # The settings that read the machine's profile: a machine's own figures stand where the owner
 # declares none, and a declared setting is respected until it is removed.
@@ -40,5 +41,10 @@ RSpec.describe "the capacity settings derived from the machine" do
     allow(profiling).to receive(:standing).and_return(big)
     allow(Hecks::RustBuild::WorldRows).to receive(:row).with(root, "heavy_jobs").and_return({ cap: 2 })
     expect(slots.declared_cap(root)).to eq(2)
+  end
+
+  it "starts a resident's cap at the one the machine derives" do
+    allow(profiling).to receive(:standing).and_return(small)
+    expect(Hecks::Adapters::Driving::Resident::Crowd.derived_cap).to eq(7)
   end
 end
