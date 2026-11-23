@@ -32,8 +32,10 @@ Hecks.context_map "Hecks" do
   # Client material never enters the public repo: Clients (its own bluebook, each client's record
   # kept as a link to its private repository) is separate ways from every other context, Hecks
   # included. Any attach, subscription, translation or `across` policy either way is refused by
-  # `model_check` as `separate_ways_violated`, whatever its kind.
-  (context_names - ["Clients"]).each { |name| separate_ways name, "Clients" }
+  # `model_check` as `separate_ways_violated`, whatever its kind. The list is every context above;
+  # spec/context_map_clients_spec.rb fails when a context is added without joining it.
+  %w[Hecks Governance Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets
+     Composer QualityControl Coder Fixer PipelineBoard Pipeline Agents Triage Interviews Delivery Signalbox].each { |name| separate_ways name, "Clients" }
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
