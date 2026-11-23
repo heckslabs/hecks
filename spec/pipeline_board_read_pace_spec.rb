@@ -9,7 +9,7 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 RSpec.describe Hecks::Adapters::PipelineBoard::ReadPace do
   let(:pace) { described_class.new(duty: 0.1, every: 30) }
 
-  it "rests nine times a read's cost after a read that cost 25 seconds at a duty of a tenth" do
+  it "rests ten times a read's cost after a read that cost 25 seconds at a duty of a tenth" do
     expect(pace.rest_floor(25)).to eq(250)
   end
 
