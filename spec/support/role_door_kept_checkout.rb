@@ -43,14 +43,16 @@ module RoleDoorKeptCheckout
     File.write(File.join(home, "bluebook/pizzas.local.hecksagon"),
                "Hecks.hecksagon \"Tenancy\" do\n  Tenancy::Tenant.persisted_by(\"SqlitePersistence\")\nend\n")
     File.write(File.join(home, "bluebook/pizzas.local.world"),
-               "Hecks.world \"Pizzas\" do\n  persisted_by(\"SqlitePersistence\") { database #{File.join(@store, "kept.db").inspect} }\nend\n")
+               "Hecks.world \"Tenancy\" do\n  persisted_by(\"SqlitePersistence\") " \
+               "{ database #{File.join(@store, "kept.db").inspect} }\nend\n")
   end
 
   # A launcher-style boot of the home domain registers the tenant in the store, then ends.
   def register_tenant(home)
     runtime = Hecks.boot(File.join(home), install_driving: false)
-    Hecks::Storehouse.dispatch(runtime: runtime, command: "tenancy register", summary: "spec",
-                               args: { "slug" => SLUG, "domain" => "acme.test", "realm" => "r", "schema" => "acme" })
+    done = Hecks::Storehouse.dispatch(runtime: runtime, command: "tenancy tenant.register", summary: "spec",
+                                      args: { "slug" => SLUG, "domain" => "acme.test", "realm" => "r", "schema" => "acme" })
+    raise "the kept tenant was not registered: #{done[:error]}" unless done[:ok]
   end
 
   def close_checkout

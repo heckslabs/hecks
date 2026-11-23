@@ -51,13 +51,14 @@ module Hecks
           # A question, once the scope has admitted its arguments.
           def query_tool(args)
             Mcp.scope.admit_arguments!(args["args"], args["question"])
-            Storehouse.query(runtime: Mcp.boot(args["domain"]), question: args["question"],
+            Storehouse.query(runtime: Mcp.read_boot(args["domain"]), question: args["question"],
                              summary: args["summary"], args: args["args"] || {}, source: args["source"],
                              role: args["role"], actor_id: args["actor_id"], surface: "mcp")
           end
 
           # A single command or a batch, once the scope has admitted every command in it.
           def dispatch_tool(args)
+            Mcp.scope.admit_command_domain!(args["domain"])
             runtime = Mcp.boot(args["domain"])
             return dispatch_steps(runtime, args) if args["steps"]
 
@@ -84,21 +85,21 @@ module Hecks
           def run_tool(args) = LauncherRun.call(args)
 
           def events_tool(args)
-            Storehouse.events(runtime: Mcp.boot(args["domain"]), aggregate: args["aggregate"], id: args["id"],
+            Storehouse.events(runtime: Mcp.read_boot(args["domain"]), aggregate: args["aggregate"], id: args["id"],
                               limit: args["limit"])
           end
 
           def state_tool(args)
-            Storehouse.state(runtime: Mcp.boot(args["domain"]), aggregate: args["aggregate"],
+            Storehouse.state(runtime: Mcp.read_boot(args["domain"]), aggregate: args["aggregate"],
                              summary: args["summary"], id: args["id"], surface: "mcp")
           end
 
           def catalog_tool(args)
-            Storehouse.catalog(runtime: Mcp.boot(args["domain"]))
+            Storehouse.catalog(runtime: Mcp.read_boot(args["domain"]))
           end
 
           def describe_tool(args)
-            Storehouse.describe(runtime: Mcp.boot(args["domain"]), aggregate: args["aggregate"])
+            Storehouse.describe(runtime: Mcp.read_boot(args["domain"]), aggregate: args["aggregate"])
           end
 
           def validate_tool(args)
@@ -110,7 +111,7 @@ module Hecks
           end
 
           def history_tool(args)
-            Storehouse.history(runtime: Mcp.boot(args["domain"]))
+            Storehouse.history(runtime: Mcp.read_boot(args["domain"]))
           end
 
           def behaviors_tool(args)
@@ -118,7 +119,7 @@ module Hecks
           end
 
           def follow_tool(args)
-            Storehouse.follow(runtime: Mcp.boot(args["domain"]), limit: args["limit"] || 20)
+            Storehouse.follow(runtime: Mcp.read_boot(args["domain"]), limit: args["limit"] || 20)
           end
         end
       end
