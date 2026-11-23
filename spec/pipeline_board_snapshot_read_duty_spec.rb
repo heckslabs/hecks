@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Snapshot do
 
   let(:now) { [0.0] }
   let(:held) { Queue.new }
-  let(:wait) { ->(seconds) { held << seconds && Queue.new.pop } }
+  let(:wait) { ->(seconds) { (held << seconds) && Queue.new.pop } }
   let(:source) { -> { { generated_at: (now[0] += 25).to_s, stages: [] } } }
 
   def snapshot
