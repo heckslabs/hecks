@@ -245,7 +245,7 @@ Hecks.bluebook "Roundhouse" do
     # the memory they draw. It rides this aggregate's port because it is read the same way, off the
     # sessions' own records, and no domain is booted to answer it.
     query "Tokens" do
-      description "Tokens used per session, role, Work item and day (input, output and cache split, turns and the context each turn read in, with dollars from the declared price table), the turns by what set them going (a trigger kind label, never the prompt text) and tokens saved by prompt cache and by model routing, each line labelled with how it is counted; the Hecks door and work not redone are named as not measured."
+      description "Tokens used per session, role, Work item and day (input, output and cache split, turns and the context each turn read in, with dollars from the declared price table), the turns by what set them going (a trigger kind label, never the prompt text) and tokens saved by prompt cache and by model routing, each line labelled with how it is counted; the Hecks door and work not redone are read by comparison against a matched baseline (see ArmComparison), never counted directly."
       returns Document
     end
 
@@ -359,6 +359,246 @@ Hecks.bluebook "Roundhouse" do
       attribute :label,   KindLabel, sets: true
 
       emits TriggerKindDeclared
+    end
+  end
+
+  # How a run's Work item was authored. Generated code spends no tokens, so the saving is read by
+  # comparing arms on one change; an untagged run is never folded into an arm.
+  aggregate "ArmRun" do
+    description "One landed run, tagged with the arm its Work item was authored in, and what it cost and how it fared."
+    created_by "ArmRun.record!"
+
+    identified_by :run
+
+    attribute :run,         Key
+    attribute :item,        ItemKey
+    attribute :change,      ChangeKey, optional: true
+    attribute :arm,         Arm
+    attribute :input,       Tokens, optional: true
+    attribute :output,      Tokens, optional: true
+    attribute :cache,       Tokens, optional: true
+    attribute :minutes,     Count
+    attribute :rounds,      Count
+    attribute :red_trains,  Count
+    attribute :defects,     Count
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "ItemKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "ChangeKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Arm" do
+      attribute :value, String
+      invariant("a run is bluebook, direct or untagged") { value == "bluebook" || value == "direct" || value == "untagged" }
+    end
+
+    # Tokens a run spent, from the usage reading (ADR 0220). No default: a run with no reading carries
+    # none, which is no reading, never zero.
+    value_object "Tokens" do
+      attribute :value, Integer
+      invariant("tokens are not negative") { !value.negative? }
+    end
+
+    # Minutes from dispatch to green main, review rounds, red-train events, or defects the
+    # held-back acceptance suite found after landing.
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    query "ByArm" do
+      description "Every tagged run, the arm first, the run after."
+      order_by :arm
+    end
+
+    query "Untagged" do
+      description "The runs no one tagged: shown as untagged, never counted in either arm."
+      where(arm: "untagged")
+      order_by :run
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record one landed run with the arm its Work item was authored in and its measures"
+
+      attribute :run,        Key, sets: true
+      attribute :item,       ItemKey, sets: true
+      attribute :change,     ChangeKey, optional: true, sets: true
+      attribute :arm,        Arm, sets: true
+      attribute :input,      Tokens, optional: true, sets: true
+      attribute :output,     Tokens, optional: true, sets: true
+      attribute :cache,      Tokens, optional: true, sets: true
+      attribute :minutes,    Count, sets: true
+      attribute :rounds,     Count, sets: true
+      attribute :red_trains, Count, sets: true
+      attribute :defects,    Count, sets: true
+
+      given("a run with a matched change is tagged, never untagged") { arm.value != "untagged" || change.value.to_s.empty? }
+
+      emits ArmRunRecorded
+    end
+  end
+
+  # One reduction each, per arm: an untagged run is its own row, never folded into an arm.
+  read_model "ArmRunsByArm" do
+    description "How many landed runs each arm holds; an untagged run is its own row."
+    include ArmRun
+    group_by :arm
+    count
+  end
+
+  read_model "ArmInputByArm" do
+    description "The input tokens of each arm's runs, added up."
+    include ArmRun
+    group_by :arm
+    sum :input
+  end
+
+  read_model "ArmOutputByArm" do
+    description "The output tokens of each arm's runs, added up."
+    include ArmRun
+    group_by :arm
+    sum :output
+  end
+
+  read_model "ArmCacheByArm" do
+    description "The cache tokens of each arm's runs, added up."
+    include ArmRun
+    group_by :arm
+    sum :cache
+  end
+
+  read_model "ArmMinutesByArm" do
+    description "The minutes from dispatch to green main of each arm's runs, added up."
+    include ArmRun
+    group_by :arm
+    sum :minutes
+  end
+
+  read_model "ArmRoundsByArm" do
+    description "The review rounds of each arm's runs, added up."
+    include ArmRun
+    group_by :arm
+    sum :rounds
+  end
+
+  read_model "ArmRedTrainsByArm" do
+    description "The red-train events of each arm's runs, added up."
+    include ArmRun
+    group_by :arm
+    sum :red_trains
+  end
+
+  read_model "ArmDefectsByArm" do
+    description "The defects found after landing by the held-back acceptance suite of each arm's runs, added up."
+    include ArmRun
+    group_by :arm
+    sum :defects
+  end
+
+  # No run on one arm means no reading: no difference, never zero. Authoring cost is apart.
+  aggregate "ArmComparison" do
+    description "One measure of one change compared across the two arms, with the authoring cost and the break-even reported apart."
+    created_by "ArmComparison.compare!"
+
+    identified_by :comparison
+
+    attribute :comparison,     Key
+    attribute :measure,        Measure
+    attribute :bluebook_runs,  Count
+    attribute :direct_runs,    Count
+    attribute :bluebook,       Figure, optional: true
+    attribute :direct,         Figure, optional: true
+    attribute :reading,        Reading
+    attribute :difference,     Gap, optional: true
+    attribute :authoring,      Figure, optional: true
+    attribute :break_even,     Figure, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Measure" do
+      attribute :value, String
+      invariant("a measure is one the meter takes") do
+        value == "input" || value == "output" || value == "cache" || value == "minutes" ||
+          value == "rounds" || value == "red_trains" || value == "defects"
+      end
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    # No default: a figure that is absent is absent, never zero.
+    value_object "Figure" do
+      attribute :value, Integer
+      invariant("a figure is not negative") { !value.negative? }
+    end
+
+    value_object "Gap", Integer
+
+    value_object "Reading" do
+      attribute :value, String
+      invariant("a comparison is a reading or no reading") { value == "reading" || value == "no reading" }
+    end
+
+    query "Readings" do
+      description "Every comparison, a reading or no reading, by measure."
+      order_by :comparison
+    end
+
+    query "NoReadings" do
+      description "The comparisons with no matched baseline, which carry no difference."
+      where(reading: "no reading")
+      order_by :comparison
+    end
+
+    # Difference is the direct figure less the bluebook's; break-even is authoring over it, rounded up.
+    command "Compare" do
+      role "System"
+      goal "Compare one measure of one change across the two arms, or say there is no reading"
+
+      attribute :comparison,    Key, sets: true
+      attribute :measure,       Measure, sets: true
+      attribute :bluebook_runs, Count, sets: true
+      attribute :direct_runs,   Count, sets: true
+      attribute :bluebook,      Figure, optional: true, sets: true
+      attribute :direct,        Figure, optional: true, sets: true
+      attribute :reading,       Reading, sets: true
+      attribute :difference,    Gap, optional: true, sets: true
+      attribute :authoring,     Figure, optional: true, sets: true
+      attribute :break_even,    Figure, optional: true, sets: true
+
+      given("a reading needs a matched baseline: a run on each arm") do
+        reading.value == "no reading" || (bluebook_runs.value > 0 && direct_runs.value > 0)
+      end
+      given("without a run on each arm there is no reading") do
+        reading.value == "reading" || bluebook_runs.value == 0 || direct_runs.value == 0
+      end
+      given("no reading carries no difference, no figures and no break-even, never zero") do
+        reading.value == "reading" || (difference.value.to_s.empty? && bluebook.value.to_s.empty? &&
+                                       direct.value.to_s.empty? && break_even.value.to_s.empty?)
+      end
+      given("the difference is the direct arm's figure less the bluebook arm's") do
+        reading.value == "no reading" || difference.value == direct.value - bluebook.value
+      end
+      given("a break-even pays back the authoring cost") do
+        break_even.value.to_s.empty? || break_even.value * difference.value >= authoring.value
+      end
+      given("a break-even is the first change that pays back the authoring cost") do
+        break_even.value.to_s.empty? || (break_even.value - 1) * difference.value < authoring.value
+      end
+
+      emits ArmCompared
     end
   end
 
