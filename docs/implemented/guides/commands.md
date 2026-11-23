@@ -403,6 +403,13 @@ the difference between overwriting a field, growing a list, and doing
 arithmetic on one. The common ones are below; `multiply:`, `clamp:` and
 `remove:` are also admitted (see [the command reference](../reference/command.md)).
 
+**A bounded step** is `increment:` or `decrement:` beside `clamp: [min, max]`:
+`sets :weight, increment: :gain, clamp: [0, 100]` is one write whose new value
+is `min(max(weight + gain, 0), 100)`, so a step past either bound lands on
+the bound and an in-range step is exact. It is one mutation, so the field is
+still written once. Any other pairing of two ops is refused as before. See
+`examples/bounded_step`.
+
 **`to:`** replaces the field outright, from an argument or a literal —
 and is omittable when it would only repeat the target, which is why
 `Open`'s own three (above) never spell it out: `sets :number` alone

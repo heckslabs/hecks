@@ -712,7 +712,10 @@ fn split_step_bounds<'a>(
         return Err(Diagnostic::new(
             file,
             line,
-            format!("'sets :{target}' clamp: {} is not a [min, max] pair of numbers in order", raw.trim()),
+            format!(
+                "'sets :{target}' clamp: {} is not a [min, max] pair of numbers in order",
+                raw.trim()
+            ),
         ));
     }
     let rest = named.into_iter().filter(|(op, _)| *op != "clamp").collect();

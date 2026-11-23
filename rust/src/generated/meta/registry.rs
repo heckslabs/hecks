@@ -2587,6 +2587,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             args.field.check_invariants()?;
                             args.kind.check_invariants()?;
                             args.source.check_invariants()?;
+                            if let Some(v) = &args.bounds {
+                                v.check_invariants()?;
+                            }
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -2644,6 +2647,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             args.field.check_invariants()?;
                             args.kind.check_invariants()?;
                             args.source.check_invariants()?;
+                            if let Some(v) = &args.bounds {
+                                v.check_invariants()?;
+                            }
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -8756,7 +8762,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         ],
         "Bluebook::Command.Rule" => &["description", "canonical"],
         "Bluebook::Command.Ensure" => &["description", "canonical"],
-        "Bluebook::Command.Change" => &["target", "op", "field", "kind", "source"],
+        "Bluebook::Command.Change" => &["target", "op", "field", "kind", "source", "bounds"],
         "Bluebook::Command.ActsOn" => &["root"],
         "Bluebook::Command.Announce" => &["announces"],
         "Bluebook::Command.Allow" => &["allowed"],

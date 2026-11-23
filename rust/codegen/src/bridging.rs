@@ -1009,6 +1009,16 @@ mod float_arithmetic_tests {
     }
 
     #[test]
+    fn a_step_carries_integer_bounds_only_when_it_has_them() {
+        let bounded = Json::parse(r#"{"op":"increment","bounds":[0,100]}"#).unwrap();
+        let plain = Json::parse(r#"{"op":"increment"}"#).unwrap();
+        assert_eq!(
+            (step_bounds_ints(&bounded), step_bounds_ints(&plain)),
+            (Some((0, 100)), None)
+        );
+    }
+
+    #[test]
     fn clamp_still_takes_only_integer_targets() {
         let vos = vos();
         let aggregate = aggregate();

@@ -184,6 +184,9 @@ it, except for one law they must uphold (C8.4).
   numeric; an absent target reads as 0; a non-numeric operand is
   `TypeMismatch`. (fixtures: `numeric_effects_absent_target_and_operand.json`,
   `numeric_operand_type_mismatch.json`)
+  An `increment:` or `decrement:` beside `clamp: [min, max]` is one write:
+  the new value is `min(max(current ± step, min), max)`, carried as the
+  mutation's `bounds`. (fixture: `examples/bounded_step`)
 - **C4.5 (settled)** An appended entity with no explicit identity is
   minted one past the highest integer identity the list holds (1 when
   empty) — never `size + 1`, which repeats an identity the moment a

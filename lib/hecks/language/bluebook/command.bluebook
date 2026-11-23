@@ -405,6 +405,8 @@ Hecks.bluebook "Bluebook" do
       member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
       member keyword: "ensures",         context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
       member keyword: "needs",           context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "fact"
+      # `clamp:` beside `increment:` or `decrement:` is not a second op: it rides as that
+      # mutation's `bounds`, so the step and its range are one write.
       member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
       member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "literal",  required: "false", fills: "source", selects: "op=set"
       member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "literal",  required: "false", fills: "source", selects: "op=append"
