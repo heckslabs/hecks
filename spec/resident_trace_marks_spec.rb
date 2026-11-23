@@ -1,4 +1,6 @@
 require "spec_helper"
+require "open3"
+require "rbconfig"
 require "hecks/adapters/driving/resident/server"
 require "hecks/adapters/driving/resident/client"
 
@@ -52,5 +54,15 @@ RSpec.describe "the trace's marks of a write" do
 
   it "attaches all of its hooks, and names any it could not" do
     expect(marks.attach).to eq(%i[reactions store_open heavy_slot])
+  end
+
+  describe "a cold boot, with no resident to fork it" do
+    it "puts the marks on the dispatcher before the domain boots" do
+      lib = File.expand_path("../lib", __dir__)
+      code = 'require "hecks"; puts Hecks::Runtime::Dispatcher.ancestors.map(&:to_s).grep(/Marks/)'
+      out, = Open3.capture2({ "HECKS_TRACE_TIMING" => "1", "PATH" => ENV.fetch("PATH"), "HOME" => Dir.home },
+                            RbConfig.ruby, "-I", lib, "-e", code)
+      expect(out).to include("Marks::Reactions")
+    end
   end
 end
