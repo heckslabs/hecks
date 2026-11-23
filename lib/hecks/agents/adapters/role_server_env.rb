@@ -28,9 +28,12 @@ module Hecks
       # @param patterns [Array<String>] the role's `RoutingRule` patterns
       # @param names [#call] answers the command names the served domain has, as a person types
       #   them (`dispatch.fill`)
-      def initialize(patterns:, names:)
+      # @param domains [Array<String>] the domains the server reads, relative to the checkout; the
+      #   served domain alone when none is given
+      def initialize(patterns:, names:, domains: [DOMAIN])
         @patterns = patterns
         @names = names
+        @domains = domains
       end
 
       # @return [Hash{String => String}] the three variables, or empty when no command is named
@@ -38,7 +41,7 @@ module Hecks
         commands = expanded
         return {} if commands.empty?
 
-        { McpScope::TOOLS_VARIABLE => McpScope::COMMANDS, McpScope::DOMAINS_VARIABLE => DOMAIN,
+        { McpScope::TOOLS_VARIABLE => McpScope::COMMANDS, McpScope::DOMAINS_VARIABLE => @domains.join(File::PATH_SEPARATOR),
           McpScope::COMMANDS_VARIABLE => commands.join(",") }
       end
 

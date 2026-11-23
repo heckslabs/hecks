@@ -61,16 +61,20 @@ module Hecks
             runtime = Mcp.boot(args["domain"])
             return dispatch_steps(runtime, args) if args["steps"]
 
-            Mcp.scope.admit_command!(runtime, args["command"], args["args"])
+            admit_one!(runtime, args)
             Storehouse.dispatch(runtime: runtime, command: args["command"], summary: args["summary"],
                                 args: args["args"] || {}, source: args["source"],
                                 dry_run: args["dry_run"] == true, role: args["role"], actor_id: args["actor_id"],
                                 surface: "mcp")
           end
 
+          def admit_one!(runtime, args)
+            Mcp.scope.admit_command!(runtime, args["command"], args["args"], domain: args["domain"])
+          end
+
           # Several commands in one call.
           def dispatch_steps(runtime, args)
-            Mcp.scope.admit_steps!(runtime, args["steps"])
+            Mcp.scope.admit_steps!(runtime, args["steps"], domain: args["domain"])
             Storehouse.dispatch_batch(runtime: runtime, steps: args["steps"], summary: args["summary"],
                                       source: args["source"], role: args["role"], actor_id: args["actor_id"],
                                       surface: "mcp")
