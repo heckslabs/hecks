@@ -1,0 +1,28 @@
+{
+  "audience": "Messaging",
+  "scopes": [
+    {
+      "scope": "messaging:message.announce",
+      "verb": "Messaging::Message.Announce",
+      "role": "Operator"
+    },
+    {
+      "scope": "messaging:message.read",
+      "verb": "Messaging::Message.Read",
+      "role": "Operator"
+    },
+    {
+      "scope": "messaging:message.receive",
+      "verb": "Messaging::Message.Receive",
+      "role": "Operator"
+    },
+    {
+      "scope": "messaging:message.send",
+      "verb": "Messaging::Message.Send",
+      "role": "Operator"
+    }
+  ],
+  "roles": [
+    "Operator"
+  ]
+}
