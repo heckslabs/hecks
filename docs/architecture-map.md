@@ -84,6 +84,7 @@ directories its files sit in, and the vision it declares, written from the files
 - **EventDelivery** (`lib/hecks/framework/bluebook/`): An event committed is owed to each of its consumers until each has answered it once.
 - **Governance** (`lib/hecks/framework/bluebook/`): Organizational authority is explicit, reviewable, and historically explainable.
 - **Identity** (`lib/hecks/framework/bluebook/`): Authentication proves an identifier; the organization decides what that identity means.
+- **Messaging** (`lib/hecks/framework/bluebook/`): A message tells a recipient something, hangs on whatever carries it, and is heard once.
 - **Privacy** (`lib/hecks/framework/bluebook/`): Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI.
 - **Gate** (`lib/hecks/gate/`): A commit is green only when every quick-gate check passed on it, and a red verdict names the first check that failed.
 - **Expression** (`lib/hecks/grammar/`): The subset of regular Ruby a predicate is allowed to be — small enough that every target can evaluate it, and carried as canonical text so no two readers can disagree about what was said.
