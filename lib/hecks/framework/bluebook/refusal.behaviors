@@ -14,6 +14,6 @@ Hecks.behaviors "Refusal" do
   test "Record refuses a refusal that names no command" do
     tests "Record", on: "CommandRefusal"
     input refusal: { value: "r1" }, command: { value: "" }, given: { value: "no" }
-    expect refused: "command"
+    expect refused: "CommandName"
   end
 end
