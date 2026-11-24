@@ -31,12 +31,12 @@ RSpec.describe "a refused command" do
     expect(refused.first.payload.values.map(&:value).join).not_to include("s3cret")
   end
 
-  it "records nothing for a dry run" do
+  it "records nothing for a dry run", :aggregate_failures do
     expect { hecks.dry_run?("Messaging::Message.Send", **blank) }.to raise_error(Hecks::Refused)
     expect(refused).to be_empty
   end
 
-  it "records a refused Record no further" do
+  it "records a refused Record no further", :aggregate_failures do
     expect { hecks.dispatch_flat("Refusal::CommandRefusal.Record", refusal: { value: "r" }, command: { value: "" }, given: { value: "x" }) }
       .to raise_error(Hecks::Refused)
     expect(refused).to be_empty
