@@ -1,5 +1,3 @@
-require "securerandom"
-
 module Hecks
   module Runtime
     class Dispatcher
@@ -35,7 +33,7 @@ module Hecks
         end
 
         def refusal_facts(call, refusal)
-          { refusal: { value: SecureRandom.uuid }, command: { value: call.verb.to_s },
+          { refusal: { value: "refusal-#{events.size + 1}" }, command: { value: call.verb.to_s },
             given: { value: (refusal.rule || refusal.message).to_s },
             arguments: { value: argument_names(call).join(",") },
             issuer: { value: issuer_name } }
