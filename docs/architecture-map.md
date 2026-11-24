@@ -100,6 +100,7 @@ directories its files sit in, and the vision it declares, written from the files
 - **Sentence** (`lib/hecks/language/sentence/`): The plain sentences a business author writes in a .bluebook, declared as data. Each phrase is one row; the Rust parser's sentence front end is generated from them, so what an author may say is a table, not code.
 - **World** (`lib/hecks/language/world/`)
 - **LiveDiscovery** (`lib/hecks/live_discovery/`): A discovery call is consented before it is captured, keeps its turns as they were said, and shows the client only what the owner sends.
+- **LocalLayer** (`lib/hecks/local_layer/`): A bluebook is edited locally as recorded typed edits, and the pipeline takes them as one batch, shown as a diff and checked first.
 - **Pipeline** (`lib/hecks/pipeline/`): Every change is one passage, from the Work item that planned it to the release that shipped it, and where each one stands is a fact the pipeline itself holds.
 - **PipelineBoard** (`lib/hecks/pipeline_board/`): The pipeline from a Work item to a release is read live, stage by stage, and shown with the real events it emitted.
 - **Protocols** (`lib/hecks/protocols/`): A role proposes a working agreement; the roles it affects settle it by a quick yes or a veto with a reason; an accepted agreement is recorded and a peer flags a break for the retrospective.

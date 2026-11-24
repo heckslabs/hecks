@@ -1,0 +1,20 @@
+# The LocalLayer domain, bound so it boots standing alone. Edits and batches are held in Memory;
+# the journal port keeps each edit on disk so a restart does not lose a recorded edit.
+Hecks.hecksagon "LocalLayer" do
+  attaches "Governance"
+  persisted_by "Memory"
+
+  # The outside an edit reaches: the journal file, append-only. The port never edits a line; a
+  # withdrawal is a record of its own.
+  LocalLayer::Edit.port "Journaling" do
+    asks "Append", to: Edit do
+      attribute :run, EditKey
+      answers "EditJournaled"
+      refuses "EditJournalRefused"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

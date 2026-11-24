@@ -1,0 +1,103 @@
+Hecks.behaviors "LocalLayer" do
+  vision "A bluebook is edited locally as recorded typed edits, and the pipeline takes them as one batch, shown as a diff and checked first."
+
+  loads "local_layer.bluebook", "local_layer.hecksagon"
+
+  test "an edit is recorded as a typed change to a named bluebook" do
+    tests "Record", on: "Edit"
+    input run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          operation: { value: "AddTransition" }, subject: { value: "Incident.status" }, detail: { value: "reopen" }
+    expect emits: %w[EditRecorded EditJournalRefused], status: "recorded"
+  end
+
+  test "an edit that is no known operation is not recorded" do
+    tests "Record", on: "Edit"
+    input run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          operation: { value: "Rewrite" }, subject: { value: "Incident.status" }, detail: { value: "reopen" }
+    expect refused: "admits"
+  end
+
+  test "an edit the journal has not kept is not gathered into a batch" do
+    tests "Gather", on: "Edit"
+    setup "LocalLayer::Edit.Record", run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          operation: { value: "AddMark" }, subject: { value: "Incident.status" }, detail: { value: "terminal" }
+    input run: { value: "edit-1" }, batch: { value: "sprint-9" }
+    expect refused: "journal"
+  end
+
+  test "a journaled edit is gathered into a batch" do
+    tests "Gather", on: "Edit"
+    setup "LocalLayer::Edit.Record", run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          operation: { value: "AddMark" }, subject: { value: "Incident.status" }, detail: { value: "terminal" }
+    setup "LocalLayer::Edit.Journal", run: { value: "edit-1" }
+    input run: { value: "edit-1" }, batch: { value: "sprint-9" }
+    expect emits: ["EditGathered"], status: "batched"
+  end
+
+  # No journal adapter is bound in a behaviors boot, so the port answers EditJournalRefused.
+  test "a withdrawn edit is a lifecycle step, the journal keeps its record" do
+    tests "Withdraw", on: "Edit"
+    setup "LocalLayer::Edit.Record", run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          operation: { value: "AddMark" }, subject: { value: "Incident.status" }, detail: { value: "terminal" }
+    input run: { value: "edit-1" }
+    expect emits: %w[EditWithdrawn EditJournalRefused], status: "withdrawn"
+  end
+
+  test "a batch opens at the end of a sprint against the target's digest" do
+    tests "Open", on: "Batch"
+    input run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    expect emits: ["BatchOpened"], status: "open"
+  end
+
+  test "an empty batch is not sealed" do
+    tests "Seal", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    input run: { value: "sprint-9" }, edits: { value: 0 }
+    expect refused: "edit"
+  end
+
+  test "checks that did not pass keep the batch from being checked" do
+    tests "RecordChecks", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
+    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
+    input run: { value: "sprint-9" }, outcome: { value: "failed" }
+    expect refused: "checks"
+  end
+
+  test "a batch is applied only against the diff that was shown" do
+    tests "Apply", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
+    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
+    setup "LocalLayer::Batch.RecordChecks", run: { value: "sprint-9" }, outcome: { value: "passed" }
+    input run: { value: "sprint-9" }, confirmed: { value: "ee99" }, current: { value: "ab12" }
+    expect refused: "diff"
+  end
+
+  test "a batch is not applied when the target moved since it was opened" do
+    tests "Apply", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
+    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
+    setup "LocalLayer::Batch.RecordChecks", run: { value: "sprint-9" }, outcome: { value: "passed" }
+    input run: { value: "sprint-9" }, confirmed: { value: "cd34" }, current: { value: "ff00" }
+    expect refused: "moved"
+  end
+
+  test "a diffed, checked batch is applied against the diff shown" do
+    tests "Apply", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
+    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
+    setup "LocalLayer::Batch.RecordChecks", run: { value: "sprint-9" }, outcome: { value: "passed" }
+    input run: { value: "sprint-9" }, confirmed: { value: "cd34" }, current: { value: "ab12" }
+    expect emits: ["BatchApplied"], status: "applied"
+  end
+end
