@@ -69,8 +69,8 @@ module Hecks
         "comment_blocks"      => STYLE + %w[examples/**/*.rb],
         "secret_output"       => LIBRARY + SPEC + %w[spec/secret_output_spec.rb],
         "adapter_words"       => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
-        "io_spec_list"        => LIBRARY + %w[spec/**/*.rb .github/postgres_io_spec_files.txt
-                                              .github/workflows/ci-postgres-io-parallel.yml],
+        "io_spec_list"        => %w[spec/**/*.rb .github/postgres_io_spec_files.txt
+                                    .github/workflows/ci-postgres-io-parallel.yml],
         "bluebook_extraction" => MODEL,
         "rspec"               => SOURCE,
         "fuzzing"             => FUZZING,
