@@ -66,14 +66,16 @@ module Hecks
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
+      # @param stall [Hash, String, nil] an impediment key: only that row is answered
       # @return [Array<Hash>] one `Sighting` row per impediment, oldest first, with `filed` and
       #   `count`: the tap's ({Impediments}) and one per pair of open branches that changed the
       #   same files ({SharedFiles}); none when the world declares no tap
-      def impediments(run:)
+      def impediments(run:, stall: nil)
         path = tap_path
         return [] unless path
 
-        held(lines(path), plain(run).to_s)
+        rows = held(lines(path), plain(run).to_s)
+        stall.to_s.empty? ? rows : rows.select { |row| row[:impediment] == plain(stall).to_s }
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
