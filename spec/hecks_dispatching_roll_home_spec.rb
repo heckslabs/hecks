@@ -32,4 +32,25 @@ RSpec.describe "a roll heard from another repository's directory" do
     expect(launcher).to have_received(:new).with(checkout.home, anything).at_least(:once)
     expect(launcher).not_to have_received(:new).with(@elsewhere, anything)
   end
+
+  context "when the launcher's own location is not a git checkout" do
+    around do |example|
+      Dir.mktmpdir do |dir|
+        @outside = File.realpath(dir)
+        example.run
+      end
+    end
+
+    before do
+      stub_const("Hecks::Adapters::MainLauncher::CHECKOUT", @outside)
+      allow(launcher).to receive(:new).and_call_original
+    end
+
+    it "refuses by name and starts no filling", :aggregate_failures do
+      allow(Dir).to receive(:pwd).and_return(@outside)
+
+      expect { rolling({}).roll }.to raise_error(/not a git checkout/)
+      expect(launcher).not_to have_received(:new)
+    end
+  end
 end
