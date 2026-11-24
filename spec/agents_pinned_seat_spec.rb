@@ -13,7 +13,10 @@ RSpec.describe "a pinned role registering itself" do
 
   after { FileUtils.remove_entry(jobs) }
 
-  def watch_adapter = Hecks::Adapters::HandRunWatch.new(listing: -> { sessions }, jobs: jobs)
+  def watch_adapter
+    seats = Hecks::Adapters::PinnedSeats.new(listing: -> { sessions }, jobs: jobs)
+    Hecks::Adapters::HandRunWatch.new(listing: -> { sessions }, seats: seats)
+  end
 
   def pin(*ids) = File.write(File.join(jobs, "pins.json"), JSON.generate(ids))
 

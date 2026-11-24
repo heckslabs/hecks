@@ -477,22 +477,22 @@ Hecks.behaviors "Agents" do
 
   test "Sight registers a standing seat's session under the seat's run key" do
     tests "Sight", on: "SeatSighting"
-    input  session: { value: "a4c4-new-full" }, name: { value: "architect" }, launched_by: "", registered: "",
-           message: { value: "seat-architect-a4c4" }, notice: "your session id is now a4c4-new-full"
+    input  session: { value: "a4c4-new-full" }, name: { value: "architect" }, launched_by: { value: "" }, registered: { value: "" }, sender: { value: "hecks" }, kind: { value: "answer" },
+           message: { value: "seat-architect-a4c4" }, notice: { value: "your session id is now a4c4-new-full" }
     expect emits: ["SeatSighted", "HandRunRequested", "HandRunRegistered"]
   end
 
   test "Sight registers a changed session id under the same key and tells the seat" do
     tests "Sight", on: "SeatSighting"
-    input  session: { value: "a4c4-newer-full" }, name: { value: "architect" }, launched_by: "", registered: "a4c4-new-full",
-           message: { value: "seat-architect-a4c4n" }, notice: "your session id is now a4c4-newer-full"
+    input  session: { value: "a4c4-newer-full" }, name: { value: "architect" }, launched_by: { value: "" }, registered: { value: "a4c4-new-full" }, sender: { value: "hecks" }, kind: { value: "answer" },
+           message: { value: "seat-architect-a4c4n" }, notice: { value: "your session id is now a4c4-newer-full" }
     expect emits: ["SeatSighted", "HandRunRequested", "HandRunRegistered", "MessageAddressed"]
   end
 
   test "Sight leaves a session the pipeline launched unregistered" do
     tests "Sight", on: "SeatSighting"
-    input  session: { value: "d15a-full" }, name: { value: "architect" }, launched_by: "architect:p-walk", registered: "",
-           message: { value: "seat-architect-d15a" }, notice: "x"
+    input  session: { value: "d15a-full" }, name: { value: "architect" }, launched_by: { value: "architect:p-walk" }, registered: { value: "" }, sender: { value: "hecks" }, kind: { value: "answer" },
+           message: { value: "seat-architect-d15a" }, notice: { value: "x" }
     expect emits: ["SeatSighted"]
   end
 
