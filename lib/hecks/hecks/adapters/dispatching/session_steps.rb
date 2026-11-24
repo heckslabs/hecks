@@ -4,8 +4,9 @@ module Hecks
   module Adapters
     class Dispatching
       class Launcher
-        # The steps after a clear start: enlist the item and hand its brief to a session. It reads the
-        # launcher's own `started_clear`, `enlist`, `dispatch`, `brief` and `started_line`.
+        # The steps after a clear start: enlist the item and hand its brief to a session. It
+        # reads the launcher's own `started_clear`, `enlist`, `dispatch`, `brief` and
+        # `started_line`.
         module SessionSteps
           private
 
