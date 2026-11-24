@@ -1,0 +1,266 @@
+# The local layer: edits recorded fast, applied through the pipeline later as one checked batch.
+
+Hecks.bluebook "LocalLayer" do
+  vision "A bluebook is edited locally as recorded typed edits, and the pipeline takes them as one batch, shown as a diff and checked first."
+
+  # One edit: a typed change to a named bluebook. The journal keeps it, so memory and disk
+  # cannot drift: an edit the journal has not kept is never gathered into a batch.
+  aggregate "Edit" do
+    description "One recorded typed change to a bluebook: recorded, journaled, gathered into a batch, then settled or withdrawn."
+
+    attribute :run,       EditKey
+    attribute :target,    Target
+    attribute :operation, Operation
+    attribute :subject,   Subject
+    attribute :detail,    Detail
+    attribute :batch,     BatchKey, optional: true
+    attribute :journaled, Switch,   default: { value: "no" }
+    identified_by :run
+
+    value_object "EditKey" do
+      attribute :value, String, matches: :present
+      invariant("an edit is named") { !value.to_s.empty? }
+    end
+
+    value_object "Target" do
+      attribute :value, String, matches: :present
+      invariant("an edit names its bluebook") { !value.to_s.empty? }
+    end
+
+    # The closed list of what an edit does to a bluebook.
+    value_object "Operation" do
+      attribute :value, String,
+                one_of: %w[AddTransition RemoveTransition RenameState AddMark AddPolicy AddCommand AddAttribute]
+    end
+
+    value_object "Subject" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Detail" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "BatchKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Switch" do
+      attribute :value, String, one_of: %w[yes no]
+    end
+
+    lifecycle :status, default: "recorded" do
+      transition "Gather"   => "batched",   from: "recorded"
+      transition "Settle"   => "applied",   from: "batched"
+      transition "Withdraw" => "withdrawn", from: %w[recorded batched]
+      mark :terminal, "applied", "withdrawn"
+    end
+
+    command "Record" do
+      role "Author"
+      goal "Record one typed change to a bluebook, fast, to be applied later in a batch"
+
+      sets :run
+      sets :target
+      sets :operation
+      sets :subject
+      sets :detail
+
+      emits EditRecorded
+    end
+
+    # The journal answered: the edit is on disk as well as in memory.
+    command "Journal" do
+      role "System"
+      goal "Note that the journal keeps the edit"
+
+      reference_to Edit
+      attribute :run, EditKey
+      sets :journaled, to: { value: "yes" }
+
+      emits EditKept
+    end
+
+    command "Gather" do
+      role "Author"
+      goal "Put a journaled edit into a batch"
+
+      reference_to Edit
+      attribute :run,   EditKey
+      attribute :batch, BatchKey, sets: true
+
+      given("the journal keeps an edit before it is gathered") { journaled.value == "yes" }
+
+      emits EditGathered
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Note that the batch holding the edit was applied"
+
+      reference_to Edit
+      attribute :run, EditKey
+
+      emits EditSettled
+    end
+
+    # The journal appends the withdrawal as a record of its own; it never edits a line.
+    command "Withdraw" do
+      role "Author"
+      goal "Drop an edit that is not yet applied"
+
+      reference_to Edit
+      attribute :run, EditKey
+
+      emits EditWithdrawn
+    end
+  end
+
+  # The edits of one sprint (or other opportune moment), taken by the pipeline as one change.
+  aggregate "Batch" do
+    description "The recorded edits to one bluebook, taken together: sealed, diffed, checked, then applied against the diff shown."
+
+    attribute :run,     BatchRun
+    attribute :target,  Target
+    attribute :base,    Digest
+    attribute :trigger, Trigger
+    attribute :edits,   Count,  optional: true
+    attribute :diff,    Digest, optional: true
+    attribute :outcome, Outcome, optional: true
+    identified_by :run
+
+    value_object "BatchRun" do
+      attribute :value, String, matches: :present
+      invariant("a batch is named") { !value.to_s.empty? }
+    end
+
+    value_object "Target" do
+      attribute :value, String, matches: :present
+    end
+
+    # A fingerprint of the target's IR (base) or of the diff shown: applying one digest applies that
+    # diff and no other.
+    value_object "Digest" do
+      attribute :value, String, pattern: '[0-9a-f]+'
+      invariant("a digest is not empty") { !value.to_s.empty? }
+    end
+
+    # Why the batch was opened: the end of a sprint, another opportune time, or by hand.
+    value_object "Trigger" do
+      attribute :value, String, one_of: %w[sprint_end opportune manual]
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+      invariant("a batch holds at least one edit") { value.positive? }
+    end
+
+    value_object "Outcome" do
+      attribute :value, String, one_of: %w[passed failed]
+    end
+
+    value_object "Reason" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "open" do
+      mark :failure, "refused"
+      transition "Seal"         => "sealed",  from: "open"
+      transition "ShowDiff"     => "diffed",  from: "sealed"
+      transition "RecordChecks" => "checked", from: "diffed"
+      transition "Apply"        => "applied", from: "checked"
+      transition "Refuse"       => "refused", from: %w[open sealed diffed checked]
+      mark :terminal, "applied", "refused"
+    end
+
+    command "Open" do
+      role "Planner"
+      goal "Open a batch for one bluebook at the end of a sprint or another opportune time"
+
+      sets :run
+      sets :target
+      sets :base
+      sets :trigger
+
+      emits BatchOpened
+    end
+
+    command "Seal" do
+      role "Planner"
+      goal "Close the batch to new edits, with the count of edits it holds"
+
+      reference_to Batch
+      attribute :run,   BatchRun
+      attribute :edits, Count, sets: true
+
+      given("a batch holds at least one edit") { edits.value.positive? }
+
+      emits BatchSealed
+    end
+
+    command "ShowDiff" do
+      role "Planner"
+      goal "Record the digest of the diff shown for the sealed batch"
+
+      reference_to Batch
+      attribute :run,  BatchRun
+      attribute :diff, Digest, sets: true
+
+      emits DiffShown
+    end
+
+    command "RecordChecks" do
+      role "Planner"
+      goal "Record what the checks said of the diffed batch"
+
+      reference_to Batch
+      attribute :run,     BatchRun
+      attribute :outcome, Outcome, sets: true
+
+      given("the checks passed") { outcome.value == "passed" }
+
+      emits ChecksRecorded
+    end
+
+    command "Apply" do
+      role "Planner"
+      goal "Hand the checked batch to the pipeline, against the diff that was shown"
+
+      reference_to Batch
+      attribute :run,       BatchRun
+      attribute :confirmed, Digest
+      attribute :current,   Digest
+
+      given("the confirmed digest is the diff that was shown") { confirmed.value == diff.value }
+      given("the target has not moved since the batch was opened") { current.value == base.value }
+
+      emits BatchApplied
+    end
+
+    command "Refuse" do
+      role "Planner"
+      goal "Drop a batch that cannot be applied"
+
+      reference_to Batch
+      attribute :run, BatchRun
+
+      emits BatchRefused
+    end
+  end
+
+  # An edit recorded, or withdrawn, is appended to the journal.
+  policy "JournalWhenRecorded" do
+    on      "Edit.EditRecorded"
+    ask     :append, with: { run: :run }
+  end
+
+  policy "JournalWhenWithdrawn" do
+    on      "Edit.EditWithdrawn"
+    ask     :append, with: { run: :run }
+  end
+
+  policy "NoteWhenJournaled" do
+    on      "Edit.EditJournaled"
+    trigger Edit::Journal, with: { run: :run }
+  end
+end

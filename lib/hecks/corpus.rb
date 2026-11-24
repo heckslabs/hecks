@@ -19,35 +19,37 @@ module Hecks
     # **One domain per directory** — its bluebooks sit in `<dir>/bluebook/`
     # or directly in `<dir>` (see `bluebook_files`). Stemmed by directory.
     DIRECTORY_KINDS = {
-      example:    "examples/*",
-      stress:     "qa/stress_domains/*",
-      semantics:  "spec/corpus/semantics/domains/*",
+      example:     "examples/*",
+      stress:      "qa/stress_domains/*",
+      semantics:   "spec/corpus/semantics/domains/*",
       # The Hecks domain (ADR 0080): its bluebooks share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
-      hecks:      "lib/hecks/hecks",
+      hecks:       "lib/hecks/hecks",
       # The Coder and Fixer domains keep their bluebook beside their hecksagon in their own folder.
-      coder:      "lib/hecks/coder",
-      fixer:      "lib/hecks/fixer",
+      coder:       "lib/hecks/coder",
+      fixer:       "lib/hecks/fixer",
       # The PipelineBoard domain keeps its bluebook beside its hecksagon and adapters.
-      board:      "lib/hecks/pipeline_board",
+      board:       "lib/hecks/pipeline_board",
       # The Pipeline domain: one passage per change, moved by the other domains' events.
-      pipeline:   "lib/hecks/pipeline",
+      pipeline:    "lib/hecks/pipeline",
       # The Catcher domain: raw actions seen outside any declared command, kept, judged and acted
       # on.
-      catcher:    "lib/hecks/catcher",
+      catcher:     "lib/hecks/catcher",
       # The Agents domain: the roles that work a change, each handing off through a command.
-      agents:     "lib/hecks/agents",
+      agents:      "lib/hecks/agents",
       # The Triage domain: one incident per red main, its causes, and who holds each.
-      triage:     "lib/hecks/triage",
+      triage:      "lib/hecks/triage",
+      # The LocalLayer domain: edits recorded locally, applied through the pipeline as one batch.
+      local_layer: "lib/hecks/local_layer",
       # Signalbox decides how the machine's compute is spent; Roundhouse runs the sessions it
       # admits (ADR 0222). Each boots alone from its own directory.
-      signalbox:  "lib/hecks/signalbox",
-      roundhouse: "lib/hecks/roundhouse",
+      signalbox:   "lib/hecks/signalbox",
+      roundhouse:  "lib/hecks/roundhouse",
       # The Docs domain: a documentation page made of regions, each with where its words come from.
-      docs:       "lib/hecks/docs",
+      docs:        "lib/hecks/docs",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
-      vendored:   "examples/*/vendor/embryonaut_bluebooks/*"
+      vendored:    "examples/*/vendor/embryonaut_bluebooks/*"
     }.freeze
 
     # **One bluebook per file**. Stemmed by the path below the glob's fixed
