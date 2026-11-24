@@ -1,7 +1,4 @@
-# The local layer: a bluebook is edited fast, as recorded typed edits, and the pipeline takes them
-# later as one batch, at the end of a sprint or another opportune time. The batch is shown as a
-# diff and checked first; it is applied only against the diff that was shown. The diff is read with
-# ChangeReview.diff and the checks with ModelCheckRun.model_check!; the caller passes their results.
+# The local layer: edits recorded fast, applied through the pipeline later as one checked batch.
 
 Hecks.bluebook "LocalLayer" do
   vision "A bluebook is edited locally as recorded typed edits, and the pipeline takes them as one batch, shown as a diff and checked first."
