@@ -125,7 +125,7 @@ module Hecks
         # The filling is for the main checkout, whichever worktree's process heard the roll: a
         # session started in a worktree would be handed that work item's directory.
         def confirmed_report
-          choose(repo: { value: Checkout.home }, confirm: true, rolling: true).dig(:report, :value)
+          choose(repo: { value: Checkout.home! }, confirm: true, rolling: true).dig(:report, :value)
         end
       end
     end

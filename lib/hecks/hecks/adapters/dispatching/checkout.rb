@@ -41,6 +41,20 @@ module Hecks
         # @return [String] the main checkout's absolute path
         def self.home = main(MainLauncher::CHECKOUT)
 
+        # The Hecks checkout for a roll, which pulls `main` there: a location git cannot name a
+        # checkout for is refused by name, never handed on as the directory to pull in.
+        #
+        # @return [String] the main checkout's absolute path
+        # @raise [ConsoleCapture::Failure] when the launcher's own location is not in a git checkout
+        def self.home!
+          unless git(MainLauncher::CHECKOUT, "rev-parse", "--git-common-dir").ok?
+            raise ConsoleCapture::Failure,
+                  "unchanged: #{MainLauncher::CHECKOUT} is not a git checkout; a roll needs the Hecks checkout"
+          end
+
+          home
+        end
+
         # The worktree that has a branch checked out, so a command acting on `main` from a linked
         # worktree acts on the checkout `main` stands in.
         #
