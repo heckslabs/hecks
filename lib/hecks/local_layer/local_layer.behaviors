@@ -7,14 +7,14 @@ Hecks.behaviors "LocalLayer" do
     tests "Record", on: "Edit"
     input run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           operation: { value: "AddTransition" }, subject: { value: "Incident.status" }, detail: { value: "reopen" }
-    expect emits: ["EditRecorded"], status: "recorded"
+    expect emits: %w[EditRecorded EditJournalRefused], status: "recorded"
   end
 
   test "an edit that is no known operation is not recorded" do
     tests "Record", on: "Edit"
     input run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           operation: { value: "Rewrite" }, subject: { value: "Incident.status" }, detail: { value: "reopen" }
-    expect refused: "operation"
+    expect refused: "admits"
   end
 
   test "an edit the journal has not kept is not gathered into a batch" do
@@ -34,12 +34,13 @@ Hecks.behaviors "LocalLayer" do
     expect emits: ["EditGathered"], status: "batched"
   end
 
+  # No journal adapter is bound in a behaviors boot, so the port answers EditJournalRefused.
   test "a withdrawn edit is a lifecycle step, the journal keeps its record" do
     tests "Withdraw", on: "Edit"
     setup "LocalLayer::Edit.Record", run: { value: "edit-1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           operation: { value: "AddMark" }, subject: { value: "Incident.status" }, detail: { value: "terminal" }
     input run: { value: "edit-1" }
-    expect emits: ["EditWithdrawn"], status: "withdrawn"
+    expect emits: %w[EditWithdrawn EditJournalRefused], status: "withdrawn"
   end
 
   test "a batch opens at the end of a sprint against the target's digest" do
