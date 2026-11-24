@@ -67,6 +67,16 @@ RSpec.describe "Hecks::Tools::GateMemo inputs" do
     expect(again).not_to include("doc_coverage")
   end
 
+  it "leaves the io spec list skipped when only the library changes, which cannot move a spec's tags" do
+    write("lib/a.rb", "two\n")
+    expect(ran_green).not_to include("io_spec_list")
+  end
+
+  it "reruns the io spec list when a spec file or the committed list changes" do
+    write("spec/a_spec.rb", "two\n")
+    expect(ran_green).to include("io_spec_list")
+  end
+
   it "reruns a check whose input is edited, so a stale memo never hides a change" do
     write("spec/a_spec.rb", "two\n")
     expect(ran_green).to include("fuzzing")
