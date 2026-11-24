@@ -1,0 +1,76 @@
+Hecks.behaviors "LocalLayer" do
+  vision "A bluebook change is recorded locally at once, and the recorded edits reach the pipeline as one batch that shows its diff and passes its checks first."
+
+  loads "local_layer.bluebook", "local_layer.hecksagon", "local_layer.ports.hecksagon"
+
+  test "Record keeps a typed edit of a bluebook, bound to the digest it was made against" do
+    tests "Record", on: "Edit"
+    input reference: { value: "e1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          operation: { value: "AddTransition" }, subject: { value: "Incident.status" },
+          detail: { value: "Reopen => open" }, base_digest: { value: "ab12" }
+    expect emits: ["EditRecorded"], status: "recorded"
+  end
+
+  test "Record refuses an operation outside the typed set" do
+    tests "Record", on: "Edit"
+    input reference: { value: "e1" }, target: { value: "lib/hecks/triage/triage.bluebook" },
+          operation: { value: "RewriteEverything" }, subject: { value: "Incident" },
+          detail: { value: "x" }, base_digest: { value: "ab12" }
+    expect refused: "Operation admits"
+  end
+
+  test "Withdraw drops a recorded edit before it is batched" do
+    tests "Withdraw", on: "Edit"
+    setup "LocalLayer::Edit.Record", reference: { value: "e1" }, target: { value: "t.bluebook" },
+          operation: { value: "AddMark" }, subject: { value: "A.status" }, detail: { value: "d" },
+          base_digest: { value: "ab12" }
+    input reference: "e1"
+    expect emits: ["EditWithdrawn"], status: "withdrawn"
+  end
+
+  test "Open gathers the recorded edits into a batch for the end of the sprint" do
+    tests "Open", on: "Batch"
+    input batch: { value: "sprint-1" }, edits: [{ value: "e1" }, { value: "e2" }]
+    expect emits: ["BatchOpened"], status: "open"
+  end
+
+  test "ShowDiff records the diff the pipeline will be shown" do
+    tests "ShowDiff", on: "Batch"
+    setup "LocalLayer::Batch.Open", batch: { value: "sprint-1" }, edits: [{ value: "e1" }]
+    input batch: "sprint-1", diff: { value: "+ transition Reopen" }, digest: { value: "cd34" }
+    expect emits: ["DiffShown"], status: "diffed"
+  end
+
+  test "Apply is refused until the checks have passed" do
+    tests "Apply", on: "Batch"
+    setup "LocalLayer::Batch.Open", batch: { value: "sprint-1" }, edits: [{ value: "e1" }]
+    input batch: "sprint-1", digest: { value: "cd34" }
+    expect refused: "Apply"
+  end
+
+  test "Apply hands a checked batch to the pipeline against the diff that was shown" do
+    tests "Apply", on: "Batch"
+    setup "LocalLayer::Batch.Open", batch: { value: "sprint-1" }, edits: [{ value: "e1" }]
+    setup "LocalLayer::Batch.ShowDiff", batch: "sprint-1", diff: { value: "+ x" }, digest: { value: "cd34" }
+    setup "LocalLayer::Batch.RecordChecks", batch: "sprint-1", verdict: { value: "passed" }
+    input batch: "sprint-1", digest: { value: "cd34" }
+    expect emits: ["BatchApplied"], status: "applied"
+  end
+
+  test "Apply refuses a digest other than the diff that was shown" do
+    tests "Apply", on: "Batch"
+    setup "LocalLayer::Batch.Open", batch: { value: "sprint-1" }, edits: [{ value: "e1" }]
+    setup "LocalLayer::Batch.ShowDiff", batch: "sprint-1", diff: { value: "+ x" }, digest: { value: "cd34" }
+    setup "LocalLayer::Batch.RecordChecks", batch: "sprint-1", verdict: { value: "passed" }
+    input batch: "sprint-1", digest: { value: "ffff" }
+    expect refused: "digest"
+  end
+
+  test "RecordChecks with a failed verdict refuses the batch" do
+    tests "RecordChecks", on: "Batch"
+    setup "LocalLayer::Batch.Open", batch: { value: "sprint-1" }, edits: [{ value: "e1" }]
+    setup "LocalLayer::Batch.ShowDiff", batch: "sprint-1", diff: { value: "+ x" }, digest: { value: "cd34" }
+    input batch: "sprint-1", verdict: { value: "failed" }
+    expect emits: ["BatchRefused"], status: "refused"
+  end
+end
