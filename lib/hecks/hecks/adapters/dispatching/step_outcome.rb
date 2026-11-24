@@ -4,6 +4,7 @@ require "json"
 require_relative "../../../boot_notices"
 require_relative "../../../rendering"
 require_relative "../../../runtime/errors"
+require_relative "../work_areas"
 
 module Hecks
   module Adapters
@@ -59,6 +60,11 @@ module Hecks
         # @return [Boolean] whether a later reaction refused the start because the owner stopped new
         #   work, so no session may be launched for it
         def stopped? = note.include?(WorkLimits::STOPPED)
+
+        # @return [Boolean] whether a later reaction refused the start because another started work
+        #   item holds the area: the reaction has already yielded the item, so no session may be
+        #   launched for it and it is not yielded a second time
+        def area_refused? = !@result.ok? && reason.include?(WorkAreas::REFUSED)
 
         # @return [String] why the command failed: its record's refusal, else its stderr without the
         #   boot notices (`BootNotices`), else its stdout, else the notices, on one line. A refusal
