@@ -486,7 +486,8 @@ Hecks.behaviors "Agents" do
     tests "Sight", on: "SeatSighting"
     input  session: { value: "a4c4-newer-full" }, name: { value: "architect" }, launched_by: { value: "" }, registered: { value: "a4c4-new-full" }, sender: { value: "hecks" }, kind: { value: "answer" },
            message: { value: "seat-architect-a4c4n" }, notice: { value: "your session id is now a4c4-newer-full" }
-    expect emits: ["SeatSighted", "HandRunRequested", "HandRunRegistered", "MessageAddressed"]
+    expect emits: ["SeatSighted", "HandRunRequested", "HandRunRegistered", "MessageAddressed", "SenderChecked", "MessageStamped",
+                   "RecipientMissing", "MessageRefused"]
   end
 
   test "Sight leaves a session the pipeline launched unregistered" do
