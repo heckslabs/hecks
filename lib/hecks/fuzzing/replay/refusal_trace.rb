@@ -7,13 +7,21 @@ module Hecks
       module RefusalTrace
         module_function
 
+        # The Refusal member's own aggregate: the fact a refusal leaves is not a change to refuse.
+        RECORDER = "Refusal::CommandRefusal".freeze
+
+        # @param event [Runtime::Event] an emitted event
+        # @return [Boolean] whether it is the `CommandRefused` fact the dispatcher records
+        def recorded?(event) = event.name.to_s == "CommandRefused"
+
         # What a dispatch could change, read off the live runtime.
         #
         # @param runtime [Hecks::Runtime] the booted runtime a step dispatches against
         # @return [Hash] `instances:`, `journal:`, `events:`, `reactions:`, `sagas:` and `outbox:`
         def snapshot(runtime)
-          { instances: Replay.snapshot_instances(runtime), journal: journal(runtime.registry),
-            events: runtime.events.size, reactions: runtime.reactions.size, sagas: runtime.sagas.size,
+          { instances: Replay.snapshot_instances(runtime).reject { |key, _| key.start_with?(RECORDER) },
+            journal: journal(runtime.registry), events: runtime.events.count { |event| !recorded?(event) },
+            reactions: runtime.reactions.size, sagas: runtime.sagas.size,
             outbox: outbox_ids(runtime.outbox) }
         end
 
@@ -32,6 +40,7 @@ module Hecks
           registry.bluebooks.each_with_object({}) do |(domain, bluebook), out|
             bluebook.aggregates.each do |aggregate|
               repository = registry.repository(domain, aggregate)
+              next if domain.to_s == "Refusal"
               next unless repository.is_a?(Ports::Persistence::AppendOnly)
 
               out["#{domain}::#{aggregate.name}"] = repository.entries.map { |e| [e.operation, e.id, e.state] }
