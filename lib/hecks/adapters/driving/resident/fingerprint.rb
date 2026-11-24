@@ -24,6 +24,10 @@ module Hecks
           # The owner's gitignored settings. They are left out of the listing, so editing one never
           # retires a resident in the middle of a fill roll; the next resident to start reads them.
           SETTINGS = /\.local\.world\z/
+          # SQLite databases and their `-wal`, `-shm` and `-journal` sidecars. They are data, not
+          # declarations, and are rewritten while a resident stands, so they are left out of the
+          # listing: a `.db` file under `lib/` never retires a resident.
+          SQLITE = /\.db(-wal|-shm|-journal)?\z/
           # Seconds an answer is reused.
           RECHECK_SECONDS = 1.0
           # Seconds between full listings of the tree.
@@ -115,7 +119,7 @@ module Hecks
           def entries(paths) = paths.each_with_object({}) { |path, found| note(path, found) }
 
           def note(path, found)
-            return if SETTINGS.match?(path)
+            return if SETTINGS.match?(path) || SQLITE.match?(path)
 
             stat = File.stat(path)
             if stat.directory?
