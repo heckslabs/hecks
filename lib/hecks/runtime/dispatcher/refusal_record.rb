@@ -13,8 +13,8 @@ module Hecks
         private
 
         # Runs the block; a refusal it raises is recorded, then raised again unchanged.
-        def recording_refusal(call, &block)
-          block.call
+        def recording_refusal(call)
+          yield
         rescue Hecks::Refused => e
           record_refusal(call, e) if recordable?(call)
           raise
