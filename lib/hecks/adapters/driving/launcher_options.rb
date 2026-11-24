@@ -10,7 +10,7 @@ module Hecks
     module Driving
       # What a domain's world file adds to its generated launcher, all of it opt-in.
       #
-      # A `.world` with a `launcher` setting switches these on; a domain without one keeps the plain forms:
+      # A `.world` with a `launcher` setting switches these on; a domain without one keeps plain forms:
       #
       # - **run_keys** mints the `run` key of a creating command that was given none.
       # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
