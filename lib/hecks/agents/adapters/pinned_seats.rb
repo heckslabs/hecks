@@ -13,6 +13,9 @@ module Hecks
     # It states facts and judges nothing: whether a sighted session is the seat, and whether it is
     # registered, are the `SeatSighting` policies'.
     class PinnedSeats
+      # The listed states of a session that has ended: it is no seat to register.
+      ENDED = %w[stopped failed done].freeze
+
       # @param listing [#call] answers the listed sessions, as `claude agents` prints them
       # @param jobs [String, nil] the jobs directory (default `~/.claude/jobs`)
       # @param roles [#call, nil] stand-in: answers the seat roles
@@ -51,7 +54,7 @@ module Hecks
       private
 
       def entry_for(role)
-        named = @listing.call.select { |entry| entry["name"].to_s == role }
+        named = @listing.call.select { |entry| entry["name"].to_s == role && !ENDED.include?(entry["state"].to_s) }
         named.find { |entry| pinned?(entry) } || named.last
       end
 
