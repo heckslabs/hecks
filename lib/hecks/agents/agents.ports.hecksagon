@@ -102,6 +102,15 @@ Hecks.hecksagon "Agents" do
     end
   end
 
+  # The listed sessions of the standing seats, sighted for registration (adapters/hand_run_watch).
+  Agents::HandRunWatch.port "HandRunWatching" do
+    asks "ReadPinnedSeats", to: HandRunWatch do
+      attribute :pass, WatchPass
+      answers "PinnedSeatsRead"
+      refuses "HandRunUnread"
+    end
+  end
+
   # Whether a session holds the role a sent message is addressed to, and the wake of it. Bound by
   # adapters/role_rouser, which resumes an idle holder and leaves a busy one to its inbox hook.
   Agents::Message.port "Rousing" do

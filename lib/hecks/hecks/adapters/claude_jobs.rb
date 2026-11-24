@@ -130,6 +130,18 @@ module Hecks
         true
       end
 
+      # The ids `pins.json` names, for a read that only prefers a pinned session among several:
+      # an unreadable or missing file names none, where {#pinned?} reads a doubt as a pin.
+      #
+      # @return [Array<String>] the pinned ids, each the eight-character prefix of a session's id
+      #   or a whole id; empty when the file is missing or cannot be read
+      def pinned_ids
+        path = File.join(@directory, PINS)
+        File.file?(path) ? Array(JSON.parse(File.read(path))).map(&:to_s) : []
+      rescue JSON::ParserError, SystemCallError
+        []
+      end
+
       # The caller name the pipeline gave a session it launched ({SessionCaller}): the
       # `HECKS_CALLER` of the `env` in the `--settings` the job keeps among its `respawnFlags`,
       # such as `reviewer:p-walk`. A session a person started by hand carries none.

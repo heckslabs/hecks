@@ -432,6 +432,21 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", reason: "its session holds the pipeline's state and coordinates every run"
     end
 
+    # The seats a person starts by hand that register themselves under the role's run key once
+    # listed (`SeatSighting.Sight`). Not `PinnedRole`: a standing seat may have dispatched runs of
+    # the same role beside it, which are neither held to one live session nor kept by the pruner.
+    value_object "StandingSeat" do
+      attribute :role,   String
+      attribute :reason, String
+
+      member role: "lead",           reason: "it coordinates the crew for the owner"
+      member role: "scrum-master",   reason: "it answers a call for help"
+      member role: "staff-engineer", reason: "it relays Miette"
+      member role: "architect",      reason: "it reviews plans from its own session"
+      member role: "product-owner",  reason: "it files and ranks work"
+      member role: "coder-rep",      reason: "it speaks for the coders"
+    end
+
     # The roles whose run leaves no Work product to land (they advise, judge or tidy), one row each.
     # A finished run of one of these is removed whatever state its Work item is in; the cleanup of
     # `AgentRun.Tidy` reads these rows.
@@ -3058,12 +3073,92 @@ Hecks.bluebook "Agents" do
       emits "HandRunsWatched"
     end
 
+    policy "SightTheStandingSeats" do
+      on  "HandRunWatch.HandRunsWatched"
+      ask :read_pinned_seats, with: { pass: :pass }
+    end
+
     policy "WatchTheHandRunsOnHeartbeat" do
       on      "Heartbeat.Beaten"
       root
       trigger HandRunWatch::Watch, with: { pass: :beat }
     end
   end
+
+  # A listed session seen as a standing seat: `HandRunWatch`'s read of `claude agents` and the pins
+  # states the facts, and the policies here decide that it is a seat, register it, and tell it when
+  # its id changed.
+  aggregate "SeatSighting" do
+    description "A session listed under a standing seat's role that no pipeline launched, which is registered under that role's run key, the first time and again whenever its id changes."
+
+    identified_by :session
+
+    attribute :session, SightedSession
+    attribute :name, SeatName
+    attribute :launched_by, LaunchedBy
+    attribute :registered, RegisteredSession
+    attribute :message, SightNoticeKey
+    attribute :notice, NoticeText
+    attribute :sender, SenderLabel
+    attribute :kind, KindLabel
+
+    value_object "SightedSession" do
+      attribute :value, String, matches: :present
+    end
+
+    # The listed name, which is the role's run key.
+    value_object "SeatName" do
+      attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+    end
+
+    # What launched the session (its pipeline caller name), empty for one a person started.
+    value_object "LaunchedBy", String
+
+    # The session now registered under the seat's key, empty when none is.
+    value_object "RegisteredSession", String
+
+    value_object "NoticeText", String
+
+    value_object "SenderLabel", String
+
+    value_object "KindLabel", String
+
+    value_object "SightNoticeKey" do
+      attribute :value, String, matches: :present
+    end
+
+    command "Sight" do
+      role "System"
+      goal "Record a listed session of a standing seat, with the session now registered under its key, and what launched it"
+
+      attribute :session,     SightedSession, sets: true
+      attribute :name,        SeatName, sets: true
+      attribute :launched_by, LaunchedBy, sets: true
+      attribute :registered,  RegisteredSession, sets: true
+      attribute :message,     SightNoticeKey, sets: true
+      attribute :notice,      NoticeText, sets: true
+      attribute :sender,      SenderLabel, sets: true
+      attribute :kind,        KindLabel, sets: true
+
+      emits "SeatSighted"
+    end
+
+    # A session the pipeline launched is a dispatched run, never the seat; one already registered
+    # needs nothing.
+    policy "RegisterTheSightedSeat" do
+      on      "SeatSighting.SeatSighted"
+      where   { launched_by.value == "" && registered.value != session.value }
+      trigger HandRun::Register, with: { run: :name, session: :session, role: :name }
+    end
+
+    # A seat whose id changed is told the new one; a first registration has nothing to tell.
+    policy "TellTheSeatItsSessionChanged" do
+      on      "SeatSighting.SeatSighted"
+      where   { launched_by.value == "" && registered.value != "" && registered.value != session.value }
+      trigger Message::Send, with: { message: :message, recipient: :name, sender: :sender, kind: :kind, body: :notice }
+    end
+  end
+
 
   # The reviewer's verdict on a submitted commit, and the evidence it stands on. The reviewer never
   # fixes what it finds: a finding goes to a coder by its `FindingRoute`. A clean verdict is counted
