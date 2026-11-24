@@ -26,7 +26,7 @@ end
 
 # A database and its write-ahead sidecars are rewritten while a resident stands; they are not
 # declarations, so rewriting one never retires the resident.
-RSpec.describe Hecks::Adapters::Driving::Resident::Fingerprint, "with SQLite files under lib" do
+RSpec.describe Hecks::Adapters::Driving::Resident::Fingerprint, "#changed?" do
   include_context "with a database tree"
 
   it "ignores a rewritten database and each of its sidecars" do
