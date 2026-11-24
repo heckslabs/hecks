@@ -16,6 +16,7 @@ module Hecks
       # - **run_keys** mints the `run` key of a creating command that was given none.
       # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
       # - **unknown_runs** lists the questions that refuse a run this process does not hold.
+      # - **refused_asks** reports a port adapter's refusal of a policy's ask as a refused reaction.
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.

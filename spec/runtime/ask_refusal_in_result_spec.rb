@@ -8,6 +8,14 @@ require "securerandom"
 RSpec.describe "an ask a port adapter refused" do
   let(:hecks) { boot_hecks_in_memory }
   let(:key)   { "ask-#{SecureRandom.hex(4)}" }
+  let(:opted) { true }
+
+  # The Tickets world, with its `launcher` setting saying whether refused asks are reported.
+  before do
+    world = hecks.registry.world("Tickets")
+    allow(world).to receive(:for_verb).and_call_original
+    allow(world).to receive(:for_verb).with("launcher").and_return(refused_asks: opted)
+  end
 
   # Answers every ask with an adapter that refuses it, as a failing outside world does.
   def refusing(_port, _asked)
@@ -44,5 +52,13 @@ RSpec.describe "an ask a port adapter refused" do
 
     expect(result.refused_reactions.map { |row| row[:policy] }).to include("OpenIssue")
     expect(result.blocking_reactions.map { |row| row[:policy] }).not_to include("OpenIssue")
+  end
+
+  context "when the world does not report refused asks" do
+    let(:opted) { false }
+
+    it "leaves the refusal to its own event, as before" do
+      expect(noted.refused_reactions).to be_empty
+    end
   end
 end
