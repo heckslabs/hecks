@@ -14,8 +14,8 @@ Hecks.bluebook "Refusal" do
     attribute :refusal,   RefusalKey
     attribute :command,   CommandName
     attribute :given,     RuleText
-    attribute :arguments, ArgumentNames, default: ""
-    attribute :issuer,    IssuerName, default: ""
+    attribute :arguments, ArgumentNames, default: { value: "" }
+    attribute :issuer,    IssuerName, default: { value: "" }
 
     value_object "RefusalKey" do
       attribute :value, String, matches: :present
@@ -32,10 +32,14 @@ Hecks.bluebook "Refusal" do
     end
 
     # The argument names, comma-separated: never their values, which may be secrets or long bodies.
-    value_object "ArgumentNames", String
+    value_object "ArgumentNames" do
+      attribute :value, String, default: ""
+    end
 
     # The caller's actor, or its role when it has no actor; empty when none was bound.
-    value_object "IssuerName", String
+    value_object "IssuerName" do
+      attribute :value, String, default: ""
+    end
 
     command "Record" do
       role "System"
@@ -44,8 +48,8 @@ Hecks.bluebook "Refusal" do
       attribute :refusal,   RefusalKey, sets: true
       attribute :command,   CommandName, sets: true
       attribute :given,     RuleText, sets: true
-      attribute :arguments, ArgumentNames, default: "", sets: true
-      attribute :issuer,    IssuerName, default: "", sets: true
+      attribute :arguments, ArgumentNames, default: { value: "" }, sets: true
+      attribute :issuer,    IssuerName, default: { value: "" }, sets: true
 
       emits "CommandRefused"
     end
