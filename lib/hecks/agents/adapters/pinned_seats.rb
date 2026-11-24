@@ -7,8 +7,9 @@ require "hecks/runtime/asking"
 module Hecks
   module Adapters
     # The standing seats among the listed sessions, for `HandRunWatch`: for each seat role the one
-    # session listed under exactly that name (the pinned one, else the last listed), sighted with the
-    # facts the bluebook judges by: what launched it and which session is registered under the key.
+    # session listed under exactly that name (the pinned one, else the last listed), sighted with
+    # the facts the bluebook judges by: what launched it and which session is registered under
+    # the key.
     #
     # It states facts and judges nothing: whether a sighted session is the seat, and whether it is
     # registered, are the `SeatSighting` policies'.
@@ -19,7 +20,8 @@ module Hecks
       # @param listing [#call] answers the listed sessions, as `claude agents` prints them
       # @param jobs [String, nil] the jobs directory (default `~/.claude/jobs`)
       # @param roles [#call, nil] stand-in: answers the seat roles
-      # @param registered [#call, nil] stand-in: answers `[{run:, session:}]`, the registered hand runs
+      # @param registered [#call, nil] stand-in: answers the registered hand runs,
+      #   each `{run:, session:}`
       def initialize(listing:, jobs: nil, roles: nil, registered: nil)
         @listing = listing
         @jobs = ClaudeJobs.new(directory: jobs)
