@@ -75,7 +75,7 @@ RSpec.describe "a resident started from an odd environment" do
     4.times { launch_logged("HECKS_ENGINE" => "ruby") }
     expect(alive?(pid)).to be(true), -> { why_ended(pid) }
     launch_logged
-    expect(last_outcome).to eq("served")
+    expect(last_outcome).to eq("served"), -> { why_ended(pid) }
   end
 
   # Starts a resident and says it was born under more than a plain one has, as an older one was.
