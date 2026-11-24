@@ -20,6 +20,9 @@ module Hecks
     # holds other sections of a bluebook this one names by sections is no rival; the answer names
     # it and the file they share.
     class WorkAreas
+      # The words a refusal puts between the work item and the path it cannot claim.
+      REFUSED = "cannot claim"
+
       # @param registry [Runtime::Registry, nil] the booted registry whose Work items are read
       # @param aggregate [Object, nil] unused
       def initialize(registry: nil, aggregate: nil)
@@ -36,7 +39,7 @@ module Hecks
         key = plain(held[:work])
         mine = areas(held[:area])
         other, pair = mine.empty? ? nil : rival(key, mine)
-        raise ConsoleCapture::Failure, "#{key} cannot claim #{pair[0]}: #{other} holds #{pair[1]}" if other
+        raise ConsoleCapture::Failure, "#{key} #{REFUSED} #{pair[0]}: #{other} holds #{pair[1]}" if other
 
         { output: { value: "#{key} holds #{mine.empty? ? "no area" : mine.join(", ")}#{sharers(key, mine)}" } }
       end
