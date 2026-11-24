@@ -10,12 +10,12 @@ module Hecks
     module Driving
       # What a domain's world file adds to its generated launcher, all of it opt-in.
       #
-      # A `.world` that declares a `launcher` setting switches these on for that bluebook; a
-      # domain without one keeps the launcher's plain forms exactly:
+      # A `.world` with a `launcher` setting switches these on; without one the forms stay plain:
       #
       # - **run_keys** mints the `run` key of a creating command that was given none.
       # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
       # - **unknown_runs** lists the questions that refuse a run this process does not hold.
+      # - **refused_asks** reports a port adapter's refusal of a policy's ask as a refused reaction.
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.

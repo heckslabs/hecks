@@ -10,6 +10,7 @@ require_relative "registry/world_defaults"
 require_relative "registry/world_names"
 require_relative "registry/context_maps"
 require_relative "registry/adapter_capabilities"
+require_relative "registry/reaction_sinks"
 require_relative "outbox"
 require_relative "../naming"
 
@@ -33,6 +34,7 @@ module Hecks
       include Merging
       include ContextMaps
       include ReadRepository
+      include ReactionSinks
 
       # The thread-local key under which open reaction collections are kept.
       REACTION_SINKS = :hecks_reaction_sinks
@@ -289,7 +291,7 @@ module Hecks
       # @return [void]
       def log_reaction(record, event: nil)
         REACTION_LOCK.synchronize { @state.log_reaction(record, event) }
-        Array(Thread.current[REACTION_SINKS]).each { |sink| sink << record }
+        deliver_to_sinks(record)
       end
 
       # The identity of the event instance a logged reaction answered.
@@ -297,21 +299,6 @@ module Hecks
       # @param record [Hash{Symbol => Object}] a record `log_reaction` was given
       # @return [String, Integer, nil] nil for a record logged without its event
       def reaction_event(record) = @state.reaction_events[record]
-
-      # Collects the reactions logged on this thread while the block runs, so one dispatch
-      # reads exactly its own even when other threads dispatch on the same registry. Nested
-      # dispatches (a reaction that dispatches) each collect, and the outer one sees theirs too.
-      #
-      # @yield [Array<Hash>] the collection, filled as reactions are logged
-      # @return [Object] what the block returns
-      def collecting_reactions
-        sinks = (Thread.current[REACTION_SINKS] ||= [])
-        sink  = []
-        sinks << sink
-        yield sink
-      ensure
-        sinks&.delete_if { |candidate| candidate.equal?(sink) }
-      end
 
       # Clears everything a dispatch produced (logs, saga instances, repositories); leaves
       # what booting the files produced (bluebooks, hecksagons, ports, adapters, worlds,
