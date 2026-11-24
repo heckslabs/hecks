@@ -20,15 +20,15 @@ RSpec.describe "a refused command" do
   it "emits CommandRefused naming the command, the rule and the argument names", :aggregate_failures do
     expect { send_blank }.to raise_error(Hecks::Refused)
     payload = refused.first.payload
-    expect(payload[:command].to_s).to include("Messaging::Message.Send")
-    expect(payload[:given].to_s).to include("says something")
-    expect(payload[:arguments].to_s).to include("body")
+    expect(payload[:command].value).to include("Messaging::Message.Send")
+    expect(payload[:given].value).to include("says something")
+    expect(payload[:arguments].value).to include("body")
   end
 
   it "never carries an argument's value", :aggregate_failures do
     expect { hecks.dispatch_flat("Messaging::Message.Send", **blank, body: { value: "s3cret " * 400 }) }
       .to raise_error(Hecks::Refused)
-    expect(refused.first.payload.to_s).not_to include("s3cret")
+    expect(refused.first.payload.values.map(&:value).join).not_to include("s3cret")
   end
 
   it "records nothing for a dry run" do
