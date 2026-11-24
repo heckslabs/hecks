@@ -391,6 +391,7 @@ Hecks.bluebook "PipelineBoard" do
       attribute :signal,        Reading
       attribute :deciding,      String, default: ""
       attribute :fill_why,      list_of(FillWhy)
+      attribute :places_used,   PlacesUsed
       attribute :red_episodes,  list_of(RedEpisodeLine)
       attribute :measures,      list_of(Reading)
       attribute :epics,         list_of(Reading)
@@ -464,6 +465,25 @@ Hecks.bluebook "PipelineBoard" do
       attribute :work,   String
       attribute :reason, String
       attribute :side,   String, default: ""
+    end
+
+    # How many of the last fill's skipped Work items one kind held: `cap`, `memory`, `area overlap`,
+    # `dependency`, `load` and the rest the dispatch names.
+    value_object "SkipCount" do
+      attribute :kind,  String
+      attribute :count, Integer, default: 0
+    end
+
+    # The places used against the cap by the last fill, and why it skipped, by kind. `free` is the
+    # cap less the places used, and `note` says why the fill could not be read.
+    value_object "PlacesUsed" do
+      attribute :used,  Integer, default: 0
+      attribute :cap,   Integer, default: 0
+      attribute :free,  Integer, default: 0
+      attribute :skips, list_of(SkipCount)
+      attribute :note,  String, default: ""
+
+      invariant("the places free are the cap less the places used") { free == cap - used || (free == 0 && used > cap) }
     end
 
     # One stretch of red main, one line: when it began (UTC), how many minutes it lasted or has
@@ -1093,6 +1113,11 @@ Hecks.bluebook "PipelineBoard" do
     query "FillWhy" do
       description "Each Work item the fill did not start and why, in the words of the side deciding now (the FillSide rows): admission while admission.signalbox is on, else the old dispatch. It reads only."
       returns list_of(FillWhy)
+    end
+
+    query "PlacesUsed" do
+      description "The places used against the cap by the last fill, the places free, and the Work items it skipped counted by the kind that held each (cap, memory, area overlap, dependency, load). It reads only."
+      returns PlacesUsed
     end
 
     query "RedEpisodes" do

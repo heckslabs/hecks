@@ -44,7 +44,9 @@ module Hecks
         def tally(times, now) = Array(times).filter_map { |at| ThroughputDays.day_of(at, now) }.tally
 
         def day(date, counts)
-          KINDS.to_h { |kind| [kind, counts[kind].fetch(date, 0)] }.merge(day: date.iso8601, label: date.strftime("%a %-d"))
+          held = KINDS.to_h { |kind| [kind, counts[kind].fetch(date, 0)] }
+          held.merge(day: date.iso8601, label: date.strftime("%a %-d"), inflow: held[:planned],
+                     outflow: held[:finished] + held[:dropped])
         end
 
         # @return [Hash{Symbol => Float}] each kind's count a day, over the days given

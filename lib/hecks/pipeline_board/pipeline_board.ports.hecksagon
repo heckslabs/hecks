@@ -47,6 +47,7 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "Now"
     answers_query "Signal"
     answers_query "FillWhy"
+    answers_query "PlacesUsed"
     answers_query "RedEpisodes"
     answers_query "Measures"
     answers_query "Epics"
