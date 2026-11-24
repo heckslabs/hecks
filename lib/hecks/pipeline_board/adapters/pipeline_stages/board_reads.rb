@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../rules"
+require_relative "places_used"
 
 module Hecks
   module Adapters
@@ -23,9 +24,18 @@ module Hecks
         # @return [Hash] the `Snapshot` keys these readings fill
         def build(given, at)
           facts = SECTIONS.to_h { |name| [name, NOT_READ] }.merge(given)
-          { signal: signal(facts[:signal], at), deciding: facts[:side].to_s, fill_why: fill_why(facts),
-            red_episodes: red_episodes(facts[:episodes]), measures: outcomes(facts[:measures], at, :measure),
+          fill_rows(facts).merge(signal: signal(facts[:signal], at), **outcome_rows(facts, at))
+        end
+
+        # @return [Hash] the red episodes, measures, epics and holds, as read
+        def outcome_rows(facts, at)
+          { red_episodes: red_episodes(facts[:episodes]), measures: outcomes(facts[:measures], at, :measure),
             epics: outcomes(facts[:epics], at, :epic), holds: holds(facts[:holds], at) }
+        end
+
+        # @return [Hash] the side deciding, what the fill skipped and the places used
+        def fill_rows(facts)
+          { deciding: facts[:side].to_s, fill_why: fill_why(facts), places_used: places_used(facts[:fill]) }
         end
 
         # @return [Hash] the one `Reading` for Signalbox's signal
@@ -37,6 +47,9 @@ module Hecks
         end
 
         def said(row, read) = format(row[:says], load: read[:load], mark: read[:mark] || "?", since: read[:since].to_s)
+
+        # @return [Hash] the one `PlacesUsed` row, from the fill as read
+        def places_used(fill) = PlacesUsed.of(fill)
 
         # @return [Array<Hash>] one `FillWhy` for each item the fill did not start
         def fill_why(facts)
