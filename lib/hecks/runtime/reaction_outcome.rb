@@ -40,7 +40,14 @@ module Hecks
       # Whether `row` is a refusal by the domain that no sibling reaction excuses.
       def blocks?(row, rows)
         row.delivered == false && !row.fields[:defect] && !row.fields[:held] &&
-          !already_there?(row) && rows.none? { |other| alternative?(row, other) }
+          !already_there?(row) && !answered?(row, rows) && rows.none? { |other| alternative?(row, other) }
+      end
+
+      # Whether `row` is a port adapter's refusal of an ask that a policy on the event it announced
+      # took up: the domain answered the no, so the run is not left refused by it.
+      def answered?(row, rows)
+        refuses = row.fields[:refuses]
+        !refuses.nil? && rows.any? { |other| other.delivered == true && other.fields[:on] == refuses }
       end
 
       # Whether `row` is its own creating command reporting the record already exists.

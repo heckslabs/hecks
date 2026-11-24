@@ -3,6 +3,7 @@ require_relative "asking"
 require_relative "interpreting"
 require_relative "dispatch_context"
 require_relative "port_operation_interpreter/context"
+require_relative "port_operation_interpreter/refusal_note"
 require_relative "command_interpreter/argument_gate"
 require_relative "event"
 require_relative "value"
@@ -15,6 +16,7 @@ module Hecks
     class PortOperationInterpreter
       include Interpreting
       include CommandInterpreter::ArgumentGate
+      include RefusalNote
 
       DISPATCH_ORDER = %i[
         refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references resolve_route emit
@@ -99,7 +101,10 @@ module Hecks
 
       # Announces an ask's refusal with the text it failed with, and the kind the adapter named
       # for it when it named one.
-      def refuse_ask(ctx, out, text, kind = nil) = announce(ctx, out.refuses, ctx.args.merge(Runtime.refusal_fields(text, kind)))
+      def refuse_ask(ctx, out, text, kind = nil)
+        note_refusal(ctx, out, text)
+        announce(ctx, out.refuses, ctx.args.merge(Runtime.refusal_fields(text, kind)))
+      end
 
       # The refusal an interrupted ask records: the operation it was in and that it was not
       # finished, so the run ends faulted with the stage it reached, not open with no record.
