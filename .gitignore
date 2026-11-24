@@ -2,6 +2,8 @@
 .DS_Store
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 # RSpec's own personal-override convention (auto-merged with the
 # committed .rspec, never meant to be shared) — a contributor's own
 # `--format progress --fail-fast` while iterating, without touching
