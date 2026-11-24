@@ -24,6 +24,25 @@ module ResidentAutopsy
      "usage log tail #{usage_tail.inspect}"].join("; ")
   end
 
+  # @return [String] what the cache directory says when no resident stood in time, for a failure
+  #   message: whether one holds the lock, what the pid file names and what the launches left
+  def why_not_standing
+    ["no resident stood", "lock held #{lock_held?.inspect}",
+     "pid file #{read_kept(ResidentLaunch::PATHS.pid(ResidentLaunch::ROOT)).inspect}",
+     "launch seconds #{(@launch_seconds || []).inspect}", "files #{kept_files.inspect}",
+     "usage log tail #{usage_tail.inspect}"].join("; ")
+  end
+
+  # Waits up to the startup time for the block, and says why no resident stood when it never
+  # answers.
+  #
+  # @raise [ThreadParking::NeverReached] with {#why_not_standing} appended
+  def waiting_for_one(&)
+    ThreadParking.wait_for(timeout: ResidentLaunch::STARTUP, &)
+  rescue ThreadParking::NeverReached => e
+    raise e.class, "#{e.message}; #{why_not_standing}"
+  end
+
   private
 
   def kept_files = Dir.children(@cache).sort.map { |name| name.sub(/\A\h{8}-p\d+/, "") }
