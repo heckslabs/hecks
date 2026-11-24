@@ -1,0 +1,19 @@
+{
+  "name": "refusal-parity",
+  "note": "A refusal is recorded by the one command the Refusal member declares. Proves Record keeps the command, the rule, the argument names and the issuer, and emits CommandRefused. The runtime that records a caller's own refused command is Ruby's dispatcher, so this walks the declared command only.",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Refusal::CommandRefusal.Record",
+      "args": {
+        "refusal": { "value": "r1" },
+        "command": { "value": "Messaging::Message.Send" },
+        "given": { "value": "the message says something" },
+        "arguments": { "value": "body,kind" },
+        "issuer": { "value": "baker" }
+      }
+    }
+  ]
+}
