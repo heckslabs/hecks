@@ -11,7 +11,11 @@ RSpec.describe "an ask a port adapter refused" do
 
   # Answers every ask with an adapter that refuses it, as a failing outside world does.
   def refusing(_port, _asked)
-    Class.new { def method_missing(*) = raise(RuntimeError, "no word on the page") }.new
+    Class.new do
+      def method_missing(*) = raise("no word on the page")
+
+      def respond_to_missing?(*) = true
+    end.new
   end
 
   def dispatch(verb, **facts)
