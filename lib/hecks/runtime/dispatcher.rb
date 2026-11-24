@@ -19,7 +19,6 @@ require_relative "declarations"
 require_relative "dry_run_plan"
 require_relative "dispatcher/planning"
 require_relative "dispatcher/root_reentry"
-require_relative "dispatcher/refusal_recording"
 require_relative "dispatcher/refusal_record"
 require_relative "../naming"
 
@@ -34,7 +33,6 @@ module Hecks
       include Declarations
       include Planning
       include RootReentry
-      include RefusalRecording
       include RefusalRecord
 
       MAX_REACTION_DEPTH = 5
