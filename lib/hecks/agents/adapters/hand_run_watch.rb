@@ -3,6 +3,7 @@
 require "hecks/hecks/adapters/console_capture"
 require "hecks/hecks/adapters/claude_resolving_shell"
 require "hecks/agents/adapters/fleet_control/listing"
+require "hecks/agents/adapters/pinned_seats"
 
 module Hecks
   module Adapters
@@ -19,8 +20,19 @@ module Hecks
       # @param settings [Hash] `shell:` runs `claude`
       # @param root [String, nil] unused
       # @param listing [#call, nil] stand-in: answers the listed sessions, as the CLI prints them
-      def initialize(aggregate: nil, settings: {}, root: nil, listing: nil)
+      # @param seats [#sight, nil] stand-in for the {PinnedSeats} reading the standing seats
+      def initialize(aggregate: nil, settings: {}, root: nil, listing: nil, seats: nil)
         @listing = listing || -> { FleetControl::Listing.new(settings[:shell] || ClaudeResolvingShell.new).entries }
+        @seats = seats || PinnedSeats.new(listing: @listing, jobs: settings[:jobs])
+      end
+
+      # Sights each standing seat's listed session, which the bluebook registers under its role.
+      #
+      # @param pass [Hash] the beat, passed back
+      # @return [Hash{Symbol => Object}] `pass:` the beat and `sighted:` how many were sighted
+      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
+      def read_pinned_seats(pass:, **)
+        { pass: pass, sighted: { value: @seats.sight.to_s } }
       end
 
       # @param run [Hash] the run key, passed back
