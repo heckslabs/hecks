@@ -7,6 +7,7 @@ require_relative "../console_capture"
 require_relative "brief_text"
 require_relative "batch_brief"
 require_relative "batch_steps"
+require_relative "session_steps"
 require_relative "parking"
 require_relative "step_outcome"
 
@@ -21,6 +22,7 @@ module Hecks
       # plan.
       class Launcher
         include BatchSteps
+        include SessionSteps
 
         # The claimant every dispatched work item names.
         CLAIMANT = "dispatch"
@@ -64,10 +66,9 @@ module Hecks
           started = StepOutcome.new(@runner.call(start_argv(item, minutes)), reaches: "started")
           return [:held, held_line(item)] if started.refused_at?("started")
 
-          started_clear(item, started)
-          enlist(item)
-          dispatch(item, brief(item, limit: limit, held: held, batch: BatchBrief.text(item), **lines))
-          [:started, started_line(item, started.note)]
+          return [:yielded, "yielded #{item.key}: #{started.reason}"] if started.area_refused?
+
+          [:started, session(item, started, brief_args(held, limit, lines))]
         rescue ConsoleCapture::Failure => e
           [:yielded, yield_back(item, e.message)]
         end
