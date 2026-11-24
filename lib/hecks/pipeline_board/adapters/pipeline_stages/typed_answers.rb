@@ -45,7 +45,7 @@ module Hecks
         # @return [Array<Hash>] one `FillWhy` row for each item the fill did not start
         def fill_why = board[:fill_why]
 
-        # @return [Hash] the `PlacesUsed` row: the places used against the cap, and why the fill skipped
+        # @return [Hash] the `PlacesUsed` row: places used against the cap
         def places_used = board[:places_used]
 
         # @return [Array<Hash>] one `RedEpisodeLine` per episode, newest first
