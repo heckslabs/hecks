@@ -1,0 +1,53 @@
+Hecks.bluebook "Refusal" do
+  vision "A command the domain refused leaves a fact, so a policy can answer what was turned away."
+  supporting
+
+  # A framework member like Change: the runtime records a refusal of a caller's command here, so
+  # nothing in the world is left to guess at a no. Only a caller's own command is recorded: a
+  # reaction's refusal is in the reaction log, a dry run changes nothing, and a refused `Record`
+  # is never recorded again.
+  aggregate "CommandRefusal" do
+    description "One command a caller issued that the domain refused: which command, the rule that said no, the names of the arguments it carried and who issued it."
+
+    identified_by :refusal
+
+    attribute :refusal,   RefusalKey
+    attribute :command,   CommandName
+    attribute :given,     RuleText
+    attribute :arguments, ArgumentNames, default: ""
+    attribute :issuer,    IssuerName, default: ""
+
+    value_object "RefusalKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The verb as dispatched, such as `Messaging::Message.Send`.
+    value_object "CommandName" do
+      attribute :value, String, matches: :present
+    end
+
+    # The text of the rule that refused: a given, a lifecycle gate or another refusal's message.
+    value_object "RuleText" do
+      attribute :value, String, matches: :present
+    end
+
+    # The argument names, comma-separated: never their values, which may be secrets or long bodies.
+    value_object "ArgumentNames", String
+
+    # The caller's actor, or its role when it has no actor; empty when none was bound.
+    value_object "IssuerName", String
+
+    command "Record" do
+      role "System"
+      goal "Record that a command was refused, for a policy to answer"
+
+      attribute :refusal,   RefusalKey, sets: true
+      attribute :command,   CommandName, sets: true
+      attribute :given,     RuleText, sets: true
+      attribute :arguments, ArgumentNames, default: "", sets: true
+      attribute :issuer,    IssuerName, default: "", sets: true
+
+      emits "CommandRefused"
+    end
+  end
+end

@@ -1,0 +1,19 @@
+Hecks.behaviors "Refusal" do
+  vision "A refused command is recorded as a fact with the command, the rule, the argument names and the issuer."
+
+  loads "refusal.bluebook"
+
+  test "Record keeps the refusal of a command" do
+    tests "Record", on: "CommandRefusal"
+    input refusal: { value: "r1" }, command: { value: "Messaging::Message.Send" },
+          given: { value: "the message says something" }, arguments: { value: "body,kind" },
+          issuer: { value: "baker" }
+    expect command: { value: "Messaging::Message.Send" }
+  end
+
+  test "Record refuses a refusal that names no command" do
+    tests "Record", on: "CommandRefusal"
+    input refusal: { value: "r1" }, command: { value: "" }, given: { value: "no" }
+    expect refused: "command"
+  end
+end
