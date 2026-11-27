@@ -23,7 +23,7 @@ module Hecks
 
       TENANT_SCOPED = /\btenant:/
 
-      PROCESS_MANAGER = /^\s*process_manager\s+"/
+      SAGA = /^\s*saga\s+"/
 
       # Capabilities each mode needs; an empty list means any target.
       # `resolve` drops `ruby_only` when `differential` resolves too: same seat, Rust is better.
@@ -72,7 +72,7 @@ module Hecks
       # @param domain_path [String] filesystem path to the target domain's directory
       # @return [Array<String>] `role_gated`, `tenant` and `sagas`, for those the bluebooks declare
       def declared_capabilities(domain_path)
-        { "role_gated" => ROLE_GATED, "tenant" => TENANT_SCOPED, "sagas" => PROCESS_MANAGER }
+        { "role_gated" => ROLE_GATED, "tenant" => TENANT_SCOPED, "sagas" => SAGA }
           .select { |_, pattern| any_file?(domain_path, "*.bluebook", pattern) }.keys
       end
 

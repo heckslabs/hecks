@@ -2,16 +2,16 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
-      # Parses a `process_manager "Name" do ... end` block into a `Saga`; its states
+      # Parses a `saga "Name" do ... end` block into a `Saga`; its states
       # are derived from its `transition`s (ADR 0025).
-      class ProcessManagerBuilder
-        GRAMMAR_CONTEXT = "ProcessManager".freeze
+      class SagaBuilder
+        GRAMMAR_CONTEXT = "Saga".freeze
 
         class InvalidSaga < StandardError; end
 
         include WordGate
 
-        # @param name [String] the process manager's own name, as written after `process_manager`
+        # @param name [String] the saga's own name, as written after `saga`
         def initialize(name)
           @name     = name
           @handlers = []
@@ -26,7 +26,7 @@ module Hecks
         # @return [void]
         def correlates_by_impl(key) = @correlates_by = key
 
-        # Records the event that begins a fresh instance of this process manager.
+        # Records the event that begins a fresh instance of this saga.
         #
         # `starts_on Transfer::TransferRequested`: a bare constant, stored as the bare event
         # name (`Naming.event_name_ref`) because `SagaInterpreter` matches an undotted name.
@@ -39,7 +39,7 @@ module Hecks
           @starts_on = Naming.event_name_ref(event_ref)
         end
 
-        # Records the event that closes out this process manager's instance.
+        # Records the event that closes out this saga's instance.
         #
         # @param event_ref [Symbol, String, Module] the event, as a bare constant (a
         #   `ScopedConstant` module `ConstShim` resolves) or quoted text
@@ -62,7 +62,7 @@ module Hecks
         #   naming the source state(s): a `String`, `Symbol`, or an `Array` of them
         # @yield the transition's dispatch body, `instance_eval`'d against a `HandlerBuilder`
         # @return [void]
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `mapping` names
+        # @raise [Bluebook::DSL::SagaBuilder::InvalidSaga] if `mapping` names
         #   no `from:`
         def transition_impl(mapping, &block)
           mapping = mapping.dup
@@ -82,9 +82,9 @@ module Hecks
 
         # Assembles the declared transitions into a `Saga`, after validating them.
         #
-        # @return [Bluebook::Saga] the built process manager, with its own `states`
+        # @return [Bluebook::Saga] the built saga, with its own `states`
         #   derived from the declared transitions
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `correlates_by`
+        # @raise [Bluebook::DSL::SagaBuilder::InvalidSaga] if `correlates_by`
         #   is undeclared or names a whole field rather than one scalar, if `starts_on` is
         #   undeclared, if no transition was declared, or if two transitions answer the same event
         #   from the same source state
@@ -102,13 +102,13 @@ module Hecks
           )
         end
 
-        # Evaluates a `process_manager` block against a fresh builder and returns what it built.
+        # Evaluates a `saga` block against a fresh builder and returns what it built.
         #
-        # @param name [String] the process manager's own name
-        # @yield the process manager's body, `instance_eval`'d against a new builder; may be
+        # @param name [String] the saga's own name
+        # @yield the saga's body, `instance_eval`'d against a new builder; may be
         #   omitted
-        # @return [Bluebook::Saga] the built process manager
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] see `#build`
+        # @return [Bluebook::Saga] the built saga
+        # @raise [Bluebook::DSL::SagaBuilder::InvalidSaga] see `#build`
         def self.build(name, &block)
           builder = new(name)
           builder.instance_eval(&block) if block
@@ -123,7 +123,7 @@ module Hecks
           return unless from.nil?
 
           raise InvalidSaga,
-                "#{@name}'s transition #{mapping.inspect} names no from: — a process manager's own " \
+                "#{@name}'s transition #{mapping.inspect} names no from: — a saga's own " \
                 "admission checks a saga instance's CURRENT state exactly, so a transition with no " \
                 "from: would match no instance ever, silently"
         end
@@ -215,7 +215,7 @@ module Hecks
           #   as in a policy's `trigger ..., with:`; `nil` forwards the triggering context
           # @yield the `compensates` body, run only if this leg completed
           # @return [Bluebook::DispatchSpec] the dispatch just recorded
-          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `command_ref`
+          # @raise [Bluebook::DSL::SagaBuilder::InvalidSaga] if `command_ref`
           #   is quoted text outside shadow-parsing
           def dispatch_impl(command_ref, with: nil, &block)
             refuse_quoted_command!(command_ref)
@@ -265,7 +265,7 @@ module Hecks
             #   arguments, the same shape `HandlerBuilder#dispatch_impl`'s own `with:` takes; `nil`
             #   forwards the triggering context verbatim
             # @return [Bluebook::DispatchSpec] the compensating dispatch just recorded
-            # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidSaga] if `command_ref`
+            # @raise [Bluebook::DSL::SagaBuilder::InvalidSaga] if `command_ref`
             #   is quoted text outside shadow-parsing
             def compensates_impl(command_ref, with: nil)
               if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?

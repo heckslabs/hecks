@@ -5,7 +5,7 @@ module Hecks
   # the one place that tells them from a command's own words.
   #
   # A refusal built from captured output would open with whichever line came first, so a run
-  # that did nothing read as "process manager X has no save_saga" when the real cause was a
+  # that did nothing read as "saga X has no save_saga" when the real cause was a
   # missing `confirm`. `compose` puts the command's own words first and the notices after a
   # divider, so nothing is lost and the first line is the cause. The notices still print once to
   # stderr as the process boots; this changes how a refusal is worded, not what is printed.

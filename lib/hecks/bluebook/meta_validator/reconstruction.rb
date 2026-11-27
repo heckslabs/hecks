@@ -27,7 +27,7 @@ module Hecks
             aggregates:  declared_as("Aggregate", :aggregate),
             read_models: declared_as("ReadModel", :read_model),
             policies:    declared_as("Policy", :policy),
-            sagas:       declared_as("ProcessManager", :process_manager)
+            sagas:       declared_as("Saga", :saga)
           )
         end
 
@@ -78,10 +78,10 @@ module Hecks
 
         def policy(row) = declaration("Policy", row)
 
-        # A process manager's handlers live inline on its own dispatched state,
+        # A saga's handlers live inline on its own dispatched state,
         # not behind a `DeclaredIn` query.
-        def process_manager(row)
-          declaration("ProcessManager", row,
+        def saga(row)
+          declaration("Saga", row,
                       handlers: Array(row[:handlers]).map { |leg| handler(leg) })
         end
 

@@ -217,41 +217,6 @@
       "role": "Language"
     },
     {
-      "scope": "bluebook:process_manager.declare",
-      "verb": "Bluebook::ProcessManager.Declare",
-      "role": "Language"
-    },
-    {
-      "scope": "bluebook:process_manager.handler",
-      "verb": "Bluebook::ProcessManager.Handler",
-      "role": "Language"
-    },
-    {
-      "scope": "bluebook:process_manager.handler.dispatch",
-      "verb": "Bluebook::ProcessManager.Handler.Dispatch",
-      "role": "Language"
-    },
-    {
-      "scope": "bluebook:process_manager.handler.dispatch.bind",
-      "verb": "Bluebook::ProcessManager.Handler.Dispatch.Bind",
-      "role": "Language"
-    },
-    {
-      "scope": "bluebook:process_manager.handler.dispatch.bind_compensation",
-      "verb": "Bluebook::ProcessManager.Handler.Dispatch.BindCompensation",
-      "role": "Language"
-    },
-    {
-      "scope": "bluebook:process_manager.handler.dispatch.compensates",
-      "verb": "Bluebook::ProcessManager.Handler.Dispatch.Compensates",
-      "role": "Language"
-    },
-    {
-      "scope": "bluebook:process_manager.state",
-      "verb": "Bluebook::ProcessManager.State",
-      "role": "Language"
-    },
-    {
       "scope": "bluebook:query.argument",
       "verb": "Bluebook::Query.Argument",
       "role": "Language"
@@ -339,6 +304,41 @@
     {
       "scope": "bluebook:read_model.sum",
       "verb": "Bluebook::ReadModel.Sum",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:saga.declare",
+      "verb": "Bluebook::Saga.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:saga.handler",
+      "verb": "Bluebook::Saga.Handler",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:saga.handler.dispatch",
+      "verb": "Bluebook::Saga.Handler.Dispatch",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:saga.handler.dispatch.bind",
+      "verb": "Bluebook::Saga.Handler.Dispatch.Bind",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:saga.handler.dispatch.bind_compensation",
+      "verb": "Bluebook::Saga.Handler.Dispatch.BindCompensation",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:saga.handler.dispatch.compensates",
+      "verb": "Bluebook::Saga.Handler.Dispatch.Compensates",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:saga.state",
+      "verb": "Bluebook::Saga.State",
       "role": "Language"
     },
     {

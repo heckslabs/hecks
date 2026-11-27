@@ -3,7 +3,7 @@ require_relative "../errors"
 module Hecks
   module Runtime
     module Outbox
-      # Runs the consumer a row names: the policy or process manager that owes the reaction.
+      # Runs the consumer a row names: the policy or saga that owes the reaction.
       # Mixed into {Relay}, which holds the registry and the interpreters it attached.
       module ConsumerRunner
         private
@@ -48,7 +48,7 @@ module Hecks
         def run_saga(row, event, fqn, home, name)
           process_manager = @registry.bluebook(home)&.sagas&.find { |candidate| candidate.name == name } ||
                             raise(WiringError,
-                                  "outbox row #{row.delivery_id} names process_manager #{fqn}, which no bluebook declares")
+                                  "outbox row #{row.delivery_id} names saga #{fqn}, which no bluebook declares")
           @sagas.advance(event, row.domain, only: process_manager, home: home)
           nil
         end

@@ -2,8 +2,8 @@
 
 **Status:** Accepted (owner, 2026-11-02): saga. Date: 2026-11-02. Found by the ubiquitous-language
 survey of the same day; Tickets finding `ul-saga-vs-process-manager`. This record laid out both sides
-and recommended process manager; the owner picked saga. The word is settled; the internal identifiers have moved, the language has not, and each
-row says which.
+and recommended process manager; the owner picked saga. The word is settled; the internal identifiers and the language have both moved, and each
+row says which slice moved it.
 
 ## Context
 
@@ -49,15 +49,15 @@ The renames, in two slices, language then internal identifiers:
 
 | Today | Becomes | State |
 |---|---|---|
-| keyword `process_manager "Name" do` | `saga "Name" do`; `process_manager` refused by name, answered only under shadow-parsing for frozen era text | open: Work `saga-language-slice` |
-| aggregate `ProcessManager` (`lib/hecks/language/bluebook/process_manager.bluebook`) | `Saga` (`saga.bluebook`); keyword rows carry `was: "process_manager"` | open: Work `saga-language-slice` |
-| `ProcessManagerName`, `ProcessManagerText` | `SagaName`, `SagaText` | open: Work `saga-language-slice` |
-| `DSL::ProcessManagerBuilder` | `DSL::SagaBuilder` | open: Work `saga-language-slice` |
-| Rust parser keyword and context `"ProcessManager"`; `parse/process_manager.rs` | `"saga"`, `"Saga"`; `parse/saga.rs` | open: Work `saga-language-slice` |
-| `policies-and-process-managers.md`, `reference/process_manager.md` | `policies-and-sagas.md`, `reference/saga.md` | open: Work `saga-language-slice` |
-| "process manager" in live docs, help text, comments | "saga" | open: Work `saga-language-slice` |
+| keyword `process_manager "Name" do` | `saga "Name" do`; `process_manager` refused by name, answered only under shadow-parsing for frozen era text | built: Work `saga-language-slice` |
+| aggregate `ProcessManager` (`lib/hecks/language/bluebook/process_manager.bluebook`) | `Saga` (`saga.bluebook`); keyword rows carry `was: "process_manager"` | built: Work `saga-language-slice` |
+| `ProcessManagerName`, `ProcessManagerText` | `SagaName`, `SagaText` | built: Work `saga-language-slice` |
+| `DSL::ProcessManagerBuilder` | `DSL::SagaBuilder` | built: Work `saga-language-slice` |
+| Rust parser keyword and context `"ProcessManager"`; `parse/process_manager.rs` | `"saga"`, `"Saga"`; `parse/saga.rs` | built: Work `saga-language-slice` |
+| `policies-and-process-managers.md`, `reference/process_manager.md` | `policies-and-sagas.md`, `reference/saga.md` | built: Work `saga-language-slice` |
+| "process manager" in live docs, help text, comments | "saga" | built: Work `saga-language-slice` |
 | IR key `process_managers`; `ir::ProcessManager`; `Bluebook::ProcessManager` and its `Behaviour` | `sagas`; `ir::Saga` and `ir::SagaHandler`; `Bluebook::Saga`, `Bluebook::SagaHandler` and `Behaviour::Saga`; the kernel's `SagaDef` and `SAGAS` table, its live instances `saga_instances`. The compensation half, once the Struct `Bluebook::Saga`, is `Bluebook::Compensation`, and `Behaviour::Saga` reads it as `compensation` and `compensates?` | built: Work `saga-internal-identifiers` |
-| `ProcessManagerBuilder::InvalidProcessManager` | `InvalidSaga`, held under `ProcessManagerBuilder` on purpose until `saga-language-slice` renames the builder | built: Work `saga-internal-identifiers` |
+| `ProcessManagerBuilder::InvalidProcessManager` | `InvalidSaga`, held under `ProcessManagerBuilder` until `saga-language-slice` renamed the builder; now `SagaBuilder::InvalidSaga` | built: Work `saga-internal-identifiers` |
 | saga stores' `process_manager` column (`hecks_saga_instances`, `hecks_lambda_sagas`) | kept: a column rename is a shape move under ADR 0133's seals, and the column already lives in a table called sagas | kept |
 | ADR 0169 and 0170 titles | kept, as dated records; a note under each says the word was settled here | built |
 
@@ -68,6 +68,10 @@ The renames, in two slices, language then internal identifiers:
   `saga-client-sweep` names lifeadelics, emaho and miette2.
 - Frozen era text that still says `process_manager` keeps booting, because the DSL answers the old
   word under shadow-parsing, the way `report` still answers for `read_model`.
+  The Rust parser refuses `process_manager` in live source with the same words the Ruby builder
+  gives (`process_manager is gone — saga is the word now`), in `hecks-parse` and
+  `hecks-parse closed` alike; `hecks-parse closed --frozen`, which the gem calls while it
+  shadow-parses, keeps the old spelling for frozen era text.
 - The IR key `process_managers` and the Rust `ir::ProcessManager` are the one spelling left in
   code. They are compared byte-for-byte between Ruby and Rust and read by the kernel, the codegen
   and the host, so they move in their own slice, both sides at once, with the goldens regenerated.

@@ -5,14 +5,14 @@
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 
-/// Rewrites every bare process-manager key that names an aggregate of `bluebook` to
+/// Rewrites every bare saga key that names an aggregate of `bluebook` to
 /// `"<Aggregate>.<identity>"`. A dotted key is left as written; a bare name that names no
 /// aggregate is refused with the same message the Ruby builder gives.
 pub fn resolve_bare(file: &str, bluebook: &mut ir::Bluebook) -> ParseResult<()> {
     let aggregates = bluebook.aggregates.clone();
 
-    for process_manager in &mut bluebook.sagas {
-        let key = process_manager.correlates_by.clone();
+    for saga in &mut bluebook.sagas {
+        let key = saga.correlates_by.clone();
         if key.is_empty() || key.contains('.') {
             continue;
         }
@@ -22,23 +22,19 @@ pub fn resolve_bare(file: &str, bluebook: &mut ir::Bluebook) -> ParseResult<()> 
             return Err(Diagnostic::new(
                 file,
                 0,
-                bare_correlation_message(&process_manager.name, &key),
+                bare_correlation_message(&saga.name, &key),
             ));
         };
 
-        let identity = identity_path(file, &process_manager.name, aggregate)?;
-        process_manager.correlates_by = format!("{}.{identity}", aggregate.name);
+        let identity = identity_path(file, &saga.name, aggregate)?;
+        saga.correlates_by = format!("{}.{identity}", aggregate.name);
     }
 
     Ok(())
 }
 
 /// The one field an aggregate is correlated by: its identity, or `id` when it declares none.
-fn identity_path(
-    file: &str,
-    process_manager: &str,
-    aggregate: &ir::Aggregate,
-) -> ParseResult<String> {
+fn identity_path(file: &str, saga: &str, aggregate: &ir::Aggregate) -> ParseResult<String> {
     match aggregate.identified_by.as_slice() {
         [] => Ok("id".to_string()),
         [only] => Ok(only.strip_suffix(".value").unwrap_or(only).to_string()),
@@ -46,7 +42,7 @@ fn identity_path(
             file,
             0,
             format!(
-                "{process_manager} correlates_by {}, but {} has a composite identity — name the one field, e.g. {}.{first}",
+                "{saga} correlates_by {}, but {} has a composite identity — name the one field, e.g. {}.{first}",
                 aggregate.name, aggregate.name, aggregate.name
             ),
         )),
@@ -54,9 +50,9 @@ fn identity_path(
 }
 
 /// The refusal for a bare name that names no aggregate, worded as the Ruby builder words it.
-pub fn bare_correlation_message(process_manager: &str, key: &str) -> String {
+pub fn bare_correlation_message(saga: &str, key: &str) -> String {
     format!(
-        "{process_manager} correlates_by {key}, which names a whole field rather than one of its scalars — \
+        "{saga} correlates_by {key}, which names a whole field rather than one of its scalars — \
          say which one, e.g. {key}.value (or name an aggregate of this bluebook, which correlates by its identity)"
     )
 }

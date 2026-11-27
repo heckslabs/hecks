@@ -124,7 +124,7 @@ order.status   # => "sold"
   still requires Ruby.
 - The transactional outbox ([ADR 0053](../../decisions/0053-transactional-outbox-for-domain-events-and-effects.md),
   `Runtime::Outbox`): a command's save, its events, and one
-  `pending` row per policy/process-manager consumer commit together on
+  `pending` row per policy or saga consumer commit together on
   Sqlite/Postgres/PostgresEra (Memory keeps in-process rows); the
   dispatcher drains them inline, the next boot redrives `pending` rows
   and surfaces `claimed` ones. Heki/LocalStorage/D1 have no outbox yet

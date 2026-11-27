@@ -193,7 +193,7 @@ RSpec.shared_examples "a checkpointed journal adapter" do
   end
 end
 
-# The optional saga-persistence capability (§2/§3/§4): a process manager's instance survives a
+# The optional saga-persistence capability (§2/§3/§4): a saga's instance survives a
 # restart and is kept apart per domain.
 RSpec.shared_examples "a saga-persisting adapter" do
   describe "the optional saga-persistence capability (§2/§3/§4)" do

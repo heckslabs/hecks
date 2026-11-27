@@ -35,7 +35,7 @@
     "routed": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Courier::Route",
     "generated": true,
     "routed": true

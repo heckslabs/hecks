@@ -1,7 +1,7 @@
 //! The `Bluebook` construct and the driver for `hecks-parse bluebook`.
 //! Parses each `.bluebook` file into one `ir::Bluebook`, then applies `.hecksagon` files onto it.
 
-use super::{aggregate, command, entity, policy, process_manager, read_model};
+use super::{aggregate, command, entity, policy, read_model, saga};
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, SourceLine};
@@ -590,12 +590,12 @@ fn parse_body_into(
                     .read_models
                     .push(read_model::parse_body(file, lines, pos, &rm_name)?);
             }
-            "process_manager" => {
-                let pm_name =
-                    super::positional_text(file, line, "process_manager", &gated.args, 1)?;
+            "saga" => {
+                super::refuse_retired_saga_spelling(file, line, &gated.call.word)?;
+                let saga_name = super::positional_text(file, line, "saga", &gated.args, 1)?;
                 bluebook
                     .sagas
-                    .push(process_manager::parse_body(file, lines, pos, &pm_name)?);
+                    .push(saga::parse_body(file, lines, pos, &saga_name)?);
             }
             _ => {
                 return Err(super::not_built_yet(

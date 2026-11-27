@@ -86,35 +86,41 @@ fn run(args: &[String]) -> Result<(), RunError> {
 
 /// `closed <file>` prints the checked text the gem loads in the file's place; `closed --stdin
 /// <label>` reads the text from stdin and names it `<label>` in a refusal; `closed --check
-/// <files…>` checks every file, prints one refusal per refused file and fails if any was.
+/// <files…>` checks every file, prints one refusal per refused file and fails if any was. A
+/// leading `--frozen` reads the text as frozen era text, which keeps the spellings it was written
+/// in (`process_manager`), as the gem asks while it shadow-parses.
 fn run_closed(args: &[String]) -> Result<(), RunError> {
+    let (era, args) = match args {
+        [flag, rest @ ..] if flag == "--frozen" => (closed::Era::Frozen, rest),
+        _ => (closed::Era::Live, args),
+    };
     match args {
-        [flag, files @ ..] if flag == "--check" && !files.is_empty() => check_closed(files),
+        [flag, files @ ..] if flag == "--check" && !files.is_empty() => check_closed(era, files),
         [flag, label] if flag == "--stdin" => {
             let mut source = String::new();
             std::io::Read::read_to_string(&mut std::io::stdin(), &mut source)
                 .map_err(|e| RunError::Usage(format!("cannot read stdin: {e}")))?;
-            print!("{}", closed::admit(label, &source)?);
+            print!("{}", closed::admit(era, label, &source)?);
             Ok(())
         }
         [path] => {
             let source = fs::read_to_string(path)
                 .map_err(|e| RunError::Usage(format!("cannot read {path}: {e}")))?;
-            print!("{}", closed::admit(path, &source)?);
+            print!("{}", closed::admit(era, path, &source)?);
             Ok(())
         }
         _ => Err(RunError::Usage(
-            "hecks-parse closed <file> | --stdin <label> | --check <files…>".to_string(),
+            "hecks-parse closed [--frozen] <file> | --stdin <label> | --check <files…>".to_string(),
         )),
     }
 }
 
-fn check_closed(files: &[String]) -> Result<(), RunError> {
+fn check_closed(era: closed::Era, files: &[String]) -> Result<(), RunError> {
     let mut count = 0usize;
     for path in files {
         let source = fs::read_to_string(path)
             .map_err(|e| RunError::Usage(format!("cannot read {path}: {e}")))?;
-        if let Err(diagnostic) = closed::admit(path, &source) {
+        if let Err(diagnostic) = closed::admit(era, path, &source) {
             count += 1;
             eprintln!("{diagnostic}");
         }
@@ -451,7 +457,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("generic", "Bluebook"),
     ("aggregate", "Bluebook"),
     ("policy", "Bluebook"),
-    ("process_manager", "Bluebook"),
+    ("saga", "Bluebook"),
     ("provides", "Bluebook"),
     ("namespace", "Bluebook"),
     ("description", "Aggregate"),
@@ -519,10 +525,10 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("for_each", "Policy"),
     ("root", "Policy"),
     ("acts_as", "Policy"),
-    ("correlates_by", "ProcessManager"),
-    ("starts_on", "ProcessManager"),
-    ("ends_on", "ProcessManager"),
-    ("transition", "ProcessManager"),
+    ("correlates_by", "Saga"),
+    ("starts_on", "Saga"),
+    ("ends_on", "Saga"),
+    ("transition", "Saga"),
     ("dispatch", "Handler"),
     ("port", "Hecksagon"),
     ("translates", "Hecksagon"),

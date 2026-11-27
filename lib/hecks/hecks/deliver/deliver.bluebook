@@ -274,7 +274,7 @@ Hecks.bluebook "Hecks" do
       ask     :judge, with: { run: :run }
     end
 
-    process_manager "GateAndBoard" do
+    saga "GateAndBoard" do
       correlates_by :"run.value"
       starts_on Shipment::ShipRequested
 
@@ -1124,7 +1124,7 @@ Hecks.bluebook "Hecks" do
     # verifies it again as a retry (reverifying), and a retry that fails parks it in needs_human.
     # Reverifying has no retrying leg, so no run is retried twice. A step that raised is recorded
     # by Fail and parks the run at once: a check that could not run is not retried.
-    process_manager "MainIntegration" do
+    saga "MainIntegration" do
       correlates_by :"landed.value"
       starts_on Landing::BranchLanded
 

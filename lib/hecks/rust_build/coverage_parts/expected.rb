@@ -20,9 +20,9 @@ module Hecks
           expected
         end
 
-        # Read models, policies and process managers: constructs named directly under the domain.
+        # Read models, policies and sagas: constructs named directly under the domain.
         def named_constructs(payload, domain_name)
-          { read_models: :read_model, policies: :policy, sagas: :process_manager }.flat_map do |key, kind|
+          { read_models: :read_model, policies: :policy, sagas: :saga }.flat_map do |key, kind|
             payload.fetch(key).map { |entry| [kind, "#{domain_name}::#{entry.fetch(:name)}"] }
           end
         end

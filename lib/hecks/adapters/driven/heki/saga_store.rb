@@ -5,7 +5,7 @@ module Hecks
   module Adapters
     class Heki
       # Saga checkpoints in a sibling snapshot+journal file pair, keyed by
-      # (domain, process manager, correlation).
+      # (domain, saga, correlation).
       #
       # The file is shared by every domain booted from the same directory, so `domain`
       # is stored in each record and filtered on read.
@@ -21,11 +21,11 @@ module Hecks
           @entry_mirrors = nil
         end
 
-        # Upserts one saga instance's checkpoint, keyed by domain, process manager and
+        # Upserts one saga instance's checkpoint, keyed by domain, saga and
         # correlation, under the file lock.
         #
         # @param domain [String] the owning domain, carried in the record and filtered on read
-        # @param process_manager [String] the process manager's name
+        # @param process_manager [String] the saga's name
         # @param correlation [String] the instance's correlation value
         # @param checkpoint [Hash{String => Object}] the saga's `"state"` (name), `"memory"`
         #   (working memory) and `"completed_compensations"` (compensable legs; `[]` when none)
@@ -48,7 +48,7 @@ module Hecks
         # missing one is not an error.
         #
         # @param domain [String] the owning domain
-        # @param process_manager [String] the process manager's name
+        # @param process_manager [String] the saga's name
         # @param correlation [String] the instance's correlation value
         # @return [Hash{String => Hash}] the store's full internal records Hash after the
         #   delete; callers ignore it
@@ -67,7 +67,7 @@ module Hecks
         # Yields every checkpointed saga instance of `domain`, for boot-time rehydration.
         #
         # @param domain [String] the owning domain to filter records to
-        # @yieldparam process_manager [String] the process manager's name
+        # @yieldparam process_manager [String] the saga's name
         # @yieldparam correlation [String] the instance's correlation value
         # @yieldparam state [String] the saga's state name
         # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every

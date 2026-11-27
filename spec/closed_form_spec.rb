@@ -70,6 +70,22 @@ RSpec.describe Hecks::ClosedForm do
     expect(load_into_registry(path).hecksagons.keys).to eq(["Probe"])
   end
 
+  # A saga spelled `process_manager`, the word `saga` keeps as its `was:` (ADR 0180).
+  describe "a saga spelled process_manager" do
+    let(:text) { %(Hecks.bluebook "Probe" do\n  process_manager "Checkout" do\n    starts_on "Placed"\n  end\nend\n) }
+
+    it "is refused in live source, naming saga" do
+      path = scratch("probe.bluebook", text)
+      expect { described_class.load(path) }
+        .to raise_error(described_class::Refused, "#{path}:2: process_manager is gone — saga is the word now")
+    end
+
+    it "is admitted while the gem shadow-parses it as frozen era text" do
+      admitted = Hecks::Bluebook::MetaValidator.while_shadow_parsing { described_class.admitted(text, "probe.bluebook") }
+      expect(admitted).to include(%(process_manager "Checkout" do))
+    end
+  end
+
   it "loads any other file as Ruby" do
     marker = File.join(Dir.mktmpdir, "ran")
     described_class.load_file(scratch("probe.rb", %(File.write(#{marker.inspect}, "x")\n)))

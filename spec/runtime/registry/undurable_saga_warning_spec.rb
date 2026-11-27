@@ -2,13 +2,13 @@ require "spec_helper"
 require "tmpdir"
 require_relative "../../support/memory_ports"
 
-# verify! warns, not refuses, when a process_manager's saga store has no save_saga while its
+# verify! warns, not refuses, when a saga's store has no save_saga while its
 # domain keeps records elsewhere. A domain wholly in Memory, bound or by default, chose to keep
 # nothing (as saga_durability_spec.rb does), so it stays silent.
-RSpec.describe "verify! warning for an undurable process_manager" do
+RSpec.describe "verify! warning for an undurable saga" do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
 
-  UNDURABLE_SAGA_WARNING = /Wire declares process_manager\(s\) Carry but its resolved persistence adapter has no save_saga/
+  UNDURABLE_SAGA_WARNING = /Wire declares saga\(s\) Carry but its resolved persistence adapter has no save_saga/
 
   def load_wire(registry)
     Hecks.with_registry(registry) do
@@ -70,10 +70,10 @@ RSpec.describe "verify! warning for an undurable process_manager" do
   end
 
   it "stays silent when the whole domain is in Memory" do
-    expect { memory_wire_registry.verify! }.not_to output(/process_manager/).to_stderr
+    expect { memory_wire_registry.verify! }.not_to output(/declares saga/).to_stderr
   end
 
-  it "warns when records are kept but a process_manager resolves to the no-op saga store" do
+  it "warns when records are kept but a saga resolves to the no-op saga store" do
     registry = memory_wire_registry
     allow(registry).to receive(:memory_only?).and_return(false)
 
@@ -82,11 +82,11 @@ RSpec.describe "verify! warning for an undurable process_manager" do
 
   it "does not warn once the domain is bound to an adapter that implements save_saga" do
     Dir.mktmpdir do |dir|
-      expect { sqlite_wire_registry(dir).verify! }.not_to output(/process_manager/).to_stderr
+      expect { sqlite_wire_registry(dir).verify! }.not_to output(/declares saga/).to_stderr
     end
   end
 
-  it "does not warn for a domain with no process_manager at all" do
-    expect { plain_registry.verify! }.not_to output(/process_manager/).to_stderr
+  it "does not warn for a domain with no saga at all" do
+    expect { plain_registry.verify! }.not_to output(/declares saga/).to_stderr
   end
 end

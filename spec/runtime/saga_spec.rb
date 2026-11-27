@@ -2,7 +2,7 @@ require "spec_helper"
 
 WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
 
-RSpec.describe "a process manager" do
+RSpec.describe "a saga" do
   def boot_wire
     registry = Hecks::Runtime::Registry.new
 
