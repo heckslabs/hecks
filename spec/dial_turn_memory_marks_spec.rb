@@ -6,7 +6,8 @@ require "tmpdir"
 require "hecks/hecks/adapters/dial_turning"
 
 # `Dial.turn!` sets the machine's memory marks, so a stuck MemoryLow is released by one turn and
-# put back by another: each mark turns inside its bounds and is refused outside them.
+# put back by another: each mark turns inside its bounds and is refused outside them. The order of a
+# pair (recovered under used) is advice in the setting's text, not enforced by a turn.
 RSpec.describe Hecks::Adapters::DialTurning do
   let(:registry) { boot_hecks_in_memory.registry }
   let(:dial) { registry.bluebook("Hecks").aggregates.find { |aggregate| aggregate.hecks_name == "Dial" } }
