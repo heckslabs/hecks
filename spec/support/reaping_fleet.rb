@@ -97,9 +97,9 @@ module ReapingFleet
     finished_run("r-done")
   end
 
-  def plain_session(age_hours, tree: nil)
+  def plain_session(age_hours, tree: nil, state: "done")
     transcript([user("hello"), *(tree ? [at_tree(tree)] : [])], mtime: now - (age_hours * 3600))
-    listing("plain-1", "done", name: "chat")
+    listing("plain-1", state, name: "chat")
   end
 end
 
