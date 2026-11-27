@@ -479,7 +479,10 @@ Names the role a reaction dispatches its trigger as. A policy runs with no calle
 without it a role-gated trigger would have no role to be checked against; `acts_as "System"` says
 which one it runs under, and the domain's Governance must grant that role (ADR 0216). It takes one
 role name, and an empty one is refused as the bluebook is built. A policy without it states no
-role, and its IR carries no `acts_as` key.
+role, and its IR carries no `acts_as` key: in a cascade a caller began, its reaction is the caller
+who stated no role, so a role-gated trigger refuses it ("Review refused — role: Reviewer, and the
+caller stated no role"); in a cascade the process began for itself it runs unchecked. A hecksagon
+can give every undeclared policy of a bluebook it attaches one role with `attaches ..., acts_as:`.
 
 `BlockCardsOnSevereAlert` acts as `System`; the other policies on this page state no role:
 
