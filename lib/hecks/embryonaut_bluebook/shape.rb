@@ -1,4 +1,5 @@
 require_relative "../ports/persistence/plugins/era/storage_shape"
+require_relative "../closed_form"
 
 module Hecks
   module EmbryonautBluebook
@@ -20,7 +21,7 @@ module Hecks
         library = Ports::Loading.bootstrap
         Hecks.with_registry(scratch) do
           library.load_library
-          files.each { |file| Kernel.load(file) }
+          files.each { |file| Hecks::ClosedForm.load_file(file) }
         end
         scratch
       rescue StandardError, ScriptError => e

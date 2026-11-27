@@ -12,13 +12,13 @@ module Hecks
                 "SAM build output — a vendored copy of real sources, never committed"),
       Route.new(%r{/data/eras/}, :gitignored, ".gitignore", "**/data/eras/",
                 "era snapshots a file adapter writes at runtime, never committed"),
+      Route.new(%r{\Arust/parser/tests/fixtures/closed/}, :named_in, "rust/parser/tests/closed.rs", :each_file,
+                "the closed form's escape and admitted fixtures, each checked by its guard test"),
       Route.new(%r{\Arust/}, :named_in, "rust/parser/tests/gates.rs", :each_file,
                 "the Rust parser's own fixtures, each loaded by its gate tests"),
       Route.new(%r{/translations/}, :named_in, "spec/translation/committed_edges_spec.rb", "bluebook/translations",
                 "translation edges, not bluebooks; each must load, chain era to era, and end at the storage " \
                 "shape its bluebook declares today"),
-      Route.new(%r{\Alib/hecks/forms/examples/}, :named_in, "spec/forms/app_spec.rb", :each_file,
-                "a Forms presentation config wearing the .bluebook extension"),
       Route.new(%r{\Aspec/fixtures/eras/}, :named_in, "spec/runtime/storage_shape_spec.rb", "fixtures/eras",
                 "deliberately conflicting versions of one domain; each must classify as the verdict " \
                 "its filename declares (bump_* / same_*)"),
@@ -34,6 +34,9 @@ module Hecks
       Route.new(%r{\Aspec/corpus/asks/}, :named_in, "spec/policy_ask_spec.rb", "spec/corpus/asks",
                 "a corpus-owned domain whose ports have no adapter, so an ask is refused; its frozen " \
                 "targets are held to the Ruby runtime there and to the Rust policy table in rust/codegen"),
+      Route.new(%r{\Aspec/corpus/declared/}, :named_in, "spec/declared_adapter_spec.rb", "spec/corpus/declared",
+                "a corpus-owned domain whose one port is answered only by the declared adapters beside its " \
+                "suite; the suite runs once per adapter there, so it boots with no adapter of the project's"),
       Route.new(%r{\Aspec/fixtures/sentence/cms_page/sentence_form\.bluebook\z}, :named_in, "spec/sentence_form_spec.rb",
                 :each_file,
                 "a bluebook written as sentences, which only a built hecks-parse can read; the sweep boots its " \

@@ -1,0 +1,4 @@
+# Refused: reads the environment in a bind.
+Hecks.hecksagon "Probe" do
+  persisted_by ENV.fetch("ADAPTER")
+end

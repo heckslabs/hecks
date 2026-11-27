@@ -1,0 +1,8 @@
+# Refused: assigns in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      total = 0
+    end
+  end
+end

@@ -21,8 +21,11 @@ module Hecks
     #
     # `provides` names what it can do beyond its port's contract (`"set_transform"`), and
     # `stays_inside` is true when it reaches nothing outside the process and checkout (ADR 0171).
+    #
+    # A declared adapter answers its port from `replies`, rows `hecks-parse` reads from its file
+    # (`source_path`) and answers; it runs no code, so it always stays inside (ADR 0238).
     Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, :answers, :runs, :provides, :source_dir,
-                         :stays_inside, :imports, :hosts, keyword_init: true) do
+                         :stays_inside, :imports, :hosts, :replies, :source_path, keyword_init: true) do
       def declares?(field) = all_fields.include?(field.to_sym)
 
       def all_fields = (fields || []) + (secrets || [])
@@ -40,8 +43,18 @@ module Hecks
       # @return [Boolean] whether this adapter declares `provides` for it
       def provides?(capability) = capabilities.include?(capability.to_s)
 
-      # @return [Boolean] whether this adapter says it stays inside
-      def stays_inside? = stays_inside == true
+      # @return [Boolean] whether this adapter says it stays inside, or is declared and so cannot
+      #   reach anything
+      def stays_inside? = stays_inside == true || declared?
+
+      # @return [Array<Hash{String => Object}>] the `replies` and `refuses` rows, empty when none
+      def declared_replies = replies || []
+
+      # @return [Boolean] whether this adapter answers its port from declared rows, with no code
+      def declared? = !declared_replies.empty?
+
+      # @return [Array<String>] each ask or query the rows answer, once, in first-row order
+      def replied_asks = declared_replies.map { |row| row.fetch("ask") }.uniq
 
       # @return [Boolean] whether this adapter is a wasm plugin: it runs a module and names no port
       def plugin? = !runs.nil? && port.nil?
@@ -100,10 +113,12 @@ module Hecks
         bounded:          :bounded?,
         translates:       -> { translates.map(&:to_s) },
         revisions:        :revisions?,
-        inline_reactions: :inline_reactions?
+        inline_reactions: :inline_reactions?,
+        bluebook_from:    :bluebook_from
       )
 
-      attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving, :clocks
+      attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving, :clocks,
+                  :bluebook_from
 
       # The driving adapters `driven_by` can name.
       DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp Web Clock].freeze
@@ -111,13 +126,12 @@ module Hecks
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         binds: [], subscriptions: [], attachments: [], bounded: false, translates: [], driving: [],
-        clocks: [], revisions: false, inline_reactions: false
+        clocks: [], revisions: false, inline_reactions: false, bluebook_from: nil
       }.freeze
 
       # @param domain [String, Symbol] the domain this hecksagon wires
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
-      # @param subscriptions [Array<String, Symbol>] the external events this domain
-      #   subscribes to
+      # @param subscriptions [Array<String, Symbol>] the external events this domain subscribes to
       # @param attachments [Array<Bluebook::Attachment>] every bluebook this hecksagon attaches,
       #   each with its source (`:gem` or `:vendor`)
       # @param bounded [Boolean] whether this bluebook is an explicit bounded context
@@ -126,6 +140,7 @@ module Hecks
       # @param driving [Array<String>] the driving adapters `driven_by` admits; empty admits all
       # @param clocks [Array<Bluebook::Clock>] the clocks declared, each dispatching one command
       # @param revisions [Boolean] whether the Postgres adapter keeps the revision layout
+      # @param bluebook_from [String, nil] `"gem"` when the gem carries its own bluebook
       def initialize(domain:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @domain             = domain.to_s
@@ -135,6 +150,7 @@ module Hecks
         @clocks             = Array(@clocks)
         @revisions          = @revisions ? true : false
         @inline_reactions   = @inline_reactions ? true : false
+        @bluebook_from      = @bluebook_from&.to_s
       end
 
       # Says whether this hecksagon accepts in-process reactions on an adapter with no outbox.

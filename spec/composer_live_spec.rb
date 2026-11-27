@@ -107,7 +107,7 @@ RSpec.describe Hecks::Composer::Live do
   end
 
   it "removes the stage and raises when the workspace will not boot", :aggregate_failures do
-    stage = captured_stage { expect { open_broken }.to raise_error(ScriptError) }
+    stage = captured_stage { expect { open_broken }.to raise_error(Hecks::ClosedForm::Refused) }
 
     expect(stage).to be_a(String)
     expect(File.exist?(stage)).to be(false)

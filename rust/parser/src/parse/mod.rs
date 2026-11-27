@@ -948,7 +948,7 @@ pub(crate) fn parse_nested_body<T>(
 
 /// Splits a captured `{ ... }` body on top-level `;` (outside quotes, braces, brackets, parens).
 /// Ends with a synthetic `"end"` so callers can treat it as an ordinary body.
-fn brace_body_statements(body: &str) -> Vec<String> {
+pub(crate) fn brace_body_statements(body: &str) -> Vec<String> {
     let mut statements: Vec<String> = Vec::new();
     let mut current = String::new();
     let mut depth: i32 = 0;

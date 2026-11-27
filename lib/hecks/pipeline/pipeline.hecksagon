@@ -6,9 +6,15 @@ Hecks.hecksagon "Pipeline" do
   persisted_by "Memory"
 
   # The events that move a passage, as the Tickets and Hecks domains emit them.
-  %w[Tickets.WorkPlanned Tickets.WorkReopened Tickets.WorkStarted Delivery.BranchLanded Hecks.MainPushed
-     Hecks.RedFlagRaised Hecks.RedFlagCleared Hecks.PromotionCompleted Hecks.Published]
-    .each { |event| subscribe event }
+  subscribe "Tickets.WorkPlanned"
+  subscribe "Tickets.WorkReopened"
+  subscribe "Tickets.WorkStarted"
+  subscribe "Delivery.BranchLanded"
+  subscribe "Hecks.MainPushed"
+  subscribe "Hecks.RedFlagRaised"
+  subscribe "Hecks.RedFlagCleared"
+  subscribe "Hecks.PromotionCompleted"
+  subscribe "Hecks.Published"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

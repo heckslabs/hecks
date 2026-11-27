@@ -1,3 +1,4 @@
+require_relative "../../../../closed_form"
 module Hecks
   module Projections
     module Deploy
@@ -42,7 +43,7 @@ module Hecks
               bootstrap.load_library
               bootstrap.load_project(bootstrap.shared_root(nil, bluebook_dir))
               bootstrap.load_bluebooks(bluebook_dir)
-              Dir.glob(File.join(bluebook_dir, "*.hecksagon")).each { |file| Kernel.load(file) }
+              Dir.glob(File.join(bluebook_dir, "*.hecksagon")).each { |file| Hecks::ClosedForm.load_file(file) }
             end
 
             # Applied before infra_name/hecks_schema below, so both read the override the same way

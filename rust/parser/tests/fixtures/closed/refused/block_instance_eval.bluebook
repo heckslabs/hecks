@@ -1,0 +1,6 @@
+# Refused: reopens the builder with instance_eval.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    instance_eval { attribute :x, String }
+  end
+end

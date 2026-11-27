@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../closed_form"
 module Hecks
   module RustBuild
     class ProjectRust
@@ -49,16 +50,16 @@ module Hecks
 
         def load_framework
           lib = File.expand_path("../..", __dir__)
-          FRAMEWORK_FILES.each { |file| Kernel.load(File.join(lib, file)) }
+          FRAMEWORK_FILES.each { |file| Hecks::ClosedForm.load_file(File.join(lib, file)) }
         end
 
         # Translation edges, hecksagons (whose `attaches` loads a framework bluebook into the
         # same registry) and worlds (whose `default_adapter` binds what a hecksagon leaves out), in
         # the order the language loads them.
         def load_siblings
-          Dir[File.join(@bluebook_dir, "translations", "*.bluebook")].each { |file| Kernel.load(file) }
-          Dir.glob(File.join(@bluebook_dir, "*.hecksagon")).each { |file| Kernel.load(file) }
-          Dir.glob(File.join(@bluebook_dir, "*.world")).each { |file| Kernel.load(file) }
+          Dir[File.join(@bluebook_dir, "translations", "*.bluebook")].each { |file| Hecks::ClosedForm.load_file(file) }
+          Dir.glob(File.join(@bluebook_dir, "*.hecksagon")).each { |file| Hecks::ClosedForm.load_file(file) }
+          Dir.glob(File.join(@bluebook_dir, "*.world")).each { |file| Hecks::ClosedForm.load_file(file) }
         end
 
         # The domain's own wasm plugins, so the IR carries them to the host: only an `.adapter`
@@ -66,7 +67,7 @@ module Hecks
         # the build does not have. A vendored package's plugins load with its bluebook.
         def load_plugins
           Dir.glob(File.join(@bluebook_dir, "{,adapters/}*.adapter")).each do |file|
-            Kernel.load(file) if File.read(file).match?(RUNS_LINE)
+            Hecks::ClosedForm.load_file(file) if File.read(file).match?(RUNS_LINE)
           end
         end
 

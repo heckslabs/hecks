@@ -78,8 +78,8 @@ RSpec.describe "the outbox as EventDelivery's adapter" do
     write_shop(attaches: attaches, adapter: adapter)
     if adapter == "SqlitePersistence"
       File.write(File.join(@dir, "shop.world"),
-                 "Hecks.world(\"Shop\") { default_adapter \"SqlitePersistence\"\n" \
-                 "default_database #{File.join(@dir, "shop.db").inspect} }\n")
+                 "Hecks.world \"Shop\" do\n  default_adapter \"SqlitePersistence\"\n  " \
+                 "default_database #{File.join(@dir, "shop.db").inspect}\nend\n")
     end
     Hecks.boot(@dir, install_driving: false)
   end

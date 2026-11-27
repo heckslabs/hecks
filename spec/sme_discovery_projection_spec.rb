@@ -80,9 +80,9 @@ RSpec.describe Hecks::SME::DiscoveryProjection do
       expect(verdict.clean).to be(false)
     end
 
-    it "is not clean, and says why, when the staged text is not Ruby", :aggregate_failures do
+    it "is not clean, and says why, when the staged text does not parse", :aggregate_failures do
       verdict = described_class::StagedCheck.call(%(Hecks.bluebook "Broken" do\n))
-      expect(verdict.report).to start_with("SyntaxError")
+      expect(verdict.report).to start_with("Hecks::ClosedForm::Refused")
       expect(verdict.clean).to be(false)
     end
   end

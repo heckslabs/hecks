@@ -1,3 +1,4 @@
+require_relative "closed_form"
 module Hecks
   # A vendored, external bluebook: same shape as Framework, but for a
   # package that ships outside hecks's own lib/ (see .load! and .vendor!).
@@ -44,9 +45,9 @@ module Hecks
     # the adapters bound to its ports. A package that asks the outside therefore brings the asking
     # with it, and a project that vendors it declares none of it again.
     def self.load_package(files, dir)
-      files.each { |file| Kernel.load(file) }
-      Dir.glob(File.join(dir, PORTS)).each { |file| Kernel.load(file) }
-      Dir.glob(File.join(dir, "*.adapter")).each { |file| Kernel.load(file) }
+      files.each { |file| Hecks::ClosedForm.load_file(file) }
+      Dir.glob(File.join(dir, PORTS)).each { |file| Hecks::ClosedForm.load_file(file) }
+      Dir.glob(File.join(dir, "*.adapter")).each { |file| Hecks::ClosedForm.load_file(file) }
     end
     private_class_method :load_package
 

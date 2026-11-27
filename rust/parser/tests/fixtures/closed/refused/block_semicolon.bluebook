@@ -1,0 +1,6 @@
+# Refused: chains a second statement.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :x, String; system("id")
+  end
+end

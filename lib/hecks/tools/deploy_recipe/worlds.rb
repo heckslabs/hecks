@@ -1,14 +1,15 @@
 # frozen_string_literal: true
 
 require_relative "../../tools"
+require_relative "../../closed_form"
 
 module Hecks
   module Tools
     module DeployRecipe
       # Finds and loads the `.world` file a domain deploys from, and the registry it boots into.
       module Worlds
-        # A hecksagon's `FrameworkBluebooks.load!("Name")`, capturing the bluebook's name.
-        BLUEBOOK_LOAD = /FrameworkBluebooks\.load!\(\s*"([^"]+)"\s*\)/
+        # A hecksagon block whose first line is `bluebook_from :gem`, capturing the bluebook's name.
+        BLUEBOOK_LOAD = /Hecks\.hecksagon\s*\(?\s*"([^"]+)"\s*\)?\s*(?:do|\{)\s*\n\s*bluebook_from\s*:gem\b/
 
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
         # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's
@@ -30,10 +31,9 @@ module Hecks
           world_file
         end
 
-        # The snake-cased names of the bluebooks a domain's hecksagons attach by name
-        # (`Hecks::FrameworkBluebooks.load!("QualityControl")`), which its `.world` and `.hecksagon`
-        # files
-        # are named after.
+        # The snake-cased names of the bluebooks a domain's hecksagons load from the gem by name
+        # (`bluebook_from :gem` in a `Hecks.hecksagon "QualityControl"` block), which its `.world`
+        # and `.hecksagon` files are named after.
         #
         # @param domain [String] the domain directory
         # @return [Array<String>] such as `["quality_control"]`
@@ -51,7 +51,7 @@ module Hecks
         def load_world(world_file, domain, environment)
           registry = Hecks::Runtime::Registry.new
           Hecks.with_registry(registry) do
-            Kernel.load(world_file)
+            Hecks::ClosedForm.load_file(world_file)
             load_overlay(domain, environment) if environment
           end
 
@@ -75,10 +75,9 @@ module Hecks
 
         # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
         # cross-domain invoke grant can live in any attached bluebook. A domain with no bluebook of
-        # its own (the QA ledger) gets its bluebook from the hecksagon's `FrameworkBluebooks.load!`.
-        # `root:` is
-        # required or `attaches ... from: :vendor` refuses with "needs a registry with a root to
-        # vendor from".
+        # its own (the QA ledger) gets its bluebook from the hecksagon's `bluebook_from :gem`.
+        # `root:` is required or `attaches ... from: :vendor` refuses with "needs a registry with a
+        # root to vendor from".
         #
         # @param domain [String] the domain directory
         # @param bluebook_basename [String] the file name the domain's bluebook and hecksagon share
@@ -103,16 +102,16 @@ module Hecks
           overlay_file = File.join(domain, "bluebook", "environments", "#{environment}.world")
           File.exist?(overlay_file) or
             abort "#{overlay_file} does not exist — --environment=#{environment} needs that overlay"
-          Kernel.load(overlay_file)
+          Hecks::ClosedForm.load_file(overlay_file)
         end
 
         # Loads the attached ports and adapters, then the domain's bluebook and hecksagon.
         def load_attached(domain, bluebook_basename)
           %w[ports/persistence.port ports/extraction.port adapters/driven/memory.adapter
-             adapters/driven/prism.adapter].each { |file| Kernel.load(File.join(LIB_HECKS, file)) }
+             adapters/driven/prism.adapter].each { |file| Hecks::ClosedForm.load_file(File.join(LIB_HECKS, file)) }
           %w[bluebook hecksagon].each do |extension|
             file = File.join(domain, "bluebook", "#{bluebook_basename}.#{extension}")
-            Kernel.load(file) if File.exist?(file)
+            Hecks::ClosedForm.load_file(file) if File.exist?(file)
           end
         end
       end

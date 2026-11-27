@@ -1,0 +1,8 @@
+# Refused: runs a block in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      total.then { exit }
+    end
+  end
+end

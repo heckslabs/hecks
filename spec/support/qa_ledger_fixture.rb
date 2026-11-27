@@ -23,9 +23,8 @@ module QaLedgerFixture
 
   # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, bluebook ports included.
   HECKSAGON = <<~RUBY.freeze
-    Hecks::FrameworkBluebooks.load!("QualityControl")
-
     Hecks.hecksagon "QualityControl" do
+      bluebook_from :gem
       attaches "Governance"
 
       QualityControl::Target.persisted_by("PostgresEra")

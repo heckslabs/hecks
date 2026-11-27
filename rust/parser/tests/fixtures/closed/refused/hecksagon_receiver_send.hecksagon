@@ -1,0 +1,4 @@
+# Refused: sends to an aggregate.
+Hecks.hecksagon "Probe" do
+  Probe::Order.send :x
+end

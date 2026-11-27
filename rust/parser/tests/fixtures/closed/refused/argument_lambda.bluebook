@@ -1,0 +1,6 @@
+# Refused: passes a lambda.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :x, String, default: -> { 1 }
+  end
+end

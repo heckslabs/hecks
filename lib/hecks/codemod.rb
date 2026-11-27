@@ -1,6 +1,7 @@
 require_relative "bluebook/meta_validator"
 require_relative "corpus"
 require_relative "codemod/runner"
+require_relative "closed_form"
 
 module Hecks
   # Shared machinery for a codemod that migrates real `.bluebook` source: boot,
@@ -28,24 +29,23 @@ module Hecks
 
     # Text that stands in for a file while a dry run judges an edit.
     #
-    # `Kernel.load` evaluates the staged text in place of the file, under the file's own path, so
+    # The closed form reads the staged text in place of the file, under the file's own path, so
     # a codemod can boot the edited bluebook without writing a tracked file: a dry run that is
     # interrupted, or read by a parallel process, leaves the checkout exactly as it was.
     module Shadow
-      # Prepended to `Kernel`'s singleton: loads staged text when there is any for the file.
-      module Loader
+      # Prepended to `ClosedForm`'s singleton: answers the staged text when the file has any.
+      module Source
         # @param file [String] the path being loaded
-        # @return [Boolean] true, as `Kernel.load` answers
-        def load(file, *)
+        # @return [String] the staged text, or the file's own
+        def source_of(file)
           text = Shadow.texts[file.to_s]
           return super unless text
 
           Hecks::Adapters::Prism::TREES[file.to_s] = ::Prism.parse(text).value
-          eval(text, TOPLEVEL_BINDING.dup, file.to_s, 1)
-          true
+          text
         end
       end
-      Kernel.singleton_class.prepend(Loader)
+      Hecks::ClosedForm.singleton_class.prepend(Source)
 
       module_function
 
@@ -103,8 +103,8 @@ module Hecks
 
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        BOOT_FILES.each { |file| Kernel.load(file) }
-        Hecks::Bluebook::MetaValidator.defer { paths.each { |file| Kernel.load(file) } }
+        BOOT_FILES.each { |file| Hecks::ClosedForm.load_file(file) }
+        Hecks::Bluebook::MetaValidator.defer { paths.each { |file| Hecks::ClosedForm.load_file(file) } }
         Hecks::Bluebook::MetaValidator.judge_deferred!(registry)
       end
       registry

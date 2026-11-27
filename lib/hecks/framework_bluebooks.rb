@@ -3,6 +3,7 @@ require_relative "framework"
 require_relative "runtime/registry"
 require_relative "bluebook/meta_validator"
 require_relative "sentence_form"
+require_relative "closed_form"
 
 module Hecks
   # The bluebooks the gem carries that a hecksagon can attach by name (ADR 0080): the language
@@ -144,7 +145,7 @@ module Hecks
     # @param paths [Array<String>] the bluebook's bluebook files
     # @return [void]
     def self.load_wiring(name, paths)
-      wiring_files(name, paths).each { |file| Kernel.load(file) }
+      wiring_files(name, paths).each { |file| Hecks::ClosedForm.load_file(file) }
     end
     private_class_method :load_wiring
 

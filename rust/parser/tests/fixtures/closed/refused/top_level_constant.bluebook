@@ -1,0 +1,7 @@
+# Refused: sets a constant before the declaration.
+LIMIT = 3
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :total, Integer
+  end
+end

@@ -2,13 +2,19 @@
 Hecks.hecksagon "Errand" do
   Errand::Job.persisted_by("Memory")
 
-  %w[Worker Inspector].each do |port|
-    Errand::Job.port port do
-      asks "Run", to: Job do
-        attribute :ref, Ref
-        answers "JobRan"
-        refuses "JobRefused"
-      end
+  Errand::Job.port "Worker" do
+    asks "Run", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
+    end
+  end
+
+  Errand::Job.port "Inspector" do
+    asks "Run", to: Job do
+      attribute :ref, Ref
+      answers "JobRan"
+      refuses "JobRefused"
     end
   end
 end

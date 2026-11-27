@@ -1,0 +1,30 @@
+Hecks.behaviors "Courier" do
+  vision "The carrier's contract: every adapter declared beside this suite is held to these tests."
+
+  loads "courier.bluebook", "courier.hecksagon"
+
+  test "a parcel to a place the carrier reaches is collected" do
+    tests "Book", on: "Parcel"
+    input ref: { value: "P-1" }, destination: { value: "Lisbon" }
+    expect emits: ["ParcelBooked", "CarrierCollected", "ParcelSettled"], status: "collected"
+  end
+
+  test "a parcel to Atlantis is abandoned with the carrier's reason" do
+    tests "Book", on: "Parcel"
+    input ref: { value: "P-2" }, destination: { value: "Atlantis" }
+    expect emits: ["ParcelBooked", "CarrierRefused", "ParcelAbandoned"], status: "abandoned",
+           refusal: { value: "Hecks::Runtime::DeclaredAdapter::Refused: no road reaches Atlantis" }
+  end
+
+  test "the rate card prices a place the carrier reaches" do
+    tests "Rates", on: "Parcel", kind: :query
+    input destination: { value: "Oslo" }
+    expect ok: true
+  end
+
+  test "the rate card refuses Atlantis with the carrier's reason" do
+    tests "Rates", on: "Parcel", kind: :query
+    input destination: { value: "Atlantis" }
+    expect refused: "no road reaches Atlantis"
+  end
+end

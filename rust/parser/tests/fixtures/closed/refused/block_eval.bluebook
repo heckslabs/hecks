@@ -1,0 +1,6 @@
+# Refused: evaluates a string inside a block.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    eval "attribute :x, String"
+  end
+end

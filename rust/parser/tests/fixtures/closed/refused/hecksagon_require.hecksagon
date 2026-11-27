@@ -1,0 +1,5 @@
+# Refused: requires a library before the wiring.
+require "open3"
+Hecks.hecksagon "Probe" do
+  persisted_by "Memory"
+end

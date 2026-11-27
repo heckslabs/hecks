@@ -2,6 +2,7 @@ require "digest"
 require "json"
 require_relative "meta_validator/verdict_cache"
 require_relative "meta_validator/modes"
+require_relative "../closed_form"
 
 module Hecks
   module Bluebook
@@ -74,7 +75,7 @@ module Hecks
         judge_artifact(adapter, AdapterJudge, "#{adapter.name}'s adapter") do
           JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets, adapter.declared_defaults,
                          adapter.answered_queries, adapter.runs, adapter.capabilities, adapter.stays_inside?,
-                         adapter.granted_imports, adapter.granted_hosts])
+                         adapter.granted_imports, adapter.granted_hosts, adapter.declared_replies])
         end
       end
 
@@ -214,7 +215,7 @@ module Hecks
       # @return [void]
       def self.load_attached_grammar_into(registry)
         Hecks.with_registry(registry) do
-          Dir.glob(File.join(ATTACHED_GRAMMAR_DIR, "*.bluebook")).each { |file| Kernel.load(file) }
+          Dir.glob(File.join(ATTACHED_GRAMMAR_DIR, "*.bluebook")).each { |file| Hecks::ClosedForm.load_file(file) }
         end
       end
 
@@ -229,7 +230,7 @@ module Hecks
       # @return [Runtime::Registry] `registry`, unchanged in identity
       def self.load_grammar_into(registry)
         @bootstrapping = true
-        Hecks.with_registry(registry) { grammar_files.each { |file| Kernel.load(file) } }
+        Hecks.with_registry(registry) { grammar_files.each { |file| Hecks::ClosedForm.load_file(file) } }
         registry
       ensure
         @bootstrapping = false

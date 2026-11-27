@@ -35,7 +35,7 @@ module Hecks
           Kernel.load(File.join(root, file))
         end
         Hecks::Adapters::Folder.new.load_bluebooks(File.join(root, "examples/banking/bluebook"))
-        Kernel.load(File.join(root, "lib/hecks/forms/examples/banking_console.bluebook"))
+        Kernel.load(File.join(root, "lib/hecks/forms/examples/banking_console.rb"))
         persist_in_memory
       end
 

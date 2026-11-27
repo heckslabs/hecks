@@ -9,7 +9,7 @@ RSpec.describe Hecks::Forms::App do
   include Rack::Test::Methods
 
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
-  FORMS_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecks/forms/examples/banking_console.bluebook")
+  FORMS_CONFIG = File.join(InMemoryDomain::ROOT, "lib/hecks/forms/examples/banking_console.rb")
 
   # Rebinds persistence to memory: banking.hecksagon binds "Heki", a real store.
   def app
@@ -24,7 +24,7 @@ RSpec.describe Hecks::Forms::App do
   def load_banking_console
     MemoryPorts.load!
     load_bluebook_files(BANKING_BLUEBOOK)
-    Kernel.load(FORMS_BLUEBOOK)
+    Kernel.load(FORMS_CONFIG)
     bind_banking_to_memory
   end
 

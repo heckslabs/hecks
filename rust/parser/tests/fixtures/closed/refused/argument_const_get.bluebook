@@ -1,0 +1,6 @@
+# Refused: looks a constant up by name.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :x, Object.const_get(:String)
+  end
+end

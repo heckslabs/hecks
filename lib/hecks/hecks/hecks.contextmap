@@ -35,8 +35,31 @@ Hecks.context_map "Hecks" do
   # included. Any attach, subscription, translation or `across` policy either way is refused by
   # `model_check` as `separate_ways_violated`, whatever its kind. The list is every context above;
   # spec/context_map_clients_spec.rb fails when a context is added without joining it.
-  %w[Hecks Governance Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets
-     Composer QualityControl Coder Fixer PipelineBoard Pipeline Agents Triage Interviews Protocols Delivery Signalbox].each { |name| separate_ways name, "Clients" }
+  separate_ways "Hecks", "Clients"
+  separate_ways "Governance", "Clients"
+  separate_ways "Bluebook", "Clients"
+  separate_ways "Hecksagon", "Clients"
+  separate_ways "World", "Clients"
+  separate_ways "Adapter", "Clients"
+  separate_ways "Port", "Clients"
+  separate_ways "Translation", "Clients"
+  separate_ways "Expression", "Clients"
+  separate_ways "Tenancy", "Clients"
+  separate_ways "Deploy", "Clients"
+  separate_ways "Site", "Clients"
+  separate_ways "Tickets", "Clients"
+  separate_ways "Composer", "Clients"
+  separate_ways "QualityControl", "Clients"
+  separate_ways "Coder", "Clients"
+  separate_ways "Fixer", "Clients"
+  separate_ways "PipelineBoard", "Clients"
+  separate_ways "Pipeline", "Clients"
+  separate_ways "Agents", "Clients"
+  separate_ways "Triage", "Clients"
+  separate_ways "Interviews", "Clients"
+  separate_ways "Protocols", "Clients"
+  separate_ways "Delivery", "Clients"
+  separate_ways "Signalbox", "Clients"
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.

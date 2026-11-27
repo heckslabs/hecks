@@ -4,6 +4,7 @@ require "hecks"
 require "fileutils"
 require_relative "../tools"
 require_relative "../projections/ci_pipeline/workflows"
+require_relative "../closed_form"
 
 module Hecks
   module Tools
@@ -64,9 +65,9 @@ module Hecks
       def registry_for
         registry = Hecks::Runtime::Registry.new(root: BLUEBOOK_DIRECTORY)
         Hecks.with_registry(registry) do
-          WIRING.each { |file| Kernel.load(File.join(LIB_HECKS, file)) }
-          Dir.glob(File.join(BLUEBOOK_DIRECTORY, "*.bluebook")).each { |file| Kernel.load(file) }
-          Dir.glob(File.join(BLUEBOOK_DIRECTORY, "*.hecksagon")).each { |file| Kernel.load(file) }
+          WIRING.each { |file| Hecks::ClosedForm.load_file(File.join(LIB_HECKS, file)) }
+          Dir.glob(File.join(BLUEBOOK_DIRECTORY, "*.bluebook")).each { |file| Hecks::ClosedForm.load_file(file) }
+          Dir.glob(File.join(BLUEBOOK_DIRECTORY, "*.hecksagon")).each { |file| Hecks::ClosedForm.load_file(file) }
         end
         registry
       end

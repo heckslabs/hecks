@@ -72,7 +72,8 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "AdapterBuilder"              => [
       Hecks::Bluebook::DSL::AdapterBuilder,
-      %i[port field secret answers_query runs provides stays_inside imports]
+      # `replies` and `refuses` need the Rust parser, so spec/declared_adapter_spec.rb tests them.
+      %i[port field secret answers_query runs provides stays_inside imports replies refuses]
     ],
     "WorldBuilder"                => [
       Hecks::Bluebook::DSL::WorldBuilder,

@@ -1,0 +1,6 @@
+# Refused: branches on Ruby.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    if true then attribute :x, String end
+  end
+end

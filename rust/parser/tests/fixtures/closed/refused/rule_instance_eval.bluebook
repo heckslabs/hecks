@@ -1,0 +1,8 @@
+# Refused: reopens self in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      instance_eval("1")
+    end
+  end
+end

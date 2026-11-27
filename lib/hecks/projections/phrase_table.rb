@@ -1,5 +1,6 @@
 require_relative "../projector"
 require_relative "parser_table"
+require_relative "../closed_form"
 
 module Hecks
   module Projections
@@ -34,7 +35,7 @@ module Hecks
       # @return [Bluebook::Declaration] the bluebook declared by `SENTENCE_FILE`
       def declaration
         registry = Hecks::Runtime::Registry.new
-        Hecks.with_registry(registry) { (SUPPORT_FILES + [SENTENCE_FILE]).each { |file| Kernel.load(file) } }
+        Hecks.with_registry(registry) { (SUPPORT_FILES + [SENTENCE_FILE]).each { |file| Hecks::ClosedForm.load_file(file) } }
         registry.bluebook("Sentence")
       end
 

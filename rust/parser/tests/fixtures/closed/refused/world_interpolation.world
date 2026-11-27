@@ -1,0 +1,4 @@
+# Refused: interpolates Ruby into a setting.
+Hecks.world "Probe" do
+  realm "#{`hostname`}"
+end

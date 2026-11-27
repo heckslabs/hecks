@@ -1,0 +1,6 @@
+# Refused: builds attributes in a %w loop.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    %w[a b].each { |w| attribute w.to_sym, String }
+  end
+end

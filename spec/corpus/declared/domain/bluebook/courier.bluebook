@@ -1,0 +1,87 @@
+Hecks.bluebook "Courier" do
+  # A CORPUS-OWNED DOMAIN (spec/corpus/declared). A parcel is booked, a carrier is asked to collect
+  # it, and its answer settles or abandons the parcel; a rate card is asked for what a trip costs.
+  # The carrier is a port, and each adapter beside the suite answers it by declaration alone.
+  vision "A parcel is booked, the carrier collects or refuses it, and the rate card prices a trip."
+  core
+
+  aggregate "Parcel" do
+    identified_by :ref
+
+    attribute :ref,         Ref
+    attribute :destination, Place
+    attribute :tracking,    Tracking, optional: true
+    attribute :refusal,     Reason,   optional: true
+
+    value_object "Ref" do
+      attribute :value, String
+    end
+
+    value_object "Place" do
+      attribute :value, String
+    end
+
+    value_object "Tracking" do
+      attribute :value, String
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    value_object "Rate" do
+      attribute :service, String
+      attribute :cents,   Integer
+    end
+
+    lifecycle :status, default: "booked" do
+      transition "Settle"  => "collected", from: "booked"
+      transition "Abandon" => "abandoned", from: "booked"
+    end
+
+    command "Book" do
+      goal "Record that a parcel wants carrying to a place"
+      attribute :ref,         Ref
+      attribute :destination, Place
+      sets :ref, :destination
+      emits ParcelBooked
+    end
+
+    command "Settle" do
+      goal "Record the tracking the carrier answered"
+      reference_to Parcel
+      attribute :tracking, Tracking
+      sets :tracking
+      emits ParcelSettled
+    end
+
+    command "Abandon" do
+      goal "Record why the carrier would not collect"
+      reference_to Parcel
+      attribute :refusal, Reason
+      sets :refusal
+      emits ParcelAbandoned
+    end
+
+    query "Rates" do
+      description "What the carrier charges to carry a parcel to a place, one row per service."
+      attribute :destination, Place
+      returns list_of(Rate)
+    end
+  end
+
+  policy "CollectWhenBooked" do
+    on  "Parcel.ParcelBooked"
+    ask :collect, with: { ref: :ref, destination: :destination }
+  end
+
+  policy "SettleWhenCollected" do
+    on      "Parcel.CarrierCollected"
+    trigger Parcel::Settle, with: { tracking: :tracking }
+  end
+
+  policy "AbandonWhenRefused" do
+    on      "Parcel.CarrierRefused"
+    trigger Parcel::Abandon, with: { refusal: :refusal }
+  end
+end

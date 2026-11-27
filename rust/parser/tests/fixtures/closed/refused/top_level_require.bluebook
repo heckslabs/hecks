@@ -1,0 +1,7 @@
+# Refused: requires a library before the declaration.
+require "open3"
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :total, Integer
+  end
+end
