@@ -25,6 +25,12 @@ module Doctest
   # A method, not a constant: a constant would connect to Postgres on every run, `io: true` or not.
   def self.postgres_available? = PostgresProbe.available?
 
+  # A line that declares a row of a declared adapter, which the Rust parser reads from its file.
+  DECLARED_ROW = /^\s*(replies|refuses) "/
+
+  # A page that declares adapter rows needs `hecks-parse`, so it runs where the parser is built.
+  def self.parser_page?(path) = File.read(path).match?(DECLARED_ROW)
+
   # schema-evolution.md reads pizzas' real era-1→2 history out of Postgres; a fresh database
   # has the schema but not the history, so check for the second era's row. Memoized.
   def self.pizzas_history_available?
@@ -207,7 +213,7 @@ module Doctest
 
     # A bluebook needs a fresh file because Prism memoises extraction per path; a declared adapter
     # needs one because the Rust parser reads its rows from its file.
-    def on_disk?(block) = block.kind == :bluebook || block.code.match?(/^\s*(replies|refuses) "/)
+    def on_disk?(block) = block.kind == :bluebook || block.code.match?(DECLARED_ROW)
 
     # One line stays one line, so backtraces name the guide's true line.
     def transform(block)

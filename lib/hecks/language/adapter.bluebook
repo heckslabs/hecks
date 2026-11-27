@@ -97,10 +97,9 @@ Hecks.bluebook "Adapter" do
       attribute :value, String, pattern: '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
     end
 
-    # One row of a declared adapter: the ask (or query) it answers, the asked values it matches
-    # (`where:`), and either the answer it gives (`with:`, kept as `answer`, plus the asked fields
-    # it is `echoing`) or the refusal it words (`saying`). A row with no `where:` matches every
-    # asking; `where`, `answer` and `echoing` are kept as their JSON text.
+    # One row of a declared adapter: the ask it answers, the asked values it matches (`where:`),
+    # and the answer it gives (`with:`, kept as `answer`, echoing asked fields) or its `saying`.
+    # No `where:` matches every asking; `where`, `answer` and `echoing` are kept as JSON text.
     value_object "AdapterReply" do
       attribute :ask,    String
       attribute :where,  String, optional: true

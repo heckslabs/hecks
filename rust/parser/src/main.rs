@@ -387,6 +387,8 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("provides", "Adapter"),
     ("stays_inside", "Adapter"),
     ("imports", "Adapter"),
+    ("replies", "Adapter"),
+    ("refuses", "Adapter"),
     ("world", "File"),
     ("realm", "World"),
     ("latest", "World"),

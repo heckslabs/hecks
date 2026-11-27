@@ -95,18 +95,20 @@ module Hecks
         # and the Rust parser reads and judges it from the file: the builder only notes that the
         # adapter is declared.
         #
-        # @param _ask [String] the ask or query the row answers, such as `"Collect"`
-        # @param _row [Hash] `where:` the asked values it matches, `with:` the answer, `echoing:`
-        #   the asked fields copied into it
+        # @param ask [String] the ask or query the row answers, such as `"Collect"`
+        # @param where [Hash, nil] the asked values the row matches
+        # @param with [Hash, Array<Hash>, nil] the answer it gives
+        # @param echoing [Array<Symbol>, nil] the asked fields copied into the answer
         # @return [true]
-        def replies(_ask, **_row) = @declares_rows = true
+        def replies(ask, where: nil, with: nil, echoing: nil) = declare_row(ask, where, with, echoing)
 
         # Declares the refusal this adapter words for an ask of its port, read as {#replies} is.
         #
-        # @param _ask [String] the ask or query the row refuses
-        # @param _row [Hash] `where:` the asked values it matches, `saying:` the refusal's words
+        # @param ask [String] the ask or query the row refuses
+        # @param where [Hash, nil] the asked values the row matches
+        # @param saying [String, nil] the refusal's words
         # @return [true]
-        def refuses(_ask, **_row) = @declares_rows = true
+        def refuses(ask, where: nil, saying: nil) = declare_row(ask, where, saying)
 
         # Assembles the collected port, fields, defaults, secrets and plugin, judged by the adapter
         # language.
@@ -137,6 +139,9 @@ module Hecks
         end
 
         private
+
+        # Notes that a row was declared; the Rust parser reads the row itself from the file.
+        def declare_row(*) = @declares_rows = true
 
         # The rows the Rust parser reads from this adapter's file, when the body declared any.
         def declared_rows = @declares_rows ? DeclaredRows.read(@source_path, @name) : nil

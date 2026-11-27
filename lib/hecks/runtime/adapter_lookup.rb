@@ -99,7 +99,9 @@ module Hecks
       # @param adapter [Bluebook::Adapter] the loaded adapter
       # @return [Class] the class that answers for it
       def implementation_class(adapter)
-        adapter.declared? ? DeclaredAdapter.class_for(adapter) : AdapterNamespace.resolve(adapter.name)
+        return DeclaredAdapter.class_for(adapter) if adapter.respond_to?(:declared?) && adapter.declared?
+
+        AdapterNamespace.resolve(adapter.name)
       end
 
       # Checks that an adapter class can be built with a bare `.new` and answers a query: it
