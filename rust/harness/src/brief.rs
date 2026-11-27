@@ -27,6 +27,24 @@ pub fn of_role(role_file: &str) -> String {
     format!("{}\n\n{}", preamble(), body(role_file).trim())
 }
 
+/// What a session reopened in a standing seat is told before the handover its seat's last session
+/// left.
+pub const HANDOVER: &str = "Handover from the last session in this seat:";
+
+/// A session's first turn: its brief, then, when its seat's last session left a handover (what it
+/// said at the end of its last turn that said something), a blank line, [`HANDOVER`] and the
+/// handover, so the new session takes up where the last one stopped. With no handover, or a blank
+/// one, the brief alone.
+pub fn opening(brief: &str, handover: Option<&str>) -> String {
+    handover
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map_or_else(
+            || brief.to_string(),
+            |text| format!("{brief}\n\n{HANDOVER}\n\n{text}"),
+        )
+}
+
 /// The file after its frontmatter: everything after the second `---` line, when the first line is
 /// `---`; the whole file otherwise.
 fn body(text: &str) -> &str {
@@ -40,6 +58,30 @@ mod tests {
     use super::*;
 
     const FILE: &str = "---\nname: staff-engineer\ntools: Bash\n---\n\nYou are the staff engineer role.\n\n## Limits\n\nRelay only.\n";
+
+    #[test]
+    fn a_first_session_is_told_its_brief_alone() {
+        assert_eq!(
+            opening("You are the scrum master.", None),
+            "You are the scrum master."
+        );
+    }
+
+    #[test]
+    fn a_blank_handover_leaves_the_brief_alone() {
+        assert_eq!(
+            opening("You are the scrum master.", Some(" \n")),
+            "You are the scrum master."
+        );
+    }
+
+    #[test]
+    fn a_reopened_session_is_told_its_brief_then_the_handover() {
+        assert_eq!(
+            opening("You are the scrum master.", Some("coder-1 waits on the lead.\n")),
+            "You are the scrum master.\n\nHandover from the last session in this seat:\n\ncoder-1 waits on the lead."
+        );
+    }
 
     #[test]
     fn opens_with_how_mail_works_in_a_harness_run() {

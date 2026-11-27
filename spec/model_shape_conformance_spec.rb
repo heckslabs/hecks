@@ -4,15 +4,15 @@ require "spec_helper"
 # named deviations, each categorised and checked.
 RSpec.describe "the model's shape, held to the language" do
   MODEL_CONSTRUCTS = {
-    "Bluebook"       => Hecks::Bluebook::Declaration,
-    "Aggregate"      => Hecks::Bluebook::Aggregate,
-    "Command"        => Hecks::Bluebook::Command,
-    "Entity"         => Hecks::Bluebook::Entity,
-    "ValueObject"    => Hecks::Bluebook::ValueObject,
-    "Policy"         => Hecks::Bluebook::Policy,
-    "Query"          => Hecks::Bluebook::Query,
-    "ReadModel"      => Hecks::Bluebook::ReadModel,
-    "ProcessManager" => Hecks::Bluebook::Saga
+    "Bluebook"    => Hecks::Bluebook::Declaration,
+    "Aggregate"   => Hecks::Bluebook::Aggregate,
+    "Command"     => Hecks::Bluebook::Command,
+    "Entity"      => Hecks::Bluebook::Entity,
+    "ValueObject" => Hecks::Bluebook::ValueObject,
+    "Policy"      => Hecks::Bluebook::Policy,
+    "Query"       => Hecks::Bluebook::Query,
+    "ReadModel"   => Hecks::Bluebook::ReadModel,
+    "Saga"        => Hecks::Bluebook::Saga
   }.freeze
 
   # Named `DEVIATIONS`, not `D`: spec/syntax_conformance_spec claims `D`, and a top-level

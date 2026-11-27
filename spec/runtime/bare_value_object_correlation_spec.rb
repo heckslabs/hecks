@@ -25,9 +25,9 @@ RSpec.describe "a saga correlated by a value-object identity" do
     end
   end
 
-  def bare_key_process_manager
+  def bare_key_saga
     proc do
-      process_manager "BareKey" do
+      saga "BareKey" do
         correlates_by Sighting
         starts_on "SightingRaised"
         transition("SightingRaised" => "watching", from: "watching")
@@ -35,9 +35,9 @@ RSpec.describe "a saga correlated by a value-object identity" do
     end
   end
 
-  def dotted_key_process_manager
+  def dotted_key_saga
     proc do
-      process_manager "DottedKey" do
+      saga "DottedKey" do
         correlates_by :"code.value"
         starts_on "SightingRaised"
         transition("SightingRaised" => "watching", from: "watching")
@@ -46,7 +46,7 @@ RSpec.describe "a saga correlated by a value-object identity" do
   end
 
   def sighting_domain
-    parts = [sighting_aggregate, bare_key_process_manager, dotted_key_process_manager]
+    parts = [sighting_aggregate, bare_key_saga, dotted_key_saga]
     proc { parts.each { |part| instance_eval(&part) } }
   end
 
@@ -66,8 +66,8 @@ RSpec.describe "a saga correlated by a value-object identity" do
     runtime.dispatch_flat("Sightings::Sighting.Raise", code: { value: code })
   end
 
-  def instances_of(process_manager)
-    runtime.registry.saga_instances[process_manager].keys
+  def instances_of(saga)
+    runtime.registry.saga_instances[saga].keys
   end
 
   before { raise_sighting("smoke-1") }

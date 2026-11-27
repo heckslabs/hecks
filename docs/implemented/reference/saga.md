@@ -1,7 +1,7 @@
-# ProcessManager
+# Saga
 
 <!-- generated:begin id=page -->
-Words available inside `process_manager do ... end`.
+Words available inside `saga do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
@@ -15,7 +15,7 @@ does not clear has nothing to put back:
 
 ```ruby skip
 # examples/banking/bluebook/
-process_manager "Onboarding" do
+saga "Onboarding" do
   correlates_by :"reference.value"
   starts_on "OnboardingOpened"
   ends_on   "AccountOpened"
@@ -34,7 +34,7 @@ end
 `Onboarding` declares no `resumes`, so the example for it is a small domain of its own:
 
 ```ruby bluebook
-Hecks.bluebook "ProcessManagerResumes" do
+Hecks.bluebook "SagaResumes" do
   vision "A ticket filed in two stages, each of which can be picked up again."
 
   aggregate "Ticket" do
@@ -53,7 +53,7 @@ Hecks.bluebook "ProcessManagerResumes" do
     end
   end
 
-  process_manager "Filing" do
+  saga "Filing" do
     correlates_by :"ref.value"
     starts_on "TicketFiled"
     ends_on "TicketClosed"
@@ -176,7 +176,7 @@ runtime.registry.saga_log.map { |row| row[:on] }.compact  # => ["OnboardingOpene
 Names the command that resumes each stage of a saga that faulted, one `"stage=Aggregate.Command"` entry per stage. Declaring it does nothing while the saga runs; it is read afterwards by the launcher's `resume <run>`, which re-dispatches the named command with the arguments the saga saved. A stage with no entry cannot be resumed, and the resume is refused by name.
 
 ```ruby
-filing = runtime.registry.bluebook("ProcessManagerResumes").sagas.first
+filing = runtime.registry.bluebook("SagaResumes").sagas.first
 filing.resumes  # => ["filing=Ticket.File", "closing=Ticket.Close"]
 ```
 
@@ -198,7 +198,7 @@ lifecycle.md), one level over — `"EventType" => "to_state", from:
 aggregate, an event here. `event_type` is usually an event name;
 `:refused` is the one exception, matching a dispatched command's own
 refusal rather than any event an aggregate emits — the
-compensating-leg mechanics live in policies-and-process-managers.md.
+compensating-leg mechanics live in policies-and-sagas.md.
 
 Unlike `Lifecycle#transition`, `from:` is MANDATORY — a saga's own
 admission check tests a running instance's current state by plain
@@ -208,7 +208,7 @@ match no instance ever, silently, and is refused at declaration
 instead:
 
 ```ruby skip
-Hecks.bluebook("Gone") { process_manager("Nowhere") { correlates_by :"ref.value"; starts_on "Opened"; ends_on "Closed"; transition "Opened" => "open" } }  # ~> InvalidSaga: Nowhere's transition {"Opened"=>"open"} names no from: — a process manager's own admission checks a saga instance's CURRENT state exactly, so a transition with no from: would match no instance ever, silently
+Hecks.bluebook("Gone") { saga("Nowhere") { correlates_by :"ref.value"; starts_on "Opened"; ends_on "Closed"; transition "Opened" => "open" } }  # ~> InvalidSaga: Nowhere's transition {"Opened"=>"open"} names no from: — a saga's own admission checks a saga instance's CURRENT state exactly, so a transition with no from: would match no instance ever, silently
 ```
 
 Given a list, a leg may fire from any of several states, the same

@@ -114,11 +114,11 @@ module Hecks
           end
         end
 
-        # Reactions: whole policies, and what a process manager does on each of its transitions.
+        # Reactions: whole policies, and what a saga does on each of its transitions.
         module Reactions
           # A line opening a `policy "Name"` block.
           POLICY_OPENER = /\A\s*policy\s+"/
-          # A line opening a process manager's `transition ... do` block.
+          # A line opening a saga's `transition ... do` block.
           TRANSITION_OPENER = /\A\s*transition\b.*\bdo\s*\z/
           # A `dispatch` line naming what it dispatches.
           DISPATCH_LINE = /\A\s*dispatch\s+\S/
@@ -137,7 +137,7 @@ module Hecks
           end
 
           def saga_transition(map, index, line, scope)
-            length = scope == "process_manager" && line.match?(TRANSITION_OPENER) && map.block_length(index)
+            length = scope == "saga" && line.match?(TRANSITION_OPENER) && map.block_length(index)
             length ? [Change.removal(:drop_saga_transition, length)] : []
           end
 

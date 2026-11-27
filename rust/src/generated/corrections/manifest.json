@@ -67,7 +67,7 @@
     "generated": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Corrections::CorrectionWatch",
     "generated": true,
     "routed": true

@@ -14,9 +14,9 @@ pub mod kinds;
 pub mod lifecycle;
 pub mod needs;
 pub mod policy;
-pub mod process_manager;
 pub mod query;
 pub mod read_model;
+pub mod saga;
 pub mod value_object;
 pub mod world;
 
@@ -60,6 +60,21 @@ pub fn word_gate<'a>(
     }
 
     Ok(candidates)
+}
+
+/// Refuses `process_manager`, the spelling `saga` keeps as its `was:` (ADR 0180): the word gate
+/// admits a row under either spelling, so live source would otherwise read the old one. The
+/// declaration parser and the closed form both call this; only frozen era text, which the closed
+/// form reads with `--frozen` while the gem shadow-parses it, keeps the old spelling.
+pub fn refuse_retired_saga_spelling(file: &str, line: usize, written: &str) -> ParseResult<()> {
+    if written != "process_manager" {
+        return Ok(());
+    }
+    Err(Diagnostic::new(
+        file,
+        line,
+        "process_manager is gone — saga is the word now",
+    ))
 }
 
 /// Picks the word-gated row whose declared `body` fits the opener the lexer found.
@@ -663,7 +678,7 @@ pub(crate) fn dispatch_stub(
         "ValueObject" | "OneOf" => value_object::not_implemented(file, line, word),
         "Lifecycle" => lifecycle::not_implemented(file, line, word),
         "Policy" => policy::not_implemented(file, line, word),
-        "ProcessManager" | "Handler" => process_manager::not_implemented(file, line, word),
+        "Saga" | "Handler" => saga::not_implemented(file, line, word),
         "ReadModel" => read_model::not_implemented(file, line, word),
         "DomainPort" | "PortOperation" => domain_port::not_implemented(file, line, word),
         // `World` is deliberately unmapped: its body is the open verb-setting catch-all, so it
@@ -875,7 +890,7 @@ pub(crate) fn positional_command_ref(
     Ok(crate::build::naming::command_ref(raw))
 }
 
-/// A process manager's event reference (`starts_on Transfer::TransferRequested`), bare or quoted.
+/// A saga's event reference (`starts_on Transfer::TransferRequested`), bare or quoted.
 /// Derives `Hecks::Naming.event_name_ref`, which keeps only the bare final segment.
 pub(crate) fn positional_event_name_ref(
     file: &str,

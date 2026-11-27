@@ -28,7 +28,8 @@ module ReleaseMintSupport
 
   def write_shop(directory, extra = "")
     File.write(File.join(directory, "shop.bluebook"), format(BLUEBOOK, extra: extra))
-    File.write(File.join(directory, "shop.hecksagon"), %(Hecks.hecksagon "Shop" do\n  persisted_by "PostgresEra"\nend\n))
+    File.write(File.join(directory, "shop.hecksagon"),
+               %(Hecks.hecksagon "Shop" do\n  persisted_by "Postgres"\n  revisions true\nend\n))
   end
 
   def release(directory, **)

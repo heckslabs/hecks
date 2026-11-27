@@ -17,7 +17,7 @@ pub fn command_ref(raw: &str) -> String {
     }
 }
 
-/// Event reference of a process manager: a bare constant chain keeps only its last segment.
+/// Event reference of a saga: a bare constant chain keeps only its last segment.
 ///
 /// `SagaInterpreter` matches a bare `event.name`, never a `.`-qualified one.
 pub fn event_name_ref(raw: &str) -> String {

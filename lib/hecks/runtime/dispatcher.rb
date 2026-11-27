@@ -19,6 +19,7 @@ require_relative "declarations"
 require_relative "dry_run_plan"
 require_relative "dispatcher/planning"
 require_relative "dispatcher/root_reentry"
+require_relative "dispatcher/refusal_record"
 require_relative "../naming"
 
 module Hecks
@@ -32,6 +33,7 @@ module Hecks
       include Declarations
       include Planning
       include RootReentry
+      include RefusalRecord
 
       MAX_REACTION_DEPTH = 5
 
@@ -188,8 +190,10 @@ module Hecks
       private
 
       def dispatch_invocation(call)
-        @registry.collecting_reactions { |reactions| dispatch_collecting(call, reactions) }
-                 .tap { @policies.settle_timings }
+        recording_refusal(call) do
+          @registry.collecting_reactions { |reactions| dispatch_collecting(call, reactions) }
+                   .tap { @policies.settle_timings }
+        end
       end
 
       # One dispatch, with `reactions` receiving every reaction its events cause.

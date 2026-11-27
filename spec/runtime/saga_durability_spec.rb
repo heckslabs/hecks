@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 
-# A stuck process manager survives a restart through a real adapter (SqlitePersistence).
+# A stuck saga survives a restart through a real adapter (SqlitePersistence).
 #
 # The happy path cascades within one dispatch, so only the `on :refused` leg leaves a
 # stuck instance: shutting the destination drawer sends Carry to "returned", a dead end.

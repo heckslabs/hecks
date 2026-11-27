@@ -8,7 +8,7 @@ module Hecks
       # Mixed into `SelfConsistency`, whose `guarded_heki` it uses.
       module Sagas
         # A saga checkpoint written through Heki and read back cold must equal the live saga
-        # instances. One finding per (domain, process manager).
+        # instances. One finding per (domain, saga).
         #
         # `completed_compensations` is not compared; `history[:saga_instances]` never records it.
         def check_saga_rehydration(runtime, history)
@@ -17,7 +17,7 @@ module Hecks
           end
         end
 
-        # Every `[domain, process manager, anchor aggregate, persisted conversations]` with at
+        # Every `[domain, saga, anchor aggregate, persisted conversations]` with at
         # least one live conversation.
         def saga_groups(runtime, history)
           saga_instances = history[:saga_instances] || {}
@@ -30,7 +30,7 @@ module Hecks
           end
         end
 
-        # The finding for one process manager whose cold-read checkpoints differ from live, or nil.
+        # The finding for one saga whose cold-read checkpoints differ from live, or nil.
         def saga_rehydration_finding(anchor, domain_name, process_manager, persisted)
           Dir.mktmpdir("hecks-self-consistency-saga") do |tmp|
             write_saga_checkpoints(anchor, tmp, domain_name, process_manager, persisted)
@@ -52,7 +52,7 @@ module Hecks
           end
         end
 
-        # Every [domain, process manager] pair any loaded bluebook declares.
+        # Every [domain, saga] pair any loaded bluebook declares.
         def each_domain_process_manager(runtime)
           found = []
           runtime.bluebooks.each do |domain_name, bluebook|

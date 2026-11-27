@@ -17,7 +17,10 @@
 //! bluebook times (a question nobody settled, say) is checked against the supervisor's own clock
 //! even when no session says anything.
 //!
-//! Ops: `open` (session, program, args, model, cwd, brief), `deliver` (session, message, from,
+//! A session reopened in a standing seat is told its brief and then the `handover` its seat's last
+//! session left ([`brief::opening`]), so the new child takes up where the last one stopped.
+//!
+//! Ops: `open` (session, program, args, model, cwd, brief, handover), `deliver` (session, message, from,
 //! text, about), `stop` (session) and `quit`. Tells: `ready`, `opened`, `started`, `sent`,
 //! `denied`, `turn_ended`, `queued`, `delivered`, `noticed`, `stopped`, `refused`, `fault`,
 //! `tick` and `quit`.
@@ -31,6 +34,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::brief;
 use crate::json::{self, Value};
 use crate::mcp;
 use crate::protocol::{self, Heard, Request, MCP_SERVER};
@@ -253,7 +257,8 @@ impl<W: Write> Supervisor<W> {
             protocol::control_request(&format!("harness-{}", self.requests), "initialize");
         self.write(session, &initialize)?;
         if let Some(brief) = op.str_at("brief").filter(|text| !text.is_empty()) {
-            self.write(session, &protocol::user_message(brief))?;
+            let first = brief::opening(brief, op.str_at("handover"));
+            self.write(session, &protocol::user_message(&first))?;
             if let Some(open) = self.sessions.get_mut(session) {
                 open.busy = true;
             }

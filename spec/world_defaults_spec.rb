@@ -55,10 +55,10 @@ RSpec.describe "a world's project-wide defaults" do
     connection = url
     build do
       %w[Alpha Beta Gamma].each do |declaration|
-        Hecks.hecksagon(declaration) { persisted_by "PostgresEra" }
+        Hecks.hecksagon(declaration) { persisted_by "Postgres" }
         Hecks.world(declaration) do
           realm "Spec"
-          persisted_by("PostgresEra") { database connection }
+          persisted_by("Postgres") { database connection }
         end
       end
     end
@@ -69,7 +69,7 @@ RSpec.describe "a world's project-wide defaults" do
     build do
       Hecks.world("Alpha") do
         realm "Spec"
-        default_adapter "PostgresEra"
+        default_adapter "Postgres"
         default_database connection
       end
       overrides&.call
@@ -81,12 +81,12 @@ RSpec.describe "a world's project-wide defaults" do
   end
 
   it "reaches bluebooks that declare no world and no hecksagon at all" do
-    expect(resolved(defaulted).map { |row| row[3] }.uniq).to eq(["PostgresEra"])
+    expect(resolved(defaulted).map { |row| row[3] }.uniq).to eq(["Postgres"])
   end
 
   it "hands a database-taking adapter the default database" do
-    expect(defaulted.binding_settings("Gamma", "persisted_by", "PostgresEra"))
-      .to eq(adapter: "PostgresEra", database: url)
+    expect(defaulted.binding_settings("Gamma", "persisted_by", "Postgres"))
+      .to eq(adapter: "Postgres", database: url)
   end
 
   it "keeps the framework's in-memory fallback for a world that declares no default" do
@@ -96,10 +96,10 @@ RSpec.describe "a world's project-wide defaults" do
   end
 
   it "leaves settings exactly as declared when no default database is named" do
-    registry = build { Hecks.world("Alpha") { persisted_by("PostgresEra") { database "elsewhere" } } }
+    registry = build { Hecks.world("Alpha") { persisted_by("Postgres") { database "elsewhere" } } }
 
-    expect(registry.binding_settings("Alpha", "persisted_by", "PostgresEra"))
-      .to eq(registry.world("Alpha").for_binding("persisted_by", "PostgresEra"))
+    expect(registry.binding_settings("Alpha", "persisted_by", "Postgres"))
+      .to eq(registry.world("Alpha").for_binding("persisted_by", "Postgres"))
   end
 
   describe "the bluebook's own declarations win" do
@@ -107,7 +107,7 @@ RSpec.describe "a world's project-wide defaults" do
       registry = defaulted { Hecks.hecksagon("Alpha") { Alpha::Order.persisted_by("Memory") } }
       adapters = resolved(registry).to_h { |row| ["#{row[0]}::#{row[1]}", row[3]] }
 
-      expect(adapters).to include("Alpha::Order" => "Memory", "Alpha::Invoice" => "PostgresEra")
+      expect(adapters).to include("Alpha::Order" => "Memory", "Alpha::Invoice" => "Postgres")
     end
 
     it "over the default adapter, through its own domain-level bind" do
@@ -123,17 +123,17 @@ RSpec.describe "a world's project-wide defaults" do
     end
 
     it "over the default database, when its own settings name one" do
-      registry = defaulted { Hecks.world("Beta") { persisted_by("PostgresEra") { database "postgres://elsewhere/beta" } } }
+      registry = defaulted { Hecks.world("Beta") { persisted_by("Postgres") { database "postgres://elsewhere/beta" } } }
 
-      expect(registry.binding_settings("Beta", "persisted_by", "PostgresEra"))
-        .to eq(adapter: "PostgresEra", database: "postgres://elsewhere/beta")
+      expect(registry.binding_settings("Beta", "persisted_by", "Postgres"))
+        .to eq(adapter: "Postgres", database: "postgres://elsewhere/beta")
     end
 
     it "field by field, so a setting it leaves out still takes the default" do
-      registry = defaulted { Hecks.world("Beta") { persisted_by("PostgresEra") { schema "beta" } } }
+      registry = defaulted { Hecks.world("Beta") { persisted_by("Postgres") { schema "beta" } } }
 
-      expect(registry.binding_settings("Beta", "persisted_by", "PostgresEra"))
-        .to eq(adapter: "PostgresEra", schema: "beta", database: url)
+      expect(registry.binding_settings("Beta", "persisted_by", "Postgres"))
+        .to eq(adapter: "Postgres", schema: "beta", database: url)
     end
   end
 

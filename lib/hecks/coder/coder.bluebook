@@ -184,7 +184,8 @@ Hecks.bluebook "Coder" do
   end
 
   # `Accept` emits `WorkSubmitted(branch, sha, checkout)`, the contract QA and maintenance read.
-  # A coder run whose report ends `submitted` submits by itself (`SubmitWhenTheCoderSaysSubmitted`).
+  # A coder run whose report ends `submitted` submits by itself: the Hecks domain, which runs the
+  # session, sends `Submit` (`SubmitWhenTheCoderSaysSubmitted` in its hecksagon).
   aggregate "Submission" do
     description "One branch at one commit, handed to QA and maintenance to land once no answer to its coder is unread; it lands and pushes nothing itself."
 

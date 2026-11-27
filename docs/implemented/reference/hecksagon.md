@@ -102,9 +102,11 @@ findings.find { |f| f.subject == compliance_policy.name }.kind  # => :unacknowle
 ```
 
 See `docs/implemented/reference/policy.md`'s own `## across` section for
-the other half — `attaches` and `across` on the SAME target
-(`:contradictory_relationship`) — and the model-checker's own file for
-why this needs no new keyword at all.
+the other half. An `attaches` acknowledges an `across` to the SAME target as
+well: the attaching context depends on the one it attaches, so calling the
+commands of that context from its own events keeps one direction, which is how two
+contexts stop depending on each other (ADR 0207). The model-checker's own file
+says why this needs no new keyword at all.
 
 ## attaches
 
@@ -123,7 +125,7 @@ Attaches a bluebook to this domain by name, from one of two places. It marks the
 Without `from:`, the name is a bluebook the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a bluebook of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`, `Sentence`, `ContextMap`), `Expression`, `Tenancy`, `Deploy`, `Site`, `Tickets`, `Composer`, `Coder`, `Fixer`, `QualityControl`, `CiPipeline`, `Bulk`, `PipelineBoard`, `Pipeline`, `Agents`, `Triage`, `Protocols`, `Signalbox`, `Roundhouse` or `StaffEngineer`. A gem bluebook loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A bluebook that ships `<declaration_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
 
 ```ruby
-Hecks::FrameworkBluebooks.table.keys.sort  # => ["Adapter", "Agents", "Bluebook", "Bulk", "Change", "CiPipeline", "Coder", "Compliance", "Composer", "ConsoleSettings", "ContextMap", "Deploy", "EventDelivery", "Expression", "Fixer", "Governance", "Hecksagon", "Identity", "Interviews", "Messaging", "Paging", "Pipeline", "PipelineBoard", "Port", "Privacy", "Protocols", "QualityControl", "RailsApp", "Roundhouse", "Sentence", "Signalbox", "Site", "StaffEngineer", "Tenancy", "Tickets", "Translation", "Triage", "World"]
+Hecks::FrameworkBluebooks.table.keys.sort  # => ["Adapter", "Agents", "Bluebook", "Bulk", "Change", "CiPipeline", "Coder", "Compliance", "Composer", "ConsoleSettings", "ContextMap", "Deploy", "EventDelivery", "Expression", "Fixer", "Governance", "Hecksagon", "Identity", "Interviews", "Messaging", "Paging", "Pipeline", "PipelineBoard", "Port", "Privacy", "Protocols", "QualityControl", "RailsApp", "Refusal", "Roundhouse", "Sentence", "Signalbox", "Site", "StaffEngineer", "Tenancy", "Tickets", "Translation", "Triage", "World"]
 ```
 
 With `from: :vendor`, the name is a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout*: `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. It loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same bluebook loads in a stable order. `from: :vendor` is never a fallback: a vendored name written without it is not found among the bluebooks the gem carries and refuses, so a typo cannot silently pick a vendored package over a gem bluebook.
@@ -148,7 +150,7 @@ Outside a real, rooted project (the doctest registry above, say) there is nowher
 Hecks.hecksagon("Widgets") { attaches "payments", from: :vendor }  # ~> WiringError: needs a registry with a root to vendor from
 ```
 
-The Hecks domain (ADR 0080) is the main user of the gem form, attaching the language, Tenancy, Deploy, Site and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) holds only wiring: its `Hecks.hecksagon "QualityControl"` block opens with `bluebook_from :gem`, which loads the bluebook the gem carries under the hecksagon's own name, and binds it to its own PostgresEra database. Unlike `attaches`, `bluebook_from` records its source on the hecksagon, attaches nothing and marks nothing bounded; it comes first in the block so the binds after it can name the bluebook's aggregates, and `:gem` is the only source it takes.
+The Hecks domain (ADR 0080) is the main user of the gem form, attaching the language, Tenancy, Deploy, Site and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) holds only wiring: its `Hecks.hecksagon "QualityControl"` block opens with `bluebook_from :gem`, which loads the bluebook the gem carries under the hecksagon's own name, and binds it to its own database in the revision layout of Postgres (`persisted_by("Postgres")` with `revisions true`). Unlike `attaches`, `bluebook_from` records its source on the hecksagon, attaches nothing and marks nothing bounded; it comes first in the block so the binds after it can name the bluebook's aggregates, and `:gem` is the only source it takes.
 
 ### Vendoring a package
 
@@ -172,14 +174,14 @@ vendor/embryonaut_bluebooks/payments/
 
 `VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks introspection.shape` prints, the first characters of the hash PostgresEra names an era with.
 
-A release pin also carries two refusals, because a production project binds `PostgresEra`:
+A release pin also carries two refusals, because a production project binds Postgres with `revisions true`:
 
 - a version lower than the vendored one is refused unless `ALLOW_DOWNGRADE=1` is in the environment;
 - a change to the storage shape that raises the version by less than a minor is refused, so a new era shows in the version number and not only in a hash. The message names the shape before and after.
 
 A release must also be a real one: the `<package>/bluebook.yml` at the tag has to say the version the tag names. A bare commit-ish pins that commit and writes only the marker, with no lock and neither check. The last line of the command reports the shape either way: unchanged (no new era on the next deploy), changed (the next deploy mints one, so write its translation edge first), or nothing earlier to compare with.
 
-A domain that binds `PostgresEra` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding `PostgresEra`.
+A domain that binds Postgres with `revisions true` needs no `require "hecks/ports/persistence/plugins/era"` of its own: `Hecks.boot` resolves every adapter a hecksagon binds before it collects the boot gates, which loads the era plugin and registers its gates. Requiring the plugin by hand is only for a program that wants translation support without binding the revision layout of Postgres.
 
 ### Checking what is vendored
 

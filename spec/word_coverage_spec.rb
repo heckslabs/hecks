@@ -104,9 +104,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "its one real use is qa/bluebook/quality_control.hecksagon, a directory that " \
                                            "holds only wiring, which no example domain or framework member is. The word " \
                                            "is exercised there by the QA ledger specs and by its reference doctest.",
-    "revisions (Hecksagon)"             =>
-                                           "Postgres-only, and no tracked parity corpus binds a Postgres adapter, so no " \
-                                           "corpus hecksagon sets it. The word is exercised by spec/hecksagon_revisions_spec.rb.",
     "inspect_query (Query)"             =>
                                            "a real declaration would be vacuous: no adapter in this codebase implements the " \
                                            "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \

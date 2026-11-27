@@ -1,0 +1,9 @@
+# Refused: spells a saga `process_manager`, the word only frozen era text keeps (ADR 0180).
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+  end
+  process_manager "Checkout" do
+    starts_on "OrderPlaced"
+    ends_on "OrderCompleted"
+  end
+end

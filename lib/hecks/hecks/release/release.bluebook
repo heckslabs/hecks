@@ -429,7 +429,7 @@ Hecks.bluebook "Hecks" do
     # One release cut: examined, accepted, approved, carried out. Promotion is a rule of `Accept`, so
     # it stands before the saga starts; a fault after the tag is recorded, never undone. No clock
     # reaches the wait on approval yet (ADR 0169).
-    process_manager "ReleaseCut" do
+    saga "ReleaseCut" do
       correlates_by :"run.value"
       starts_on PublishingRun::PublishRequested
       ends_on PublishingRun::PublishingCompleted

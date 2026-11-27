@@ -51,12 +51,13 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
     File.write(File.join(scratch, "bluebook", "target.#{extension}"), content)
   end
 
-  def write_domain(adapter:, database: nil)
+  def write_domain(adapter:, database: nil, revisions: false)
     FileUtils.mkdir_p(File.join(scratch, "bluebook"))
     write_domain_file("bluebook", BOUND_PLUGIN_TARGET_BLUEBOOK)
     write_domain_file("hecksagon", <<~HECKSAGON)
       Hecks.hecksagon "Target" do
         persisted_by "#{adapter}"
+        revisions #{revisions}
       end
     HECKSAGON
     write_domain_file("world", world_for(adapter, database)) if database
@@ -113,10 +114,16 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
   # Runs a probe in a fresh Ruby process after the domain is loaded the way a boot does.
   def run_after_load(probe) = run_fresh("#{loaded_registry_script}\n#{probe}")
 
-  it "loads the era plugin when a hecksagon binds PostgresEra", :process do
-    write_domain(adapter: "PostgresEra", database: "postgres:///never_connected")
+  it "loads the era plugin when a hecksagon binds Postgres with revisions true", :process do
+    write_domain(adapter: "Postgres", database: "postgres:///never_connected", revisions: true)
 
     expect(run_after_load(ERA_PLUGIN_PROBE)).to eq("before" => false, "after" => true)
+  end
+
+  it "loads no era plugin when a hecksagon binds Postgres without revisions", :process do
+    write_domain(adapter: "Postgres", database: "postgres:///never_connected")
+
+    expect(run_after_load(ERA_PLUGIN_PROBE)).to eq("before" => false, "after" => false)
   end
 
   it "loads nothing when the domain binds only Memory", :process do
@@ -168,7 +175,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
     end
 
     it "registers the era gates and boots without the application requiring the plugin", :aggregate_failures do
-      write_domain(adapter: "PostgresEra", database: FencedOwner.url(database))
+      write_domain(adapter: "Postgres", database: FencedOwner.url(database), revisions: true)
       hold_domain_eras!(directory: File.join(scratch, "bluebook"), url: FencedOwner.url(database))
 
       seen = run_fresh(full_boot_script)

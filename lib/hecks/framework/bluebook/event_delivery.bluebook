@@ -158,7 +158,7 @@ Hecks.bluebook "EventDelivery" do
 
   # One consumer as a reader of one domain's event log, with the position it has read to.
   aggregate "Consumer" do
-    description "One policy or process manager reading one domain's event log, and how many of its entries it has answered. One per (log, consumer)."
+    description "One policy or saga reading one domain's event log, and how many of its entries it has answered. One per (log, consumer)."
 
     identified_by :key
 

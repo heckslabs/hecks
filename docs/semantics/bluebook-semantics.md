@@ -326,7 +326,7 @@ it, except for one law they must uphold (C8.4).
   order. A saga hears an event by its name from any loaded bluebook,
   so a domain's saga may start or move on an event of a bluebook it
   attaches; it runs in its own bluebook, where its checkpoints and its
-  dispatches belong. The Rust kernel's merged process-manager table
+  dispatches belong. The Rust kernel's merged saga table
   has always matched this way; the Ruby runtime held a saga to its own
   domain's events until ADR 0205 needed the pipeline's sagas to hear a
   vendored package's `BranchLanded`. So a two-event

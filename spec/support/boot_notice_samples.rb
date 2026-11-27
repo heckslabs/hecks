@@ -1,7 +1,7 @@
 # The three boot notices a refusal must not open with, and a real refusal to put them before.
 module BootNoticeSamples
   def saga
-    "[hecks] QualityControl declares process_manager(s) BugCiWatch but its resolved " \
+    "[hecks] QualityControl declares saga(s) BugCiWatch but its resolved " \
       "persistence adapter has no save_saga — state is LOST on restart"
   end
 

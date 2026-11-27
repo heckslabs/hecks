@@ -1,7 +1,7 @@
 module Hecks
   module Runtime
     class SagaInterpreter
-      # Where a saga instance begins and ends: born on the event a process manager starts on,
+      # Where a saga instance begins and ends: born on the event a saga starts on,
       # forgotten on the one it ends on. Mixed into {SagaInterpreter}.
       module Lifecycle
         private

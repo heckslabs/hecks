@@ -44,7 +44,7 @@ module Hecks
             { answer: [text, status] }
           end
 
-          # The command the process manager's `resumes` list names for a stage, as a bang line.
+          # The command the saga's `resumes` list names for a stage, as a bang line.
           def resume_command(bluebook, stage)
             verb = resume_verb(bluebook, stage)
             verb && "#{verb}!"

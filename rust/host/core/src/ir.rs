@@ -127,7 +127,12 @@ pub fn persistence_adapters(domain_ir: &Value) -> Vec<(String, String)> {
 /// The only persistence adapters `rust/host` has a real backend for — see
 /// `refuse_unsupported_persistence_adapters` below. Must list the same names
 /// as [`BACKENDS`] (a test holds them together).
-pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra", "Memory"];
+pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "Memory"];
+
+/// The adapter Hecks 8.0 removed (ADR 0182): its layout is Postgres's revision layout, which a
+/// hecksagon chooses with `revisions true`. Matched with case and underscores folded, as Ruby's
+/// `Registry::RetiredAdapterRule` matches it.
+pub const RETIRED_POSTGRES_ERA: &str = "PostgresEra";
 
 /// The environment variable that lets the host boot on the Memory store, which keeps nothing
 /// across a restart and so is for local runs and tests only.
@@ -156,7 +161,6 @@ impl Backend {
 /// is one more row here (and one in [`SUPPORTED_PERSISTENCE_ADAPTERS`]).
 pub const BACKENDS: &[(&str, Backend)] = &[
     ("Postgres", Backend::TokioPostgres),
-    ("PostgresEra", Backend::TokioPostgres),
     ("Memory", Backend::Memory),
 ];
 
@@ -398,6 +402,7 @@ pub fn refuse_undeclared_world_settings(domain_ir: &Value) -> Result<(), String>
 /// before. A present-but-malformed `adapters` value is refused with a
 /// message naming the problem (it never panics).
 pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
+    refuse_retired_adapters(domain_ir)?;
     refuse_undeclared_world_settings(domain_ir)?;
     let bindings = persistence_adapters(domain_ir);
     if let Some(declared) = adapter_declarations(domain_ir) {
@@ -437,6 +442,47 @@ pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), 
          adapter actually wrote it — refusing instead of risking that.",
         unsupported.join(", ")
     ))
+}
+
+/// Refuses an IR that still binds `PostgresEra`, naming its replacement in the words Ruby's
+/// `Registry::RetiredAdapterRule` uses, so an IR exported before 8.0 never boots a layout it did
+/// not choose.
+pub fn refuse_retired_adapters(domain_ir: &Value) -> Result<(), String> {
+    let retired = |name: &str| {
+        name.replace('_', "")
+            .eq_ignore_ascii_case(RETIRED_POSTGRES_ERA)
+    };
+    let Some((aggregate, adapter)) = persistence_adapters(domain_ir)
+        .into_iter()
+        .find(|(_, adapter)| retired(adapter))
+    else {
+        return Ok(());
+    };
+    // A blank name still leaves the refusal saying who binds it.
+    let domain = domain_ir
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or("this domain");
+    let aggregate = if aggregate.trim().is_empty() {
+        "an aggregate"
+    } else {
+        aggregate.as_str()
+    };
+    Err(retired_adapter_refusal(
+        domain,
+        &format!("{aggregate} binds"),
+        &adapter,
+    ))
+}
+
+/// Ruby's `RetiredAdapterRule#refuse_retired!` message: `place` says what named the adapter.
+pub fn retired_adapter_refusal(domain: &str, place: &str, adapter: &str) -> String {
+    format!(
+        "{domain}: {place} {adapter}, which Hecks 8.0 removed. Write persisted_by \"Postgres\" \
+         plus `revisions true` in the hecksagon (ADR 0182) instead: {RETIRED_POSTGRES_ERA} is now \
+         Postgres's revision layout, chosen in the hecksagon."
+    )
 }
 
 /// Picks the one backend this domain's journal lives on, or says why it cannot boot.
@@ -572,14 +618,47 @@ mod tests {
     }
 
     #[test]
-    fn refuse_unsupported_persistence_adapters_passes_postgres_and_postgres_era() {
+    fn refuse_unsupported_persistence_adapters_passes_postgres() {
         let ir = serde_json::json!({
             "name": "Pizzas",
             "persistence": { "aggregates": [
-                { "name": "Order", "storage_name": "order", "adapter": "PostgresEra" }
+                { "name": "Order", "storage_name": "order", "adapter": "Postgres" }
             ] }
         });
         assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
+    }
+
+    #[test]
+    fn a_postgres_era_binding_is_refused_naming_its_replacement() {
+        let mut ir = bound(&[("Order", "PostgresEra")]);
+        ir["name"] = serde_json::json!("Shop");
+        let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
+        assert_eq!(
+            err,
+            "Shop: Order binds PostgresEra, which Hecks 8.0 removed. Write persisted_by \"Postgres\" \
+             plus `revisions true` in the hecksagon (ADR 0182) instead: PostgresEra is now \
+             Postgres's revision layout, chosen in the hecksagon."
+        );
+    }
+
+    #[test]
+    fn a_postgres_era_binding_with_blank_names_still_says_who_binds_it() {
+        let mut ir = bound(&[("", "PostgresEra")]);
+        ir["name"] = serde_json::json!("");
+        let err = refuse_retired_adapters(&ir).unwrap_err();
+        assert!(
+            err.starts_with("this domain: an aggregate binds PostgresEra, which Hecks 8.0 removed"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn a_snake_case_postgres_era_binding_is_refused_too() {
+        let err = refuse_retired_adapters(&bound(&[("Order", "postgres_era")])).unwrap_err();
+        assert!(
+            err.contains("Order binds postgres_era, which Hecks 8.0 removed"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -603,10 +682,10 @@ mod tests {
 
     fn world_ir(settings: &Value) -> Value {
         serde_json::json!({
-            "adapters": [{"name": "PostgresEra", "port": "persistence",
+            "adapters": [{"name": "Postgres", "port": "persistence",
                           "fields": ["url"], "secrets": ["password"], "defaults": {}}],
             "world": {"default_adapter": null, "default_database": false,
-                      "persistence": [{"adapter": "PostgresEra", "settings": settings}]}
+                      "persistence": [{"adapter": "Postgres", "settings": settings}]}
         })
     }
 
@@ -614,10 +693,7 @@ mod tests {
     fn a_world_setting_the_adapter_does_not_declare_is_refused() {
         let err =
             refuse_undeclared_world_settings(&world_ir(&serde_json::json!(["bogus"]))).unwrap_err();
-        assert!(
-            err.contains("PostgresEra") && err.contains("bogus"),
-            "{err}"
-        );
+        assert!(err.contains("Postgres") && err.contains("bogus"), "{err}");
     }
 
     #[test]
@@ -736,10 +812,10 @@ mod tests {
     #[test]
     fn declared_and_supported_boots_with_null_or_persistence_port() {
         let ir = with_adapters(
-            bound(&[("A", "Postgres"), ("B", "PostgresEra")]),
+            bound(&[("A", "Postgres"), ("B", "Memory")]),
             serde_json::json!([
                 {"name": "Postgres", "port": "persistence"},
-                {"name": "PostgresEra", "port": null}
+                {"name": "Memory", "port": null}
             ]),
         );
         assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
@@ -807,8 +883,8 @@ mod tests {
     }
 
     #[test]
-    fn postgres_and_postgres_era_are_one_backend() {
-        let ir = bound(&[("A", "Postgres"), ("B", "PostgresEra")]);
+    fn every_postgres_aggregate_is_one_backend() {
+        let ir = bound(&[("A", "Postgres"), ("B", "Postgres")]);
         assert_eq!(select_backend(&ir, false), Ok(Backend::TokioPostgres));
     }
 
@@ -852,7 +928,7 @@ mod tests {
 
     #[test]
     fn lineage_on_postgres_boots() {
-        let mut ir = bound(&[("A", "PostgresEra")]);
+        let mut ir = bound(&[("A", "Postgres")]);
         ir["lineage"] = serde_json::json!({
             "capable_aggregates": [{ "name": "A", "storage_name": "a" }]
         });

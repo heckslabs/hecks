@@ -353,7 +353,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Gove
 /// whatever payload the generated dispatch built with the raw,
 /// unfiltered `args_json` this router itself received, after the
 /// fact, once dispatch has already decided whether to accept it.
-/// Load-bearing for process managers, not just payload fidelity: a
+/// Load-bearing for sagas, not just payload fidelity: a
 /// saga leg that forwards `reference: :reference` into `Account.
 /// Debit` (which doesn't declare a `reference` attribute) needs
 /// that field to survive onto `AccountDebited`'s own payload for

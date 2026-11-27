@@ -231,7 +231,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     let mut merged_read_models = target_gen.read_model_defs;
     let mut merged_sagas: Vec<Json> = target_ir.get("sagas").map_or_default(Json::each).to_vec();
 
-    // Policies and process managers merge across bluebooks; `bluebook_irs` keeps each parsed
+    // Policies and sagas merge across bluebooks; `bluebook_irs` keeps each parsed
     // bluebook alive so `policy_sources` can borrow from it.
     let mut bluebook_irs: Vec<Json> = Vec::new();
     let mut bluebook_domain_names: Vec<String> = Vec::new();

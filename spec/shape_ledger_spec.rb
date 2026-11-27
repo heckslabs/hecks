@@ -27,9 +27,11 @@ RSpec.describe Hecks::ShapeLedger do
     end
   RUBY
 
-  def write_bluebook(extra = "", persisted_by: "PostgresEra")
+  def write_bluebook(extra = "", persisted_by: "Postgres")
     File.write(File.join(directory, "shop.bluebook"), format(SHOP_BLUEBOOK, extra: extra))
-    File.write(File.join(directory, "shop.hecksagon"), %(Hecks.hecksagon "Shop" do\n  persisted_by "#{persisted_by}"\nend\n))
+    revisions = persisted_by == "Postgres" ? "  revisions true\n" : ""
+    File.write(File.join(directory, "shop.hecksagon"),
+               %(Hecks.hecksagon "Shop" do\n  persisted_by "#{persisted_by}"\n#{revisions}end\n))
   end
 
   def ledgered = JSON.parse(File.read(File.join(directory, "shapes.json"))).fetch("Shop").fetch("hash")
@@ -145,7 +147,8 @@ RSpec.describe Hecks::ShapeLedger do
 
     it "does not pull a bluebook in because a local overlay names an era adapter", :aggregate_failures do
       write_bluebook(persisted_by: "Memory")
-      File.write(File.join(directory, "hecks.local.hecksagon"), %(Hecks.hecksagon "Shop" do\n  persisted_by "PostgresEra"\nend\n))
+      File.write(File.join(directory, "hecks.local.hecksagon"),
+                 %(Hecks.hecksagon "Shop" do\n  persisted_by "Postgres"\n  revisions true\nend\n))
 
       expect(described_class::Scope.of(described_class::Scope.committed_registry(directory)).last).to eq("Shop" => "Memory")
     end

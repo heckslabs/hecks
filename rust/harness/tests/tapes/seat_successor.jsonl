@@ -1,0 +1,4 @@
+{"note":"The next session in the scrum master's seat: it is told its brief and then the handover the first session left, and takes up where that one stopped."}
+{"expect":"user","contains":"You are the scrum master.\n\nHandover from the last session in this seat:\n\nHolding the seat: coder-1 waits on the lead about the freeze, and nothing else is open."}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-seat-successor","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Took up the seat: coder-1 still waits on the lead about the freeze."}}

@@ -1,3 +1,4 @@
 Hecks.hecksagon "Shop" do
-  persisted_by "PostgresEra"
+  persisted_by "Postgres"
+  revisions true
 end

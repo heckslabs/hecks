@@ -932,19 +932,19 @@
     "routed": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Banking::Onboarding",
     "generated": true,
     "routed": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Banking::Settlement",
     "generated": true,
     "routed": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Banking::ExternalSettlement",
     "generated": true,
     "routed": true

@@ -7,7 +7,7 @@ module Hecks
       {
         name:        "query_ir_constructs",
         description: "For a bluebook IR construct (Aggregate, Entity, Command, Query, ValueObject, Policy, " \
-                     "ReadModel, ProcessManager, Bluebook) or all of them, the real structural diff between " \
+                     "ReadModel, Saga, Bluebook) or all of them, the real structural diff between " \
                      "what the Ruby class emits and what the self-hosted meta-domain declares for it. Use " \
                      "this instead of reading entity.rb/entity.bluebook (or the equivalent pair for another " \
                      "construct) by hand to check whether a new IR field has been fully propagated.",

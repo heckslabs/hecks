@@ -119,7 +119,7 @@ RSpec.describe "client launcher smoke" do
   # Rebinds the copy's hecksagon to Memory and writes its world, with `world` as an extra setting.
   def self.bind_to_memory(dir, world)
     hecksagon = File.join(dir, "pizzas.hecksagon")
-    File.write(hecksagon, File.read(hecksagon).gsub("PostgresEra", "Memory"))
+    File.write(hecksagon, File.read(hecksagon).gsub("Postgres", "Memory"))
     File.write(File.join(dir, "pizzas.world"), <<~RUBY)
       Hecks.world "Pizzas" do
         realm "Examples"

@@ -7,26 +7,26 @@ require_relative "support/doctest_names"
 # Scope is what the doctest gate parses (DoctestNames.all).
 RSpec.describe "```ruby skip fences in executable documentation" do
   SKIP_FENCE_CAPS = {
-    "README.md"                                                => 5,
-    "docs/implemented/guides/aggregates-and-value-objects.md"  => 16,
-    "docs/implemented/guides/behaviors.md"                     => 6,
-    "docs/implemented/guides/commands.md"                      => 1,
-    "docs/implemented/guides/entities.md"                      => 1,
-    "docs/implemented/guides/extending-hecks.md"               => 4,
-    "docs/implemented/guides/lifecycles.md"                    => 1,
-    "docs/implemented/guides/policies-and-process-managers.md" => 7,
-    "docs/implemented/guides/queries-and-read-models.md"       => 12,
-    "docs/implemented/guides/running-a-runtime.md"             => 3,
-    "docs/implemented/guides/wiring.md"                        => 8,
-    "docs/implemented/guides/writing-an-adapter.md"            => 11,
-    "docs/implemented/reference/aggregate.md"                  => 1,
-    "docs/implemented/reference/command.md"                    => 1,
-    "docs/implemented/reference/dispatch.md"                   => 1,
-    "docs/implemented/reference/handler.md"                    => 1,
-    "docs/implemented/reference/one_of.md"                     => 1,
-    "docs/implemented/reference/policy.md"                     => 1,
-    "docs/implemented/reference/process_manager.md"            => 2,
-    "docs/implemented/reference/value_object.md"               => 2
+    "README.md"                                               => 5,
+    "docs/implemented/guides/aggregates-and-value-objects.md" => 16,
+    "docs/implemented/guides/behaviors.md"                    => 6,
+    "docs/implemented/guides/commands.md"                     => 1,
+    "docs/implemented/guides/entities.md"                     => 1,
+    "docs/implemented/guides/extending-hecks.md"              => 4,
+    "docs/implemented/guides/lifecycles.md"                   => 1,
+    "docs/implemented/guides/policies-and-sagas.md"           => 7,
+    "docs/implemented/guides/queries-and-read-models.md"      => 12,
+    "docs/implemented/guides/running-a-runtime.md"            => 3,
+    "docs/implemented/guides/wiring.md"                       => 8,
+    "docs/implemented/guides/writing-an-adapter.md"           => 11,
+    "docs/implemented/reference/aggregate.md"                 => 1,
+    "docs/implemented/reference/command.md"                   => 1,
+    "docs/implemented/reference/dispatch.md"                  => 1,
+    "docs/implemented/reference/handler.md"                   => 1,
+    "docs/implemented/reference/one_of.md"                    => 1,
+    "docs/implemented/reference/policy.md"                    => 1,
+    "docs/implemented/reference/saga.md"                      => 2,
+    "docs/implemented/reference/value_object.md"              => 2
   }.freeze
 
   def self.counts

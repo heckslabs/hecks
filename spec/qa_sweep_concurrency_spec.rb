@@ -61,14 +61,15 @@ RSpec.describe "qa_sweep concurrency", :io do
 
   CONCURRENCY_TARGET_HECKSAGON = <<~RUBY.freeze
     Hecks.hecksagon "QaSweepConcurrencyFixtureTarget" do
-      QaSweepConcurrencyFixtureTarget::Account.persisted_by("PostgresEra")
+      QaSweepConcurrencyFixtureTarget::Account.persisted_by("Postgres")
+      revisions true
     end
   RUBY
 
   def concurrency_target_world
     <<~RUBY
       Hecks.world "QaSweepConcurrencyFixtureTarget" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "postgres://localhost/#{QA_SWEEP_CONCURRENCY_TARGET_DATABASE}"
           allow_superuser true
         end

@@ -3,7 +3,7 @@ require "tmpdir"
 require "fileutils"
 
 # A domain's saga that starts on an event of a bluebook the domain attaches: a project `Shop`
-# vendors `Widgets` and declares a process manager that starts when a widget is requested.
+# vendors `Widgets` and declares a saga that starts when a widget is requested.
 module AttachedSagaProject
   PACKAGE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Widgets" do
@@ -47,7 +47,7 @@ module AttachedSagaProject
         end
       end
 
-      process_manager "Fulfilment" do
+      saga "Fulfilment" do
         correlates_by :"run.value"
         starts_on Widget::WidgetRequested
 

@@ -92,10 +92,26 @@ RSpec.describe Hecks::Bluebook::ModelCheck::ContextChecks do
 
     def read(found) = found.map { |f| [f.kind, f.severity, f.subject] }
 
+    # The error for an accepted A and B that still depend on each other.
+    def refused_accepted_cycle
+      "these contexts depend on each other: A, B — a context is upstream of another or downstream of it, " \
+        "never both; move the reactions to one side's hecksagon, or make them one context; the context map " \
+        "accepts the cycle between A and B (accepted_findings: { context_cycle: ... }), which excuses no cycle from 8.0.0"
+    end
+
     it "refuses two contexts that depend on each other, as one error" do
       found = cycles(edge("A", "B", "acl"), edge("B", "A", "customer_supplier"))
 
       expect(read(found)).to eq([[:context_cycle, :error, "A <-> B"]])
+    end
+
+    it "says which contexts depend on each other, and the two ways out" do
+      found = cycles(edge("A", "B", "acl"), edge("B", "A", "customer_supplier"))
+
+      expect(found.first.message).to eq(
+        "these contexts depend on each other: A, B — a context is upstream of another or downstream of it, " \
+        "never both; move the reactions to one side's hecksagon, or make them one context"
+      )
     end
 
     it "counts an attach and a subscription as a dependency, as much as a translation" do
@@ -104,24 +120,38 @@ RSpec.describe Hecks::Bluebook::ModelCheck::ContextChecks do
       expect(read(found)).to eq([[:context_cycle, :error, "A <-> B"]])
     end
 
-    it "reports a cycle the context map accepts as deprecated, not refused", :aggregate_failures do
+    it "refuses a cycle the context map accepts, as any other" do
       found = cycles(edge("A", "B", "shared_kernel"), edge("B", "A", "acl"), accepted: { %w[A B] => "stood before" })
 
-      expect(read(found)).to eq([[:context_cycle, :warning, "A <-> B"]])
-      expect(found.first.message).to include("stood before", "deprecated and refused from 8.0.0")
+      expect(read(found)).to eq([[:context_cycle, :error, "A <-> B"]])
     end
 
-    it "still refuses a longer ring that runs through an accepted pair" do
+    it "says the acceptance excuses nothing, and the two ways out" do
+      found = cycles(edge("A", "B", "shared_kernel"), edge("B", "A", "acl"), accepted: { %w[A B] => "stood before" })
+
+      expect(found.first.message).to eq(refused_accepted_cycle)
+    end
+
+    it "refuses a longer ring that runs through an accepted pair as one cycle" do
       found = cycles(edge("A", "B", "acl"), edge("B", "A", "acl"), edge("B", "C", "acl"), edge("C", "A", "acl"),
                      accepted: { %w[A B] => "stood before" })
 
-      expect(read(found)).to include([:context_cycle, :error, "A <-> B <-> C"])
+      expect(read(found)).to eq([[:context_cycle, :error, "A <-> B <-> C"]])
     end
 
-    it "says an acceptance is stale once the wiring has no cycle left" do
+    it "says an acceptance is to be removed once the wiring has no cycle left" do
       found = cycles(edge("A", "B", "acl"), accepted: { %w[A B] => "stood before" })
 
       expect(read(found)).to eq([[:context_cycle_settled, :warning, "A <-> B"]])
+    end
+
+    it "says why a settled acceptance goes" do
+      found = cycles(edge("A", "B", "acl"), accepted: { %w[A B] => "stood before" })
+
+      expect(found.first.message).to eq(
+        "the context map accepts a cycle between A and B, and the wiring has none — remove `context_cycle` " \
+        "from the relationship's accepted_findings, which excuses nothing from 8.0.0"
+      )
     end
 
     it "leaves a context's dependency on itself alone" do

@@ -131,9 +131,9 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     FileUtils.mkdir_p(File.join(bluebook_dir, "translations"))
     File.write(File.join(bluebook_dir, "ledger.bluebook"), JS_V2)
     File.write(File.join(bluebook_dir, "ledger.hecksagon"),
-               "Hecks.hecksagon \"Ledger\" do\n  Ledger::Account.persisted_by(\"PostgresEra\")\nend\n")
+               "Hecks.hecksagon \"Ledger\" do\n  Ledger::Account.persisted_by(\"Postgres\")\n  revisions true\nend\n")
     File.write(File.join(bluebook_dir, "ledger.world"),
-               "Hecks.world \"Ledger\" do\n  realm \"Specs\"\n  persisted_by(\"PostgresEra\") do\n    " \
+               "Hecks.world \"Ledger\" do\n  realm \"Specs\"\n  persisted_by(\"Postgres\") do\n    " \
                "database #{url.inspect}\n    mint_eras true\n  end\nend\n")
   end
 

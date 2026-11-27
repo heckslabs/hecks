@@ -8,7 +8,7 @@ require_relative "reaction_invocation/run_keys"
 
 module Hecks
   module Runtime
-    # Turns facts a policy or process manager selected into the receiver/payload
+    # Turns facts a policy or saga selected into the receiver/payload
     # envelope an outside caller uses.
     module ReactionInvocation
       Target = Struct.new(:aggregate, :entities, :command, keyword_init: true)
