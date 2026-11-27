@@ -1778,10 +1778,6 @@ Hecks.bluebook "Hecks" do
       # How many Claude processes (the daemon and its sessions) run niced or clamped to Background,
       # which macOS runs on the efficiency cores only; read by the Sampling port.
       attribute :niced,         Gauge, optional: true
-      # Seconds since the owner's last keyboard input, and whether the owner types (`typing`) or is
-      # away, judged by the Sampling port's adapter against the Tickets world's `machine_marks` line.
-      attribute :owner_idle,    Gauge, optional: true
-      attribute :owner_state,   Standing, optional: true
       attribute :load_state,    Standing, optional: true
       attribute :memory_state,  Standing, optional: true
       attribute :lane_state,    Standing, optional: true
@@ -1868,8 +1864,6 @@ Hecks.bluebook "Hecks" do
         attribute :load,          Gauge, optional: true, sets: true
         attribute :lane_waiting,  Gauge, optional: true, sets: true
         attribute :niced,         Gauge, optional: true, sets: true
-        attribute :owner_idle,    Gauge, optional: true, sets: true
-        attribute :owner_state,   Standing, optional: true, sets: true
         attribute :load_state,    Standing, sets: true
         attribute :memory_state,  Standing, sets: true
         attribute :lane_state,    Standing, sets: true
@@ -2005,8 +1999,7 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheMachine" do
       on      "Machine.MachineSampled"
       trigger Machine::Record, with: { cpu_idle: :cpu_idle, swap_used: :swap_used, compressor_gb: :compressor_gb,
-                                       load: :load, lane_waiting: :lane_waiting, niced: :niced, owner_idle: :owner_idle,
-                                       owner_state: :owner_state, load_state: :load_state,
+                                       load: :load, lane_waiting: :lane_waiting, niced: :niced, load_state: :load_state,
                                        memory_state: :memory_state, lane_state: :lane_state, source: :source,
                                        metered_load: :metered_load, taken_at: :taken_at, consumers: :consumers }
     end
@@ -2112,7 +2105,8 @@ Hecks.bluebook "Hecks" do
     # load, never a reading's own memory of the reading before it. Every reading asks it to turn and it
     # refuses a turn it already made, so typing is recorded once. The fill reads `owner` the way it
     # reads `Overload`: while it says typing, nothing new starts. The Sampling port's adapter judges
-    # typing from the owner's idle time against `machine_marks`, which also holds the hysteresis.
+    # typing from the owner's idle time against `machine_marks`, which also holds the hysteresis, and
+    # reports it as `owner_state` on the reading it answers; a reading that carries none turns nothing.
     aggregate "OwnerStanding" do
       description "Where the owner stands, typing or away: one record per store, never a reading's own memory of the reading before it. What holds the fill back reads it."
 
@@ -2179,14 +2173,14 @@ Hecks.bluebook "Hecks" do
     policy "HearTheOwnerType" do
       on      "Machine.MachineSampled"
       root
-      where   { owner_state == "typing" }
+      where   { owner_state && owner_state == "typing" }
       trigger OwnerStanding::Type, with: { owner_standing: "owner", reading: :id }
     end
 
     policy "HearTheOwnerLeave" do
       on      "Machine.MachineSampled"
       root
-      where   { owner_state == "away" }
+      where   { owner_state && owner_state == "away" }
       trigger OwnerStanding::Leave, with: { owner_standing: "owner", reading: :id }
     end
 
