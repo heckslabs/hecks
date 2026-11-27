@@ -187,6 +187,8 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 ## Open for the owner
 
+- Switchyard's remote. It is a local repository on the laptop today (0205), so the box cannot clone it; a
+  private repository on GitHub, made by the owner, is what the box and other sessions pull from.
 - Where the box sits: the AWS account and region the owner's services run in.
 - The tenant: its name (`switchyard` unless the owner names another), the shared database's address, and a role
   for it that the owner makes, or lets the projection make, and whose credentials the owner puts into the box's
