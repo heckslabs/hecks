@@ -754,11 +754,13 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = args.agg.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| CollectionLayout {
-                        agg: Some(args.agg.clone()),
-                        columns: vec![],
-                        detail_fields: vec![],
-                        detail_field_columns: vec![],
+                    build: Box::new(|| {
+                        Ok(CollectionLayout {
+                            agg: Some(args.agg.clone()),
+                            columns: vec![],
+                            detail_fields: vec![],
+                            detail_field_columns: vec![],
+                        })
                     }),
                     state_independent: false,
                 }

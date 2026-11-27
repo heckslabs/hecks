@@ -453,10 +453,12 @@ pub fn dispatch_schedule(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Event {
-                        r#ref: Some(args.r#ref.clone()),
-                        starts_at: Some(args.starts_at.clone()),
-                        title: Some(args.title.clone()),
+                    build: Box::new(|| {
+                        Ok(Event {
+                            r#ref: Some(args.r#ref.clone()),
+                            starts_at: Some(args.starts_at.clone()),
+                            title: Some(args.title.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -465,10 +467,12 @@ pub fn dispatch_schedule(
                 let __hydrate_id: String = args.r#ref.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Event {
-                        r#ref: Some(args.r#ref.clone()),
-                        starts_at: Some(args.starts_at.clone()),
-                        title: Some(args.title.clone()),
+                    build: Box::new(|| {
+                        Ok(Event {
+                            r#ref: Some(args.r#ref.clone()),
+                            starts_at: Some(args.starts_at.clone()),
+                            title: Some(args.title.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

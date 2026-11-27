@@ -248,8 +248,10 @@ pub fn dispatch_light(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Beacon {
-                        name: Some(args.name.clone()),
+                    build: Box::new(|| {
+                        Ok(Beacon {
+                            name: Some(args.name.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

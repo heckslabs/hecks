@@ -2008,7 +2008,7 @@ pub fn dispatch_entity_handler_dispatch_bind(
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
-    hop2_id: &str,
+    hop2_id: Option<&str>,
     hop2_wants: &str,
     args: DispatchBindNestedEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
@@ -2042,6 +2042,16 @@ pub fn dispatch_entity_handler_dispatch_bind(
         &[],
         None,
         |nested_owner: &mut Handler| {
+            let Some(hop2_id) = hop2_id else {
+                return Err(crate::kernel::Refusal::NotFound(
+                    crate::kernel::refusal_wording::NotFoundEntityElementNoIdentityArgs {
+                        command: "Bind",
+                        entity: "Dispatch",
+                        identity: "command_name.value, position.value",
+                    }
+                    .render_args(),
+                ));
+            };
             crate::kernel::apply_entity_command(
                 nested_owner,
                 hop1_id,
@@ -2238,7 +2248,7 @@ pub fn dispatch_entity_handler_dispatch_compensates(
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
-    hop2_id: &str,
+    hop2_id: Option<&str>,
     hop2_wants: &str,
     args: DispatchCompensatesNestedEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
@@ -2271,6 +2281,16 @@ pub fn dispatch_entity_handler_dispatch_compensates(
         &[],
         None,
         |nested_owner: &mut Handler| {
+            let Some(hop2_id) = hop2_id else {
+                return Err(crate::kernel::Refusal::NotFound(
+                    crate::kernel::refusal_wording::NotFoundEntityElementNoIdentityArgs {
+                        command: "Compensates",
+                        entity: "Dispatch",
+                        identity: "command_name.value, position.value",
+                    }
+                    .render_args(),
+                ));
+            };
             crate::kernel::apply_entity_command(
                 nested_owner,
                 hop1_id,
@@ -2490,7 +2510,7 @@ pub fn dispatch_entity_handler_dispatch_bind_compensation(
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
-    hop2_id: &str,
+    hop2_id: Option<&str>,
     hop2_wants: &str,
     args: DispatchBindCompensationNestedEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
@@ -2524,6 +2544,16 @@ pub fn dispatch_entity_handler_dispatch_bind_compensation(
         &[],
         None,
         |nested_owner: &mut Handler| {
+            let Some(hop2_id) = hop2_id else {
+                return Err(crate::kernel::Refusal::NotFound(
+                    crate::kernel::refusal_wording::NotFoundEntityElementNoIdentityArgs {
+                        command: "BindCompensation",
+                        entity: "Dispatch",
+                        identity: "command_name.value, position.value",
+                    }
+                    .render_args(),
+                ));
+            };
             crate::kernel::apply_entity_command(
                 nested_owner,
                 hop1_id,
@@ -3273,17 +3303,19 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ProcessManager {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        correlates_by: Some(args.correlates_by.clone()),
-                        starts_on: Some(args.starts_on.clone()),
-                        ends_on: args.ends_on.clone(),
-                        endings: args.endings.clone(),
-                        resumes: args.resumes.clone(),
-                        states: vec![],
-                        handlers: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(ProcessManager {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            correlates_by: Some(args.correlates_by.clone()),
+                            starts_on: Some(args.starts_on.clone()),
+                            ends_on: args.ends_on.clone(),
+                            endings: args.endings.clone(),
+                            resumes: args.resumes.clone(),
+                            states: vec![],
+                            handlers: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -3292,17 +3324,19 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", args.bluebook, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ProcessManager {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        correlates_by: Some(args.correlates_by.clone()),
-                        starts_on: Some(args.starts_on.clone()),
-                        ends_on: args.ends_on.clone(),
-                        endings: args.endings.clone(),
-                        resumes: args.resumes.clone(),
-                        states: vec![],
-                        handlers: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(ProcessManager {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            correlates_by: Some(args.correlates_by.clone()),
+                            starts_on: Some(args.starts_on.clone()),
+                            ends_on: args.ends_on.clone(),
+                            endings: args.endings.clone(),
+                            resumes: args.resumes.clone(),
+                            states: vec![],
+                            handlers: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -3682,7 +3716,9 @@ pub struct StateArgs {
 
 pub fn dispatch_state(
     repo: &mut impl crate::kernel::Repository<ProcessManager>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: StateArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3700,7 +3736,39 @@ pub fn dispatch_state(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = ProcessManagerName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(ProcessManager {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(__created_name),
+                            correlates_by: None,
+                            starts_on: None,
+                            ends_on: None,
+                            endings: Some(vec![]),
+                            resumes: Some(vec![]),
+                            states: vec![],
+                            handlers: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "State",
         "Bluebook::ProcessManager",
         "ProcessManager",
@@ -3873,7 +3941,9 @@ pub struct HandlerArgs {
 
 pub fn dispatch_handler(
     repo: &mut impl crate::kernel::Repository<ProcessManager>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: HandlerArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3893,7 +3963,37 @@ pub fn dispatch_handler(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ProcessManager {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ProcessManagerName {
+                                value: name.to_string(),
+                            }),
+                            correlates_by: None,
+                            starts_on: None,
+                            ends_on: None,
+                            endings: Some(vec![]),
+                            resumes: Some(vec![]),
+                            states: vec![],
+                            handlers: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Handler",
         "Bluebook::ProcessManager",
         "ProcessManager",

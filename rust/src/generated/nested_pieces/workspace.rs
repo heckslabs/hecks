@@ -904,7 +904,7 @@ pub fn dispatch_entity_board_card_annotate(
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
-    hop2_id: &str,
+    hop2_id: Option<&str>,
     hop2_wants: &str,
     args: CardAnnotateNestedEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
@@ -937,6 +937,16 @@ pub fn dispatch_entity_board_card_annotate(
         &[],
         None,
         |nested_owner: &mut Board| {
+            let Some(hop2_id) = hop2_id else {
+                return Err(crate::kernel::Refusal::NotFound(
+                    crate::kernel::refusal_wording::NotFoundEntityElementNoIdentityArgs {
+                        command: "Annotate",
+                        entity: "Card",
+                        identity: "sequence.value",
+                    }
+                    .render_args(),
+                ));
+            };
             crate::kernel::apply_entity_command(
                 nested_owner,
                 hop1_id,
@@ -1078,7 +1088,7 @@ pub fn dispatch_entity_board_card_remark(
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
-    hop2_id: &str,
+    hop2_id: Option<&str>,
     hop2_wants: &str,
     args: CardRemarkNestedEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
@@ -1111,6 +1121,16 @@ pub fn dispatch_entity_board_card_remark(
         &[],
         None,
         |nested_owner: &mut Board| {
+            let Some(hop2_id) = hop2_id else {
+                return Err(crate::kernel::Refusal::NotFound(
+                    crate::kernel::refusal_wording::NotFoundEntityElementNoIdentityArgs {
+                        command: "Remark",
+                        entity: "Card",
+                        identity: "sequence.value",
+                    }
+                    .render_args(),
+                ));
+            };
             crate::kernel::apply_entity_command(
                 nested_owner,
                 hop1_id,
@@ -1926,9 +1946,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Workspace {
-                        reference: Some(args.reference.clone()),
-                        boards: vec![],
+                    build: Box::new(|| {
+                        Ok(Workspace {
+                            reference: Some(args.reference.clone()),
+                            boards: vec![],
+                        })
                     }),
                     state_independent: false,
                 }

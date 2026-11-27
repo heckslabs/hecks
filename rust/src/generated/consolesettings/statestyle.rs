@@ -632,12 +632,14 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", args.agg.value, args.state.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| StateStyle {
-                        agg: Some(args.agg.clone()),
-                        state: Some(args.state.clone()),
-                        tone: None,
-                        attention: None,
-                        extra_json: None,
+                    build: Box::new(|| {
+                        Ok(StateStyle {
+                            agg: Some(args.agg.clone()),
+                            state: Some(args.state.clone()),
+                            tone: None,
+                            attention: None,
+                            extra_json: None,
+                        })
                     }),
                     state_independent: false,
                 }

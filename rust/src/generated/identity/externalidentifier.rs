@@ -564,11 +564,13 @@ pub fn dispatch_link(
                 let __hydrate_id: String = args.key.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ExternalIdentifier {
-                        identity: Some(args.identity.clone()),
-                        key: Some(args.key.clone()),
-                        issuer: Some(args.issuer.clone()),
-                        subject: Some(args.subject.clone()),
+                    build: Box::new(|| {
+                        Ok(ExternalIdentifier {
+                            identity: Some(args.identity.clone()),
+                            key: Some(args.key.clone()),
+                            issuer: Some(args.issuer.clone()),
+                            subject: Some(args.subject.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

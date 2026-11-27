@@ -2007,27 +2007,29 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.number.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Account {
-                        customer: Some(args.customer.clone()),
-                        number: Some(args.number.clone()),
-                        balance: Some(Money {
-                            cents: 0,
-                            currency: "USD".to_string(),
-                        }),
-                        kind: Some(args.kind.clone()),
-                        daily_limit: Some(args.daily_limit.clone()),
-                        ledger: vec![],
-                        fees_cents: Some(Money {
-                            cents: 0,
-                            currency: "USD".to_string(),
-                        }),
-                        interest_cents: Some(Money {
-                            cents: 0,
-                            currency: "USD".to_string(),
-                        }),
-                        customer_status: None,
-                        status: "open".to_string(),
-                        emitted_fee_applied: false,
+                    build: Box::new(|| {
+                        Ok(Account {
+                            customer: Some(args.customer.clone()),
+                            number: Some(args.number.clone()),
+                            balance: Some(Money {
+                                cents: 0,
+                                currency: "USD".to_string(),
+                            }),
+                            kind: Some(args.kind.clone()),
+                            daily_limit: Some(args.daily_limit.clone()),
+                            ledger: vec![],
+                            fees_cents: Some(Money {
+                                cents: 0,
+                                currency: "USD".to_string(),
+                            }),
+                            interest_cents: Some(Money {
+                                cents: 0,
+                                currency: "USD".to_string(),
+                            }),
+                            customer_status: None,
+                            status: "open".to_string(),
+                            emitted_fee_applied: false,
+                        })
                     }),
                     state_independent: false,
                 }

@@ -289,8 +289,10 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Board {
-                        reference: Some(args.reference.clone()),
+                    build: Box::new(|| {
+                        Ok(Board {
+                            reference: Some(args.reference.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -299,8 +301,10 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Board {
-                        reference: Some(args.reference.clone()),
+                    build: Box::new(|| {
+                        Ok(Board {
+                            reference: Some(args.reference.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

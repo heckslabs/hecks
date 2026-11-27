@@ -248,8 +248,10 @@ pub fn dispatch_note(
                 let __hydrate_id: String = args.shelf.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Register {
-                        shelf: Some(args.shelf.clone()),
+                    build: Box::new(|| {
+                        Ok(Register {
+                            shelf: Some(args.shelf.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

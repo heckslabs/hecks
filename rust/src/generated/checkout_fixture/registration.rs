@@ -592,12 +592,14 @@ pub fn dispatch_request(
                 let __hydrate_id: String = args.registration_id.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Registration {
-                        event_slug: Some(args.event_slug.clone()),
-                        registration_id: Some(args.registration_id.clone()),
-                        attendee: Some(args.attendee.clone()),
-                        requested_at: None,
-                        status: "active".to_string(),
+                    build: Box::new(|| {
+                        Ok(Registration {
+                            event_slug: Some(args.event_slug.clone()),
+                            registration_id: Some(args.registration_id.clone()),
+                            attendee: Some(args.attendee.clone()),
+                            requested_at: None,
+                            status: "active".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

@@ -658,8 +658,10 @@ fn build_mutation(
     }
     // `state(:field)` is the record's own field, neither argument nor literal; classified
     // before the Symbol/literal split.
+    // A lone dotted path (`least.value`) is a computed operand too, as `Computation#to_source`
+    // records it: a field of the value object the head names.
     let computed = if op == "set" {
-        crate::expr::resolver::arithmetic_text(raw.trim())
+        crate::expr::resolver::arithmetic_text(raw.trim()).or_else(|| dotted_operand(raw.trim()))
     } else {
         None
     };
@@ -678,6 +680,19 @@ fn build_mutation(
         source: Some(source),
         bounds,
     })
+}
+
+/// `head.field[.field...]` when every segment is a lowercase name, as a `sets` operand reads one.
+fn dotted_operand(raw: &str) -> Option<String> {
+    let segments: Vec<&str> = raw.split('.').collect();
+    let is_name = |segment: &&str| {
+        let mut chars = segment.chars();
+        chars
+            .next()
+            .is_some_and(|c| c.is_ascii_lowercase() || c == '_')
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+    };
+    (segments.len() >= 2 && segments.iter().all(is_name)).then(|| raw.to_string())
 }
 
 /// The named ops of a `sets` row and, when a step carries a clamp, that clamp's bounds.
@@ -820,4 +835,29 @@ fn parse_hash_literal_pairs(text: &str) -> Vec<(String, String)> {
             super::as_named(&segment).map(|(k, v)| (k.to_string(), v.to_string()))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod dotted_operand_tests {
+    use super::dotted_operand;
+
+    #[test]
+    fn a_dotted_path_of_names_is_an_operand() {
+        assert_eq!(
+            dotted_operand("least.value"),
+            Some("least.value".to_string())
+        );
+        assert_eq!(
+            dotted_operand("charged.amount.cents"),
+            Some("charged.amount.cents".to_string())
+        );
+    }
+
+    #[test]
+    fn a_name_a_number_or_a_constant_path_is_not() {
+        assert_eq!(dotted_operand("least"), None);
+        assert_eq!(dotted_operand("1.5"), None);
+        assert_eq!(dotted_operand("Level.value"), None);
+        assert_eq!(dotted_operand("\"a.b\""), None);
+    }
 }

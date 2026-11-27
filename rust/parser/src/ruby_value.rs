@@ -97,13 +97,16 @@ pub fn read(text: &str) -> Value {
     if raw == "false" {
         return Value::Bool(false);
     }
-    if is_integer(raw) {
-        if let Ok(n) = raw.parse::<i64>() {
+    // Ruby reads `1_209_600` as `1209600`: an underscore may sit between two digits.
+    let digits = without_digit_separators(raw);
+    let raw_number = digits.as_deref().unwrap_or(raw);
+    if is_integer(raw_number) {
+        if let Ok(n) = raw_number.parse::<i64>() {
             return Value::Int(n);
         }
     }
-    if is_float(raw) {
-        if let Ok(f) = raw.parse::<f64>() {
+    if is_float(raw_number) {
+        if let Ok(f) = raw_number.parse::<f64>() {
             return Value::Float(f);
         }
     }
@@ -133,7 +136,171 @@ pub fn read(text: &str) -> Value {
     if raw.starts_with('[') && raw.ends_with(']') {
         return read_array(raw);
     }
+    if let Some(array) = read_percent_array(raw) {
+        return array;
+    }
+    if let Some(text) = read_percent_string(raw) {
+        return Value::Str(text);
+    }
     Value::Bare(raw.to_string())
+}
+
+/// `raw` with each underscore that sits between two digits removed, or `None` when `raw` has
+/// an underscore anywhere else, which Ruby would not read as a number.
+fn without_digit_separators(raw: &str) -> Option<String> {
+    if !raw.contains('_') {
+        return None;
+    }
+    let chars: Vec<char> = raw.chars().collect();
+    let mut out = String::with_capacity(raw.len());
+    for (i, &ch) in chars.iter().enumerate() {
+        if ch == '_' {
+            let between_digits = i > 0
+                && chars[i - 1].is_ascii_digit()
+                && chars.get(i + 1).is_some_and(char::is_ascii_digit);
+            if !between_digits {
+                return None;
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+    Some(out)
+}
+
+/// Reads a Ruby percent string: `%q(...)` like a single-quoted string, where a backslash escapes
+/// only a backslash or a delimiter, and `%Q(...)` or `%(...)` like a double-quoted one unless it
+/// interpolates. A bracket delimiter may nest inside the body, as in Ruby.
+fn read_percent_string(raw: &str) -> Option<String> {
+    let rest = raw.strip_prefix('%')?;
+    let (kind, rest) = match rest.chars().next()? {
+        k @ ('q' | 'Q') => (k, &rest[1..]),
+        c if c.is_ascii_punctuation() && !c.is_ascii_alphanumeric() => ('Q', rest),
+        _ => return None,
+    };
+    let open = rest.chars().next()?;
+    let close = match open {
+        '[' => ']',
+        '(' => ')',
+        '{' => '}',
+        '<' => '>',
+        c if c.is_ascii_punctuation() => c,
+        _ => return None,
+    };
+    let inner = rest[open.len_utf8()..].strip_suffix(close)?;
+    // The body must reach the closer at the very end: an unescaped closer earlier ends it.
+    let mut depth = 0usize;
+    let mut chars = inner.chars();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            chars.next()?;
+        } else if open != close && ch == open {
+            depth += 1;
+        } else if ch == close {
+            depth = depth.checked_sub(1)?;
+        }
+    }
+    if depth != 0 {
+        return None;
+    }
+    if kind == 'q' {
+        let mut out = String::with_capacity(inner.len());
+        let mut chars = inner.chars().peekable();
+        while let Some(ch) = chars.next() {
+            match (ch, chars.peek()) {
+                ('\\', Some(&next)) if next == '\\' || next == open || next == close => {
+                    out.push(next);
+                    chars.next();
+                }
+                _ => out.push(ch),
+            }
+        }
+        return Some(out);
+    }
+    if inner.contains("#{") {
+        return None;
+    }
+    Some(unescape_double_quoted_inner(inner))
+}
+
+/// Reads a Ruby percent array, `%w[a b]` as strings or `%i[a b]` as symbols, with any bracket
+/// pair or repeated punctuation as its delimiter. Words split on whitespace, and a backslash
+/// keeps the character after it inside the word, as in Ruby. `%W` and `%I` read the same unless
+/// they interpolate, which a captured literal cannot do, so `None` leaves those as bare text.
+pub fn read_percent_array(raw: &str) -> Option<Value> {
+    let words = percent_array_words(raw)?;
+    let symbols = matches!(raw.as_bytes().get(1), Some(b'i' | b'I'));
+    Some(Value::Array(
+        words
+            .into_iter()
+            .map(|word| {
+                if symbols {
+                    Value::Symbol(word)
+                } else {
+                    Value::Str(word)
+                }
+            })
+            .collect(),
+    ))
+}
+
+/// Whether `raw` is a whole percent array literal (`%w[...]`, `%i(...)` and the like).
+pub fn is_percent_array(raw: &str) -> bool {
+    percent_array_words(raw).is_some()
+}
+
+fn percent_array_words(raw: &str) -> Option<Vec<String>> {
+    let mut chars = raw.chars();
+    if chars.next() != Some('%') {
+        return None;
+    }
+    let kind = chars.next()?;
+    if !matches!(kind, 'w' | 'W' | 'i' | 'I') {
+        return None;
+    }
+    let open = chars.next()?;
+    let close = match open {
+        '[' => ']',
+        '(' => ')',
+        '{' => '}',
+        '<' => '>',
+        c if c.is_ascii_punctuation() => c,
+        _ => return None,
+    };
+    let body: String = chars.collect();
+    let inner = body.strip_suffix(close)?;
+    if kind.is_ascii_uppercase() && inner.contains("#{") {
+        return None;
+    }
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut depth = 0usize;
+    let mut chars = inner.chars();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            word.push(chars.next()?);
+        } else if ch.is_whitespace() {
+            if !word.is_empty() {
+                words.push(std::mem::take(&mut word));
+            }
+        } else {
+            if open != close && ch == open {
+                depth += 1;
+            } else if ch == close {
+                // An unescaped closer inside the body ends the literal early in Ruby, so the
+                // text is not one array; a nested pair of the same brackets is allowed.
+                depth = depth.checked_sub(1)?;
+            }
+            word.push(ch);
+        }
+    }
+    if depth != 0 {
+        return None;
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    Some(words)
 }
 
 fn is_integer(raw: &str) -> bool {
@@ -419,7 +586,65 @@ pub fn split_items(body: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn reads_a_percent_w_array_as_strings() {
+        assert_eq!(
+            read("%w[push_main pull_request]"),
+            Value::Array(vec![
+                Value::Str("push_main".into()),
+                Value::Str("pull_request".into())
+            ])
+        );
+    }
+
+    #[test]
+    fn reads_a_percent_i_array_as_symbols_with_any_bracket() {
+        assert_eq!(
+            read("%i(open shut)"),
+            Value::Array(vec![
+                Value::Symbol("open".into()),
+                Value::Symbol("shut".into())
+            ])
+        );
+    }
+
+    #[test]
+    fn a_percent_array_keeps_an_escaped_space_and_reads_hyphens_as_text() {
+        assert_eq!(
+            read("%w[check-in a\\ b]"),
+            Value::Array(vec![
+                Value::Str("check-in".into()),
+                Value::Str("a b".into())
+            ])
+        );
+        assert_eq!(read("%w[]"), Value::Array(vec![]));
+    }
+
+    #[test]
+    fn an_interpolating_or_unbalanced_percent_array_stays_bare() {
+        assert_eq!(read("%W[#{x} y]"), Value::Bare("%W[#{x} y]".into()));
+        assert_eq!(read("%w[a] b]"), Value::Bare("%w[a] b]".into()));
+        assert_eq!(read("%r[a]"), Value::Bare("%r[a]".into()));
+    }
+
     use super::*;
+
+    #[test]
+    fn reads_an_integer_with_digit_separators() {
+        assert_eq!(read("1_209_600"), Value::Int(1_209_600));
+        assert_eq!(read("-1_000.5"), Value::Float(-1000.5));
+        assert_eq!(read("1__0"), Value::Bare("1__0".into()));
+        assert_eq!(read("_10"), Value::Bare("_10".into()));
+    }
+
+    #[test]
+    fn reads_a_percent_q_string_keeping_other_backslashes() {
+        assert_eq!(read(r"%q(\A[^?]+\?\z)"), Value::Str(r"\A[^?]+\?\z".into()));
+        assert_eq!(read(r"%q(a (b) \) c)"), Value::Str("a (b) ) c".into()));
+        assert_eq!(read(r"%Q[tab\there]"), Value::Str("tab\there".into()));
+        assert_eq!(read("%q(a) b)"), Value::Bare("%q(a) b)".into()));
+        assert_eq!(read("%Q(#{x})"), Value::Bare("%Q(#{x})".into()));
+    }
 
     #[test]
     fn renders_the_pinned_spellings() {

@@ -465,9 +465,11 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = args.key.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Overview {
-                        key: Some(args.key.clone()),
-                        stats: vec![],
+                    build: Box::new(|| {
+                        Ok(Overview {
+                            key: Some(args.key.clone()),
+                            stats: vec![],
+                        })
                     }),
                     state_independent: false,
                 }

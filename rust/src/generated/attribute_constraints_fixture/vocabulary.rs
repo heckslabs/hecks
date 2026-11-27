@@ -355,8 +355,10 @@ pub fn dispatch_name(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Vocabulary {
-                        name: Some(args.name.clone()),
+                    build: Box::new(|| {
+                        Ok(Vocabulary {
+                            name: Some(args.name.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -365,8 +367,10 @@ pub fn dispatch_name(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Vocabulary {
-                        name: Some(args.name.clone()),
+                    build: Box::new(|| {
+                        Ok(Vocabulary {
+                            name: Some(args.name.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

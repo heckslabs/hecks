@@ -758,14 +758,16 @@ pub fn dispatch_register(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Customer {
-                        reference: Some(args.reference.clone()),
-                        name: Some(args.name.clone()),
-                        email: Some(args.email.clone()),
-                        standing: Some(CustomerStanding {
-                            value: "good".to_string(),
-                        }),
-                        status: "active".to_string(),
+                    build: Box::new(|| {
+                        Ok(Customer {
+                            reference: Some(args.reference.clone()),
+                            name: Some(args.name.clone()),
+                            email: Some(args.email.clone()),
+                            standing: Some(CustomerStanding {
+                                value: "good".to_string(),
+                            }),
+                            status: "active".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -774,14 +776,16 @@ pub fn dispatch_register(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Customer {
-                        reference: Some(args.reference.clone()),
-                        name: Some(args.name.clone()),
-                        email: Some(args.email.clone()),
-                        standing: Some(CustomerStanding {
-                            value: "good".to_string(),
-                        }),
-                        status: "active".to_string(),
+                    build: Box::new(|| {
+                        Ok(Customer {
+                            reference: Some(args.reference.clone()),
+                            name: Some(args.name.clone()),
+                            email: Some(args.email.clone()),
+                            standing: Some(CustomerStanding {
+                                value: "good".to_string(),
+                            }),
+                            status: "active".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

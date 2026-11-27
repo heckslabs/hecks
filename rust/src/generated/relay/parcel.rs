@@ -265,9 +265,11 @@ pub fn dispatch_post(
                 let __hydrate_id: String = args.tag.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Parcel {
-                        tag: Some(args.tag.clone()),
-                        status: "posted".to_string(),
+                    build: Box::new(|| {
+                        Ok(Parcel {
+                            tag: Some(args.tag.clone()),
+                            status: "posted".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

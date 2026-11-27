@@ -407,6 +407,8 @@ pub struct CommandValue {
 pub struct DomainPort {
     pub name: String,
     pub operations: Vec<PortOperation>,
+    /// The aggregate's queries this port's adapter answers (`answers_query "Name"`), by name.
+    pub answered_queries: Vec<String>,
 }
 
 /// `IR::Bluebook#to_h`: the top of the construct chain, emitted as `ir.json`.

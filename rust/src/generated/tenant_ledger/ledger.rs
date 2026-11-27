@@ -1224,11 +1224,13 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Ledger {
-                        code: Some(args.code.clone()),
-                        region: Some(args.region.clone()),
-                        balance_cents: Some(LedgerAmountCents { value: 0 }),
-                        entries: vec![],
+                    build: Box::new(|| {
+                        Ok(Ledger {
+                            code: Some(args.code.clone()),
+                            region: Some(args.region.clone()),
+                            balance_cents: Some(LedgerAmountCents { value: 0 }),
+                            entries: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -1237,11 +1239,13 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.code.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Ledger {
-                        code: Some(args.code.clone()),
-                        region: Some(args.region.clone()),
-                        balance_cents: Some(LedgerAmountCents { value: 0 }),
-                        entries: vec![],
+                    build: Box::new(|| {
+                        Ok(Ledger {
+                            code: Some(args.code.clone()),
+                            region: Some(args.region.clone()),
+                            balance_cents: Some(LedgerAmountCents { value: 0 }),
+                            entries: vec![],
+                        })
                     }),
                     state_independent: true,
                 }

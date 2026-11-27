@@ -9,7 +9,11 @@ require "tmpdir"
 module PlanPageSpeedKit
   TRAIN = { name: "T", state: "ok", count: "0", detail: "" }.freeze
 
+  # The board's rules are its bluebook, described once a process and kept: a boot cost that may
+  # start the parser, not a request's. They are described before the refusal, so an example
+  # holds in any order.
   def refuse_processes
+    Hecks::Adapters::PipelineBoard::Rules.stale_statuses
     allow(Open3).to receive(:capture3).and_raise("a request launched a process")
     allow(IO).to receive(:popen).and_raise("a request launched a process")
     allow(Process).to receive(:spawn).and_raise("a request launched a process")

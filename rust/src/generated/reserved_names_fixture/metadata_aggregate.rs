@@ -289,8 +289,10 @@ pub fn dispatch_record(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Metadata {
-                        key: Some(args.key.clone()),
+                    build: Box::new(|| {
+                        Ok(Metadata {
+                            key: Some(args.key.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -299,8 +301,10 @@ pub fn dispatch_record(
                 let __hydrate_id: String = args.key.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Metadata {
-                        key: Some(args.key.clone()),
+                    build: Box::new(|| {
+                        Ok(Metadata {
+                            key: Some(args.key.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

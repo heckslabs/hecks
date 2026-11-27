@@ -1593,21 +1593,23 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Policy {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        aggregate: args.aggregate.clone(),
-                        on_event: Some(args.on_event.clone()),
-                        trigger_command: args.trigger_command.clone(),
-                        ask: args.ask.clone(),
-                        target_domain: args.target_domain.clone(),
-                        expect_undelivered: args.expect_undelivered.clone(),
-                        root: args.root.clone(),
-                        acts_as: args.acts_as.clone(),
-                        r#where: args.r#where.clone(),
-                        for_each: args.for_each.clone(),
-                        with_spec: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Policy {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            aggregate: args.aggregate.clone(),
+                            on_event: Some(args.on_event.clone()),
+                            trigger_command: args.trigger_command.clone(),
+                            ask: args.ask.clone(),
+                            target_domain: args.target_domain.clone(),
+                            expect_undelivered: args.expect_undelivered.clone(),
+                            root: args.root.clone(),
+                            acts_as: args.acts_as.clone(),
+                            r#where: args.r#where.clone(),
+                            for_each: args.for_each.clone(),
+                            with_spec: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -1616,21 +1618,23 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", args.bluebook, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Policy {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        aggregate: args.aggregate.clone(),
-                        on_event: Some(args.on_event.clone()),
-                        trigger_command: args.trigger_command.clone(),
-                        ask: args.ask.clone(),
-                        target_domain: args.target_domain.clone(),
-                        expect_undelivered: args.expect_undelivered.clone(),
-                        root: args.root.clone(),
-                        acts_as: args.acts_as.clone(),
-                        r#where: args.r#where.clone(),
-                        for_each: args.for_each.clone(),
-                        with_spec: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Policy {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            aggregate: args.aggregate.clone(),
+                            on_event: Some(args.on_event.clone()),
+                            trigger_command: args.trigger_command.clone(),
+                            ask: args.ask.clone(),
+                            target_domain: args.target_domain.clone(),
+                            expect_undelivered: args.expect_undelivered.clone(),
+                            root: args.root.clone(),
+                            acts_as: args.acts_as.clone(),
+                            r#where: args.r#where.clone(),
+                            for_each: args.for_each.clone(),
+                            with_spec: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2087,7 +2091,9 @@ pub struct BindArgs {
 
 pub fn dispatch_bind(
     repo: &mut impl crate::kernel::Repository<Policy>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: BindArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -2106,7 +2112,41 @@ pub fn dispatch_bind(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Policy {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(PolicyName {
+                                value: name.to_string(),
+                            }),
+                            aggregate: None,
+                            on_event: None,
+                            trigger_command: None,
+                            ask: None,
+                            target_domain: None,
+                            expect_undelivered: None,
+                            root: None,
+                            acts_as: None,
+                            r#where: None,
+                            for_each: None,
+                            with_spec: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Bind",
         "Bluebook::Policy",
         "Policy",

@@ -597,7 +597,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -4987,7 +4987,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -7846,7 +7846,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -11861,7 +11861,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -12017,7 +12017,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -18714,7 +18714,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -21694,7 +21694,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null,
               "relationship": null
@@ -23813,7 +23813,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": "[^ \\t\\n\\r]",
               "admits": null,
               "relationship": null
