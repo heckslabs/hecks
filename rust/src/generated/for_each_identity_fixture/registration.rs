@@ -262,9 +262,11 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Registration {
-                        registration_id: Some(args.registration_id.clone()),
-                        status: "open".to_string(),
+                    build: Box::new(|| {
+                        Ok(Registration {
+                            registration_id: Some(args.registration_id.clone()),
+                            status: "open".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -273,9 +275,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.registration_id.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Registration {
-                        registration_id: Some(args.registration_id.clone()),
-                        status: "open".to_string(),
+                    build: Box::new(|| {
+                        Ok(Registration {
+                            registration_id: Some(args.registration_id.clone()),
+                            status: "open".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

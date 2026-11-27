@@ -373,9 +373,11 @@ pub fn dispatch_register(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Gadget {
-                        name: Some(args.name.clone()),
-                        status: None,
+                    build: Box::new(|| {
+                        Ok(Gadget {
+                            name: Some(args.name.clone()),
+                            status: None,
+                        })
                     }),
                     state_independent: true,
                 }
@@ -384,9 +386,11 @@ pub fn dispatch_register(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Gadget {
-                        name: Some(args.name.clone()),
-                        status: None,
+                    build: Box::new(|| {
+                        Ok(Gadget {
+                            name: Some(args.name.clone()),
+                            status: None,
+                        })
                     }),
                     state_independent: true,
                 }

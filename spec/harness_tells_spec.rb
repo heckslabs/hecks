@@ -9,8 +9,14 @@ RSpec.describe Hecks::Harness::Tells do
     tell = { "tell" => "sent", "at_ms" => 67, "session" => "reviewer", "message" => "reviewer-1",
              "to" => "coder", "text" => "hi" }
     posted = { key: { value: "reviewer-1" }, sender: { value: "reviewer" }, addressee: { value: "coder" },
-               text: { value: "hi" }, sent_at: { value: 67 } }
+               text: { value: "hi" }, sent_at: { value: 67 }, about: nil }
     expect(commands(tell)).to eq([["Message.Post", posted]])
+  end
+
+  it "posts a message sent about another with the key it answers" do
+    tell = { "tell" => "sent", "at_ms" => 90, "session" => "coder", "message" => "coder-1",
+             "to" => "reviewer", "text" => "yes", "about" => "reviewer-1" }
+    expect(commands(tell).dig(0, 1, :about)).to eq({ value: "reviewer-1" })
   end
 
   it "records a stopped session, and each message it still held as undeliverable" do
@@ -25,6 +31,6 @@ RSpec.describe Hecks::Harness::Tells do
   end
 
   it "records nothing for a tell that only answers an op" do
-    expect(%w[ready opened queued refused quit].flat_map { |kind| commands({ "tell" => kind }) }).to be_empty
+    expect(%w[ready opened queued noticed refused quit].flat_map { |kind| commands({ "tell" => kind }) }).to be_empty
   end
 end

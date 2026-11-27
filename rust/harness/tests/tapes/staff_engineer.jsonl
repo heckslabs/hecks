@@ -1,0 +1,10 @@
+{"note":"The resident staff engineer: briefed from its role file, it waits; a question comes, it asks Miette in the asker's words, and relays her answer to the asker unchanged, each send about the question it carries."}
+{"expect":"user","contains":"You are the staff engineer role"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-staff-engineer","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Resident; waiting for a question."}}
+{"expect":"user","contains":"Message coder-1 from coder"}
+{"emit":{"type":"control_request","request_id":"s-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"miette","text":"Should a relay keep the asker's run when the question came through the scrum master?","about":"coder-1"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to miette"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Asked Miette for the coder."}}
+{"expect":"user","contains":"from miette, about coder-1"}
+{"emit":{"type":"control_request","request_id":"s-mcp-2","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"coder","text":"Keep it. The run names who asked, and a question the scrum master passes on is still that run's question.","about":"coder-1"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to coder"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Relayed Miette's answer to the coder."}}

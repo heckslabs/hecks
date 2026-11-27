@@ -550,13 +550,15 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = args.agg.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| CollectionIdentity {
-                        agg: Some(args.agg.clone()),
-                        identity_field: None,
-                        identity_strategy: None,
-                        identity_source: None,
-                        identity_prefix: None,
-                        identity_extra_json: None,
+                    build: Box::new(|| {
+                        Ok(CollectionIdentity {
+                            agg: Some(args.agg.clone()),
+                            identity_field: None,
+                            identity_strategy: None,
+                            identity_source: None,
+                            identity_prefix: None,
+                            identity_extra_json: None,
+                        })
                     }),
                     state_independent: false,
                 }

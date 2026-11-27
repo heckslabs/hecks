@@ -847,9 +847,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Folder {
-                        reference: Some(args.reference.clone()),
-                        slips: vec![],
+                    build: Box::new(|| {
+                        Ok(Folder {
+                            reference: Some(args.reference.clone()),
+                            slips: vec![],
+                        })
                     }),
                     state_independent: false,
                 }

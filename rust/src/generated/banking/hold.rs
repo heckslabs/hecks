@@ -684,11 +684,13 @@ pub fn dispatch_place(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Hold {
-                        reference: Some(args.reference.clone()),
-                        subject: Some(args.subject.clone()),
-                        reason: Some(args.reason.clone()),
-                        status: "placed".to_string(),
+                    build: Box::new(|| {
+                        Ok(Hold {
+                            reference: Some(args.reference.clone()),
+                            subject: Some(args.subject.clone()),
+                            reason: Some(args.reason.clone()),
+                            status: "placed".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -697,11 +699,13 @@ pub fn dispatch_place(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Hold {
-                        reference: Some(args.reference.clone()),
-                        subject: Some(args.subject.clone()),
-                        reason: Some(args.reason.clone()),
-                        status: "placed".to_string(),
+                    build: Box::new(|| {
+                        Ok(Hold {
+                            reference: Some(args.reference.clone()),
+                            subject: Some(args.subject.clone()),
+                            reason: Some(args.reason.clone()),
+                            status: "placed".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

@@ -982,6 +982,8 @@ pub struct IdentityComponent {
     pub expr: String,
     pub param: Option<String>,
     pub head: Option<String>,
+    /// The whole identity path this component reads, `name.value` for the head `name`.
+    pub path: String,
 }
 
 /// Builds one component per identity part: a `set` target or same-named command argument reads
@@ -1017,6 +1019,7 @@ pub fn identity_components(aggregate: &Json, command: &Json) -> Vec<IdentityComp
                         expr: format!("args.{}.to_string()", naming::rust_ident_field(head)),
                         param: None,
                         head: None,
+                        path: path.to_string(),
                     }
                 } else {
                     let rest_path = rest
@@ -1032,6 +1035,7 @@ pub fn identity_components(aggregate: &Json, command: &Json) -> Vec<IdentityComp
                         ),
                         param: None,
                         head: None,
+                        path: path.to_string(),
                     }
                 }
             } else {
@@ -1040,10 +1044,58 @@ pub fn identity_components(aggregate: &Json, command: &Json) -> Vec<IdentityComp
                     expr: format!("{param}.to_string()"),
                     param: Some(format!("{param}: &str")),
                     head: Some(head.to_string()),
+                    path: path.to_string(),
                 }
             }
         })
         .collect()
+}
+
+/// What a fresh record holds in an identity field its creating command does not supply, as
+/// Ruby's `Instance#materialize_identity!` fills it from the identity the command was given.
+///
+/// Only a field read by exactly one identity path is filled: several paths under one head make
+/// the id a display key that cannot be split back. A reference or `String` field holds the
+/// identifier itself; a value object of one `String` field holds it in that field. Any other
+/// shape is left to the record's default, as before.
+pub fn materialized_identity_rhs(
+    aggregate: &Json,
+    attr: &Json,
+    identity: &[IdentityComponent],
+    value_objects_by_name: &std::collections::HashMap<String, &Json>,
+) -> Option<String> {
+    let name = crate::attr::name(attr);
+    let component = identity.iter().find(|c| c.head.as_deref() == Some(name))?;
+    let paths_under_head = aggregate
+        .get("identified_by")
+        .map_or_default(Json::each)
+        .iter()
+        .filter(|p| p.to_s().split('.').next() == Some(name))
+        .count();
+    if paths_under_head != 1 || crate::attr::list(attr) {
+        return None;
+    }
+    let param = naming::rust_ident_field(name);
+    let type_name = crate::attr::type_name(attr);
+    if naming::reference_type(type_name) || type_name == "String" {
+        return Some(format!("{param}.to_string()"));
+    }
+    let value_object = value_objects_by_name.get(type_name)?;
+    let fields = value_object.get("attributes").map_or_default(Json::each);
+    let [field] = fields else {
+        return None;
+    };
+    let rest = component.path.split('.').nth(1);
+    if crate::attr::type_name(field) != "String"
+        || rest.is_some_and(|r| r != crate::attr::name(field))
+    {
+        return None;
+    }
+    Some(format!(
+        "{} {{ {}: {param}.to_string() }}",
+        naming::rust_ident(type_name),
+        naming::rust_ident_field(crate::attr::name(field))
+    ))
 }
 
 pub fn build_identity_expr(components: &[IdentityComponent]) -> String {
@@ -1129,6 +1181,35 @@ pub fn append_field_rhs(
     } else {
         rhs
     }
+}
+
+/// An appended value object's required field, fed by an optional argument: the argument when it
+/// is given, and otherwise the refusal `Value.build` gives a required field left `nil`
+/// (`check_required_fields`): `TypeMismatch`, "`{ValueObject}.{field}` expects `{type}`, got nil".
+/// Any other field's `rhs` is returned as it is.
+pub fn required_value_object_field(
+    rhs: String,
+    source: &str,
+    field_attr: &Json,
+    value_object: &str,
+    command: &Json,
+) -> String {
+    let Literal::Symbol(arg_name) = append_field_source(source) else {
+        return rhs;
+    };
+    let optional_argument = command
+        .get("attributes")
+        .map_or_default(Json::each)
+        .iter()
+        .any(|a| crate::attr::name(a) == arg_name.as_str() && crate::attr::optional(a));
+    if !optional_argument || crate::attr::optional(field_attr) || crate::attr::list(field_attr) {
+        return rhs;
+    }
+    format!(
+        "{rhs}.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {{ r#type: {value_object:?}, field: {:?}, expected: {:?}, offered: \"nil\" }}.render_args()))?",
+        crate::attr::name(field_attr),
+        crate::attr::type_name(field_attr),
+    )
 }
 
 /// The optional-source variant of `value_rhs`.
@@ -1227,11 +1308,21 @@ fn emit_mutation_line_body(
                         .iter()
                         .find(|a| crate::attr::name(a) == field_name.as_str())
                         .expect("append field must be a declared element attribute");
-                    format!(
-                        "{}: {}",
-                        naming::rust_ident_field(field_name),
-                        append_field_rhs(source, field_attr, command, value_objects_by_name)
-                    )
+                    let rhs = append_field_rhs(source, field_attr, command, value_objects_by_name);
+                    let rhs = match entity {
+                        None => required_value_object_field(
+                            rhs,
+                            source,
+                            field_attr,
+                            element
+                                .get("name")
+                                .and_then(Json::as_str)
+                                .unwrap_or_default(),
+                            command,
+                        ),
+                        Some(_) => rhs,
+                    };
+                    format!("{}: {rhs}", naming::rust_ident_field(field_name))
                 })
                 .collect();
 
@@ -1995,5 +2086,121 @@ mod float_arithmetic_tests {
         let float = arithmetic_field_value(NumericKind::Float, "increment", "value", "+", "1.0");
         assert!(integer.contains("checked_add") && !integer.contains("ruby_float"));
         assert!(float.contains("finite_or_fault") && !float.contains("checked_add"));
+    }
+}
+
+#[cfg(test)]
+mod creation_identity_tests {
+    use super::*;
+
+    // `Bluebook.Attach`'s shape: identified by `bluebook` (a reference) and `name.value` (a
+    // single-field value object), and created by a command that sets neither.
+    fn attachment() -> Json {
+        Json::parse(
+            r#"{"name":"Attachment","identified_by":["bluebook","name.value"],"attributes":[
+                {"name":"bluebook","type":"Reference<Bluebook>","list":false,"optional":false},
+                {"name":"name","type":"AttachmentName","list":false,"optional":false},
+                {"name":"tags","type":"String","list":true,"optional":false}]}"#,
+        )
+        .unwrap()
+    }
+
+    fn value_objects(json: &str) -> Vec<Json> {
+        Json::parse(json).unwrap().each().to_vec()
+    }
+
+    fn rhs(attr: usize, vos: &[Json]) -> Option<String> {
+        let aggregate = attachment();
+        let command = Json::parse(r#"{"name":"Attach","attributes":[]}"#).unwrap();
+        let by_name: HashMap<String, &Json> = vos
+            .iter()
+            .map(|vo| (vo.get("name").unwrap().to_s(), vo))
+            .collect();
+        let identity = identity_components(&aggregate, &command);
+        let attrs = aggregate.get("attributes").unwrap().each();
+        materialized_identity_rhs(&aggregate, &attrs[attr], &identity, &by_name)
+    }
+
+    const NAME: &str =
+        r#"[{"name":"AttachmentName","attributes":[{"name":"value","type":"String"}]}]"#;
+
+    #[test]
+    fn a_reference_head_is_filled_from_its_identity_part() {
+        assert_eq!(
+            rhs(0, &value_objects(NAME)),
+            Some("bluebook.to_string()".to_string())
+        );
+    }
+
+    #[test]
+    fn a_single_string_value_object_head_is_built_around_its_identity_part() {
+        assert_eq!(
+            rhs(1, &value_objects(NAME)),
+            Some("AttachmentName { value: name.to_string() }".to_string())
+        );
+    }
+
+    #[test]
+    fn a_value_object_with_more_than_one_field_is_left_unfilled() {
+        let wide = r#"[{"name":"AttachmentName","attributes":[
+            {"name":"value","type":"String"},{"name":"note","type":"String"}]}]"#;
+        assert_eq!(rhs(1, &value_objects(wide)), None);
+    }
+
+    #[test]
+    fn a_field_outside_the_identity_is_left_unfilled() {
+        assert_eq!(rhs(2, &value_objects(NAME)), None);
+    }
+}
+
+#[cfg(test)]
+mod required_value_object_field_tests {
+    use super::*;
+
+    fn command(optional: bool) -> Json {
+        Json::parse(&format!(
+            r#"{{"name":"Normalise","attributes":[
+                {{"name":"position","type":"RuleText","list":false,"optional":{optional}}}]}}"#
+        ))
+        .unwrap()
+    }
+
+    fn field(optional: bool, list: bool) -> Json {
+        Json::parse(&format!(
+            r#"{{"name":"position","type":"String","list":{list},"optional":{optional}}}"#
+        ))
+        .unwrap()
+    }
+
+    fn wrap(command: &Json, field: &Json, source: &str) -> String {
+        required_value_object_field(
+            "rhs".to_string(),
+            source,
+            field,
+            "NormalisationRule",
+            command,
+        )
+    }
+
+    // Ruby's `Value.build` refuses the absent argument (`check_required_fields`).
+    #[test]
+    fn an_optional_argument_into_a_required_field_refuses_when_absent() {
+        assert_eq!(
+            wrap(&command(true), &field(false, false), ":position"),
+            "rhs.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs { r#type: \"NormalisationRule\", field: \"position\", expected: \"String\", offered: \"nil\" }.render_args()))?"
+        );
+    }
+
+    #[test]
+    fn every_other_source_and_field_keeps_its_rhs() {
+        assert_eq!(
+            [
+                wrap(&command(false), &field(false, false), ":position"),
+                wrap(&command(true), &field(true, false), ":position"),
+                wrap(&command(true), &field(false, true), ":position"),
+                wrap(&command(true), &field(false, false), "\"fixed\""),
+            ],
+            ["rhs", "rhs", "rhs", "rhs"]
+        );
     }
 }

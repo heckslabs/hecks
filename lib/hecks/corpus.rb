@@ -56,6 +56,8 @@ module Hecks
       clients:        "lib/hecks/clients/*.bluebook",
       # The LiveDiscovery bluebook boots from its own directory beside its hecksagon.
       live_discovery: "lib/hecks/live_discovery/*.bluebook",
+      # The StaffEngineer bluebook boots from its own directory beside its hecksagon.
+      staff_engineer: "lib/hecks/staff_engineer/*.bluebook",
       # The Protocols bluebook boots from its own directory beside its hecksagon.
       protocols:      "lib/hecks/protocols/*.bluebook",
       fixture:        "spec/fixtures/**/*.bluebook"

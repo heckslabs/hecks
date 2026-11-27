@@ -10,6 +10,7 @@ pub mod domain_port;
 pub mod entity;
 pub mod file;
 pub mod hecksagon;
+pub mod kinds;
 pub mod lifecycle;
 pub mod needs;
 pub mod policy;
@@ -173,7 +174,7 @@ pub(crate) fn classify_lexical_kind(token: &str) -> &'static str {
     if is_number_token(t) {
         return "number";
     }
-    if t.starts_with('[') && t.ends_with(']') {
+    if (t.starts_with('[') && t.ends_with(']')) || crate::ruby_value::is_percent_array(t) {
         return "list";
     }
     if t.starts_with('{') && t.ends_with('}') {
@@ -209,6 +210,9 @@ fn is_number_token(t: &str) -> bool {
 
 /// Splits a named `identifier: value` segment; a leading colon (`:eq`) or `::` is not named.
 pub(crate) fn as_named(segment: &str) -> Option<(&str, &str)> {
+    if let Some(quoted) = as_quoted_named(segment) {
+        return Some(quoted);
+    }
     let bytes = segment.as_bytes();
     if bytes.is_empty() || !(bytes[0].is_ascii_alphabetic() || bytes[0] == b'_') {
         return None;
@@ -223,6 +227,22 @@ pub(crate) fn as_named(segment: &str) -> Option<(&str, &str)> {
         return Some((name, value));
     }
     None
+}
+
+/// A quoted label, `"ended_at.value": 0`, which Ruby reads as the symbol `:"ended_at.value"`. A
+/// label holding an escape or an interpolation is left alone, since its name is not its text.
+fn as_quoted_named(segment: &str) -> Option<(&str, &str)> {
+    let quote = segment.chars().next().filter(|c| *c == '"' || *c == '\'')?;
+    let close = segment[1..].find(quote)? + 1;
+    let name = &segment[1..close];
+    if name.is_empty() || name.contains('\\') || name.contains("#{") {
+        return None;
+    }
+    let rest = segment[close + 1..].strip_prefix(':')?;
+    if rest.starts_with(':') {
+        return None;
+    }
+    Some((name, rest.trim_start()))
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1292,7 +1312,7 @@ pub(crate) fn resolve_type_expression(
                     format!("'{word}'s list_of(...) must hold a constant type name, got '{inner}'"),
                 ));
             }
-            Ok((inner.to_string(), true, None))
+            Ok((demodulise(inner).to_string(), true, None))
         }
         Some("one_of") => {
             // reason: `type_context_call_word` already confirmed a '(' in `trimmed`.
@@ -1332,6 +1352,61 @@ pub(crate) fn resolve_type_expression(
                 "'{field_name}'s type {trimmed} is quoted text — give the bare constant instead"
             ),
         )),
-        None => Ok((trimmed.to_string(), false, None)),
+        None => Ok((demodulise(trimmed).to_string(), false, None)),
+    }
+}
+
+/// The last segment of a constant path, as `Attribute#spell` keeps it: `Ceiling::Kind` and a
+/// bare `Kind` name the same type.
+fn demodulise(type_name: &str) -> &str {
+    type_name.rsplit("::").next().unwrap_or(type_name)
+}
+
+#[cfg(test)]
+mod ruby_spelling_tests {
+    use super::*;
+
+    #[test]
+    fn a_quoted_label_names_its_pair_as_ruby_reads_it() {
+        assert_eq!(
+            as_named(r#""ended_at.value": 0"#),
+            Some(("ended_at.value", "0"))
+        );
+        assert_eq!(
+            as_named("'standing.value': \"live\""),
+            Some(("standing.value", "\"live\""))
+        );
+        assert_eq!(as_named("verdict: nil"), Some(("verdict", "nil")));
+    }
+
+    #[test]
+    fn a_quoted_string_that_is_not_a_label_stays_positional() {
+        assert_eq!(as_named(r#""a: b""#), None);
+        assert_eq!(as_named(r#""Account"::Debit"#), None);
+        assert_eq!(as_named(r#""a\"b": 1"#), None);
+    }
+
+    #[test]
+    fn a_percent_array_reads_as_a_list() {
+        assert_eq!(classify_lexical_kind("%w[a b]"), "list");
+        assert_eq!(classify_lexical_kind("%i(a b)"), "list");
+        assert_eq!(classify_lexical_kind("%wat"), "text");
+    }
+
+    #[test]
+    fn a_qualified_type_is_spelled_by_its_last_segment() {
+        let (name, list, _) =
+            resolve_type_expression("f.bluebook", 1, "attribute", "kind", "Ceiling::Kind")
+                .expect("a qualified type");
+        assert_eq!((name.as_str(), list), ("Kind", false));
+        let (name, list, _) = resolve_type_expression(
+            "f.bluebook",
+            1,
+            "attribute",
+            "kinds",
+            "list_of(Ceiling::Kind)",
+        )
+        .expect("a qualified list type");
+        assert_eq!((name.as_str(), list), ("Kind", true));
     }
 }

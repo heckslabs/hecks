@@ -503,7 +503,7 @@ pub struct NormalisationRule {
     pub source_token: String,
     pub replacement: String,
     pub boundary: String,
-    pub position: Option<String>,
+    pub position: String,
 }
 
 impl crate::kernel::Fielded for NormalisationRule {
@@ -515,11 +515,7 @@ impl crate::kernel::Fielded for NormalisationRule {
             "source_token" => Some(Field::Value(Value::Str(self.source_token.clone()))),
             "replacement" => Some(Field::Value(Value::Str(self.replacement.clone()))),
             "boundary" => Some(Field::Value(Value::Str(self.boundary.clone()))),
-            "position" => self
-                .position
-                .as_ref()
-                .map(|v| Field::Value(Value::Str(v.clone())))
-                .or(Some(Field::Value(Value::Nil))),
+            "position" => Some(Field::Value(Value::Str(self.position.clone()))),
             _ => None,
         }
     }
@@ -564,11 +560,7 @@ impl NormalisationRule {
             ),
             (
                 "position".to_string(),
-                self.position
-                    .as_ref()
-                    .map_or(crate::kernel::Json::Null, |v| {
-                        crate::kernel::Json::Str(v.clone())
-                    }),
+                crate::kernel::Json::Str(self.position.clone()),
             ),
         ])
     }
@@ -659,14 +651,18 @@ impl NormalisationRule {
                     ))
                 })?
             },
-            position: match v.get("position") {
-                Some(crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
+            position: {
+                let x = v.get("position").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "NormalisationRule.position expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "NormalisationRule.position expects String, got {}",
                         x.describe()
                     ))
-                })?),
+                })?
             },
         })
     }
@@ -2982,17 +2978,19 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Bluebook {
-                        name: Some(args.name.clone()),
-                        vision: args.vision.clone(),
-                        classification: args.classification.clone(),
-                        version: args.version.clone(),
-                        formerly_known_as: args.formerly_known_as.clone(),
-                        namespace: args.namespace.clone(),
-                        normalisations: vec![],
-                        attaches_to: vec![],
-                        provides: vec![],
-                        modules: vec![],
+                    build: Box::new(|| {
+                        Ok(Bluebook {
+                            name: Some(args.name.clone()),
+                            vision: args.vision.clone(),
+                            classification: args.classification.clone(),
+                            version: args.version.clone(),
+                            formerly_known_as: args.formerly_known_as.clone(),
+                            namespace: args.namespace.clone(),
+                            normalisations: vec![],
+                            attaches_to: vec![],
+                            provides: vec![],
+                            modules: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -3001,17 +2999,19 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Bluebook {
-                        name: Some(args.name.clone()),
-                        vision: args.vision.clone(),
-                        classification: args.classification.clone(),
-                        version: args.version.clone(),
-                        formerly_known_as: args.formerly_known_as.clone(),
-                        namespace: args.namespace.clone(),
-                        normalisations: vec![],
-                        attaches_to: vec![],
-                        provides: vec![],
-                        modules: vec![],
+                    build: Box::new(|| {
+                        Ok(Bluebook {
+                            name: Some(args.name.clone()),
+                            vision: args.vision.clone(),
+                            classification: args.classification.clone(),
+                            version: args.version.clone(),
+                            formerly_known_as: args.formerly_known_as.clone(),
+                            namespace: args.namespace.clone(),
+                            normalisations: vec![],
+                            attaches_to: vec![],
+                            provides: vec![],
+                            modules: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -3308,7 +3308,8 @@ pub struct AttachArgs {
 
 pub fn dispatch_attach(
     repo: &mut impl crate::kernel::Repository<Bluebook>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: AttachArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3326,7 +3327,37 @@ pub fn dispatch_attach(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Bluebook {
+                            name: Some(BluebookName {
+                                value: name.to_string(),
+                            }),
+                            vision: None,
+                            classification: None,
+                            version: None,
+                            formerly_known_as: None,
+                            namespace: None,
+                            normalisations: vec![],
+                            attaches_to: vec![],
+                            provides: vec![],
+                            modules: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Attach",
         "Bluebook::Bluebook",
         "Bluebook",
@@ -3513,7 +3544,8 @@ pub struct ProvideArgs {
 
 pub fn dispatch_provide(
     repo: &mut impl crate::kernel::Repository<Bluebook>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: ProvideArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3533,7 +3565,37 @@ pub fn dispatch_provide(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Bluebook {
+                            name: Some(BluebookName {
+                                value: name.to_string(),
+                            }),
+                            vision: None,
+                            classification: None,
+                            version: None,
+                            formerly_known_as: None,
+                            namespace: None,
+                            normalisations: vec![],
+                            attaches_to: vec![],
+                            provides: vec![],
+                            modules: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Provide",
         "Bluebook::Bluebook",
         "Bluebook",
@@ -3740,7 +3802,8 @@ pub struct GroupArgs {
 
 pub fn dispatch_group(
     repo: &mut impl crate::kernel::Repository<Bluebook>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: GroupArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3760,7 +3823,43 @@ pub fn dispatch_group(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = BluebookName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        let __created_vision = Vision {
+                            value: args.vision.value.clone(),
+                        };
+                        __created_vision.check_invariants()?;
+                        Ok(Bluebook {
+                            name: Some(__created_name),
+                            vision: Some(__created_vision),
+                            classification: None,
+                            version: None,
+                            formerly_known_as: None,
+                            namespace: None,
+                            normalisations: vec![],
+                            attaches_to: vec![],
+                            provides: vec![],
+                            modules: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Group",
         "Bluebook::Bluebook",
         "Bluebook",
@@ -3975,7 +4074,8 @@ pub struct NormaliseArgs {
 
 pub fn dispatch_normalise(
     repo: &mut impl crate::kernel::Repository<Bluebook>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: NormaliseArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3999,7 +4099,37 @@ pub fn dispatch_normalise(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Bluebook {
+                            name: Some(BluebookName {
+                                value: name.to_string(),
+                            }),
+                            vision: None,
+                            classification: None,
+                            version: None,
+                            formerly_known_as: None,
+                            namespace: None,
+                            normalisations: vec![],
+                            attaches_to: vec![],
+                            provides: vec![],
+                            modules: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Normalise",
         "Bluebook::Bluebook",
         "Bluebook",
@@ -4013,7 +4143,21 @@ pub fn dispatch_normalise(
                 source_token: args.source_token.value.clone(),
                 replacement: args.replacement.value.clone(),
                 boundary: args.boundary.value.clone(),
-                position: args.position.clone().map(|v| v.value.clone()),
+                position: args
+                    .position
+                    .clone()
+                    .map(|v| v.value.clone())
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                                r#type: "NormalisationRule",
+                                field: "position",
+                                expected: "String",
+                                offered: "nil",
+                            }
+                            .render_args(),
+                        )
+                    })?,
             });
             Ok(())
         },

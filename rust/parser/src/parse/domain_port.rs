@@ -23,6 +23,7 @@ pub fn parse_body(
     let mut port = ir::DomainPort {
         name: name.to_string(),
         operations: Vec::new(),
+        answered_queries: Vec::new(),
     };
 
     loop {
@@ -38,6 +39,33 @@ pub fn parse_body(
                 let operation =
                     parse_operation_body(file, lines, pos, &op_name, to, word == "asks")?;
                 port.operations.push(operation);
+            }
+            // Mirrors `DomainPortBuilder#answers_query_impl`: the query's name and nothing else.
+            "answers_query" => {
+                if !gated.args.named.is_empty() {
+                    let removed: Vec<&str> =
+                        gated.args.named.iter().map(|(k, _)| k.as_str()).collect();
+                    let query =
+                        super::positional_text(file, line, "answers_query", &gated.args, 1)?;
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!(
+                            "answers_query {} takes only the query's name — the shape of its answer is the query's own `returns`, declared in the bluebook ({} is not a word here)",
+                            crate::ruby_value::quote(&query),
+                            removed.join(", ")
+                        ),
+                    ));
+                }
+                let query = super::positional_text(file, line, "answers_query", &gated.args, 1)?;
+                if port.answered_queries.contains(&query) {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!("{name} binds {query} twice — a query has one answer"),
+                    ));
+                }
+                port.answered_queries.push(query);
             }
             _ => {
                 return Err(super::not_built_yet(

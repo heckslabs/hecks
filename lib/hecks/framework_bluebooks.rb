@@ -7,7 +7,8 @@ require_relative "closed_form"
 
 module Hecks
   # The bluebooks the gem carries that a hecksagon can attach by name (ADR 0080): the language
-  # declared in itself, Expression, Tenancy, Deploy, Site, RailsApp, Tickets, Bulk and Protocols.
+  # declared in itself, Expression, Tenancy, Deploy, Site, RailsApp, Tickets, Bulk, Protocols and
+  # StaffEngineer.
   # Framework members stay in `Framework`; `table` and `attach!` find a name across both.
   #
   # A bluebook is named by the `Hecks.bluebook "Name"` header of its files, and may span several.
@@ -18,7 +19,7 @@ module Hecks
     # Where attachable bluebooks live, relative to `lib/hecks/`.
     GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook rails_app/bluebook/*.bluebook tickets/bluebook/*.bluebook
-               bulk/bluebook/*.bluebook protocols/*.bluebook].freeze
+               bulk/bluebook/*.bluebook protocols/*.bluebook staff_engineer/*.bluebook].freeze
 
     # A `Hecks.bluebook "Name"` header line, capturing the bluebook's name.
     BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/

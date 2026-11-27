@@ -354,9 +354,11 @@ pub fn dispatch_stock(
                 let __hydrate_id: String = format!("{}:{}", args.row.value, args.slot.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Shelf {
-                        row: Some(args.row.clone()),
-                        slot: Some(args.slot.clone()),
+                    build: Box::new(|| {
+                        Ok(Shelf {
+                            row: Some(args.row.clone()),
+                            slot: Some(args.slot.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

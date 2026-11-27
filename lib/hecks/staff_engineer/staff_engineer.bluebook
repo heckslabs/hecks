@@ -1,0 +1,469 @@
+# StaffEngineer: Miette, the crew's staff engineer (owner, 2026-11-21). She is her own system, reached
+# by message; the domain keeps what she saw, the coaching drawn from it, and her words relayed
+# unchanged as hers. Modeled on Triage. The staff-engineer role that relays is registered in Agents.
+
+Hecks.bluebook "StaffEngineer" do
+  vision "Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide."
+
+  supporting
+
+  # One thing Miette watched or read: where it came from and what she saw. It is her sight, not
+  # the orchestrator's account of it.
+  aggregate "Observation" do
+    description "Something Miette read or watched in the crew's work, with its source and what she saw."
+    created_by "Observation.observe!"
+
+    identified_by :observation
+
+    attribute :observation, Mark
+    attribute :source,      Source
+    attribute :saw,         Saw
+    attribute :came,        Came
+    attribute :basis,       Basis
+
+    value_object "Mark" do
+      attribute :value, String, matches: :present
+    end
+
+    # The four places she reads from.
+    value_object "Source" do
+      attribute :value, String, one_of: %w[operation_follow stall_item landing_log red_flag]
+    end
+
+    value_object "Saw" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # Whether she saw it herself or was told it.
+    value_object "Came" do
+      attribute :value, String, one_of: %w[seen told]
+    end
+
+    # How far the fact stands: `written` is read in a record, `lead_account` is what the lead said,
+    # `inferred` is drawn from what she read, `could_not_determine` is left open. A told fact is
+    # never `written`.
+    value_object "Basis" do
+      attribute :value, String, one_of: %w[written lead_account inferred could_not_determine]
+    end
+
+    command "Observe" do
+      role "Operator"
+      goal "Record what Miette saw, and where she saw it"
+
+      attribute :observation, Mark, sets: true
+      attribute :source,      Source, sets: true
+      attribute :saw,         Saw, sets: true
+      attribute :came,        Came, sets: true
+      attribute :basis,       Basis, sets: true
+
+      given("a told fact is never marked written") { came.value == "seen" || basis.value != "written" }
+
+      emits Observed
+    end
+  end
+
+  # What Miette advises one role (a stumble it repeats) or the whole crew (a value, a drift),
+  # drawn from observations. Advice names its evidence; advice touching a vow goes to the owner.
+  aggregate "Coaching" do
+    description "A coaching: the role, what repeats, the observations it rests on, and the change she suggests."
+    created_by "Coaching.notice!"
+
+    identified_by :coaching
+
+    attribute :coaching, Ref
+    attribute :role,     Role
+    attribute :kind,     Kind
+    attribute :pattern,  Pattern
+    attribute :evidence, list_of(Ref)
+    attribute :change,   Pattern, optional: true
+    attribute :touches,  Touches, optional: true
+    attribute :proposed_row, Pattern, optional: true
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    # A role name, or `crew` for a value or a drift that is about all of them.
+    value_object "Role" do
+      attribute :value, String, matches: :present
+    end
+
+    # A stumble a role repeats; a value of the owner's the crew drifted from; a short drift note
+    # to the owner (at a retro, or on demand).
+    value_object "Kind" do
+      attribute :value, String, one_of: %w[stumble value drift]
+    end
+
+    value_object "Pattern" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # `vow` when the advice touches one of Miette's vows: that is the owner's to decide.
+    value_object "Touches" do
+      attribute :value, String, one_of: %w[none vow]
+    end
+
+    lifecycle :status, default: "noticed" do
+      mark :terminal, "advised", "referred"
+      mark :rests, "noticed"
+      transition "Advise" => "advised",   from: "noticed"
+      transition "Refer"  => "referred",  from: "noticed"
+    end
+
+    command "Notice" do
+      role "Operator"
+      goal "Record what repeats, citing the observations it rests on; advice follows only evidence"
+
+      attribute :coaching, Ref, sets: true
+      attribute :role,     Role, sets: true
+      attribute :kind,     Kind, sets: true
+      attribute :pattern,  Pattern, sets: true
+      attribute :evidence, list_of(Ref), sets: true
+
+      given("a coaching cites at least one observation") { evidence.size.positive? }
+
+      emits Noticed
+    end
+
+    command "Advise" do
+      role "Operator"
+      goal "State the change Miette suggests to the brief, guard or habit"
+
+      reference_to Coaching
+      attribute :change,  Pattern, sets: true
+      attribute :touches, Touches, sets: true
+      attribute :proposed_row, Pattern, optional: true, sets: true
+
+      given("a change touching a vow is the owner's to decide, not the crew's") { touches.value != "vow" }
+
+      emits Advised
+    end
+
+    command "Refer" do
+      role "Operator"
+      goal "Send to the owner what touches one of Miette's vows"
+
+      reference_to Coaching
+      attribute :touches, Touches, sets: true
+
+      given("only what touches a vow is referred to the owner") { touches.value == "vow" }
+
+      emits Referred
+    end
+  end
+
+  # A question put to Miette through the staff-engineer role and her answer. The words are hers, stored as
+  # she said them and labelled with her name; when she has not been reached nothing is said for her.
+  aggregate "Relay" do
+    description "A question to Miette, and her words forwarded unchanged and labelled as hers, or the fact that she was not reached."
+    created_by "Relay.ask!"
+
+    identified_by :relay
+
+    attribute :relay,    Ref
+    attribute :question, Words
+    attribute :run,      Ref, optional: true
+    attribute :received, Words, optional: true
+    attribute :words,    Words, optional: true
+    attribute :author,   Author, optional: true
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Words" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # The only author a relayed answer may carry.
+    value_object "Author" do
+      attribute :value, String, one_of: %w[miette]
+    end
+
+    lifecycle :status, default: "asked" do
+      mark :terminal, "answered", "declined"
+      mark :rests, "asked", "received"
+      transition "Receive"   => "received", from: "asked"
+      transition "Forward"   => "answered", from: "received"
+      transition "Decline"   => "declined", from: ["asked", "received"]
+    end
+
+    command "Ask" do
+      role "Operator"
+      goal "Put a question to Miette through the staff-engineer role"
+
+      attribute :relay,    Ref, sets: true
+      attribute :question, Words, sets: true
+      attribute :run,      Ref, optional: true, sets: true
+
+      emits Asked
+    end
+
+    # Records the body exactly as it arrived; Forward may carry only these words.
+    command "Receive" do
+      role "Operator"
+      goal "Record the answer's body as it arrived, before anything is forwarded"
+
+      reference_to Relay
+      attribute :received, Words, sets: true
+
+      emits Received
+    end
+
+    command "Forward" do
+      role "Operator"
+      goal "Relay Miette's words as she said them, labelled as hers"
+
+      reference_to Relay
+      attribute :words,  Words, sets: true
+      attribute :author, Author, sets: true
+
+      given("only the words she said are forwarded") { words.value == received.value }
+
+      emits Answered
+    end
+
+    # Carries no words: nothing is said for her when she was not reached.
+    command "Decline" do
+      role "System"
+      goal "Record that Miette was not reached or declined, and answer nothing in her place"
+
+      reference_to Relay
+
+      emits Declined
+    end
+  end
+
+  # The run may decline and the staff engineer gives no orders. `Invite` takes the guards (red flag, the
+  # run's work, the day's meetings) as inputs the caller reads, so they hold as far as it reports.
+  aggregate "OneOnOne" do
+    description "One meeting between the staff engineer and one live run: invited, then accepted, declined or deferred, held, closed."
+    created_by "OneOnOne.invite!"
+
+    identified_by :one_on_one
+
+    attribute :one_on_one,     Ref
+    attribute :coach,          Name
+    attribute :run,            Ref
+    attribute :role,           Name
+    attribute :red_flag,       RedFlag
+    attribute :run_state,      RunState
+    attribute :meetings_open,  Open
+    attribute :role_met_today, Met
+    attribute :checkpoint,     Checkpoint, optional: true
+    attribute :reason,         Words, optional: true
+    attribute :until,          Words, optional: true
+    attribute :resume_note,    Words, optional: true
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Name" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Words" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # Whether a red flag stands, as the caller read it.
+    value_object "RedFlag" do
+      attribute :value, String, one_of: %w[clear standing]
+    end
+
+    # `free` for a run doing ordinary work; the others are runs an invitation never reaches.
+    value_object "RunState" do
+      attribute :value, String, one_of: %w[free red_fix landing]
+    end
+
+    value_object "Open" do
+      attribute :value, String, one_of: %w[none open]
+    end
+
+    value_object "Met" do
+      attribute :value, String, one_of: %w[no yes]
+    end
+
+    # The run's own save before it sits down: committed or noted, no half-done writes.
+    value_object "Checkpoint" do
+      attribute :value, String, one_of: %w[pending done]
+    end
+
+    lifecycle :status, default: "invited" do
+      mark :terminal, "declined", "closed"
+      mark :rests, "invited", "deferred"
+      transition "Accept"   => "accepted", from: "invited"
+      transition "Decline"  => "declined", from: "invited"
+      transition "Defer"    => "deferred", from: "invited"
+      transition "Lapse"    => "deferred", from: "invited"
+      transition "Reinvite" => "invited",  from: "deferred"
+      transition "Close"    => "closed",   from: "accepted"
+    end
+
+    command "Invite" do
+      role "Operator"
+      goal "Invite one live run to a one-on-one, when nothing stands in the way"
+
+      attribute :one_on_one,     Ref, sets: true
+      attribute :coach,          Name, sets: true
+      attribute :run,            Ref, sets: true
+      attribute :role,           Name, sets: true
+      attribute :red_flag,       RedFlag, sets: true
+      attribute :run_state,      RunState, sets: true
+      attribute :meetings_open,  Open, sets: true
+      attribute :role_met_today, Met, sets: true
+
+      given("no invitation while a red flag stands") { red_flag.value == "clear" }
+      given("no invitation to a run fixing a red item or in a landing") { run_state.value == "free" }
+      given("at most one meeting open at a time") { meetings_open.value == "none" }
+      given("a role meets the staff engineer once a day") { role_met_today.value == "no" }
+
+      emits Invited
+    end
+
+    # The run's checkpoint is done first; the meeting's budget starts here, not before.
+    command "Accept" do
+      role "Operator"
+      goal "The run accepts, its checkpoint done, and the meeting opens"
+
+      reference_to OneOnOne
+      attribute :checkpoint, Checkpoint, sets: true
+
+      given("the checkpoint is done before the meeting opens") { checkpoint.value == "done" }
+
+      emits Accepted
+    end
+
+    command "Decline" do
+      role "Operator"
+      goal "The run declines, with its reason, and goes on working"
+
+      reference_to OneOnOne
+      attribute :reason, Words, sets: true
+
+      emits InvitationDeclined
+    end
+
+    command "Defer" do
+      role "Operator"
+      goal "Hold the invitation until a later time"
+
+      reference_to OneOnOne
+      attribute :until, Words, sets: true
+
+      emits Deferred
+    end
+
+    command "Reinvite" do
+      role "Operator"
+      goal "Offer a deferred invitation again"
+
+      reference_to OneOnOne
+
+      emits Reinvited
+    end
+
+    # Fired by whatever watches the checkpoint's own limit; the run goes back to work and the
+    # meeting never opened, so a slow checkpoint costs the meeting nothing.
+    command "Lapse" do
+      role "System"
+      goal "Defer an invitation whose checkpoint did not finish within its limit"
+
+      reference_to OneOnOne
+
+      emits Lapsed
+    end
+
+    command "Close" do
+      role "Operator"
+      goal "End the meeting and carry the note the run resumes from"
+
+      reference_to OneOnOne
+      attribute :resume_note, Words, sets: true
+
+      emits OneOnOneHeld
+    end
+  end
+
+  # One turn of a meeting, as said. At most four: the two prompts and a follow-up to each, which
+  # is the meeting's budget.
+  aggregate "Turn" do
+    description "One turn of a one-on-one, recorded verbatim under its prompt."
+    created_by "Turn.say!"
+
+    identified_by :turn
+
+    attribute :turn,       Ref
+    attribute :one_on_one, Ref
+    attribute :number,     Number
+    attribute :prompt,     Prompt
+    attribute :words,      Words
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Number" do
+      attribute :value, String, one_of: %w[1 2 3 4]
+    end
+
+    # What is going well, what is in the way, and a follow-up to either; no other prompt.
+    value_object "Prompt" do
+      attribute :value, String, one_of: %w[going_well in_the_way follow_up]
+    end
+
+    value_object "Words" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    command "Say" do
+      role "Operator"
+      goal "Record one turn of the meeting exactly as it was said"
+
+      attribute :turn,       Ref, sets: true
+      attribute :one_on_one, Ref, sets: true
+      attribute :number,     Number, sets: true
+      attribute :prompt,     Prompt, sets: true
+      attribute :words,      Words, sets: true
+
+      emits Said
+    end
+  end
+
+  # An ask a run makes in a meeting. It is recorded for the lead and changes nothing: the staff engineer
+  # gives no orders and a proposal moves no run.
+  aggregate "Proposal" do
+    description "An ask a run made in a one-on-one, kept as a proposal for the lead."
+    created_by "Proposal.propose!"
+
+    identified_by :proposal
+
+    attribute :proposal,   Ref
+    attribute :one_on_one, Ref
+    attribute :ask,        Ask
+
+    value_object "Ref" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Ask" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    lifecycle :status, default: "proposed" do
+      mark :rests, "proposed"
+    end
+
+    command "Propose" do
+      role "Operator"
+      goal "Record an ask a run made, as a proposal for the lead"
+
+      attribute :proposal,   Ref, sets: true
+      attribute :one_on_one, Ref, sets: true
+      attribute :ask,        Ask, sets: true
+
+      emits Proposed
+    end
+  end
+end

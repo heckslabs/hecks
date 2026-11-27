@@ -401,9 +401,11 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Vault {
-                        code: Some(args.code.clone()),
-                        balance: Some(args.balance.clone()),
+                    build: Box::new(|| {
+                        Ok(Vault {
+                            code: Some(args.code.clone()),
+                            balance: Some(args.balance.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -412,9 +414,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.code.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Vault {
-                        code: Some(args.code.clone()),
-                        balance: Some(args.balance.clone()),
+                    build: Box::new(|| {
+                        Ok(Vault {
+                            code: Some(args.code.clone()),
+                            balance: Some(args.balance.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

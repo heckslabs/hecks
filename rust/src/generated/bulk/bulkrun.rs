@@ -948,14 +948,16 @@ pub fn dispatch_request(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| BulkRun {
-                        run: Some(args.run.clone()),
-                        verb: Some(args.verb.clone()),
-                        over: Some(args.over.clone()),
-                        arguments: args.arguments.clone(),
-                        results: vec![],
-                        refusal: None,
-                        status: "requested".to_string(),
+                    build: Box::new(|| {
+                        Ok(BulkRun {
+                            run: Some(args.run.clone()),
+                            verb: Some(args.verb.clone()),
+                            over: Some(args.over.clone()),
+                            arguments: args.arguments.clone(),
+                            results: vec![],
+                            refusal: None,
+                            status: "requested".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -964,14 +966,16 @@ pub fn dispatch_request(
                 let __hydrate_id: String = args.run.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| BulkRun {
-                        run: Some(args.run.clone()),
-                        verb: Some(args.verb.clone()),
-                        over: Some(args.over.clone()),
-                        arguments: args.arguments.clone(),
-                        results: vec![],
-                        refusal: None,
-                        status: "requested".to_string(),
+                    build: Box::new(|| {
+                        Ok(BulkRun {
+                            run: Some(args.run.clone()),
+                            verb: Some(args.verb.clone()),
+                            over: Some(args.over.clone()),
+                            arguments: args.arguments.clone(),
+                            results: vec![],
+                            refusal: None,
+                            status: "requested".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

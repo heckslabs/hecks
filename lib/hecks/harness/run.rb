@@ -4,6 +4,7 @@ require "hecks"
 require_relative "supervisor"
 require_relative "launch"
 require_relative "tells"
+require_relative "roles"
 
 module Hecks
   module Harness
@@ -36,6 +37,11 @@ module Hecks
       #
       # @return [void]
       def open(name, brief) = owner("Session.Open", name: { value: name }, brief: { value: brief })
+
+      # Opens a session for one of the crew's roles, briefed from its role file (see {Roles}).
+      #
+      # @return [void]
+      def open_role(role) = self.open(role, Roles.brief(role))
 
       # Stops a running session, as the Owner.
       #

@@ -145,7 +145,8 @@ fn parse_transition(
             ),
         )
     })?;
-    let from_states = from_values(from_raw);
+    // `from:` is mandatory here, so no `None` case unlike `Lifecycle`'s.
+    let from_states = super::lifecycle::from_values(from_raw);
 
     let dispatches = match &gated.call.opener {
         Opener::None => Vec::new(),
@@ -171,18 +172,6 @@ fn text_value(raw: &str) -> String {
         ruby_value::Value::Str(s) => s,
         other => ruby_value::to_s(&other),
     }
-}
-
-/// `from: "a"` or `from: ["a", "b"]`; mandatory, so no `None` case unlike `Lifecycle`'s.
-fn from_values(raw: &str) -> Vec<String> {
-    let trimmed = raw.trim();
-    if trimmed.starts_with('[') && trimmed.ends_with(']') {
-        return ruby_value::split_items(&trimmed[1..trimmed.len() - 1])
-            .into_iter()
-            .map(|item| text_value(&item))
-            .collect();
-    }
-    vec![text_value(trimmed)]
 }
 
 /// The `Handler` body: zero or more `dispatch` lines up to the matching `end`.

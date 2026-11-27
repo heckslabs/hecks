@@ -1844,17 +1844,19 @@ pub fn dispatch_write(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Shelf {
-                        key: Some(args.key.clone()),
-                        band: Some(args.band.clone()),
-                        unit: Some(args.unit.clone()),
-                        stamp: Some(args.stamp.clone()),
-                        count: Some(args.count.clone()),
-                        ratio: Some(args.ratio.clone()),
-                        note: args.note.clone(),
-                        slugs: args.slugs.clone(),
-                        panels: args.panels.clone(),
-                        spare: args.spare.clone(),
+                    build: Box::new(|| {
+                        Ok(Shelf {
+                            key: Some(args.key.clone()),
+                            band: Some(args.band.clone()),
+                            unit: Some(args.unit.clone()),
+                            stamp: Some(args.stamp.clone()),
+                            count: Some(args.count.clone()),
+                            ratio: Some(args.ratio.clone()),
+                            note: args.note.clone(),
+                            slugs: args.slugs.clone(),
+                            panels: args.panels.clone(),
+                            spare: args.spare.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -1863,17 +1865,19 @@ pub fn dispatch_write(
                 let __hydrate_id: String = args.key.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Shelf {
-                        key: Some(args.key.clone()),
-                        band: Some(args.band.clone()),
-                        unit: Some(args.unit.clone()),
-                        stamp: Some(args.stamp.clone()),
-                        count: Some(args.count.clone()),
-                        ratio: Some(args.ratio.clone()),
-                        note: args.note.clone(),
-                        slugs: args.slugs.clone(),
-                        panels: args.panels.clone(),
-                        spare: args.spare.clone(),
+                    build: Box::new(|| {
+                        Ok(Shelf {
+                            key: Some(args.key.clone()),
+                            band: Some(args.band.clone()),
+                            unit: Some(args.unit.clone()),
+                            stamp: Some(args.stamp.clone()),
+                            count: Some(args.count.clone()),
+                            ratio: Some(args.ratio.clone()),
+                            note: args.note.clone(),
+                            slugs: args.slugs.clone(),
+                            panels: args.panels.clone(),
+                            spare: args.spare.clone(),
+                        })
                     }),
                     state_independent: true,
                 }

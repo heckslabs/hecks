@@ -566,11 +566,13 @@ pub fn dispatch_register(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Lease {
-                        key: Some(args.key.clone()),
-                        holder: None,
-                        expires_at: Some(LeaseInstant { value: 0 }),
-                        status: "free".to_string(),
+                    build: Box::new(|| {
+                        Ok(Lease {
+                            key: Some(args.key.clone()),
+                            holder: None,
+                            expires_at: Some(LeaseInstant { value: 0 }),
+                            status: "free".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -579,11 +581,13 @@ pub fn dispatch_register(
                 let __hydrate_id: String = args.key.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Lease {
-                        key: Some(args.key.clone()),
-                        holder: None,
-                        expires_at: Some(LeaseInstant { value: 0 }),
-                        status: "free".to_string(),
+                    build: Box::new(|| {
+                        Ok(Lease {
+                            key: Some(args.key.clone()),
+                            holder: None,
+                            expires_at: Some(LeaseInstant { value: 0 }),
+                            status: "free".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

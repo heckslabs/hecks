@@ -65,49 +65,13 @@ pub fn append_claimed_names(command: &Json) -> std::collections::HashSet<String>
     claimed
 }
 
-/// Whether `command` builds the owner record from scratch (`mutations.rb#creates_owner?`).
+/// Whether `command` builds the owner record from scratch (`Behaviour::Command#creates?`).
 ///
-/// A command with `references` acts on an existing record. Otherwise it creates when it supplies,
-/// via a `:set` mutation or a same-named argument, a required non-list owner field, ignoring
-/// arguments claimed by an append (`append_claimed_names`).
-pub fn creates_owner(aggregate: &Json, command: &Json) -> bool {
-    if command.get("references").is_some() {
-        return false;
-    }
-
-    let attrs = aggregate.get("attributes").map_or_default(Json::each);
-    let owner_fields: std::collections::HashSet<String> = attrs
-        .iter()
-        .map(|a| crate::attr::name(a).to_string())
-        .collect();
-    let required_fields: std::collections::HashSet<String> = attrs
-        .iter()
-        .filter(|a| !crate::attr::list(a) && !crate::attr::optional(a))
-        .map(|a| crate::attr::name(a).to_string())
-        .collect();
-
-    let append_claimed = append_claimed_names(command);
-
-    let mut known_writes: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for attr in command.get("attributes").map_or_default(Json::each) {
-        let name = crate::attr::name(attr).to_string();
-        if owner_fields.contains(&name) && !append_claimed.contains(&name) {
-            known_writes.insert(name);
-        }
-    }
-    for m in command.get("mutations").map_or_default(Json::each) {
-        if m.get("op").map(Json::to_s).as_deref() != Some("set") {
-            continue;
-        }
-        let target = m.get("target").map(Json::to_s).unwrap_or_default();
-        if owner_fields.contains(&target) {
-            known_writes.insert(target);
-        }
-    }
-
-    required_fields
-        .iter()
-        .any(|field| known_writes.contains(field))
+/// The language's rule: a command that declares no `reference_to` creates its record, and one
+/// that does acts on an existing record. What the command writes does not decide it, so a
+/// command that only appends to a list still creates, as Ruby's `CommandInterpreter` builds it.
+pub fn creates_owner(_aggregate: &Json, command: &Json) -> bool {
+    command.get("references").is_none()
 }
 
 /// Whether a list-typed attribute reads `nil` rather than `[]` in Ruby; see
@@ -139,4 +103,29 @@ pub fn list_attr_creation_optional(aggregate: &Json, attr_name: &str) -> bool {
                 .is_some_and(crate::attr::optional)
         })
     })
+}
+
+#[cfg(test)]
+mod creates_owner_tests {
+    use super::*;
+
+    fn creates(command: &str) -> bool {
+        let aggregate = Json::parse(r#"{"name":"Bluebook","attributes":[]}"#).unwrap();
+        creates_owner(&aggregate, &Json::parse(command).unwrap())
+    }
+
+    // `Behaviour::Command#creates?`: only a declared `reference_to` makes a command act.
+    #[test]
+    fn a_command_that_only_appends_still_creates() {
+        assert!(creates(
+            r#"{"name":"Normalise","mutations":[{"op":"append","target":"normalisations"}]}"#
+        ));
+    }
+
+    #[test]
+    fn a_command_with_a_reference_acts_on_an_existing_record() {
+        assert!(!creates(
+            r#"{"name":"Rename","references":[{"name":"bluebook"}],"mutations":[]}"#
+        ));
+    }
 }

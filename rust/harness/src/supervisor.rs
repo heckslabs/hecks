@@ -8,9 +8,15 @@
 //! middle of a turn holds it, and it is written the moment that turn ends, so `delivered` marks
 //! the moment the addressee starts on it.
 //!
+//! A delivery the supervisor refuses is not lost on its sender: a sender that still runs is told,
+//! as a turn of its own from `harness`, that its message did not arrive and why, and the
+//! `noticed` tell records it. A sender relaying for someone else learns at once that the one it
+//! asked was not reached.
+//!
 //! Ops: `open` (session, program, args, model, cwd, brief), `deliver` (session, message, from,
-//! text), `stop` (session) and `quit`. Tells: `ready`, `opened`, `started`, `sent`, `denied`,
-//! `turn_ended`, `queued`, `delivered`, `stopped`, `refused`, `fault` and `quit`.
+//! text, about), `stop` (session) and `quit`. Tells: `ready`, `opened`, `started`, `sent`,
+//! `denied`, `turn_ended`, `queued`, `delivered`, `noticed`, `stopped`, `refused`, `fault` and
+//! `quit`.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::fs::{self, File};
@@ -47,12 +53,17 @@ enum Event {
     Deadline(String),
 }
 
-/// A message held for a session that is mid-turn.
+/// The name a notice from the supervisor itself is written from.
+pub const HARNESS: &str = "harness";
+
+/// A message held for a session that is mid-turn, or a notice the supervisor writes it.
 #[derive(Debug, Clone)]
 struct Delivery {
     message: String,
     from: String,
     text: String,
+    about: Option<String>,
+    notice: bool,
 }
 
 /// One session: its child, its stdin, and whether a turn is running.
@@ -156,8 +167,11 @@ impl<W: Write> Supervisor<W> {
     }
 
     fn open(&mut self, session: &str, op: &Value) -> Result<(), String> {
-        if session.is_empty() || self.sessions.contains_key(session) {
-            return self.refuse(session, "a session needs a name no open session has");
+        if session.is_empty() || session == HARNESS || self.sessions.contains_key(session) {
+            return self.refuse(
+                session,
+                "a session needs a name no open session has, and not the harness's own",
+            );
         }
         let Some(program) = op.str_at("program").filter(|name| !name.is_empty()) else {
             return self.refuse(session, "open names no program");
@@ -235,29 +249,67 @@ impl<W: Write> Supervisor<W> {
             message: op.str_at("message").unwrap_or_default().to_string(),
             from: op.str_at("from").unwrap_or_default().to_string(),
             text: op.str_at("text").unwrap_or_default().to_string(),
+            about: op
+                .str_at("about")
+                .filter(|about| !about.is_empty())
+                .map(ToString::to_string),
+            notice: false,
         };
         if delivery.message.is_empty() || delivery.text.is_empty() {
             return self.refuse(session, "a delivery needs a message id and text");
         }
-        let Some(target) = self.sessions.get_mut(session) else {
-            return self.refused_delivery(
-                session,
-                &delivery.message,
-                "no open session has that name",
-            );
+        let refusal = match self.sessions.get(session) {
+            None => Some("no open session has that name"),
+            Some(target) if target.stdin.is_none() => Some("the session is stopping"),
+            Some(_) => None,
         };
-        if target.stdin.is_none() {
-            return self.refused_delivery(session, &delivery.message, "the session is stopping");
+        if let Some(reason) = refusal {
+            self.refused_delivery(session, &delivery.message, reason)?;
+            return self.notify(session, &delivery, reason);
         }
+        self.write_or_hold(session, delivery)
+    }
+
+    /// Tells a still-running sender that its message to `session` was not delivered, as a turn
+    /// of its own from `harness`, about the message it sent.
+    fn notify(&mut self, session: &str, refused: &Delivery, reason: &str) -> Result<(), String> {
+        let sender_runs = self
+            .sessions
+            .get(&refused.from)
+            .is_some_and(|sender| sender.stdin.is_some());
+        if !sender_runs {
+            return Ok(());
+        }
+        let notice = Delivery {
+            message: refused.message.clone(),
+            from: HARNESS.to_string(),
+            text: format!(
+                "Your message {} to {session} was not delivered: {reason}.",
+                refused.message
+            ),
+            about: Some(refused.message.clone()),
+            notice: true,
+        };
+        self.write_or_hold(&refused.from, notice)
+    }
+
+    /// Writes a delivery now, or holds it while the session is mid-turn.
+    fn write_or_hold(&mut self, session: &str, delivery: Delivery) -> Result<(), String> {
+        let Some(target) = self.sessions.get_mut(session) else {
+            return Ok(());
+        };
         if target.busy {
-            target.held.push_back(delivery.clone());
+            let message = delivery.message.clone();
+            let notice = delivery.notice;
+            target.held.push_back(delivery);
             let held = target.held.len() as f64;
             return self.tell(
                 "queued",
                 vec![
                     ("session", Value::text(session)),
-                    ("message", Value::text(delivery.message)),
+                    ("message", Value::text(message)),
                     ("held", Value::Number(held)),
+                    ("notice", Value::Bool(notice)),
                 ],
             );
         }
@@ -266,22 +318,34 @@ impl<W: Write> Supervisor<W> {
 
     /// Writes one delivery as the session's next user turn.
     fn hand(&mut self, session: &str, delivery: &Delivery) -> Result<(), String> {
-        let text = format!(
-            "Message {} from {}:\n{}",
-            delivery.message, delivery.from, delivery.text
-        );
+        let text = if delivery.notice {
+            format!("Notice from {HARNESS}:\n{}", delivery.text)
+        } else {
+            let about = delivery
+                .about
+                .as_ref()
+                .map_or_else(String::new, |about| format!(", about {about}"));
+            format!(
+                "Message {} from {}{about}:\n{}",
+                delivery.message, delivery.from, delivery.text
+            )
+        };
         self.write(session, &protocol::user_message(&text))?;
         if let Some(target) = self.sessions.get_mut(session) {
             target.busy = true;
         }
-        self.tell(
-            "delivered",
-            vec![
-                ("session", Value::text(session)),
-                ("message", Value::text(&delivery.message)),
-                ("from", Value::text(&delivery.from)),
-            ],
-        )
+        let mut fields = vec![
+            ("session", Value::text(session)),
+            ("message", Value::text(&delivery.message)),
+        ];
+        if delivery.notice {
+            return self.tell("noticed", fields);
+        }
+        fields.push(("from", Value::text(&delivery.from)));
+        if let Some(about) = &delivery.about {
+            fields.push(("about", Value::text(about)));
+        }
+        self.tell("delivered", fields)
     }
 
     fn stop(&mut self, session: &str) -> Result<(), String> {
@@ -323,6 +387,7 @@ impl<W: Write> Supervisor<W> {
         let undelivered: Vec<Value> = gone
             .held
             .iter()
+            .filter(|held| !held.notice)
             .map(|held| Value::text(&held.message))
             .collect();
         self.tell(
@@ -394,15 +459,16 @@ impl<W: Write> Supervisor<W> {
                         let count = self.sent.entry(session.to_string()).or_default();
                         *count += 1;
                         let id = format!("{session}-{count}");
-                        self.tell(
-                            "sent",
-                            vec![
-                                ("session", Value::text(session)),
-                                ("message", Value::text(id)),
-                                ("to", Value::text(outgoing.to)),
-                                ("text", Value::text(outgoing.text)),
-                            ],
-                        )
+                        let mut fields = vec![
+                            ("session", Value::text(session)),
+                            ("message", Value::text(id)),
+                            ("to", Value::text(outgoing.to)),
+                            ("text", Value::text(outgoing.text)),
+                        ];
+                        if let Some(about) = outgoing.about {
+                            fields.push(("about", Value::text(about)));
+                        }
+                        self.tell("sent", fields)
                     }
                     None => Ok(()),
                 }

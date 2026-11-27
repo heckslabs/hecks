@@ -1156,12 +1156,14 @@ pub fn dispatch_create_pizza(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Order {
-                        name: Some(args.name.clone()),
-                        pizza: Some(args.pizza.clone()),
-                        toppings: vec![],
-                        customer_name: None,
-                        status: "available".to_string(),
+                    build: Box::new(|| {
+                        Ok(Order {
+                            name: Some(args.name.clone()),
+                            pizza: Some(args.pizza.clone()),
+                            toppings: vec![],
+                            customer_name: None,
+                            status: "available".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -1170,12 +1172,14 @@ pub fn dispatch_create_pizza(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Order {
-                        name: Some(args.name.clone()),
-                        pizza: Some(args.pizza.clone()),
-                        toppings: vec![],
-                        customer_name: None,
-                        status: "available".to_string(),
+                    build: Box::new(|| {
+                        Ok(Order {
+                            name: Some(args.name.clone()),
+                            pizza: Some(args.pizza.clone()),
+                            toppings: vec![],
+                            customer_name: None,
+                            status: "available".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

@@ -316,9 +316,11 @@ pub fn dispatch_join(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Member {
-                        handle: Some(args.handle.clone()),
-                        sponsor: Some(args.sponsor.clone()),
+                    build: Box::new(|| {
+                        Ok(Member {
+                            handle: Some(args.handle.clone()),
+                            sponsor: Some(args.sponsor.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -327,9 +329,11 @@ pub fn dispatch_join(
                 let __hydrate_id: String = args.handle.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Member {
-                        handle: Some(args.handle.clone()),
-                        sponsor: Some(args.sponsor.clone()),
+                    build: Box::new(|| {
+                        Ok(Member {
+                            handle: Some(args.handle.clone()),
+                            sponsor: Some(args.sponsor.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

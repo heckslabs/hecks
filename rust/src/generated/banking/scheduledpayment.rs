@@ -1022,17 +1022,19 @@ pub fn dispatch_schedule(
                 let __hydrate_id: String = args.instruction.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ScheduledPayment {
-                        account: Some(args.account.clone()),
-                        amount: Some(args.amount.clone()),
-                        instruction: Some(args.instruction.clone()),
-                        recipient: Some(args.recipient.clone()),
-                        due_on: Some(args.due_on.clone()),
-                        attempts: Some(RetryCount { value: 0 }),
-                        max_attempts: Some(RetryLimit { value: 3 }),
-                        account_status: None,
-                        account_customer_status: None,
-                        status: "scheduled".to_string(),
+                    build: Box::new(|| {
+                        Ok(ScheduledPayment {
+                            account: Some(args.account.clone()),
+                            amount: Some(args.amount.clone()),
+                            instruction: Some(args.instruction.clone()),
+                            recipient: Some(args.recipient.clone()),
+                            due_on: Some(args.due_on.clone()),
+                            attempts: Some(RetryCount { value: 0 }),
+                            max_attempts: Some(RetryLimit { value: 3 }),
+                            account_status: None,
+                            account_customer_status: None,
+                            status: "scheduled".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

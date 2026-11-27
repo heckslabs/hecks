@@ -17,6 +17,8 @@ pub struct Outgoing {
     pub to: String,
     /// What it says.
     pub text: String,
+    /// The message it answers or relays, when the sender named one.
+    pub about: Option<String>,
 }
 
 /// What the server makes of one JSON-RPC message.
@@ -103,10 +105,10 @@ fn initialize(message: &Value) -> Value {
 }
 
 fn send_tool() -> Value {
-    let field = |about: &str| {
+    let field = |meaning: &str| {
         Value::object(vec![
             ("type", Value::text("string")),
-            ("description", Value::text(about)),
+            ("description", Value::text(meaning)),
         ])
     };
     Value::object(vec![
@@ -124,6 +126,10 @@ fn send_tool() -> Value {
                     Value::object(vec![
                         ("to", field("The name of the session to send to")),
                         ("text", field("What the message says")),
+                        (
+                            "about",
+                            field("The id of the message this one answers or relays, such as coder-1"),
+                        ),
                     ]),
                 ),
                 ("required", Value::Array(vec![Value::text("to"), Value::text("text")])),
@@ -157,8 +163,13 @@ fn call(id: Value, params: &Value) -> Handled {
             None,
         );
     }
+    let about = arguments
+        .str_at("about")
+        .map(str::trim)
+        .filter(|about| !about.is_empty())
+        .map(ToString::to_string);
     let said = format!("Sent to {to}. The reply arrives as a new message.");
-    tool_result(id, &said, false, Some(Outgoing { to, text }))
+    tool_result(id, &said, false, Some(Outgoing { to, text, about }))
 }
 
 fn tool_result(id: Value, text: &str, is_error: bool, outgoing: Option<Outgoing>) -> Handled {
@@ -220,8 +231,18 @@ mod tests {
             handled(line).outgoing,
             Some(Outgoing {
                 to: "reviewer".into(),
-                text: "please review".into()
+                text: "please review".into(),
+                about: None
             })
+        );
+    }
+
+    #[test]
+    fn carries_the_message_a_send_is_about() {
+        let line = r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"coder","text":"yes","about":" coder-1 "}}}"#;
+        assert_eq!(
+            handled(line).outgoing.and_then(|outgoing| outgoing.about),
+            Some("coder-1".to_string())
         );
     }
 

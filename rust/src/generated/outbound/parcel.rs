@@ -350,9 +350,11 @@ pub fn dispatch_send(
                 let __hydrate_id: String = args.tag.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Parcel {
-                        tag: Some(args.tag.clone()),
-                        note: None,
+                    build: Box::new(|| {
+                        Ok(Parcel {
+                            tag: Some(args.tag.clone()),
+                            note: None,
+                        })
                     }),
                     state_independent: false,
                 }
@@ -551,9 +553,11 @@ pub fn dispatch_forward(
                 let __hydrate_id: String = args.tag.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Parcel {
-                        tag: Some(args.tag.clone()),
-                        note: None,
+                    build: Box::new(|| {
+                        Ok(Parcel {
+                            tag: Some(args.tag.clone()),
+                            note: None,
+                        })
                     }),
                     state_independent: false,
                 }
@@ -755,9 +759,11 @@ pub fn dispatch_annotate(
                 let __hydrate_id: String = args.tag.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Parcel {
-                        tag: Some(args.tag.clone()),
-                        note: Some(args.note.clone()),
+                    build: Box::new(|| {
+                        Ok(Parcel {
+                            tag: Some(args.tag.clone()),
+                            note: Some(args.note.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

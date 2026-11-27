@@ -698,13 +698,15 @@ pub fn dispatch_generate(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Statement {
-                        account: Some(args.account.clone()),
-                        period: Some(args.period.clone()),
-                        opening_balance: Some(args.opening_balance.clone()),
-                        closing_balance: Some(args.closing_balance.clone()),
-                        generated_on: Some(args.generated_on.clone()),
-                        frequency: Some(args.frequency.clone()),
+                    build: Box::new(|| {
+                        Ok(Statement {
+                            account: Some(args.account.clone()),
+                            period: Some(args.period.clone()),
+                            opening_balance: Some(args.opening_balance.clone()),
+                            closing_balance: Some(args.closing_balance.clone()),
+                            generated_on: Some(args.generated_on.clone()),
+                            frequency: Some(args.frequency.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -713,13 +715,15 @@ pub fn dispatch_generate(
                 let __hydrate_id: String = format!("{}:{}", args.account, args.period.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Statement {
-                        account: Some(args.account.clone()),
-                        period: Some(args.period.clone()),
-                        opening_balance: Some(args.opening_balance.clone()),
-                        closing_balance: Some(args.closing_balance.clone()),
-                        generated_on: Some(args.generated_on.clone()),
-                        frequency: Some(args.frequency.clone()),
+                    build: Box::new(|| {
+                        Ok(Statement {
+                            account: Some(args.account.clone()),
+                            period: Some(args.period.clone()),
+                            opening_balance: Some(args.opening_balance.clone()),
+                            closing_balance: Some(args.closing_balance.clone()),
+                            generated_on: Some(args.generated_on.clone()),
+                            frequency: Some(args.frequency.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

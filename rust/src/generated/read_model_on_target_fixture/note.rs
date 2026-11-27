@@ -327,10 +327,12 @@ pub fn dispatch_stick(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Note {
-                        board: Some(args.board.clone()),
-                        reference: Some(args.reference.clone()),
-                        flag: "clear".to_string(),
+                    build: Box::new(|| {
+                        Ok(Note {
+                            board: Some(args.board.clone()),
+                            reference: Some(args.reference.clone()),
+                            flag: "clear".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -339,10 +341,12 @@ pub fn dispatch_stick(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Note {
-                        board: Some(args.board.clone()),
-                        reference: Some(args.reference.clone()),
-                        flag: "clear".to_string(),
+                    build: Box::new(|| {
+                        Ok(Note {
+                            board: Some(args.board.clone()),
+                            reference: Some(args.reference.clone()),
+                            flag: "clear".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
