@@ -164,6 +164,19 @@ RSpec.describe Hecks::Projector::CliProjector do
     expect(banking[:questions]["account.open"][:kind]).to eq(:query)
   end
 
+  describe "the help's spelling of an argument" do
+    let(:help) { command_help(banking_bluebook, "account.open") }
+
+    it "prints a one-field value object as its bare name, the form the launcher takes" do
+      expect(help).to include(" number=…").and match(/^\s+number\s+String/)
+    end
+
+    it "does not print the dotted path of a one-field value object", :aggregate_failures do
+      expect(help).not_to include("number.value")
+      expect(option(banking, "account.open", "number.value")).not_to be_nil
+    end
+  end
+
   describe "the arguments" do
     # A CLI hands over strings, so the declared type decides what to send; guessing from the
     # value would send the Integer 99 for a version string of "99".
