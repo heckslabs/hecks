@@ -214,6 +214,7 @@ Hecks.bluebook "Harness" do
   # A turn that said nothing leaves the last handover as it was.
   policy "LeaveTheSessionsHandover" do
     on      "Session.TurnEnded"
+    acts_as "System"
     where   { said.value != "" }
     trigger Session::RecordHandover, with: { session: :session, handover: :said }
   end
@@ -365,6 +366,7 @@ Hecks.bluebook "Harness" do
 
   policy "ReopenTheRunsSeat" do
     on      "AgentRun.SeatRunRequested"
+    acts_as "Owner"
     trigger Session::Reopen, with: { session: :session, brief: :brief }
   end
 
