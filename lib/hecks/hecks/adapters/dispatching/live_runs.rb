@@ -10,12 +10,15 @@ module Hecks
         module_function
 
         # @param started [Array<Plan::Item>] the started work items
-        # @param planned [Array<Plan::Item>] the planned work items
+        # @param planned [#call] reads the planned work items, only when a run is live beyond them
         # @param runs [Hash{String => Hash}] the AgentRun states by run key
         # @return [Array<Plan::Item>] the started items and the planned ones with a live run
         def holders(started, planned, runs)
           kept = started.map(&:key)
-          started + planned.select { |item| live?(runs[item.key]) && !kept.include?(item.key) }.uniq(&:key)
+          live = runs.select { |key, run| live?(run) && !kept.include?(key) }
+          return started if live.empty?
+
+          started + planned.call.select { |item| live.key?(item.key) }.uniq(&:key)
         end
 
         # @param run [Hash, nil] one run's state

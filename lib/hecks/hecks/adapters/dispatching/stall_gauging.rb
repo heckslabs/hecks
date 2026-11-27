@@ -29,7 +29,7 @@ module Hecks
         # nothing is planned, so an empty queue costs no read of the machine.
         def stall_plan
           items = beat_items
-          Plan.new(items, live_holders, **limits) unless items.empty?
+          Plan.new(items, live_holders!, **limits) unless items.empty?
         end
 
         # The owner's pause starts nothing, whatever the plan would choose.

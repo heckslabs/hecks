@@ -28,6 +28,7 @@ module Hecks
         def confirmed_lines(plan, held)
           report = FillReport.new(launch(plan, held))
           PlannedCache.clear!
+          @live_holders = nil
           [header(plan, report.tally(plan.chosen.size) + stop_clause(plan, held))] + report.lines + waiting(plan)
         end
 
@@ -87,7 +88,7 @@ module Hecks
         # A line for each other work item, started or chosen before this one, that holds an area.
         def holding(plan, index)
           item = plan.chosen[index]
-          others = (live_holders + plan.chosen.first(index)).reject { |other| other.area.empty? }
+          others = (work_items.started + plan.chosen.first(index)).reject { |other| other.area.empty? }
           others.map { |other| held_line(item, other) }
         end
 
