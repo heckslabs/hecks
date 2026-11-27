@@ -49,28 +49,32 @@ A launcher's help ends with the same three in one line. The constants are
 
 ## How long an old name lives
 
-A renamed or moved command keeps answering to its old name for one major. From 7.0.0 the
-rename table, projected from the `formerly` entries on the bluebook, resolves an old name to
-the new command, maps its arguments where the shape changed, and prints the new spelling once
-per call. The old name stops resolving in 8.0.0.
+A rename is a breaking change, so it lands only in a major. From 8.0.0 the launcher keeps no
+table of old names: the major that renames a command stops answering to the old one, and an old
+spelling is refused like any name the bluebook does not declare, with `[unknown_command]` and
+exit status 2. The refusal suggests the current names that share a prefix with what was typed.
 
-A command named without its bang follows the same window. In 7.0.0 it runs and prints the
-spelling with the bang. In 8.0.0 a name without a bang reaches only a query, and a command
-spelled without one is refused with its bang spelling as the hint.
+7.0.0 kept an old name for one major: the launcher's `renamed` table and the former name an
+aggregate's `formerly_known_as` gave both resolved it and printed the new spelling. 8.0.0
+removes both, as [Renamed commands](#renamed-commands) lists. An aggregate's
+`formerly_known_as` still names the table its rows were written under; only the command-name
+resolution is gone.
+
+A command named without its bang is refused with its bang spelling as the hint, and a name
+without a bang reaches only a query.
 
 A client project pins a hecks version, so a break reaches it when it moves to the major, not
-when the major ships. The window is counted from the client's move.
+when the major ships.
 
 ## How a removal is announced
 
 Three places say that a name is going, and all three say the same thing:
 
 - The changelog's `Unreleased` heading names the removal and the version it lands in, as
-  soon as the rename is on `main`.
-- `--help` on the old name prints the new spelling, and `--help` on the new command names
-  the old one under its `formerly` line.
-- The deprecation log records each call that reached a command through its old name, so a
-  caller that was missed shows up before the refusal ships.
+  soon as the change is on `main`.
+- The migration guide for the major names each old spelling beside the new one.
+- The usage record (`hecks usage`) counts the names callers type, so a caller of a name that
+  is going shows up before the major ships.
 
 ## What this page does not cover
 
@@ -90,7 +94,22 @@ line. Nothing here changes that; this page says what the number means once it is
 
 ## Renamed commands
 
-A renamed command keeps its old spelling, through the launcher's `renamed` table in the Hecks world's
-`launcher` setting. The old name runs the new command and prints the new spelling once on standard
-error; an argument renamed by the table translates. The table resolves through 8.0 and is removed in
-8.0, when an old spelling becomes an unknown command.
+8.0.0 removes the launcher's `renamed` table from the Hecks world's `launcher` setting, and the
+resolution of a command through its aggregate's former name. These spellings are unknown commands
+from 8.0.0:
+
+| Old spelling | Write instead |
+|---|---|
+| `push_train.push!` | `SendTrain.send!` |
+| `pull_request.merge!` | `ReviewRequest.take!` |
+| `<former_aggregate>.<verb>!`, for an aggregate with `formerly_known_as "<Former>"` | `<Aggregate>.<verb>!` |
+
+A world whose `launcher` setting still lists `renamed:` has the key ignored.
+
+## The query word
+
+A query is written bare: `hecks Workspace.status`. `query` before a query's name is taken only
+where a command of the same bluebook shares the name (`hecks quality_control query Ticket.filed`),
+since the bare name reaches the command there. Before any other query the launcher refuses it with
+exit status 2, naming the bare spelling. `ask` is not a query word from 8.0.0: `hecks ask …` is an
+unknown command.
