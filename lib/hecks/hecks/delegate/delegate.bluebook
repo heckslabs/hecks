@@ -1778,6 +1778,10 @@ Hecks.bluebook "Hecks" do
       # How many Claude processes (the daemon and its sessions) run niced or clamped to Background,
       # which macOS runs on the efficiency cores only; read by the Sampling port.
       attribute :niced,         Gauge, optional: true
+      # Seconds since the owner's last keyboard input, and whether the owner types (`typing`) or is
+      # away, judged by the Sampling port's adapter against the Tickets world's `machine_marks` line.
+      attribute :owner_idle,    Gauge, optional: true
+      attribute :owner_state,   Standing, optional: true
       attribute :load_state,    Standing, optional: true
       attribute :memory_state,  Standing, optional: true
       attribute :lane_state,    Standing, optional: true
@@ -1864,6 +1868,8 @@ Hecks.bluebook "Hecks" do
         attribute :load,          Gauge, optional: true, sets: true
         attribute :lane_waiting,  Gauge, optional: true, sets: true
         attribute :niced,         Gauge, optional: true, sets: true
+        attribute :owner_idle,    Gauge, optional: true, sets: true
+        attribute :owner_state,   Standing, optional: true, sets: true
         attribute :load_state,    Standing, sets: true
         attribute :memory_state,  Standing, sets: true
         attribute :lane_state,    Standing, sets: true
@@ -1956,6 +1962,24 @@ Hecks.bluebook "Hecks" do
 
         emits ProcessesEased
       end
+
+      command "OwnerTypes" do
+        role "System"
+        goal "Hear that the owner types, so the fill holds back and leaves the cores to the owner"
+
+        reference_to Machine
+
+        emits OwnerTyping
+      end
+
+      command "OwnerLeaves" do
+        role "System"
+        goal "Hear that the owner stopped typing, so the fill may draw again"
+
+        reference_to Machine
+
+        emits OwnerAway
+      end
     end
 
     policy "SampleOnHeartbeat" do
@@ -1981,7 +2005,8 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheMachine" do
       on      "Machine.MachineSampled"
       trigger Machine::Record, with: { cpu_idle: :cpu_idle, swap_used: :swap_used, compressor_gb: :compressor_gb,
-                                       load: :load, lane_waiting: :lane_waiting, niced: :niced, load_state: :load_state,
+                                       load: :load, lane_waiting: :lane_waiting, niced: :niced, owner_idle: :owner_idle,
+                                       owner_state: :owner_state, load_state: :load_state,
                                        memory_state: :memory_state, lane_state: :lane_state, source: :source,
                                        metered_load: :metered_load, taken_at: :taken_at, consumers: :consumers }
     end
@@ -2081,6 +2106,112 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRiseOnItsReading" do
       on      "LoadStanding.LoadStandingRose"
       trigger Machine::RiseAbove, with: { machine: :reading }
+    end
+
+    # Where the owner stands, typing or away: one record per store, the way `LoadStanding` holds the
+    # load, never a reading's own memory of the reading before it. Every reading asks it to turn and it
+    # refuses a turn it already made, so typing is recorded once. The fill reads `owner` the way it
+    # reads `Overload`: while it says typing, nothing new starts. The Sampling port's adapter judges
+    # typing from the owner's idle time against `machine_marks`, which also holds the hysteresis.
+    aggregate "OwnerStanding" do
+      description "Where the owner stands, typing or away: one record per store, never a reading's own memory of the reading before it. What holds the fill back reads it."
+
+      attribute :standing, OwnerKey
+      attribute :owner,    Presence
+      attribute :reading,  HeardBy, optional: true
+      identified_by :standing
+
+      value_object "OwnerKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Presence" do
+        attribute :value, String, default: "away"
+        invariant("the owner types or is away") { value == "typing" || value == "away" }
+      end
+
+      # The key of the Machine reading that turned the standing last.
+      value_object "HeardBy", String
+
+      command "Open" do
+        role "System"
+        goal "Open the one owner standing of a store, with the owner away"
+
+        attribute :standing, OwnerKey, sets: true
+
+        emits OwnerStandingOpened
+      end
+
+      command "Type" do
+        role "System"
+        goal "Turn the standing to typing: a reading found the owner at the keyboard"
+
+        reference_to OwnerStanding
+        attribute :reading, HeardBy, sets: true
+
+        given("the owner is not typing yet") { owner.value != "typing" }
+
+        sets :owner, to: { value: "typing" }
+
+        emits OwnerStandingTyped
+      end
+
+      command "Leave" do
+        role "System"
+        goal "Turn the standing to away: a reading found the owner off the keyboard"
+
+        reference_to OwnerStanding
+        attribute :reading, HeardBy, sets: true
+
+        given("the owner types") { owner.value == "typing" }
+
+        sets :owner, to: { value: "away" }
+
+        emits OwnerStandingLeft
+      end
+    end
+
+    policy "OpenTheOwnerStandingWhenTheMachineIsRead" do
+      on      "Machine.MachineSampled"
+      trigger OwnerStanding::Open, with: { standing: "owner" }
+    end
+
+    policy "HearTheOwnerType" do
+      on      "Machine.MachineSampled"
+      root
+      where   { owner_state == "typing" }
+      trigger OwnerStanding::Type, with: { owner_standing: "owner", reading: :id }
+    end
+
+    policy "HearTheOwnerLeave" do
+      on      "Machine.MachineSampled"
+      root
+      where   { owner_state == "away" }
+      trigger OwnerStanding::Leave, with: { owner_standing: "owner", reading: :id }
+    end
+
+    policy "RecordTheOwnerTypingOnItsReading" do
+      on      "OwnerStanding.OwnerStandingTyped"
+      trigger Machine::OwnerTypes, with: { machine: :reading }
+    end
+
+    policy "RecordTheOwnerAwayOnItsReading" do
+      on      "OwnerStanding.OwnerStandingLeft"
+      trigger Machine::OwnerLeaves, with: { machine: :reading }
+    end
+
+    # The owner's return to the keyboard yields one item, as a load over the mark does; a first
+    # roll after the owner leaves is requested through the owner's switch, as the load's fall is.
+    policy "ShedWhenTheOwnerTypes" do
+      on      "Machine.OwnerTyping"
+      root
+      trigger Shed::Look, with: { reading: :id }
+    end
+
+    policy "RollWhenTheOwnerLeaves" do
+      on      "Machine.OwnerAway"
+      root
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :id }
     end
 
     policy "HearMemoryRunLow" do
