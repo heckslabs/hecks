@@ -1,3 +1,5 @@
+require_relative "retired_adapter_rule"
+
 module Hecks
   module Runtime
     class Registry
@@ -8,9 +10,12 @@ module Hecks
       # changes. One that fails raises each time, since only a pass is remembered. Mixed into
       # {Verification}.
       module DeclarationChecks
-        # The checks, in the order `verify!` has always run them.
-        CHECKS = %i[verify_default_adapter! verify_world_defaults! verify_singleton_port_answers!
-                    refuse_cross_package_bluebook_merge! refuse_reserved_bluebook_names!
+        include RetiredAdapterRule
+
+        # The checks, in the order `verify!` runs them: a retired adapter first, so its refusal
+        # names the replacement before any other check trips over the name.
+        CHECKS = %i[refuse_retired_adapters! verify_default_adapter! verify_world_defaults!
+                    verify_singleton_port_answers! refuse_cross_package_bluebook_merge! refuse_reserved_bluebook_names!
                     refuse_membership_without_identity! refuse_unresolved_ports!
                     refuse_unanswerable_queries!].freeze
 

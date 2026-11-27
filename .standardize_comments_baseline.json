@@ -30,9 +30,6 @@
   "lib/hecks/adapters/driven/d1.adapter": {
     "No \"D1Projection\" declared yet, unlike Sqlite/SqliteProjection —": 5
   },
-  "lib/hecks/adapters/driven/postgres_era.adapter": {
-    "Declares the store a disposable tooling ledger: a shape change needs no era, edg": 4
-  },
   "lib/hecks/agents/agents.bluebook": {
     "A judge's verdict on its way to the coder waiting on it. The verdict is a comman": 6,
     "After the pruner removes finished sessions, one sweep clears what they left behi": 6,
