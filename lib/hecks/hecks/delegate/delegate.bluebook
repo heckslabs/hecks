@@ -1956,6 +1956,24 @@ Hecks.bluebook "Hecks" do
 
         emits ProcessesEased
       end
+
+      command "OwnerTypes" do
+        role "System"
+        goal "Hear that the owner types, so the fill holds back and leaves the cores to the owner"
+
+        reference_to Machine
+
+        emits OwnerTyping
+      end
+
+      command "OwnerLeaves" do
+        role "System"
+        goal "Hear that the owner stopped typing, so the fill may draw again"
+
+        reference_to Machine
+
+        emits OwnerAway
+      end
     end
 
     policy "SampleOnHeartbeat" do
@@ -2081,6 +2099,107 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRiseOnItsReading" do
       on      "LoadStanding.LoadStandingRose"
       trigger Machine::RiseAbove, with: { machine: :reading }
+    end
+
+    # The owner's typing, recorded once like `LoadStanding`; the fill reads it as it reads `Overload`.
+    aggregate "OwnerStanding" do
+      description "Where the owner stands, typing or away: one record per store, never a reading's own memory of the reading before it. What holds the fill back reads it."
+
+      attribute :standing, OwnerKey
+      attribute :owner,    Presence
+      attribute :reading,  HeardBy, optional: true
+      identified_by :standing
+
+      value_object "OwnerKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Presence" do
+        attribute :value, String, default: "away"
+        invariant("the owner types or is away") { value == "typing" || value == "away" }
+      end
+
+      # The key of the reading that turned the standing last.
+      value_object "HeardBy", String
+
+      command "Open" do
+        role "System"
+        goal "Open the one owner standing of a store, with the owner away"
+
+        attribute :standing, OwnerKey, sets: true
+
+        emits OwnerStandingOpened
+      end
+
+      command "Type" do
+        role "System"
+        goal "Turn the standing to typing: a reading found the owner at the keyboard"
+
+        reference_to OwnerStanding
+        attribute :reading, HeardBy, sets: true
+
+        given("the owner is not typing yet") { owner.value != "typing" }
+
+        sets :owner, to: { value: "typing" }
+
+        emits OwnerStandingTyped
+      end
+
+      command "Leave" do
+        role "System"
+        goal "Turn the standing to away: a reading found the owner off the keyboard"
+
+        reference_to OwnerStanding
+        attribute :reading, HeardBy, sets: true
+
+        given("the owner types") { owner.value == "typing" }
+
+        sets :owner, to: { value: "away" }
+
+        emits OwnerStandingLeft
+      end
+    end
+
+    policy "OpenTheOwnerStandingWhenTheMachineIsRead" do
+      on      "Machine.MachineSampled"
+      trigger OwnerStanding::Open, with: { standing: "owner" }
+    end
+
+    policy "HearTheOwnerType" do
+      on      "Machine.MachineSampled"
+      root
+      where   { owner_state && owner_state == "typing" }
+      trigger OwnerStanding::Type, with: { owner_standing: "owner", reading: :id }
+    end
+
+    policy "HearTheOwnerLeave" do
+      on      "Machine.MachineSampled"
+      root
+      where   { owner_state && owner_state == "away" }
+      trigger OwnerStanding::Leave, with: { owner_standing: "owner", reading: :id }
+    end
+
+    policy "RecordTheOwnerTypingOnItsReading" do
+      on      "OwnerStanding.OwnerStandingTyped"
+      trigger Machine::OwnerTypes, with: { machine: :reading }
+    end
+
+    policy "RecordTheOwnerAwayOnItsReading" do
+      on      "OwnerStanding.OwnerStandingLeft"
+      trigger Machine::OwnerLeaves, with: { machine: :reading }
+    end
+
+    # The owner at the keyboard yields one item, as a load over the mark does.
+    policy "ShedWhenTheOwnerTypes" do
+      on      "Machine.OwnerTyping"
+      root
+      trigger Shed::Look, with: { reading: :id }
+    end
+
+    policy "RollWhenTheOwnerLeaves" do
+      on      "Machine.OwnerAway"
+      root
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :id }
     end
 
     policy "HearMemoryRunLow" do
