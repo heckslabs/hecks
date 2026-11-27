@@ -852,7 +852,6 @@ Hecks.hecksagon "Hecks" do
   # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
   # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
   # one is refused. `Busiest` reads the process table: each class, its CPU and the session above it.
-  # `CpuByPurpose` reads the stored readings' consumers: the CPU per purpose per day.
   Hecks::Machine.port "Sampling" do
     asks "Read", to: Machine do
       attribute :run, MachineKey
