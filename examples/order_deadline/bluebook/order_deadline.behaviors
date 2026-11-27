@@ -1,5 +1,5 @@
 Hecks.behaviors "OrderDeadline" do
-  vision "A deadline reaches a saga as an ordinary command: Expire is refused until the order is overdue, and an expiry gives the held stock back through the process manager (ADR 0169)."
+  vision "A deadline reaches a saga as an ordinary command: Expire is refused until the order is overdue, and an expiry gives the held stock back through the saga (ADR 0169)."
 
   loads "order_deadline.bluebook"
 
