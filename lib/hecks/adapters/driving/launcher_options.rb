@@ -8,9 +8,8 @@ require_relative "../../text"
 module Hecks
   module Adapters
     module Driving
-      # What a domain's world file adds to its generated launcher, all of it opt-in.
-      #
-      # A `.world` with a `launcher` setting switches these on; without one the forms stay plain:
+      # What a domain's world file adds to its generated launcher, all of it opt-in. A `.world`
+      # with a `launcher` setting switches these on; without one the forms stay plain:
       #
       # - **run_keys** mints the `run` key of a creating command that was given none.
       # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
@@ -19,6 +18,7 @@ module Hecks
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
+      # - **caller_roles** names the roles the launcher's caller holds (`CliRunner::CallerLine`).
       # - **maintainer**, **bluebooks**, **maintainer_bluebooks** shape the help for its audience.
       module LauncherOptions
         SETTING = "launcher".freeze

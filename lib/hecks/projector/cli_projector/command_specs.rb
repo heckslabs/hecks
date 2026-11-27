@@ -51,7 +51,8 @@ module Hecks
 
         # What the command declares about itself, apart from its arguments.
         def command_facts(aggregate, command)
-          { summary: command.goal, role: command.role, role_gated: !command.role.to_s.empty?,
+          { summary: command.goal, role: command.role, roles: command.role_set,
+            role_gated: !command.role.to_s.empty?,
             group: aggregate.hecks_name, internal: internal?(command), audience: command.audience,
             formerly: aggregate.former_name,
             creates: command.creates? }
