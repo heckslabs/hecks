@@ -197,7 +197,7 @@ RSpec.describe "QualityControl" do
     def bugs_by(name) = report(name)[:bugs]
 
     def ask_cli(query)
-      Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ["ask", query], program: "qa/quality_control")
+      Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: [query], program: "qa/quality_control")
     end
 
     def a_logged_bug(reference, submitter: "agent-one")
@@ -330,7 +330,7 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # `hecks quality_control ask run` does the streak arithmetic; these examples do it by hand.
+  # `hecks quality_control Sweep.run` does the streak arithmetic; these examples do it by hand.
   # `Target::Release` trusts the `next_streak` it is given, so what is under test is that the
   # field lands and `Check::Surprised`'s sticky bit survives a `Remake`.
   describe "the clean streak" do
@@ -1271,7 +1271,7 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # Not a lifecycle move, so it must reach a bluebook whatever `hecks quality_control ask run`
+  # Not a lifecycle move, so it must reach a bluebook whatever `hecks quality_control Sweep.run`
   # currently has it doing: a stale path is exactly as wrong while a claim or a suspension is
   # in progress.
   describe "relocating a bluebook" do
@@ -1385,7 +1385,7 @@ RSpec.describe "QualityControl" do
     end
 
     # The invariant grammar reads literals, not constants, so `WaivedBy` spells "qa_sweep" where
-    # `hecks quality_control ask run` reads `AUTOMATED_ENGINEER`; this pins the two together.
+    # `hecks quality_control Sweep.run` reads `AUTOMATED_ENGINEER`; this pins the two together.
     it "refuses exactly the identity the loop runs as", :aggregate_failures do
       runtime
 

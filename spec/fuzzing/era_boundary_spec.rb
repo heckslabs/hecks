@@ -218,7 +218,7 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
     expect(result[:reason]).to include("not PostgresEra")
   end
 
-  # Nothing to audit and could-not-audit must differ: `hecks quality_control ask run` reads
+  # Nothing to audit and could-not-audit must differ: `hecks quality_control Sweep.run` reads
   # `kind:` to tell a note (no Check) from a finding.
   it "reports kind: :error when the audit itself cannot run" do
     result = described_class.diverged_ancestor_writes(@fixture_root)

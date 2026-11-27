@@ -3,7 +3,6 @@ require_relative "cli_projector/claims"
 require_relative "cli_projector/command_specs"
 require_relative "cli_projector/query_specs"
 require_relative "cli_projector/option_specs"
-require_relative "cli_projector/renames"
 require_relative "cli_projector/usage"
 require_relative "cli_projector/listing"
 require_relative "cli_projector/everyday"
@@ -24,19 +23,17 @@ module Hecks
     module CliProjector
       module_function
 
-      # The alias tables: each command and query under its short name and its old spellings, and
-      # the renamed table's old names routed to the namespace of their targets.
+      # The alias tables: each command and query under its full name, its short name and the
+      # spelling a launcher name replaced.
       #
-      # @return [Hash{Symbol => Object}] `:command` and `:question` alias tables, and `:renamed`
-      #   (the old spellings and their argument renames)
-      def launcher_names(commands, questions, renamed)
-        table = renamed_aliases(commands, questions, renamed)
-        { command: aliases(commands).merge(table[:command]), question: aliases(questions).merge(table[:question]),
-          renamed: { spellings: Hash(renamed).keys.map(&:to_s), arguments: renamed_arguments(renamed) } }
+      # @return [Hash{Symbol => Hash{String => String}}] `:command` and `:question` alias tables
+      def launcher_names(commands, questions)
+        { command: aliases(commands), question: aliases(questions) }
       end
 
       # Projects the command and question tables and the usage text. Commands and queries are
-      # separate namespaces (a bluebook may declare both under one name); ask a query with `ask`.
+      # separate namespaces (a bluebook may declare both under one name); `query` reaches the
+      # query then.
       #
       # @param bluebook [Bluebook::Declaration] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage
@@ -59,12 +56,11 @@ module Hecks
         display_names([commands, questions], options[:names])
 
         { commands: commands, questions: questions,
-          names: launcher_names(commands, questions, options[:renamed]),
+          names: launcher_names(commands, questions),
           usage: usage(bluebook, commands, questions, options) }
       end
 
       extend Claims
-      extend Renames
       extend CommandSpecs
       extend QuerySpecs
       extend OptionSpecs

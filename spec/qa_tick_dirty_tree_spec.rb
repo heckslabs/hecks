@@ -14,6 +14,6 @@ RSpec.describe "hecks quality_control tick", :io do
 
     expect(status.exitstatus).to eq(1)
     expect(stderr).to include("refused: the working tree is dirty", "scratch.txt")
-    expect(stdout).not_to include("── hecks quality_control check_pull_requests", "── hecks quality_control ask run --all")
+    expect(stdout).not_to include("── hecks quality_control check_pull_requests", "── hecks quality_control Sweep.run --all")
   end
 end

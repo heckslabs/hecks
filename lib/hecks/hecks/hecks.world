@@ -123,7 +123,6 @@ Hecks.world "Hecks" do
                                   agent_run.dispatch agent_run.check
                                   dispatch.fill dial.turn],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
-                       renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take" },
                        names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "package.check" => "registry.check",
                                 "agent_run.check_all" => "session_sweep.check_all",

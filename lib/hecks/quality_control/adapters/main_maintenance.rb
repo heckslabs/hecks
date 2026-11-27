@@ -81,7 +81,7 @@ module Hecks
         #
         # @return [Array(String, Boolean)] the plan's output and whether it exited 0
         def reconcile_plan(root)
-          launch(root, root, "query", "schema_revision.reconcile_plan")
+          launch(root, root, "schema_revision.reconcile_plan")
         end
 
         # Writes the reconciliation, confirmed, for one run.

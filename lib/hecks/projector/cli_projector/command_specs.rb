@@ -54,7 +54,6 @@ module Hecks
           { summary: command.goal, role: command.role, roles: command.role_set,
             role_gated: !command.role.to_s.empty?,
             group: aggregate.hecks_name, internal: internal?(command), audience: command.audience,
-            formerly: aggregate.former_name,
             creates: command.creates? }
         end
 

@@ -47,7 +47,7 @@ module Hecks
         def trace_note(trace_at)
           return "" unless trace_at
 
-          "\n(hecks quality_control ask run's QA_SWEEP_TRACE output omitted here — routine per-phase timing, not a " \
+          "\n(hecks quality_control Sweep.run's QA_SWEEP_TRACE output omitted here — routine per-phase timing, not a " \
             "finding; the full record is in the tick's log file)\n"
         end
 

@@ -11,8 +11,8 @@ module Hecks
         # One step: a hecks verb and the `name=value` words it is called with.
         Step = Struct.new(:name, :verb, :arguments, :needs, keyword_init: true) do
           # @return [Array<String>] the launcher words for the verb: a command ends in `!`, and a
-          #   query is asked with `query`
-          def form = verb.end_with?("!") ? [verb] : ["query", verb]
+          #   query is written bare
+          def form = [verb]
 
           # @return [Array<String>] the verb's own arguments
           def words = arguments.to_s.split

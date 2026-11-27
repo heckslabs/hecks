@@ -93,7 +93,7 @@ module Hecks
 
           def shrunk_document(shrunk, seed)
             { name:  "#{@feature}-#{shrunk[:mode]}-shrunk",
-              note:  "hecks quality_control ask run #{@sweep_reference} seed #{seed}, shrunk " \
+              note:  "hecks quality_control Sweep.run #{@sweep_reference} seed #{seed}, shrunk " \
                      "from #{shrunk[:original_size]} steps",
               steps: shrunk[:steps] }
           end
