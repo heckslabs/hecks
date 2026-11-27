@@ -9,7 +9,7 @@ module Hecks
         module DomainRenameState
           # Tables with a `domain` column, moved by name when they exist.
           DOMAIN_TABLES = %w[hecks_eras hecks_era_texts hecks_attestations hecks_ledger_archives
-                             hecks_saga_instances].freeze
+                             hecks_saga_instances hecks_layouts].freeze
 
           # The suffixes of the relations a domain's heads and archives are named with.
           HEAD_SUFFIX = /\A(?<storage>.+?)_(?<kind>head|head_snapshot_\d+|lineage_\d+_[^_]+|archived_\d+)\z/

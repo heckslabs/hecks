@@ -1,5 +1,6 @@
 require_relative "persistence/constants"
 require_relative "persistence/binding_policy"
+require_relative "persistence/layout"
 require_relative "persistence/plugin"
 require_relative "persistence/repository_factory"
 require_relative "persistence/mint_door"

@@ -49,7 +49,10 @@ spec/adapters/driven/postgres_era/unminted_boot_spec.rb
 spec/adapters/driven/postgres_era_concurrent_dispatch_spec.rb
 spec/adapters/driven/postgres_era_spec.rb
 spec/adapters/driven/postgres_era_stored_name_guard_spec.rb
+spec/adapters/driven/postgres_layout_record_spec.rb
+spec/adapters/driven/postgres_revisions_boot_spec.rb
 spec/adapters/driven/postgres_spec.rb
+spec/adapters/driven/postgres_table_layout_spec.rb
 spec/adapters/driven/process_pool_spec.rb
 spec/adapters/driven/push_recorder_spec.rb
 spec/adapters/driven/rust_toolchain_spec.rb
