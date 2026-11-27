@@ -58,4 +58,11 @@ Hecks.behaviors "Delegate" do
     input  family: { value: "false-stall" }, run: { value: "stall-x-2" }, text: { value: "q" }, answer: { value: "a" }, now: { value: 102 }
     expect refused: "spacing"
   end
+
+  test "Record keeps the consumers the reading found" do
+    tests "Record", on: "Machine"
+    setup  "Hecks::Machine.Sample", run: { value: "m-1" }
+    input  load_state: { value: "above" }, memory_state: { value: "ok" }, lane_state: { value: "idle" }, consumers: { value: "[]" }
+    expect emits: ["MachineRead"]
+  end
 end

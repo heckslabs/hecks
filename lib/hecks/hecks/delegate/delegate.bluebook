@@ -1789,6 +1789,10 @@ Hecks.bluebook "Hecks" do
       # When the reading was taken (ISO-8601 UTC), stamped by the Sampling port's adapter: the
       # reading taken latest is the one whose states the next reading stands on.
       attribute :taken_at,      MachineNote, optional: true
+      # The CPU the reading found, summed by purpose (specs/gates/lint, Hecks boots and beats,
+      # fseventsd, Claude sessions, other): JSON text of up to five rows of purpose, percent of one
+      # core and busiest program, kept as text because a policy carries a note, not a list of rows.
+      attribute :consumers,     MachineNote, optional: true
       attribute :refusal,       MachineNote, optional: true
       identified_by :run
 
@@ -1810,6 +1814,20 @@ Hecks.bluebook "Hecks" do
         attribute :count,   Integer
         attribute :cpu,     Float
         attribute :session, String
+      end
+
+      # One purpose on one day: the mean percent of one core it used over the day's readings.
+      value_object "PurposeDay" do
+        attribute :day,      String
+        attribute :purpose,  String
+        attribute :cpu,      Float
+        attribute :readings, Integer
+      end
+
+      # Read-only: the stored readings' consumers summed by purpose per day.
+      query "CpuByPurpose" do
+        description "The CPU each purpose used per day, from the stored readings' consumers: the mean percent of one core over the day's readings, per purpose. Read-only."
+        returns list_of(PurposeDay)
       end
 
       # Read-only: which process classes use the CPU and whose child they are, busiest first. It
@@ -1852,6 +1870,7 @@ Hecks.bluebook "Hecks" do
         attribute :source,        MachineNote, optional: true, sets: true
         attribute :metered_load,  Gauge, optional: true, sets: true
         attribute :taken_at,      MachineNote, optional: true, sets: true
+        attribute :consumers,     MachineNote, optional: true, sets: true
 
         emits MachineRead
       end
@@ -1964,7 +1983,7 @@ Hecks.bluebook "Hecks" do
       trigger Machine::Record, with: { cpu_idle: :cpu_idle, swap_used: :swap_used, compressor_gb: :compressor_gb,
                                        load: :load, lane_waiting: :lane_waiting, niced: :niced, load_state: :load_state,
                                        memory_state: :memory_state, lane_state: :lane_state, source: :source,
-                                       metered_load: :metered_load, taken_at: :taken_at }
+                                       metered_load: :metered_load, taken_at: :taken_at, consumers: :consumers }
     end
 
     policy "RecordTheUnreadMachine" do

@@ -29,6 +29,9 @@ module Hecks
             lane: record && value(record, :lane_state) }.compact
         end
 
+        # @return [Array] every stored `Machine` reading, empty when none is readable
+        def readings = records("Machine")
+
         private
 
         def standing
