@@ -193,13 +193,12 @@ RSpec.describe "the model checker" do
     end
 
     # A policy triggering an `asks`/`tells` port operation (three segments) is not an
-    # `unknown_trigger`; the QualityControl bluebook's FileWhenSubmitted is the real case.
+    # `unknown_trigger`; the LiveDiscovery bluebook's ask policies are the real case.
     it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
-      quality_control = File.join(ROOT_DIR, "lib/hecks/quality_control/quality_control.bluebook")
-      real_findings = call_model_check(boot(quality_control))
+      live_discovery = File.join(ROOT_DIR, "lib/hecks/live_discovery/live_discovery.bluebook")
+      real_findings = call_model_check(boot(live_discovery))
 
-      unknown_triggers = real_findings.select { |f| f.kind == :unknown_trigger }
-      expect(unknown_triggers.map(&:subject)).not_to include("FileWhenSubmitted", "AskOnceMore")
+      expect(real_findings.select { |f| f.kind == :unknown_trigger }).to be_empty
     end
   end
 
@@ -436,7 +435,7 @@ RSpec.describe "the model checker" do
     end
 
     # Every event any corpus member emits, attached bluebooks included, as the command's
-    # `global_emitted_events`: a QualityControl policy on a Fixer event has an emitter.
+    # `global_emitted_events`: a policy on another corpus member's event has an emitter.
     def corpus_emitted_events
       self.class.instance_variable_get(:@corpus_emitted_events) ||
         self.class.instance_variable_set(:@corpus_emitted_events, collect_emitted_events.freeze)

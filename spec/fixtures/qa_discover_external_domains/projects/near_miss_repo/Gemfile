@@ -1,2 +1,0 @@
-source "https://rubygems.org"
-gem "hecks_fork", path: "vendor/hecks_fork"

@@ -2,7 +2,7 @@ require "spec_helper"
 require "fileutils"
 require "open3"
 require "tmpdir"
-require "hecks/hecks/adapters/git_rehearsal"
+require "hecks/hecks/adapters/codebase/spec_map"
 
 # The specs a change to a world setting, a bluebook row or a routing list reaches by the names the
 # diff changed, over a temporary git repository holding the six train-PR cases of 2026-11-11.

@@ -2,20 +2,20 @@ require "spec_helper"
 require "fileutils"
 require "tmpdir"
 require "hecks/embryonaut_bluebook"
-require "hecks/hecks/adapters/git_rehearsal"
+require "hecks/hecks/adapters/codebase/spec_map"
 
-# A temporary tree holding a copy of the vendored delivery package and the specs beside it.
+# A temporary tree holding a small vendored package, locked to its own digest, and the specs beside it.
 class LockedPackageTree
   PACKAGE = "lib/hecks/vendor/acme_bluebooks/delivery".freeze
-  SOURCE = File.join(Hecks::Tools::ROOT, "lib/hecks/vendor/embryonaut_bluebooks/delivery")
 
   attr_reader :root
 
   def initialize
     @root = Dir.mktmpdir("hecks-spec-map-locked")
-    FileUtils.mkdir_p(File.join(root, PACKAGE))
-    %w[bluebook lib].each { |name| copy(name) }
-    copy("bluebook.lock")
+    add("#{PACKAGE}/bluebook/delivery.bluebook", "Hecks.bluebook \"Delivery\" do\nend\n")
+    add("#{PACKAGE}/bluebook/git.adapter", "Hecks.adapter \"Git\" do\nend\n")
+    add("#{PACKAGE}/lib/adapters/git.rb", "# the adapter's Ruby\n")
+    lock
     add("spec/delivery_lock_spec.rb", %(File.join(ROOT, "#{PACKAGE}")\n))
     add("spec/unrelated_spec.rb", "# nothing\n")
   end
@@ -38,7 +38,12 @@ class LockedPackageTree
 
   private
 
-  def copy(name) = FileUtils.cp_r(File.join(SOURCE, name), File.join(root, PACKAGE, name))
+  def lock
+    digest = Hecks::EmbryonautBluebook::Lock.digest_of(File.join(root, PACKAGE, "bluebook"))
+    add("#{PACKAGE}/bluebook.lock", Hecks::EmbryonautBluebook::Lock.new(package: "delivery", version: "0.1.0",
+                                                                         tag: "delivery-v0.1.0", commit: "0" * 40,
+                                                                         digest: digest, shape: []).to_s)
+  end
 end
 
 # A change under a locked vendored package runs the spec that names the package's directory, and

@@ -13,7 +13,6 @@ RSpec.describe Hecks::ClosedForm do
     "lib/hecks/projector/exporter/adapters.rb"              => "`.adapter` files",
     "lib/hecks/behaviors/runner.rb"                         => "`.behaviors` files",
     "lib/hecks/behaviors/expectations/adapter_selection.rb" => "`.adapter` files, their `require` lines left out",
-    "lib/hecks/composer/agent.rb"                           => "the Composer's own `.port` and `.adapter`",
     "lib/hecks/forms/banking_presentation.rb"               => "the gem's own ports, adapters and the Forms example's `.rb`"
   }.freeze
 

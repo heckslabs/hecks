@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
-require "hecks/hecks/adapters/git_rehearsal"
+require "hecks/hecks/adapters/codebase/spec_skips"
 
 # Which impacted specs a rehearsal cannot run here.
 RSpec.describe Hecks::Adapters::Codebase::SpecSkips do

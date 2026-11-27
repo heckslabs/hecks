@@ -1,7 +1,7 @@
 require "spec_helper"
 require "fileutils"
 require "tmpdir"
-require "hecks/hecks/adapters/git_rehearsal"
+require "hecks/hecks/adapters/codebase/spec_map"
 
 # A scan tagged :lib_scan reads only lib/, so a change inside spec/ leaves it out; a scan that
 # reads more (a bare :repo_scan) still runs for every change.

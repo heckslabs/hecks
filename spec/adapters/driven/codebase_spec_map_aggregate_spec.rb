@@ -2,7 +2,7 @@ require "spec_helper"
 require "fileutils"
 require "open3"
 require "tmpdir"
-require "hecks/hecks/adapters/git_rehearsal"
+require "hecks/hecks/adapters/codebase/spec_map"
 
 # A policy declared at the domain level reacts to an aggregate it is not nested in (AgentRun,
 # commit 81c62ca44). Each aggregate a changed line names selects the specs that name it, which

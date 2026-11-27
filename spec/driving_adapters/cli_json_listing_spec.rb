@@ -20,12 +20,12 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   it "lists only one module's entries when a module is named" do
-    expect(entries("deliver", "--json").map { |entry| entry["module"] }.uniq).to eq(["deliver"])
+    expect(entries("check", "--json").map { |entry| entry["module"] }.uniq).to eq(["check"])
   end
 
   it "marks the everyday calls" do
-    expect(entries("deliver", "--json").select { |entry| entry["everyday"] }.map { |e| e["call"] })
-      .to include("Shipment.ship!")
+    expect(entries("check", "--json").select { |entry| entry["everyday"] }.map { |e| e["call"] })
+      .to include("GateRun.gate!")
   end
 
   it "answers an unknown module word with the usage line and the usage status" do

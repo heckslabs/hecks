@@ -3,7 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "hecks/behaviors"
-require "hecks/composer"
+require "hecks/sentence_form"
 require_relative "support/hecks_parse_binary"
 
 # docs/sentence-form.md is for people who will copy from it, so what it shows has to be true: every

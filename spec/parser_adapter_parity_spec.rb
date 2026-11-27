@@ -1,7 +1,7 @@
 require "spec_helper"
 require "json"
 require "open3"
-require "hecks/composer"
+require "hecks/sentence_form"
 require_relative "support/hecks_parse_binary"
 
 # `hecks-parse adapter <file>` must print what the Ruby exporter makes of the same `.adapter`
@@ -60,7 +60,7 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
     include_context "with the hecks-parse binary"
 
     def printed(path)
-      stdout, status = Open3.capture2(Hecks::Composer::Parse.binary, "adapter", path)
+      stdout, status = Open3.capture2(Hecks::SentenceForm.binary, "adapter", path)
       raise "hecks-parse adapter #{path} exited #{status.exitstatus}" unless status.success?
 
       stdout.chomp

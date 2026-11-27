@@ -4,7 +4,6 @@ require "spec_helper"
 require "tmpdir"
 require "open3"
 require "hecks/hecks/adapters/codebase/heavy_slots"
-require "hecks/hecks/adapters/codebase/memory_wait"
 require "hecks/hecks/adapters/codebase/gate"
 require "hecks/hecks/adapters/codebase/batch_runs"
 require "hecks/hecks/adapters/codebase/style"
@@ -93,21 +92,6 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(described_class.admitted(dir, "gate") { "unused" }).to eq("waited 4 s\n2 examples")
   end
 
-  it "waits for memory before it takes a place, so a job waiting on memory blocks no one", :aggregate_failures do
-    inner = nil
-    memory = memory_wait { inner = slots(cap: 1).hold("compile") { :ran } }
-
-    expect(slots(cap: 1, memory: memory).hold("gate") { :outer }).to eq([:outer, "waited 20 s while memory was low"])
-    expect(inner).to eq([:ran, ""])
-  end
-
-  it "joins the memory wait and the place wait in one note" do
-    first = taken(0)
-    pause = ->(_seconds) { first.close }
-    _, note = slots(cap: 1, memory: memory_wait { nil }, clock: ticking, pause: pause).hold("gate") { :ran }
-    expect(note).to eq("waited 20 s while memory was low; waited 2 s for a heavy-job slot (1 of 1 taken)")
-  end
-
   it "marks the children of a job that gave up as held, with the worker count", :aggregate_failures do
     before = ENV.fetch(described_class::HELD, nil)
     seen = given_up_env
@@ -150,16 +134,6 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
 
   def slots(cap: 2, base: {}, **options)
     described_class.new(cap: cap, dir: dir, base: base, err: err, **options)
-  end
-
-  # A memory wait that runs the block while it waits and then names a 20-second wait.
-  def memory_wait
-    instance_double(Hecks::Adapters::Codebase::MemoryWait).tap do |memory|
-      allow(memory).to receive(:wait) do
-        yield
-        "waited 20 s while memory was low"
-      end
-    end
   end
 
   # A clock that moves a second each time it is asked.

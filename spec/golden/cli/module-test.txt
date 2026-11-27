@@ -41,14 +41,11 @@ queries (nothing here changes anything):
     generate_sequence
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery
   deploy
   governance
   tenancy
   site
   tickets
-  composer
-  quality_control
   bluebook
   hecksagon
   world

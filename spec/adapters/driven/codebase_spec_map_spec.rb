@@ -1,7 +1,7 @@
 require "spec_helper"
 require "fileutils"
 require "tmpdir"
-require "hecks/hecks/adapters/git_rehearsal"
+require "hecks/hecks/adapters/codebase/spec_map"
 
 # The map from a push's changed files to the specs that exercise them, over a temporary tree.
 RSpec.describe Hecks::Adapters::Codebase::SpecMap do

@@ -13,9 +13,10 @@ RSpec.describe "The context map model_check boots with a source" do
     expect(registry.context_maps.map(&:name)).to eq(["Banking"])
   end
 
-  it "loads the Hecks domain's map, with the cycles it accepts" do
+  it "loads the Hecks domain's map, which accepts no cycle", :aggregate_failures do
     maps = tool.boot(File.join(root, "lib/hecks/hecks")).context_maps
-    expect(Hecks::Bluebook::ModelCheck.accepted_cycles(maps).keys).to include(%w[Agents Hecks])
+    expect(maps).not_to be_empty
+    expect(Hecks::Bluebook::ModelCheck.accepted_cycles(maps)).to be_empty
   end
 
   it "holds no map for a source that declares none" do

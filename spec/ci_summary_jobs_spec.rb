@@ -117,10 +117,13 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     expect(reading.map { |path, name, _| job_label(path, name) }).to be_empty, message
   end
 
-  # The path-gate detectors whose CiGate row leaves a push out: they decide only which jobs a pull
-  # request needs, so they are the one kind of job allowed to skip on a push.
+  # The path-gate detectors that leave a push out (the path-gate action with `push: skip`): they
+  # decide only which jobs a pull request needs, so they are the one kind of job allowed to skip on a push.
   def push_skipping_detectors
-    Hecks::Vocabulary.rows("CiGate").select { |gate| gate["push"] == "skip" }.map { |gate| gate["name"] }
+    workflow_jobs(workflow_files(".github/workflows/ci*.yml")).filter_map do |_, name, job|
+      gates = job.fetch("steps", []).select { |step| step["uses"].to_s.end_with?("/path-gate") }
+      name if gates.any? { |step| step.dig("with", "push") == "skip" }
+    end
   end
 
   # `main` takes pushes with no gate, so a push's run is what reports where each RequiredCheck

@@ -2,7 +2,7 @@ require "spec_helper"
 require "json"
 require "open3"
 require "tmpdir"
-require "hecks/composer"
+require "hecks/sentence_form"
 require_relative "support/hecks_parse_binary"
 
 # `hecks-parse world <file>...` must print what the Ruby exporter makes of the same `.world`
@@ -110,7 +110,7 @@ RSpec.describe "Rust world parity (hecks-parse world)" do
     include_context "with the hecks-parse binary"
 
     def printed(paths)
-      stdout, status = Open3.capture2(Hecks::Composer::Parse.binary, "world", *paths)
+      stdout, status = Open3.capture2(Hecks::SentenceForm.binary, "world", *paths)
       raise "hecks-parse world #{paths.join(" ")} exited #{status.exitstatus}" unless status.success?
 
       stdout.chomp

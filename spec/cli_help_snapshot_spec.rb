@@ -37,13 +37,13 @@ RSpec.describe "exe/hecks help snapshots", :io do
   end
 
   it "names the first line that moved" do
-    expected = File.read(golden_path("module-deliver"))
-    changed = expected.sub("deliver —", "delivers —")
+    expected = File.read(golden_path("module-release"))
+    changed = expected.sub("release —", "releases —")
     expect(first_difference(expected, changed)).to include("line 1:")
   end
 
   it "reports a line added at the end" do
-    expected = File.read(golden_path("module-deliver"))
+    expected = File.read(golden_path("module-release"))
     expect(first_difference(expected, "#{expected}extra\n")).to include("extra")
   end
 end

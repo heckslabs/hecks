@@ -2,17 +2,22 @@ require "spec_helper"
 require "hecks/adapters/driving/mcp"
 
 # An agent that asks the door for a command by a name the bluebook renamed gets the new command:
-# the door resolves names through the same projection the launcher uses (ADR 0163, step 67).
+# the door resolves names through the same projection the launcher uses (ADR 0163, step 67). The
+# Hecks world renames nothing now, so the launcher setting here carries one rename of its own.
 RSpec.describe "MCP door resolves old command names" do
   let(:domain) { File.expand_path("lib/hecks/hecks", Dir.pwd) }
   let(:runtime) { Hecks::Adapters::Driving::Mcp.boot(domain) }
+  let(:options) { Hecks::Adapters::Driving::LauncherOptions }
 
-  it "resolves push_train.push to the renamed send command" do
-    expect(Hecks::Storehouse.verbs_for(runtime, ["push_train.push"]).first).to end_with("SendTrain.Send")
+  before do
+    settings = options.settings(runtime, "Hecks")
+    renamed = settings.merge(renamed: { "model_check.run" => "model_check_run.model_check" })
+    allow(options).to receive(:settings).and_call_original
+    allow(options).to receive(:settings).with(runtime, "Hecks").and_return(renamed)
   end
 
-  it "resolves pull_request.merge to the renamed take command" do
-    expect(Hecks::Storehouse.verbs_for(runtime, ["pull_request.merge"]).first).to end_with("ReviewRequest.Take")
+  it "resolves an old name to the command it became" do
+    expect(Hecks::Storehouse.verbs_for(runtime, ["model_check.run"]).first).to end_with("ModelCheckRun.ModelCheck")
   end
 
   it "refuses an unknown name" do

@@ -1,8 +1,8 @@
 require "spec_helper"
 require "hecks/fuzzing"
 
-# The dials of the hecks_qa loop are declared once, as `QaDial` rows of the Vocabulary bluebook:
-# the loader's type table and the QualityControl bluebook's constants are read from them.
+# The dials of the QA loop are declared once, as `QaDial` rows of the Vocabulary bluebook: the
+# loader's type table is read from them.
 RSpec.describe "the QaDial rows" do
   let(:rows)     { Hecks::Vocabulary.rows("QaDial") }
   let(:names)    { rows.map { |row| row.fetch("name") } }
@@ -22,23 +22,5 @@ RSpec.describe "the QaDial rows" do
     expect(Hecks::Fuzzing::QaSettings::EXPECTED_TYPES.keys).to eq(names.map(&:to_sym))
     expect(Hecks::Fuzzing::QaSettings::EXPECTED_TYPES.fetch(:draft_only)).to eq([TrueClass, FalseClass])
     expect(Hecks::Fuzzing::QaSettings::EXPECTED_TYPES.fetch(:adversarial_fraction)).to eq([Numeric])
-  end
-
-  def quality_control_dials_loaded
-    return if defined?(QualityControlDials)
-
-    Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control"), install_driving: false)
-  end
-
-  def expect_dial_defined(name)
-    expect(QualityControlDials.const_defined?(name.upcase)).to be(true), "no QualityControlDials::#{name.upcase}"
-  end
-
-  it "become one constant each on QualityControlDials, holding the file's value", :aggregate_failures do
-    quality_control_dials_loaded
-
-    names.each { |name| expect_dial_defined(name) }
-    expect(QualityControlDials::PR_CAP_PER_DAY).to eq(settings.fetch(:pr_cap_per_day))
-    expect(QualityControlDials::AUTOMATED_ENGINEER).to eq("qa_sweep")
   end
 end

@@ -1,6 +1,4 @@
 require "open3"
-require "hecks/pipeline_board/adapters/load_guard"
-require "hecks/rust_build/world_rows"
 
 # What the three load_hygiene_lib_*_spec.rb files share: every lib file loads standalone, in a fresh
 # process, checked one slice at a time. Every `of`-th file of the sorted list belongs to slice
@@ -45,9 +43,8 @@ module LibLoadingSlice
   # its limit; CI gives a shard its own cores, so it takes eight.
   def load_workers = ENV["CI"] ? 8 : 2
 
-  # The 1-minute load above which a worker starts no process: the Tickets world's
-  # `dispatch_max_load` (overlay included, as a machine setting), the limit a fill stops at.
-  def load_limit = Float(Hecks::RustBuild::WorldRows.row(File.dirname(lib_dir), "dispatch_max_load")[:limit] || 10.0)
+  # The 1-minute load above which a worker starts no process.
+  def load_limit = 10.0
 
   # The most seconds a slice waits for room in all, across its workers. It stays well under the
   # world's `spec_bounds` file bound (600), so a loaded machine slows a slice and never ends it.
@@ -57,8 +54,13 @@ module LibLoadingSlice
   # other work slows the slice and never hangs it.
   def load_wait_ticks = 60
 
-  # @return [Float] the machine's 1-minute load now
-  def machine_load = Hecks::Adapters::PipelineBoard::LoadGuard.reading
+  # @return [Float] the machine's 1-minute load now, from `/proc/loadavg`; 0.0 where there is none
+  #   (macOS), so the slice never waits there
+  def machine_load
+    File.readable?("/proc/loadavg") ? Float(File.read("/proc/loadavg").split.first) : 0.0
+  rescue SystemCallError, ArgumentError
+    0.0
+  end
 
   # Waits while the machine is over `load_limit`, at most `load_wait_ticks` looks and never past the
   # slice's wait deadline; CI never waits.

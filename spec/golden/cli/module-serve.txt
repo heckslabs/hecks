@@ -4,28 +4,19 @@ serve —
   hecks <Aggregate.query> [name=value …]       read something
 
 commands:
-  Server:
-    …
-    present!
-    compose!
-    preview!
-    serve_query_ir_mcp!
-    serve_mcp!
-  Board:
-    …
-    serve!
+  Server.present!
+  Server.preview!
+  Server.serve_query_ir_mcp!
+  Server.serve_mcp!
 
 queries (nothing here changes anything):
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery
   deploy
   governance
   tenancy
   site
   tickets
-  composer
-  quality_control
   bluebook
   hecksagon
   world

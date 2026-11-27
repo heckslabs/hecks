@@ -9,16 +9,16 @@ commands:
   Launch.project_rails!
 
 queries (nothing here changes anything):
+  Workspace.settings
+  Workspace.doctor
+  Workspace.where
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery
   deploy
   governance
   tenancy
   site
   tickets
-  composer
-  quality_control
   bluebook
   hecksagon
   world

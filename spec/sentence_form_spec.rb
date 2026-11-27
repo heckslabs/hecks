@@ -2,7 +2,7 @@ require "spec_helper"
 require "json"
 require "open3"
 require "tmpdir"
-require "hecks/composer"
+require "hecks/sentence_form"
 require_relative "support/hecks_parse_binary"
 
 # A bluebook written as plain sentences and the same bluebook written in the Ruby form are one
@@ -29,10 +29,10 @@ RSpec.describe "a bluebook written as sentences", :io do
   end
 
   def parse(*args)
-    Open3.capture3(Hecks::Composer::Parse.binary, *args)
+    Open3.capture3(Hecks::SentenceForm.binary, *args)
   end
 
-  def bluebook_of(path) = Hecks::Composer::Parse.declaration_name(path)
+  def bluebook_of(path) = Hecks::SentenceForm.declaration_name(path)
 
   def twin_of(sentence_file) = File.join(File.dirname(sentence_file), "ruby_form.bluebook")
 
