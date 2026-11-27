@@ -90,7 +90,7 @@ Hecks.behaviors "LocalLayer" do
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
     setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 2 }
-    input run: { value: "sprint-9" }, confirmed: { value: "ee99" }, current: { value: "ab12" }
+    input run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, confirmed: { value: "ee99" }, current: { value: "ab12" }
     expect refused: "diff"
   end
 
@@ -99,7 +99,7 @@ Hecks.behaviors "LocalLayer" do
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
     setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 2 }
-    input run: { value: "sprint-9" }, confirmed: { value: "cd34" }, current: { value: "ff00" }
+    input run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, confirmed: { value: "cd34" }, current: { value: "ff00" }
     expect refused: "moved"
   end
 
@@ -108,7 +108,18 @@ Hecks.behaviors "LocalLayer" do
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
     setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 2 }
-    input run: { value: "sprint-9" }, confirmed: { value: "cd34" }, current: { value: "ab12" }
-    expect emits: ["BatchApplied"], status: "applied"
+    input run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, confirmed: { value: "cd34" }, current: { value: "ab12" }
+    expect emits: %w[BatchApplied TargetWritten], status: "applied"
+  end
+
+  # The stand-in in behavior_adapters/ answers the Applying port: it writes nothing, and refuses
+  # lib/unwritable.bluebook.
+  test "a batch whose target cannot be written is refused" do
+    tests "Apply", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/unwritable.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, target: { value: "lib/unwritable.bluebook" }, edits: { value: 2 }
+    input run: { value: "sprint-9" }, target: { value: "lib/unwritable.bluebook" }, confirmed: { value: "cd34" }, current: { value: "ab12" }
+    expect emits: %w[BatchApplied TargetWriteRefused BatchRefused], status: "refused"
   end
 end
