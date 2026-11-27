@@ -12,6 +12,9 @@ Seven Lean 4 modules on a pinned toolchain (`lean-toolchain`: Lean 4.36.0). Buil
 | `RealizationBoundary` | selecting one outcome needs a determination rule; no equivariant selector |
 | `PreStateEffects` | effects read the pre-command state; the sequential reading is a counterexample |
 
+## What this found
+One construct, and a line. A Condition and a transition are both one relation type, and that holds at the declarative level (admissibility and determination are relations). It is NOT a proof that one executable construct implements every Hecks behavior: the architectural line sits between the declarative level and the functional one. Realization of a selected transition (a durable write, a delivery) cannot be obtained from relation truth alone and is supplied by a store or adapter. This was expected, and the work confirmed it with counterexamples (a finite table cannot do an unbounded update; Meter's pre-state rule).
+
 ## Status (2026-11-27)
 - Source: the Codex session of 2026-11-27, unchanged. Unreviewed.
 - `lake build` passes on Lean 4.36.0; `leanchecker` (the independent kernel checker) passes on all seven modules. No `sorry`, no `admit`, no `axiom` declarations of its own.
