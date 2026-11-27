@@ -21,6 +21,10 @@ Hecks.world "Tickets" do
   work_limit "WorkLimits", cap: 7, urgent_reserve: 1
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 5
   rust_build "RustBuild", jobs: 4, nice: 15
+  # `batch_priority`: a heavy job's gate checks and spec file runs start under `taskpolicy -b` (E-cores,
+  # lower disk class); residents, coders and the terminal keep all cores. RuboCop and the style checks
+  # run inside the launcher and are not moved. `qos: "normal"` turns it off (`RustBuild::BatchPriority`).
+  batch_priority "BatchPriority", qos: "background"
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
   # the machine, in every checkout: the next one waits, saying so and in its report, until one ends
   # (`Codebase::HeavySlots`; the Rust build lock above already holds compiles to one at a time).
