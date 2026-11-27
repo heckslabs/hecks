@@ -19,11 +19,11 @@ name: CI
 
 # Every PR and every push to main runs the full job set; no job skips on a push, because a
 # skipped required check reports as passed and promote.yml would carry an untested commit to
-# `stable`. Path gates (the CiGate rows) still skip the work a change cannot affect.
+# `stable`. Path gates (the path-gate action) still skip the work a change cannot affect.
 #
 # A `merge_group` run is the merge queue's test of a pull request on top of main and every entry
 # ahead of it (the `main` Lane row, pushers `queue`); main moves only when it is green. Path gates
-# diff it against the queue's base, as `regeneration_run.decide_ci_gate!` already does.
+# diff it against the merge base with the queue's target branch (.github/actions/path-gate).
 #
 # A label added or removed runs a pull request again: the `red-drill` label turns the red drill on
 # for that pull request's run alone (spec/support/red_drill.rb, the rspec_shard env in ci-rspec.yml).
@@ -69,55 +69,6 @@ jobs:
         with:
           job: rspec_impl
           result: ${{ needs.rspec_impl.result }}
-
-  # A commit that is only a release bump on a fully certified base inherits that base's
-  # certification (ADR 0107). `release_only` answers `touched=false` for it; this job then writes
-  # the same attestation note a local pre-push writes, for this tree, which every detector below
-  # already honours, so each required check reports success without its heavy job running. Any
-  # other commit skips this job and the detectors find no note, so the suite runs as it always did.
-  # BEGIN GENERATED ci_gate release_only (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.
-  release_only:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      checks: read
-    outputs:
-      touched: ${{ steps.diff.outputs.touched }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Full history: the diff needs both endpoints present as real objects.
-          fetch-depth: 0
-      - uses: ./.github/actions/setup-ruby
-        with:
-          # The decision diffs files and calls an API; it formats and builds no Rust.
-          rust-toolchain: "false"
-      - uses: ./.github/actions/hecks-boot-cache
-      - uses: ./.github/actions/hecks-environment
-      - id: diff
-        name: 'is this change only a release bump on a certified base?'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=release_only --wait
-  # END GENERATED ci_gate release_only
-
-  inherit_certification:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: release_only
-    if: needs.release_only.outputs.touched == 'false' && github.workflow != 'Nightly main'
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Attest this tree for the checks its certified base already passed
-        uses: ./.github/actions/write-attestation
-        with:
-          # BEGIN GENERATED attested_checks ci (GateCheck and RequiredCheck rows; hecks project_ci_gates). Do not hand-edit.
-          checks: engine_agreement,model_check,doc_coverage,rubocop,rspec,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing
-          # END GENERATED attested_checks
-          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
   # Runs on every commit, release bump or not, so a half-done bump cannot be certified: the files
   # a bump edits by hand must still agree with each other. It is a RequiredCheck marked
@@ -231,9 +182,8 @@ jobs:
       - name: Write and push a CI-verified attestation note for this tree
         uses: ./.github/actions/write-attestation
         with:
-          # BEGIN GENERATED attested_checks ci (GateCheck and RequiredCheck rows; hecks project_ci_gates). Do not hand-edit.
+          # The GateCheck rows marked `attests` and the RequiredCheck rows; keep in step with them.
           checks: engine_agreement,model_check,doc_coverage,rubocop,rspec,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing
-          # END GENERATED attested_checks
           hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
   # Aggregator that keeps `rspec_postgres_io` the required-status-check name; the work is in
@@ -576,7 +526,6 @@ jobs:
   # times to catch schedule-dependent races, so it runs only when `lib/hecks/runtime/**`
   # changes. Split in two so an unrelated PR skips the Postgres setup too: that needs a
   # job-level `if:`, and so a diff computed in a job that finished first.
-  # BEGIN GENERATED ci_gate runtime_changed (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.
   runtime_changed:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -587,16 +536,13 @@ jobs:
         with:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
-      - uses: ./.github/actions/setup-ruby
-        with:
-          # The decision diffs files and calls an API; it formats and builds no Rust.
-          rust-toolchain: "false"
-      - uses: ./.github/actions/hecks-boot-cache
-      - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch lib/hecks/runtime/**?'
-        run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=runtime_changed --wait
-  # END GENERATED ci_gate runtime_changed
+        uses: ./.github/actions/path-gate
+        with:
+          pattern: '^lib/hecks/runtime/'
+          mode: touches
+          push: before_sha
 
   # The command's 30 seeds split over three runners, ten each from seeds 1, 11 and 21: the same
   # seeds the default run covers, in a third of the wall time. One runner taking all 30 was the
