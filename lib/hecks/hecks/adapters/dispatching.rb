@@ -159,7 +159,7 @@ module Hecks
       def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
       def plan_for(only = "", rolling: false, repo: nil)
-        Plan.new(planned(only, rolling: rolling), live_holders, **limits, effective: effective_for(repo))
+        Plan.new(planned(only, rolling: rolling), live_holders!, **limits, effective: effective_for(repo))
       end
 
       # What bounds a filling: the machine's cap and load, what pauses every work item, and the
@@ -178,7 +178,7 @@ module Hecks
       # on every planned item, and a read is a scan of the whole repository. The landings are read
       # only for a key some planned item depends on.
       def cached_reads(gauge)
-        runs = once { work_items.runs }
+        runs = once { @beat_runs || work_items.runs }
         reviews = once { rethinks(gauge.rethink_limit) }
         { runs: runs, rethinks: ->(key) { reviews.call.stop_reason(key) }, waits: Dependencies.new(work_items).method(:reason) }
       end
