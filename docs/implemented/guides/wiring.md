@@ -172,7 +172,7 @@ mutate one, does not save. Whatever should happen next — crediting the
 sale, flagging a mismatch — happens wherever a `policy` reacts to the
 event this emits, exactly the way `pizzas.bluebook`'s
 `OnPizzaPaymentReceived` reacts to `PizzaPaymentReceived`; wiring that
-reaction is [policies-and-process-managers.md](policies-and-process-managers.md)'s job, not this page's.
+reaction is [policies-and-sagas.md](policies-and-sagas.md)'s job, not this page's.
 
 Call it the way a real payment processor's webhook handler would —
 through `dispatch_port`, never through the entry point a chef's own commands

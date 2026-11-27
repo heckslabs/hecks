@@ -44,7 +44,7 @@ Two independently tenant-scoped aggregates (`Ledger`/`Transfer`, each
 with its own `region` field and a `ByRegion` query declaring `authorize
 …, tenant: :region`), a cross-tenant `reference_to Ledger` on `Transfer`,
 an entity (`Ledger::Entry`, with its own `Annotate` command), and a
-process manager (`SettleAcrossRegions`) whose one saga leg dispatches
+saga (`SettleAcrossRegions`) whose one saga leg dispatches
 `Ledger::Credit` against whichever ledger `Transfer.Request` named —
 crossing tenants whenever the caller's declared `region` and the named
 ledger's own `region` disagree, which nothing anywhere refuses.

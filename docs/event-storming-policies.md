@@ -1,7 +1,7 @@
 # Event storming's Policy, in hecks
 
-> The consumer guide for policies and process managers now lives at
-> [guides/policies-and-process-managers.md](guides/policies-and-process-managers.md);
+> The consumer guide for policies and sagas now lives at
+> [guides/policies-and-sagas.md](guides/policies-and-sagas.md);
 > this file remains the original investigation record.
 
 **Status: mostly a record of what's already built, verified directly.** Event
@@ -19,7 +19,7 @@ of wrong guesses made while investigating it, and names the one real gap.
 | Domain Event (orange) | `emits` |
 | **Policy (lilac)** | **`Policy`** — `reaction.bluebook`, `runtime/policy_interpreter.rb` |
 | Actor/Role | `role` (currently descriptive only — see the Rails integration doc's open questions; zero references anywhere in `lib/hecks/runtime`) |
-| Long-running Process | `ProcessManager` — same file, `runtime/saga_interpreter.rb` |
+| Long-running Process | `saga` — same file, `runtime/saga_interpreter.rb` |
 | Read Model (green) | `read_model` |
 | External System (pink) | **not modeled — the one real gap, see below** |
 
@@ -55,7 +55,7 @@ raised — the domain saying no is a fact, not a crash. Anything *outside* that 
 real defect — `NoMethodError`, a missing constant) is deliberately allowed to fly,
 specifically so a broken runtime can never be mistaken for a policy simply declining.
 
-`ProcessManager`/`Handler`/`Dispatch` (same file, `SagaInterpreter`) cover event
+`Saga`/`Handler`/`Dispatch` (same file, `SagaInterpreter`) cover event
 storming's other reactive construct — a long-running process with real state
 (`states`, `correlates_by`, `starts_on`/`ends_on`), multiple legs, and — found while
 tracing it — a real compensating-leg mechanism: a saga leg that refuses `unwind`s to

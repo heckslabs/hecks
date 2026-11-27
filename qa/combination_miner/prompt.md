@@ -40,7 +40,7 @@ Recent bug commits, newest first:
 {{recent_bugs}}
 
 Aim beyond the census too: three forms on one aggregate, constructs the census does not name yet
-(policies, process managers, corrects, tenancy, roles, invariants, defaults interacting with optional
+(policies, sagas, corrects, tenancy, roles, invariants, defaults interacting with optional
 arguments, list_of value objects, entity lifecycles, queries over references). A candidate that only
 restates a covered pair is wasted.
 

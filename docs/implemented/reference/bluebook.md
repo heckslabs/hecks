@@ -375,17 +375,17 @@ runtime.registry.bluebook("Banking").policies.map(&:name)  # => ["ReviewOnFreeze
 The first two of those are `Account`'s and `ScheduledPayment`'s own,
 declared inside them; the rest are the bluebook's.
 
-## process_manager
+## saga
 
-<!-- generated:begin word=process_manager -->
-`process_manager name do ... end` — opens a `ProcessManager` body
+<!-- generated:begin word=saga -->
+`saga name do ... end` — opens a `Saga` body, was `process_manager`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a stateful saga spanning several events and commands — `correlates_by`, `starts_on`/`ends_on`, its `handler`s. Bluebook-level only, like `report` and top-level `policy`, since it belongs to no single aggregate. See the ProcessManager reference page.
+Opens a stateful saga spanning several events and commands — `correlates_by`, `starts_on`/`ends_on`, its `handler`s. Bluebook-level only, like `read_model` and top-level `policy`, since it belongs to no single aggregate. See the Saga reference page. `process_manager` (ADR 0180 settles the construct's one name as saga) stays answered only for frozen era text still parsed by the legacy grammar; live source refuses it, naming this word.
 
 ```ruby
 runtime.registry.bluebook("Banking").sagas.map(&:name)  # => ["Onboarding", "Settlement", "ExternalSettlement"]
@@ -401,7 +401,7 @@ runtime.registry.bluebook("Banking").sagas.map(&:name)  # => ["Onboarding", "Set
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Groups aggregates in a module named for the task a person comes to do (ADR 0163). The block takes the words a bluebook body takes, so its aggregates are declared exactly as they are outside it; `vision` inside it describes the module. Policies, read models and process managers written inside the block stay the bluebook's own. A module changes no aggregate, its name, its stored shape or the context map, it names where the aggregate belongs. A second file may reopen a module of the same name and add aggregates to it. The words that describe the whole bluebook (`namespace`, `formerly_known_as`, `attaches_to`, `provides`, `core`, `supporting`, `generic`) refuse inside a module, modules do not nest, and a module that holds no aggregate refuses.
+Groups aggregates in a module named for the task a person comes to do (ADR 0163). The block takes the words a bluebook body takes, so its aggregates are declared exactly as they are outside it; `vision` inside it describes the module. Policies, read models and sagas written inside the block stay the bluebook's own. A module changes no aggregate, its name, its stored shape or the context map, it names where the aggregate belongs. A second file may reopen a module of the same name and add aggregates to it. The words that describe the whole bluebook (`namespace`, `formerly_known_as`, `attaches_to`, `provides`, `core`, `supporting`, `generic`) refuse inside a module, modules do not nest, and a module that holds no aggregate refuses.
 
 The bluebook reads its modules back in declaration order:
 
