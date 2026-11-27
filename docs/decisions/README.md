@@ -233,4 +233,5 @@ The table is the store as `DecisionFiles` reads it, by number, written by `hecks
 | [0235](0235-one-control-process-serves-control-commands-from-any-worktree.md) | One control process serves control commands from any worktree | accepted |  |  |
 | [0236](0236-the-train-keeps-its-one-pull-request-rule-after-the-merge-queue.md) | The train keeps its one-pull-request rule after the merge queue; removal waits on a measurement | accepted |  |  |
 | [0237](0237-rolls-follow-stable-by-policy-guarded-per-service.md) | A promotion to stable rolls by policy, guarded per service, with no deploy-manager role | accepted |  |  |
+| [0238](0238-the-pipeline-runs-on-a-cloud-box-and-the-laptop-only-directs.md) | The pipeline runs on a cloud box, and the laptop only directs | draft |  |  |
 <!-- generated:end -->
