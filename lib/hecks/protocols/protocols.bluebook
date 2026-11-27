@@ -27,7 +27,7 @@ Hecks.bluebook "Protocols" do
     attribute :closed_at,     Instant, optional: true
     # The Decider result message that carried an agreement entered after the fact.
     attribute :evidence,      Evidence, optional: true
-    # The policy or command that holds the agreement, as `Domain:Policy` or `Aggregate.Command`.
+    # The policy that holds the agreement, as `Domain:Policy`.
     attribute :enforced_by,   Guard, optional: true
 
     # The accepted agreements, by reference: the read every seat runs at start.
@@ -46,9 +46,9 @@ Hecks.bluebook "Protocols" do
 
     value_object "Evidence", String
 
-    # A guard is named for the policy or command that acts, never for prose or memory.
+    # A guard is named for the policy that acts, never for prose or memory.
     value_object "Guard" do
-      attribute :value, String, pattern: '^([A-Z][A-Za-z]*:[A-Z][A-Za-z]*|[A-Z][A-Za-z]*\.[A-Z][A-Za-z]*)$'
+      attribute :value, String, pattern: '^[A-Z][A-Za-z]*:[A-Z][A-Za-z]*$'
     end
 
     value_object "Reference" do
@@ -192,11 +192,12 @@ Hecks.bluebook "Protocols" do
       emits "AgreementEntered"
     end
 
-    # Names the policy or command that holds an accepted agreement; the guard's own refusal or hold
-    # is the owner's, this records which one it is.
+    # Names the policy that holds an accepted agreement; the guard's own refusal or hold is the owner's,
+    # this records which one it is. A bluebook cannot see another, so the spec resolves each recorded
+    # name against the parsed bluebooks. A second Enforce replaces the first name.
     command "Enforce" do
       role "Maintainer"
-      goal "Name the policy or command that holds an accepted agreement"
+      goal "Name the policy that holds an accepted agreement"
 
       reference_to Agreement
       attribute :enforced_by, Guard, sets: true

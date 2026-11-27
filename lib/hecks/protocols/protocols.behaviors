@@ -241,7 +241,7 @@ Hecks.behaviors "Protocols" do
     expect refused: "only an accepted agreement is enforced"
   end
 
-  test "Enforce is refused for a guard that names no policy or command" do
+  test "Enforce is refused for a guard that names no policy" do
     tests "Enforce", on: "Agreement"
     setup "Protocols::Agreement.Propose", reference: { value: "WA-42" }, text: { value: "Vague" },
           proposer: { value: "scrum-master" }, affects: { value: "|coder|" },
