@@ -2,15 +2,15 @@
 
 **Status:** Proposed. Date: 2026-11-27. Asked for by the owner ("We should queue up running the pipeline on the
 cloud", then "Whole pipeline", "Moving it to the cloud means duet can run everything" and "The pipeline itself
-should run on the board too"). It is the Work item `coders-run-in-the-cloud-adr` of the epic "The pipeline
-reaches beyond this laptop and this repo", and it orders that epic's items `a-shared-ledger-every-machine-reads-and-claims-from`,
-`a-second-machine-pulls-from-the-shared-queue` and `quick-gate-runs-on-ci`. Builds on
-[0136](0136-hecks-defaults-to-memory-and-a-local-hecksagon-opts-in.md),
+should run on the board too"). It is the Work item `coders-run-in-the-cloud-adr` of the epic "The pipeline reaches
+beyond this laptop and this repo", and it orders that epic's items
+`a-shared-ledger-every-machine-reads-and-claims-from`, `a-second-machine-pulls-from-the-shared-queue` and
+`quick-gate-runs-on-ci`. Builds on [0136](0136-hecks-defaults-to-memory-and-a-local-hecksagon-opts-in.md),
 [0202](0202-a-write-from-a-worktree-to-a-shared-ledger-runs-in-the-main-checkout.md),
 [0205](0205-the-pipeline-is-its-own-project-switchyard-on-a-pinned-hecks.md),
 [0213](0213-the-run-ledger-stays-on-sqlite.md), [0220](0220-a-run-and-a-day-have-a-spend-bound-declared-as-data.md)
-and [0237](0237-rolls-follow-stable-by-policy-guarded-per-service.md). Revised the same day, when the owner moved the
-whole pipeline to Switchyard; this record moves there with the pipeline.
+and [0237](0237-rolls-follow-stable-by-policy-guarded-per-service.md). Revised the same day, when the owner moved
+the whole pipeline to Switchyard; this record moves there with the pipeline.
 
 ## Context
 
@@ -57,32 +57,27 @@ What Hecks already has for the move:
 
 ## Decision
 
-1. **One box runs the whole pipeline: the beat, dispatch, coders, gates, the train, the board and its
-   watchers.** The box is projected from a world of the pipeline's own with `deployed_to("AwsBox")`, as client
-   services are. No infrastructure is written by hand. It goes into the AWS account the owner's services
-   already run in. The first size is 2 vCPU and 8 GB on arm64 (`t4g.large`) with a 100 GB volume, enough for
-   two or three coders at once, which is the pace the model credit allows; the fill's headroom readings decide
-   when it moves up to `t4g.xlarge`. It is reserved for a year once a month of readings shows the size holds. The
-   box gets its own instance and is not added to a client service's box, so a coder that fills memory or disk
-   cannot stop a client's service. The box
+1. **One host runs the whole pipeline: the beat, dispatch, coders, gates, the train, the board and its
+   watchers.** It is the pipeline's own host, not a slot on a host that serves clients, so a coder that fills
+   memory or disk cannot stop a client's service. It is projected from a world of the pipeline's own, as client
+   services are, and no infrastructure is written by hand. The first size is 8 GB on arm64, with 2 or 4 vCPU as the
+   provider offers at that price, and about 100 GB of disk, enough for two or three coders and a
+   quick gate at once, which is the pace the model credit allows; the fill's headroom readings decide when it
+   grows. Two providers fit, compared under Consequences: Hetzner Cloud (`CAX21`, Arm, in Germany or Finland)
+   and AWS (`t4g.large`, in the account and region the owner's services already use). The owner picks. The host
    runs Switchyard on a pinned Hecks, not Hecks itself: the owner decided on 2026-11-27 that the whole pipeline
    leaves Hecks for Switchyard ("We can move off the whole pipeline to switch yard"), so the cloud work is built
-   with Switchyard as its home. Hecks keeps what any project uses (the `AwsBox` projection and the Postgres
+   with Switchyard as its home. Hecks keeps what any project uses (the box projections and the Postgres
    adapter), and Switchyard uses them as a client does.
-2. **The ledger moves to Postgres as one more tenant of the owner's shared, multi-tenant database.** The owner's
-   services already run that way ("Multitennent with a shared database"), so Switchyard is provisioned like any
-   tenant, with `hecks deploy tenant.provision` (slug, realm and a schema of its own, `switchyard` unless the owner
-   names another), and no new database instance is made. A schema alone only separates names, since the Postgres
-   adapter sets `search_path` on its connection. So the tenant also gets a login role of its own whose grants
-   reach only its schema, a connection limit and a statement timeout on that role, so the pipeline's beat can
-   neither read another tenant's tables nor take the connections or time the other tenants need. Making that
-   role changes the shared database's access, so it waits on the owner, and its credentials go into the box's
-   secret store from the owner's hands. This is the shared ledger
-   every machine reads and claims from. It revisits 0213, which kept SQLite because one machine and one lock
-   line did not pay for the move. A second machine is what pays for it, because SQLite cannot be shared over a
-   network. 0213 §4 to §7 list what the move needs first: Postgres twins of `LedgerKeeping`, the outbox purge,
-   `sqlite_status` and the resident store reads, a pooler or a single writer, and a replay of the journal into
-   era tables in a quiet window.
+2. **The ledger moves to Postgres, running on the pipeline's own host.** Not a tenant in a shared database: the
+   owner is retiring the shared, multi-tenant database ("Multi tenancy will go away later"), so the pipeline keeps
+   its data beside it, as each deployment will. Postgres runs as one more container on the host, reached from the
+   host and, for a second machine, over the tailnet, with its data on the host's disk and in the host's backups.
+   This is the shared ledger every machine reads and claims from. It revisits 0213, which kept SQLite because one
+   machine and one lock line did not pay for the move. A second machine is what pays for it, because SQLite cannot
+   be shared over a network. 0213 §4 to §7 list what the move needs first: Postgres twins of `LedgerKeeping`, the
+   outbox purge, `sqlite_status` and the resident store reads, a pooler or a single writer, and a replay of the
+   journal into era tables in a quiet window.
 3. **A claim is atomic across processes before a second process may dispatch.** `Work.Start` takes the
    optimistic path, so of two processes that both read an item planned, one starts it and the other is refused
    by name. Specs prove it on SQLite and on Postgres with concurrent writers, and the corpus proof still holds.
@@ -135,27 +130,44 @@ projection) lands in Hecks, and the rest waits for Switchyard.
    to `~/.claude`), and every macOS reading has a Linux one (`/proc/meminfo` and `/proc/pressure` for `vm_stat`
    and `sysctl`, `flock(1)` for `zsystem flock`). The four schedules project systemd units beside their launchd
    plists. *New item.*
-2. **Atomic claims** (decision 3). *New item, the first half of `a-shared-ledger-every-machine-reads-and-claims-from`.*
+2. **Atomic claims** (decision 3). *New item, the first half of
+   `a-shared-ledger-every-machine-reads-and-claims-from`.*
 3. **The ledger on Postgres** (decision 2), with the 0213 prerequisites. *The second half of that item.*
 4. **Liveness from the ledger** (decision 4). *`a-second-machine-pulls-from-the-shared-queue`.*
 5. **CI judges the landing** (decision 6). *`quick-gate-runs-on-ci`.*
-6. **The box world and its projection, with the secret names, the tailnet join and the board's fetch beat**
-   (decisions 1, 5 and 7). Projected and checked, not deployed. *New item.*
+6. **The host's world and its projection, with Postgres beside the pipeline, the secret names, the tailnet join
+   and the board's fetch beat** (decisions 1, 2, 5 and 7). Projected and checked, not deployed. On AWS this is the
+   existing `AwsBox` kind. On Hetzner it needs a box kind Hecks does not have yet (decision 1); that kind is
+   framework work, so it lands in Hecks. *New item.*
 7. **The door** (decision 8). *New item.*
 8. **Deploy and cut over** (decisions 9 and 10), on the owner's yes, since it creates an account's resources,
    spends money and changes the tailnet.
 
 ## Consequences
 
-- **Running cost, before model use.** About $57 a month on demand: the box at about $49 (`t4g.large` at
-  about $0.067 an hour in us-east-1) and its 100 GB volume at about $8 ($0.08 a GB-month). A one-year
-  reservation lowers the box to about $31, so about $39 a month. The ledger adds a tenant's storage to the
-  shared database (a few GB, under $1 a month) and no instance. The plan first written here, a `t4g.xlarge` and
-  a database instance of its own, was about $130 to $140 a month.
-- **The pipeline's load lands on the shared database.** The beat and the journal write often, and the 1.33 GB
-  ledger arrives in one replay. The role's connection limit caps what it can take; the replay runs in the quiet
-  window and outside the other tenants' busy hours. Third-party price lists, read 2026-11-27; the owner's
-  AWS bill is the measure.
+- **Running cost, before model use.** Third-party price lists, read 2026-11-27; the provider's bill is the
+  measure. Disk, backups and traffic are counted; the pipeline's outbound traffic (pushes, fetches, model calls)
+  is well under a terabyte a month. The plan first written here, a `t4g.xlarge` and a database instance of its
+  own, was about $130 to $140 a month.
+  - Hetzner `CAX21` (4 Arm vCPU, 8 GB, 80 GB disk) in Germany or Finland: about $12.49 a month, $0.60 for an IPv4
+    address and 20% for daily backups, so about $16 a month, with 20 TB of traffic included. Reviews from October
+    and November 2026 say the CX and CAX lines could not be ordered then. The x86 `CX33` (4 vCPU, 8 GB) is about
+    $10 a month on the same terms and has the same stock problem.
+  - Hetzner in the US (Ashburn or Hillsboro) offers only x86 there, and after the 2026 increases the closest fit
+    is `CCX13` (2 dedicated vCPU, 8 GB) at about $51, or about $62 with IPv4 and backups, with 1 TB of traffic.
+    It costs more than AWS reserved.
+  - AWS `t4g.large` (2 Arm vCPU, 8 GB) with a 100 GB volume: about $49 plus $8 on demand, so about $57 a month,
+    or about $39 with a one-year reservation; snapshots add a few dollars, and traffic under 100 GB a month is
+    free.
+- **What changes the choice besides the price.**
+  - *Deploy tooling.* Every box kind Hecks projects today is on AWS (`AwsBox`, `FargateTarget`, `LambdaTarget`,
+    the shared RDS database), with its secrets in Secrets Manager and its rolls through SSM. Hetzner needs a new
+    box kind and another secret store, a few Work items before the first deploy. AWS needs none.
+  - *Architecture.* The owner's images are built for arm64 today. `CAX21` and `t4g.large` are Arm, so the same
+    build runs on either; a US Hetzner host is x86 and needs an amd64 build of the Rust kernel and the image.
+  - *Region and latency.* The host talks mostly to GitHub and the model API, which latency hardly touches. The
+    owner reaches the board over the tailnet; from the western US that is about 150 ms to Germany or Finland and
+    about 60 to 70 ms to us-east-1, enough to notice on a page but not on the work.
 - **Model cost.** The compute meter will measure it. As a working estimate, a landed item costs a few dollars
   of model use, so $200 of credit covers on the order of 50 to 150 items, against the 75 a day the board showed
   over the 13 days to 2026-11-25. The spend bound decides how fast the credit is used.
@@ -171,15 +183,15 @@ projection) lands in Hecks, and the rest waits for Switchyard.
   for room the credit's pace does not use. It is where the box goes if the headroom readings call for it.
 - **Running on an existing client service's box.** It adds almost nothing to the bill, but coders and gates
   would share memory and disk with a client's service, and a runaway run would take it down.
-- **Postgres on the pipeline box instead of the shared database.** The same cost as a tenant, without the shared
-  database's backups and restore point.
+- **A tenant in the owner's shared database.** It added no instance, but the owner is retiring that database,
+  and a tenant needs a role, grants and limits to keep it from the other tenants' tables and time.
 - **A `t4g.medium` (2 vCPU, 4 GB), about half the box's cost.** A quick gate runs the spec suite beside the
   coders, and 4 GB does not hold both.
 
 - **Move only the board and copy the laptop's ledger to it.** The owner chose the whole pipeline. A copied
   board is only as current as the laptop that feeds it, and it gives no other caller a way to act.
-- **A rented virtual server without a projection.** It is cheaper per month at some providers, but nothing in
-  Hecks projects it, so its setup would be written by hand and drift from what the bluebooks say.
+- **A rented server set up by hand.** Hetzner is only taken with a projection of its own, since a server set up
+  by hand drifts from what the bluebooks say.
 - **Containers without a persistent disk (Fargate, Lambda).** Worktrees, the train's copy and long Claude Code
   sessions need a disk that outlives one request.
 - **Coders as hosted agent sessions in place of Claude Code on the box.** It would change the loop the
@@ -189,9 +201,7 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 - Switchyard's remote. It is a local repository on the laptop today (0205), so the box cannot clone it; a
   private repository on GitHub, made by the owner, is what the box and other sessions pull from.
-- Where the box sits: the AWS account and region the owner's services run in.
-- The tenant: its name (`switchyard` unless the owner names another), the shared database's address, and a role
-  for it that the owner makes, or lets the projection make, and whose credentials the owner puts into the box's
-  secret store.
+- The provider: Hetzner (cheapest, needs a new box kind and orderable stock) or AWS (works with what Hecks
+  projects today), and the region.
 - API credits or a subscription token for the coders, and the day's spend bound.
 - A Tailscale Funnel or a public address for the door.
