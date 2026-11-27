@@ -350,8 +350,9 @@ commands:
     Wake.decline! Wake.notice! FillStall.open! FillStall.watch! FillStall.mark! FillStall.raise!
     FillStall.clear! FillStall.gauge! Machine.sample! Machine.record! Machine.decline!
     Machine.fall_below! Machine.rise_above! Machine.run_low! Machine.recover! Machine.go_busy!
-    Machine.go_idle! Machine.strain! Machine.ease! Machine.read! LoadStanding.open!
-    LoadStanding.rise! LoadStanding.fall! Overload.open! Overload.strain! Overload.settle!
+    Machine.go_idle! Machine.strain! Machine.ease! Machine.owner_types! Machine.owner_leaves!
+    Machine.read! LoadStanding.open! LoadStanding.rise! LoadStanding.fall! OwnerStanding.open!
+    OwnerStanding.type! OwnerStanding.leave! Overload.open! Overload.strain! Overload.settle!
     Overload.waver! Overload.starve! Overload.replenish! Overload.declare_for_load!
     Overload.declare_for_memory! Overload.lift! Shed.look! Shed.record! Shed.decline! Shed.survey!
     RedWake.hear! RedWake.start! RedWake.decline! RedWake.weigh! PlainSession.refuse_retirement!
