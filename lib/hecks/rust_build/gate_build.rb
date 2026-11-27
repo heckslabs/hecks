@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require_relative "batch_priority"
 require_relative "build_lock"
 require_relative "build_policy"
 require_relative "session_build"
@@ -40,11 +41,12 @@ module Hecks
       # @param lock [String] the lock file
       # @return [Array(String, Process::Status)] what the check printed, and its status
       def capture(run, env, root, base: ENV, lock: BuildLock.path)
-        return Open3.capture2e(env, *run, chdir: root) unless compiles?(run)
+        return Open3.capture2e(env, *BatchPriority.wrap(run, root, base: base), chdir: root) unless compiles?(run)
 
         BuildLock.hold(base: base, file: lock) do |held|
           policy = held.merge(SessionBuild.environment(root: root, base: base, binary: true)).merge(env)
-          Open3.capture2e(policy, *SessionBuild.command(run, root: root), chdir: root)
+          command = SessionBuild.command(run, root: root)
+          Open3.capture2e(policy, *BatchPriority.wrap(command, root, base: base), chdir: root)
         end
       end
 
