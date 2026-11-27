@@ -41,8 +41,8 @@ module Hecks
         # @return [Hash{String => Object}] the keys it carries beyond the five every adapter has
         def optional_adapter_keys(adapter)
           keys = adapter.capabilities.empty? ? {} : { "provides" => adapter.capabilities }
-          keys["stays_inside"] = true if adapter.stays_inside?
-          keys.merge(module_keys(adapter), grant_keys(adapter))
+          keys["stays_inside"] = true if adapter.stays_inside == true
+          keys.merge(module_keys(adapter), grant_keys(adapter), reply_keys(adapter))
         end
 
         # What an adapter that runs a module carries: the queries it answers and the module.
@@ -60,6 +60,12 @@ module Hecks
         def grant_keys(adapter)
           { "imports" => adapter.granted_imports, "hosts" => adapter.granted_hosts }.reject { |_, v| v.empty? }
         end
+
+        # A declared adapter's rows, as the parser read them: `replies`, omitted when none.
+        #
+        # @param adapter [Bluebook::Hecksagon::Adapter] the adapter to export
+        # @return [Hash{String => Array<Hash>}] `replies`, empty for an adapter with code behind it
+        def reply_keys(adapter) = adapter.declared? ? { "replies" => adapter.declared_replies } : {}
 
         # Loads each `.adapter` file into its own fresh registry and exports what it declared,
         # in file order then declaration order.

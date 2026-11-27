@@ -1,4 +1,5 @@
 require_relative "word_gate"
+require_relative "declared_rows"
 module Hecks
   module Bluebook
     module DSL
@@ -16,9 +17,12 @@ module Hecks
         # @param name [String] the adapter's name, as written after `Hecks.adapter`
         # @param source_dir [String, nil] the directory of the `.adapter` file, which a plugin's
         #   `runs` path is read against
-        def initialize(name, source_dir: nil)
+        # @param source_path [String, nil] the `.adapter` file itself, which the Rust parser reads a
+        #   declared adapter's rows from
+        def initialize(name, source_dir: nil, source_path: nil)
           @name = name
           @source_dir = source_dir
+          @source_path = source_path
           @fields   = []
           @secrets  = []
           @defaults = {}
@@ -87,6 +91,23 @@ module Hecks
           @hosts.concat(Array(hosts).map(&:to_s))
         end
 
+        # Declares the answer this adapter gives an ask (or query) of its port. The row is data,
+        # and the Rust parser reads and judges it from the file: the builder only notes that the
+        # adapter is declared.
+        #
+        # @param _ask [String] the ask or query the row answers, such as `"Collect"`
+        # @param _row [Hash] `where:` the asked values it matches, `with:` the answer, `echoing:`
+        #   the asked fields copied into it
+        # @return [true]
+        def replies(_ask, **_row) = @declares_rows = true
+
+        # Declares the refusal this adapter words for an ask of its port, read as {#replies} is.
+        #
+        # @param _ask [String] the ask or query the row refuses
+        # @param _row [Hash] `where:` the asked values it matches, `saying:` the refusal's words
+        # @return [true]
+        def refuses(_ask, **_row) = @declares_rows = true
+
         # Assembles the collected port, fields, defaults, secrets and plugin, judged by the adapter
         # language.
         #
@@ -96,7 +117,8 @@ module Hecks
           MetaValidator.call_adapter(
             Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets, defaults: @defaults,
                         answers: @answers, runs: @runs, provides: @provides, source_dir: @source_dir,
-                        stays_inside: @stays_inside == true, imports: @imports, hosts: @hosts)
+                        stays_inside: @stays_inside == true, imports: @imports, hosts: @hosts,
+                        replies: declared_rows, source_path: @source_path)
           )
         end
 
@@ -108,10 +130,16 @@ module Hecks
         # @raise [Bluebook::DSL::Malformed] if the adapter language refuses the declaration, or
         #   the block uses a word the `Adapter` grammar does not admit
         def self.build(name, &block)
-          builder = new(name, source_dir: block && File.dirname(block.source_location.first))
+          source = block&.source_location&.first
+          builder = new(name, source_dir: source && File.dirname(source), source_path: source)
           builder.instance_eval(&block) if block
           builder.build
         end
+
+        private
+
+        # The rows the Rust parser reads from this adapter's file, when the body declared any.
+        def declared_rows = @declares_rows ? DeclaredRows.read(@source_path, @name) : nil
       end
     end
   end

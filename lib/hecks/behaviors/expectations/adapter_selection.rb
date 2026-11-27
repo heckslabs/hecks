@@ -11,6 +11,10 @@ module Hecks
       #
       # A project opts in by having a `behavior_adapters/` directory beside the suite or by any of
       # its adapters saying `stays_inside`; until then its suites keep the loader's own choice.
+      #
+      # **Variants.** Two stand-ins beside a suite for the same port are rivals, not a conflict:
+      # the suite is the port's contract, and `variants` boots it once per rival, so each adapter
+      # is held to the same tests.
       module AdapterSelection
         STAND_INS = "behavior_adapters".freeze
         PROJECT_PATTERNS = %w[*.adapter */*.adapter */*/*.adapter].freeze
@@ -23,21 +27,56 @@ module Hecks
 
         # @param suite_path [String] the `.behaviors` file
         # @param files [Array<String>] the suite's `loads`, absolute
+        # @param picked [Array<String>, nil] one stand-in per rivalled port, as `variants` picks
+        #   them; nil boots the suite as if it had no rivals
         # @return [Array<String>, nil] the `.adapter` files to boot, absolute, in a stable
         #   order; nil when the suite's project has not opted in
-        def call(suite_path, files)
+        def call(suite_path, files, picked = nil)
+          key = [suite_path, files, picked]
           SELECTIONS_LOCK.synchronize do
-            SELECTIONS.fetch([suite_path, files]) { SELECTIONS[[suite_path, files]] = choose(suite_path, files) }
+            SELECTIONS.fetch(key) { SELECTIONS[key] = choose(suite_path, files, picked) }
           end
         end
 
-        def choose(suite_path, files)
+        # Every way the suite boots: once per pick of one stand-in for each port that has
+        # rivals beside the suite, or once when none has.
+        #
+        # @param suite_path [String] the `.behaviors` file
+        # @param files [Array<String>] the suite's `loads`, absolute
+        # @return [Array<Array(String, Array<String>)>] each variant's label, naming the adapters
+        #   it picked, and its `.adapter` files; a single variant labelled nil when there are no
+        #   rivals
+        def variants(suite_path, files)
+          contested = rivals(suite_path).values
+          return [[nil, call(suite_path, files)]] if contested.empty?
+
+          contested.first.product(*contested.drop(1)).map { |picked| [label(picked), call(suite_path, files, picked)] }
+        end
+
+        # @return [Hash{String => Array<String>}] the stand-ins beside the suite, by port, for each
+        #   port that more than one of them answers
+        def rivals(suite_path)
+          by_port = stand_ins(suite_path).group_by { |file| ports_of(file) }
+          by_port.select { |ports, rows| ports.size == 1 && rows.size > 1 }
+        end
+
+        # @return [String] the names of the adapters a variant picked
+        def label(picked) = picked.flat_map { |file| declarations(file).map(&:name) }.join(" and ")
+
+        def choose(suite_path, files, picked)
           project = project_adapters(files)
           return nil unless opted_in?(suite_path, project)
 
-          chosen = files.select { |file| file.end_with?(".adapter") } + stand_ins(suite_path)
+          chosen = files.select { |file| file.end_with?(".adapter") } + picked_stand_ins(suite_path, picked)
           claimed = chosen.flat_map { |file| ports_of(file) }
           (chosen + project.select { |file| inside_and_unclaimed?(file, claimed) }).uniq.sort
+        end
+
+        # @return [Array<String>] the stand-ins a variant boots: all but the rivals it did not pick
+        def picked_stand_ins(suite_path, picked)
+          return stand_ins(suite_path) unless picked
+
+          stand_ins(suite_path) - (rivals(suite_path).values.flatten - picked)
         end
 
         def opted_in?(suite_path, project)

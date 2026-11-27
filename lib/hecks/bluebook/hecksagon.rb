@@ -21,8 +21,11 @@ module Hecks
     #
     # `provides` names what it can do beyond its port's contract (`"set_transform"`), and
     # `stays_inside` is true when it reaches nothing outside the process and checkout (ADR 0171).
+    #
+    # A declared adapter answers its port from `replies`, rows `hecks-parse` reads from its file
+    # (`source_path`) and answers; it runs no code, so it always stays inside (ADR 0238).
     Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, :answers, :runs, :provides, :source_dir,
-                         :stays_inside, :imports, :hosts, keyword_init: true) do
+                         :stays_inside, :imports, :hosts, :replies, :source_path, keyword_init: true) do
       def declares?(field) = all_fields.include?(field.to_sym)
 
       def all_fields = (fields || []) + (secrets || [])
@@ -40,8 +43,18 @@ module Hecks
       # @return [Boolean] whether this adapter declares `provides` for it
       def provides?(capability) = capabilities.include?(capability.to_s)
 
-      # @return [Boolean] whether this adapter says it stays inside
-      def stays_inside? = stays_inside == true
+      # @return [Boolean] whether this adapter says it stays inside, or is declared and so cannot
+      #   reach anything
+      def stays_inside? = stays_inside == true || declared?
+
+      # @return [Array<Hash{String => Object}>] the `replies` and `refuses` rows, empty when none
+      def declared_replies = replies || []
+
+      # @return [Boolean] whether this adapter answers its port from declared rows, with no code
+      def declared? = !declared_replies.empty?
+
+      # @return [Array<String>] each ask or query the rows answer, once, in first-row order
+      def replied_asks = declared_replies.map { |row| row.fetch("ask") }.uniq
 
       # @return [Boolean] whether this adapter is a wasm plugin: it runs a module and names no port
       def plugin? = !runs.nil? && port.nil?

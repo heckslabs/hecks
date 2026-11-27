@@ -18,6 +18,9 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
   # A component adapter (a port and `runs`) adds its module, then the imports and hosts granted.
   COMPONENT_PARITY_KEYS = (PLUGIN_PARITY_KEYS + %w[imports hosts]).freeze unless defined?(COMPONENT_PARITY_KEYS)
 
+  # A declared adapter adds the rows it answers its port from (ADR 0238).
+  DECLARED_PARITY_KEYS = (ADAPTER_PARITY_KEYS + %w[replies]).freeze unless defined?(DECLARED_PARITY_KEYS)
+
   def exported(path) = Hecks::Projector::Exporter.adapters_in_files([path])
 
   def exported_json(path) = Hecks::Projector::Exporter.adapters_json([path])
@@ -42,7 +45,7 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
 
   it "exports every real adapter file in the contract's keys, order and types" do
     shapes = ADAPTER_PARITY_FILES.flat_map { |path| exported(path).map { |adapter| contract_shape(adapter) } }
-    extras = [PLUGIN_PARITY_KEYS, PROVIDING_PARITY_KEYS, STAYING_PARITY_KEYS, COMPONENT_PARITY_KEYS]
+    extras = [PLUGIN_PARITY_KEYS, PROVIDING_PARITY_KEYS, STAYING_PARITY_KEYS, COMPONENT_PARITY_KEYS, DECLARED_PARITY_KEYS]
              .map { |keys| [keys, true, true, true, true] }
     expect(shapes.uniq - extras).to eq([[ADAPTER_PARITY_KEYS, true, true, true, true]])
   end

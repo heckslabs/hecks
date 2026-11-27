@@ -220,3 +220,32 @@ runtime.registry.adapters["reference_mailer"].granted_imports  # => ["clock", "h
 runtime.registry.adapters["reference_mailer"].granted_hosts    # => ["api.mailer.example"]
 ```
 
+## replies
+
+<!-- generated:begin word=replies -->
+`replies ask, where:, with:, echoing:` — fills `replies`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | ask |
+| `where:` | literal | false | where |
+| `with:` | literal | false | answer |
+| `echoing:` | literal | false | echoing |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
+## refuses
+
+<!-- generated:begin word=refuses -->
+`refuses ask, where:, saying:` — fills `replies`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | ask |
+| `where:` | literal | false | where |
+| `saying:` | text | true | saying |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+

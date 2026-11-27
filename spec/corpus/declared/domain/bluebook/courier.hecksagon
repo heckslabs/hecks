@@ -1,0 +1,16 @@
+Hecks.hecksagon "Courier" do
+  Courier::Parcel.persisted_by("Memory")
+
+  # The one way out: the carrier is asked to collect, and answers the rate card. Which adapter
+  # answers is declared beside whatever boots the domain, never here.
+  Courier::Parcel.port "Carrier" do
+    asks "Collect", to: Parcel do
+      attribute :ref,         Ref
+      attribute :destination, Place
+      answers "CarrierCollected"
+      refuses "CarrierRefused"
+    end
+
+    answers_query "Rates"
+  end
+end
