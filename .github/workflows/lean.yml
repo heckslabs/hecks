@@ -1,0 +1,35 @@
+name: Lean proofs
+
+# Builds proofs/lean on its pinned toolchain and refuses sorry, admit and declared axioms.
+# Not part of the required-status-check attestation yet.
+
+on:
+  pull_request:
+    paths:
+      - "proofs/lean/**"
+      - ".github/workflows/lean.yml"
+  push:
+    branches: [main, proofs-main]
+    paths:
+      - "proofs/lean/**"
+
+jobs:
+  lake_build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned Lean toolchain
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Build
+        working-directory: proofs/lean
+        run: lake build
+      - name: No sorry, admit or declared axiom
+        working-directory: proofs/lean
+        run: |
+          if grep -n -E '(^|[^A-Za-z_])(sorry|admit)([^A-Za-z_]|$)|^[[:space:]]*axiom[[:space:]]' *.lean; then
+            echo "sorry, admit or an axiom declaration found" >&2
+            exit 1
+          fi

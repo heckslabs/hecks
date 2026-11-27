@@ -1,0 +1,7 @@
+name = "hecks_proofs"
+defaultTargets = ["HecksProofs"]
+
+[[lean_lib]]
+name = "HecksProofs"
+srcDir = "."
+roots = ["RelationshipExperiment", "OneFire", "CrystalExperiment", "AuthorityRelationship", "ExecutableRelationship", "RealizationBoundary", "PreStateEffects"]
