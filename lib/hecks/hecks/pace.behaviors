@@ -10,4 +10,10 @@ Hecks.behaviors "Pace" do
     input run: "pace-1"
     expect count: 1
   end
+
+  test "Count answers one reading where the world keeps no tap" do
+    tests "Count", on: "Pace", kind: :query
+    input run: "pace-1", names: "AgentCheckRequested"
+    expect count: 1
+  end
 end
