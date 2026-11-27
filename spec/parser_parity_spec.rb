@@ -71,9 +71,14 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   def self.domain_member_files(member)
     directory = Hecks::Corpus::DIRECTORY_KINDS.key?(member.kind)
     bluebooks = directory ? bluebooks_in(member.path) : [member.path]
-    declaration_name = bluebook_name_of(bluebooks) or raise "#{member.path} has no 'Hecks.bluebook \"Name\"' header"
-    own = bluebooks.select { |path| bluebook_name_of(path) == declaration_name }
+    declaration_name, own = own_bluebooks(member.path, bluebooks)
     [declaration_name, own + [hecksagon_in(directory ? member.path : File.dirname(member.path))].compact]
+  end
+
+  # The bluebook name the first of `bluebooks` declares, and every one of them declaring it.
+  def self.own_bluebooks(path, bluebooks)
+    declaration_name = bluebook_name_of(bluebooks) or raise "#{path} has no 'Hecks.bluebook \"Name\"' header"
+    [declaration_name, bluebooks.select { |candidate| bluebook_name_of(candidate) == declaration_name }]
   end
 
   PARITY_CORPUS_MEMBERS = (
