@@ -13,7 +13,7 @@ module Hecks
       # It is spawned, not forked: the caller holds live `PostgresEra` connections, and fork
       # duplicates their file descriptors and SSL state, corrupting them when a child exits.
       #
-      #   ruby -Ilib -e '...Racer.call(ARGV)' -- <domain-path> <database> <schema> <verb> <args-json>
+      #   ruby -Ilib -e '...Racer.call(ARGV, out: $stdout)' -- <domain-path> <database> <schema> <verb> <args-json>
       #
       # `Racing#racer_argv` builds that line.
       #
@@ -25,10 +25,10 @@ module Hecks
         # Dispatches the one step and prints how it went.
         #
         # @param argv [Array<String>] the domain path, database, schema, verb and args JSON
-        # @param out [IO] where the outcome goes
+        # @param out [IO] where the outcome goes: the caller's standard output
         # @return [Integer] 0 always
         # @raise [SystemExit] with the usage line when an argument is missing
-        def self.call(argv, out: $stdout)
+        def self.call(argv, out:)
           domain_path, database, schema, verb, args_json = argv
           abort USAGE unless domain_path && database && schema && verb && args_json
 

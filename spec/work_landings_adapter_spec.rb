@@ -43,14 +43,20 @@ RSpec.describe Hecks::Adapters::WorkLandings do
     expect(adapter.check_landing(work: "fix-the-thing")).to eq(landing: { value: landed })
   end
 
-  it "answers a merge on main that names the branch, after the branch is gone" do
-    git("checkout", "-qb", "fix-the-thing")
+  # Merges a branch with one commit into a main that has moved on, as a pull request does, and
+  # deletes the branch.
+  def merge_gone_branch(branch)
+    git("checkout", "-qb", branch)
     commit("e")
     git("checkout", "-q", "main")
     commit("f")
-    git("-c", "user.name=t", "-c", "user.email=t@example.com", "merge", "-q", "--no-ff", "fix-the-thing",
-        "-m", "Merge pull request #7 from acme/fix-the-thing")
-    git("branch", "-qD", "fix-the-thing")
+    git("-c", "user.name=t", "-c", "user.email=t@example.com", "merge", "-q", "--no-ff", branch,
+        "-m", "Merge pull request #7 from acme/#{branch}")
+    git("branch", "-qD", branch)
+  end
+
+  it "answers a merge on main that names the branch, after the branch is gone" do
+    merge_gone_branch("fix-the-thing")
     expect(adapter.check_landing(work: "fix-the-thing")).to eq(landing: { value: git("rev-parse", "main") })
   end
 

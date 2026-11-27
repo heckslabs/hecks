@@ -16,6 +16,8 @@ module Hecks
       # It rides the `SourceTree` port as the gate and the spec batches do. Recording never refuses
       # a run: a log it cannot write turns into one line saying so.
       class Trials
+        # `uptime`'s load figure (macOS): the first number after `load average(s):`.
+        UPTIME_LOAD = /load averages?:\s*([\d.,]+)/
         # @param ledger [Ledger] where the rows are kept
         # @param clock [#call] answers the time
         # @param load [#call, nil] answers the one-minute load average; the machine's when nil
@@ -76,7 +78,7 @@ module Hecks
         def machine_load
           return Float(File.read("/proc/loadavg").split.first) if File.readable?("/proc/loadavg")
 
-          figure = IO.popen(["uptime"], &:read)[/load averages?:\s*([\d.,]+)/, 1]
+          figure = IO.popen(["uptime"], &:read)[UPTIME_LOAD, 1]
           figure && Float(figure.delete_suffix(",").tr(",", "."))
         rescue StandardError
           nil

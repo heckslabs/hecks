@@ -13,12 +13,12 @@ module GitHistoryReads
   SHELLED = /\bgit (?:-C \S+ )?(?:#{SUBCOMMANDS.join("|")})\b/
   GIT_WORD = /\bgit\b/i
   ALLOWED = {
-    "codebase/bluebook_extraction.rb"         => "merge-base picks the diff base of the bluebooks a branch changed: ancestry",
-    "codebase/impacted_specs.rb"              => "merge-base picks the diff base of a branch: ancestry is git",
-    "codebase/release_facts.rb"               => "trailer of the commit that set the version: message text is git",
-    "doctor_reading.rb"                       => "commits main is ahead of origin/main: the remote's state is git",
-    "git_refs.rb"                             => "ancestry, first-parent order and commit times: the ledger has no parentage",
-    "work_landings.rb"                        => "the commit on main whose branch or message names a work item: ancestry"
+    "codebase/bluebook_extraction.rb" => "merge-base picks the diff base of the bluebooks a branch changed: ancestry",
+    "codebase/impacted_specs.rb"      => "merge-base picks the diff base of a branch: ancestry is git",
+    "codebase/release_facts.rb"       => "trailer of the commit that set the version: message text is git",
+    "doctor_reading.rb"               => "commits main is ahead of origin/main: the remote's state is git",
+    "git_refs.rb"                     => "ancestry, first-parent order and commit times: the ledger has no parentage",
+    "work_landings.rb"                => "the commit on main whose branch or message names a work item: ancestry"
   }.freeze
 
   module_function

@@ -35,7 +35,7 @@ module Hecks
         def shares(key, area)
           @started.reject { |item| item[:key] == key }.flat_map do |item|
             SharedSections.between(area, item[:area], root: REPOSITORY)
-                                       .map { |share| { with: item[:key], path: share.path, theirs: share.theirs } }
+                          .map { |share| { with: item[:key], path: share.path, theirs: share.theirs } }
           end
         end
       end

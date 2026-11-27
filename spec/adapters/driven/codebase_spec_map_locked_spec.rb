@@ -41,8 +41,8 @@ class LockedPackageTree
   def lock
     digest = Hecks::EmbryonautBluebook::Lock.digest_of(File.join(root, PACKAGE, "bluebook"))
     add("#{PACKAGE}/bluebook.lock", Hecks::EmbryonautBluebook::Lock.new(package: "delivery", version: "0.1.0",
-                                                                         tag: "delivery-v0.1.0", commit: "0" * 40,
-                                                                         digest: digest, shape: []).to_s)
+                                                                        tag: "delivery-v0.1.0", commit: "0" * 40,
+                                                                        digest: digest, shape: []).to_s)
   end
 end
 

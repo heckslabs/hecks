@@ -43,7 +43,6 @@ RSpec.describe Hecks::Adapters::Driving::Resident::Title do
     it "holds the worktree's path, which a run's signs of life are read from" do
       expect(described_class.line(script, %w[Work.undone])).to include(root)
     end
-
   end
 
   describe "naming a process" do

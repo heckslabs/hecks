@@ -11,12 +11,12 @@ RSpec.describe "cross-call kept rows" do
   end
 
   {
-    %w[Hecks Operation]       => "both",
-    %w[Hecks ModelCheckRun]   => "both",
-    %w[Tickets Finding]       => "main",
-    %w[Tickets Work]          => "main",
-    %w[Tickets Sprint]        => "main",
-    %w[Protocols Agreement]   => "main"
+    %w[Hecks Operation]     => "both",
+    %w[Hecks ModelCheckRun] => "both",
+    %w[Tickets Finding]     => "main",
+    %w[Tickets Work]        => "main",
+    %w[Tickets Sprint]      => "main",
+    %w[Protocols Agreement] => "main"
   }.each do |(domain, aggregate), checkout|
     it "keeps #{domain}::#{aggregate} for the #{checkout} checkout, with a reason", :aggregate_failures do
       row = Hecks::Adapters::KeptRows.find(rows, domain, aggregate)

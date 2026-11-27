@@ -52,7 +52,7 @@ module Hecks
         # The argv that runs one racer ({Racer}) under Bundler, from `root`'s `lib/`.
         def racer_argv(root, *args)
           code = "require #{"hecks/fuzzing/concurrent_dispatch/racer".inspect}; " \
-                 "exit(Hecks::Fuzzing::ConcurrentDispatch::Racer.call(ARGV))"
+                 "exit(Hecks::Fuzzing::ConcurrentDispatch::Racer.call(ARGV, out: $stdout))"
           ["bundle", "exec", "ruby", "-I", File.join(root, "lib"), "-e", code, "--", *args]
         end
 

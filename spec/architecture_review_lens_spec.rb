@@ -27,7 +27,6 @@ RSpec.describe "the architecture review rubric" do
     expect(paths.reject { |path| File.exist?(File.join(root, path)) }).to be_empty
   end
 
-
   it "gives every smell the seeded bad plans need" do
     smells = ["policies chained", "primitive", "polling", "hidden in a command", "no port `asks`",
               "conditional on domain meaning"]

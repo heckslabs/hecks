@@ -141,9 +141,9 @@ RSpec.describe Hecks::CommandNames do
 
   describe "the places a Ruby string or a script names a launcher command" do
     {
-      "lib/hecks/tools/hint.rb"   => "warn \"run `%<l>s gone_command` to fix\"\n",
-      "qa/run.sh"                 => "%<l>s gone_command --wait\n",
-      "scripts/go.sh"             => "%<l>s gone_command\n"
+      "lib/hecks/tools/hint.rb" => "warn \"run `%<l>s gone_command` to fix\"\n",
+      "qa/run.sh"               => "%<l>s gone_command --wait\n",
+      "scripts/go.sh"           => "%<l>s gone_command\n"
     }.each do |path, template|
       it "goes red for a nonexistent command in #{path}, naming file:line" do
         write(path, format(template, l: launcher))

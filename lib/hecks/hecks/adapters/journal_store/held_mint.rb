@@ -39,7 +39,7 @@ module Hecks
           return { held: 0 } if resolution.status == "unheld"
 
           AutoMint.facts(directory).merge(held: resolution.held_count, next_era: resolution.latest[:ordinal] + 1,
-                                            status: resolution.status)
+                                          status: resolution.status)
         end
 
         # Mints the era through the one-mint era check, against the Hecks domain.
