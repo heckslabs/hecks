@@ -1,0 +1,54 @@
+Hecks.bluebook "Refusal" do
+  vision "A command the domain refused leaves a fact, so a policy can answer what was turned away."
+  supporting
+
+  # Only a caller's own refused command is recorded; never a reaction, a dry run or a refused Record.
+  aggregate "CommandRefusal" do
+    description "One command a caller issued that the domain refused: which command, the rule that said no, the names of the arguments it carried and who issued it."
+
+    identified_by :refusal
+
+    attribute :refusal,   RefusalKey
+    attribute :command,   CommandName
+    attribute :given,     RuleText
+    attribute :arguments, ArgumentNames, default: { value: "" }
+    attribute :issuer,    IssuerName, default: { value: "" }
+
+    value_object "RefusalKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The verb as dispatched, such as `Messaging::Message.Send`.
+    value_object "CommandName" do
+      attribute :value, String, matches: :present
+    end
+
+    # The text of the rule that refused: a given, a lifecycle gate or another refusal's message.
+    value_object "RuleText" do
+      attribute :value, String, matches: :present
+    end
+
+    # The argument names, comma-separated: never their values, which may be secrets or long bodies.
+    value_object "ArgumentNames" do
+      attribute :value, String, default: ""
+    end
+
+    # The caller's actor, or its role when it has no actor; empty when none was bound.
+    value_object "IssuerName" do
+      attribute :value, String, default: ""
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record that a command was refused, for a policy to answer"
+
+      attribute :refusal,   RefusalKey, sets: true
+      attribute :command,   CommandName, sets: true
+      attribute :given,     RuleText, sets: true
+      attribute :arguments, ArgumentNames, default: { value: "" }, sets: true
+      attribute :issuer,    IssuerName, default: { value: "" }, sets: true
+
+      emits "CommandRefused"
+    end
+  end
+end

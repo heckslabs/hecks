@@ -96,7 +96,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
                      PARITY_DOMAIN_MEMBERS.map(&:first) -
                      %w[pizzas identity governance console_settings expression translation banking compliance
                         compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo
-                        privacy change event_delivery messaging order_deadline onboarding command_defaults multi_role
+                        privacy change event_delivery messaging refusal order_deadline onboarding command_defaults multi_role
                         parent_visibility command_list_argument list_field_shape copy_from_state assurance
                         bounded_step] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
@@ -121,7 +121,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     # Framework bluebooks stand alone: no `.hecksagon`, so no `attaches` resolution is
     # involved. `compliance` is keyed through `framework_stem` because `examples/compliance`
     # has the same bare stem.
-    %w[identity governance console_settings compliance privacy change event_delivery messaging].to_h do |stem|
+    %w[identity governance console_settings compliance privacy change event_delivery messaging refusal].to_h do |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecks/framework/bluebook/#{stem}.bluebook"
       declaration_name = bluebook_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"

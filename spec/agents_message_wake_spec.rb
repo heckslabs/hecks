@@ -50,4 +50,16 @@ RSpec.describe "the Agents message wake" do
     send_message(to: "orchestrator")
     expect(resumed.size).to eq(1)
   end
+
+  it "wakes the seat only after the message has landed" do
+    send_message(to: "orchestrator")
+    expect(recorded.index("MessageSent")).to be < recorded.index("MessageWoken")
+  end
+
+  it "wakes nobody for a message declined or held, only for one that landed", :aggregate_failures do
+    send_message(to: "nobody")
+    send_message(key: "m2", to: "miette")
+    expect(recorded).not_to include("MessageWoken")
+    expect(resumed).to be_empty
+  end
 end
