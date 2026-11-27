@@ -28,6 +28,7 @@ module Hecks
         def confirmed_lines(plan, held)
           report = FillReport.new(launch(plan, held))
           PlannedCache.clear!
+          @live_holders = nil
           [header(plan, report.tally(plan.chosen.size) + stop_clause(plan, held))] + report.lines + waiting(plan)
         end
 

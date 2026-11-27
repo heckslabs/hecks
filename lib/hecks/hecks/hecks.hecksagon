@@ -372,6 +372,7 @@ Hecks.hecksagon "Hecks" do
   # finished per 1,000 events. The adapter reads the log as the `Feed` query does and boots no domain.
   Hecks::Pace.port "Pacing" do
     answers_query "Read"
+    answers_query "Count"
   end
 
   Hecks::SendTrain.port "Alerts" do
@@ -861,6 +862,7 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Busiest"
+    answers_query "CpuByPurpose"
   end
 
   # The outside an agent run reaches: it finds the directory and the agents, starts the background

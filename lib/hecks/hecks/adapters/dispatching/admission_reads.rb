@@ -53,7 +53,7 @@ module Hecks
 
         # @return [String] the started count against the cap, or the admission's own clause
         def cap_clause
-          started = work_items.started.size
+          started = live_holders.size
           admitting ? "started #{started}; #{admitting.clause}" : "started #{started} of cap #{machine.cap}"
         end
 

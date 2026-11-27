@@ -1,0 +1,7 @@
+{"note":"A coder that asks the orchestrator, from habit; its question reaches the scrum master first, which answers it."}
+{"expect":"user","contains":"You are the coder"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-coder-routes","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"c-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"orchestrator","text":"Does Message.Post refuse a message with no text?"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to orchestrator"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Asked the orchestrator."}}
+{"expect":"user","contains":"from scrum-master, about coder-1"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Answered; going on."}}

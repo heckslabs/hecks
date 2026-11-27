@@ -34,8 +34,45 @@ Hecks.behaviors "Harness" do
   test "a message posted with no supervisor running is undeliverable" do
     tests "Post", on: "Message"
     input key: { value: "reviewer-1" }, sender: { value: "reviewer" }, addressee: { value: "coder" },
-          text: { value: "Does post! refuse zero?" }, sent_at: { value: 100 }
+          text: { value: "Does post! refuse zero?" }, sent_at: { value: 100 }, about: nil
     expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], status: "undeliverable"
+  end
+
+  test "a message about another, sent with no supervisor running, is undeliverable" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-1" }, sender: { value: "coder" }, addressee: { value: "reviewer" },
+          text: { value: "It refuses zero." }, sent_at: { value: 200 }, about: { value: "reviewer-1" }
+    expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], status: "undeliverable"
+  end
+
+  # With no supervisor a coder's question goes on to the lead at once. Its reactions reach the
+  # depth limit, where the two behaviors runners differ, so these check where it ended; the scrum
+  # master spec checks each event in order.
+  test "a coder's question for the orchestrator is routed to the scrum master, and handed on when it is not reached" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-1" }, sender: { value: "coder" }, addressee: { value: "orchestrator" },
+          text: { value: "May I land before the freeze lifts?" }, sent_at: { value: 300 }, about: nil
+    expect hold: "handed-on", addressee: "orchestrator"
+  end
+
+  test "a coder's question for the scrum master is held, and handed on when it is not reached" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-1" }, sender: { value: "coder" }, addressee: { value: "scrum-master" },
+          text: { value: "May I land before the freeze lifts?" }, sent_at: { value: 300 }, about: nil
+    expect hold: "handed-on", addressee: "orchestrator"
+  end
+
+  test "a coder's answer to the orchestrator goes straight to it" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-2" }, sender: { value: "coder" }, addressee: { value: "orchestrator" },
+          text: { value: "Done; the branch is green." }, sent_at: { value: 400 }, about: { value: "orchestrator-1" }
+    expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], hold: "none", addressee: "orchestrator"
+  end
+
+  test "a tick of the clock is recorded at its moment" do
+    tests "Tick", on: "Clock"
+    input reading: { value: "tick-60000" }, now: { value: 60_000 }
+    expect emits: %w[ClockTicked]
   end
 
   test "a message with no text is not posted" do

@@ -77,6 +77,7 @@ One merge window: opened to let a train merge without competing work, closed whe
 
 One reading of the machine, and the crossings of a mark that it heard.
 
+- `hecks Machine.cpu_by_purpose`: The CPU each purpose used per day, from the stored readings' consumers: the mean percent of one core over the day's readings, per purpose. Read-only.
 - `hecks Machine.busiest`: Which process classes use the CPU and whose child they are: each class's count, summed CPU percentage and the background session whose shell owns it, busiest first. Read-only: it stops no process and no session.
 
 ### Overload

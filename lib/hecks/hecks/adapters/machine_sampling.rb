@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require "time"
 require_relative "console_capture"
 require_relative "machine_sampling/marks"
@@ -9,6 +10,8 @@ require_relative "machine_sampling/history"
 require_relative "machine_sampling/process_classes"
 require_relative "machine_sampling/cap_bounds"
 require_relative "machine_sampling/niceness"
+require_relative "machine_sampling/consumers"
+require_relative "machine_sampling/purpose_days"
 require_relative "dispatching/meter_switch"
 
 module Hecks
@@ -50,6 +53,7 @@ module Hecks
         @stamp = settings.fetch(:stamp, WALL)
         @processes = settings[:processes] || ProcessClasses.new
         @niceness = niceness_in(settings)
+        @consumers = consumers_in(settings)
         @meter = settings.fetch(:meter) { settings.key?(:readings) ? -> {} : -> { Dispatching::MeterSwitch.load } }
       end
 
@@ -58,6 +62,11 @@ module Hecks
       # @return [Array<Hash>] `name`, `count`, `cpu` and `session` per class, busiest first
       def busiest(**) = @processes.rows
 
+      # The `CpuByPurpose` query: the stored readings' CPU by purpose per day. Read-only.
+      #
+      # @return [Array<Hash>] `day`, `purpose`, `cpu` (mean percent of one core) and `readings`
+      def cpu_by_purpose(**) = PurposeDays.new(History.new(@registry).readings).rows
+
       # @param held [Hash] the `Machine` record
       # @return [Hash{Symbol => Object}] the gauges, the states they leave and stood in before, the
       #   owner's bounds on the moving work cap ({CapBounds}) and `taken_at`, when it was taken
@@ -65,7 +74,7 @@ module Hecks
       def read(**held)
         marks = Marks.of(@registry)
         refuse_a_repeat(marks[:interval], held)
-        gauges = metered(@readings.call).merge(niced: @niceness.call)
+        gauges = metered(@readings.call).merge(niced: @niceness.call, consumers: consumers)
         states = States.new(judged(gauges, marks), marks, History.new(@registry).states).to_h
         gauges.merge(states, CapBounds.of(@registry), taken_at: @stamp.call)
       end
@@ -83,6 +92,15 @@ module Hecks
 
       # The machine's gauges, the load read as the `load_average` dial names.
       def gauges = Readings.new(minutes: LoadAverage.minutes(@registry)).call
+
+      # The consumers as JSON text, nil beside stand-in `readings:` unless `consumers:` is given.
+      def consumers = @consumers.call&.then { |rows| JSON.generate(rows) }
+
+      def consumers_in(settings)
+        settings.fetch(:consumers) do
+          settings.key?(:readings) ? -> {} : -> { Consumers.new(ProcessClasses.table(Shell.new)).rows }
+        end
+      end
 
       # Counts the niced Claude processes from `ps`; beside stand-in `readings:` none is read.
       def niceness_in(settings)

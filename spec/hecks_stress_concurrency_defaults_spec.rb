@@ -28,7 +28,7 @@ RSpec.describe "stress_concurrency's declared defaults" do
     help = Hecks::Adapters::Driving::CliRunner.call(runtime: @runtime, argv: %w[test_suite_run.stress_concurrency --help],
                                                     program: "hecks").first
 
-    expect(help).to match(/runs\.value\s+Integer; defaults to 30; optional/)
-    expect(help).to match(/seed_start\.value\s+Integer; defaults to 1; optional/)
+    expect(help).to match(/runs\s+Integer; defaults to 30; optional/)
+    expect(help).to match(/seed_start\s+Integer; defaults to 1; optional/)
   end
 end

@@ -122,7 +122,7 @@ RSpec.describe "the installed hecks gem", :io do
     out, err, code = hecks("build.build_wasm!", "--help")
 
     expect(code).to eq(0), err
-    expect(out).to include("dispatches Hecks::Build.BuildWasm", "domain.value")
+    expect(out).to include("dispatches Hecks::Build.BuildWasm", "domain=…")
   end
 
   it "reaches the wasm toolchain for `build_wasm`, and reports a missing target as a refusal", :aggregate_failures do
