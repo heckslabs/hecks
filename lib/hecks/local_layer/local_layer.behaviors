@@ -31,7 +31,7 @@ Hecks.behaviors "LocalLayer" do
           operation: { value: "AddMark" }, subject: { value: "Incident.status" }, detail: { value: "terminal" }
     setup "LocalLayer::Edit.Journal", run: { value: "edit-1" }
     input run: { value: "edit-1" }, batch: { value: "sprint-9" }
-    expect emits: ["EditGathered"], status: "batched"
+    expect emits: %w[EditGathered EditJournalRefused], status: "batched"
   end
 
   # No journal adapter is bound in a behaviors boot, so the port answers EditJournalRefused.
@@ -54,27 +54,42 @@ Hecks.behaviors "LocalLayer" do
     tests "Seal", on: "Batch"
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
-    input run: { value: "sprint-9" }, edits: { value: 0 }
+    input run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 0 }
     expect refused: "edit"
   end
 
-  test "checks that did not pass keep the batch from being checked" do
-    tests "RecordChecks", on: "Batch"
+  # The stand-in in behavior_adapters/ answers the Previewing port: it diffs every target to "cd34"
+  # and passes every check, except that it cannot read lib/missing.bluebook and fails the checks
+  # of lib/broken.bluebook.
+  test "a sealed batch is shown as a diff and checked" do
+    tests "Seal", on: "Batch"
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
-    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
-    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
-    input run: { value: "sprint-9" }, outcome: { value: "failed" }
-    expect refused: "checks"
+    input run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 2 }
+    expect emits: %w[BatchSealed DiffComputed DiffShown ChecksPassed ChecksRecorded], status: "checked"
+  end
+
+  test "a batch whose diff cannot be made is refused" do
+    tests "Seal", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/missing.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    input run: { value: "sprint-9" }, target: { value: "lib/missing.bluebook" }, edits: { value: 2 }
+    expect emits: %w[BatchSealed DiffRefused BatchRefused], status: "refused"
+  end
+
+  test "a batch whose checks failed is refused" do
+    tests "Seal", on: "Batch"
+    setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/broken.bluebook" },
+          base: { value: "ab12" }, trigger: { value: "sprint_end" }
+    input run: { value: "sprint-9" }, target: { value: "lib/broken.bluebook" }, edits: { value: 2 }
+    expect emits: %w[BatchSealed DiffComputed DiffShown ChecksFailed BatchRefused], status: "refused"
   end
 
   test "a batch is applied only against the diff that was shown" do
     tests "Apply", on: "Batch"
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
-    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
-    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
-    setup "LocalLayer::Batch.RecordChecks", run: { value: "sprint-9" }, outcome: { value: "passed" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 2 }
     input run: { value: "sprint-9" }, confirmed: { value: "ee99" }, current: { value: "ab12" }
     expect refused: "diff"
   end
@@ -83,9 +98,7 @@ Hecks.behaviors "LocalLayer" do
     tests "Apply", on: "Batch"
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
-    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
-    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
-    setup "LocalLayer::Batch.RecordChecks", run: { value: "sprint-9" }, outcome: { value: "passed" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 2 }
     input run: { value: "sprint-9" }, confirmed: { value: "cd34" }, current: { value: "ff00" }
     expect refused: "moved"
   end
@@ -94,9 +107,7 @@ Hecks.behaviors "LocalLayer" do
     tests "Apply", on: "Batch"
     setup "LocalLayer::Batch.Open", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" },
           base: { value: "ab12" }, trigger: { value: "sprint_end" }
-    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, edits: { value: 2 }
-    setup "LocalLayer::Batch.ShowDiff", run: { value: "sprint-9" }, diff: { value: "cd34" }
-    setup "LocalLayer::Batch.RecordChecks", run: { value: "sprint-9" }, outcome: { value: "passed" }
+    setup "LocalLayer::Batch.Seal", run: { value: "sprint-9" }, target: { value: "lib/hecks/triage/triage.bluebook" }, edits: { value: 2 }
     input run: { value: "sprint-9" }, confirmed: { value: "cd34" }, current: { value: "ab12" }
     expect emits: ["BatchApplied"], status: "applied"
   end

@@ -1,0 +1,9 @@
+Hecks.adapter "Previewer" do
+  # A previewer declared in rows: every target diffs to cd34 and passes its checks, except the
+  # one that cannot be read and the one whose checks fail.
+  port "Previewing"
+  refuses "Diff", where: { target: "lib/missing.bluebook" }, saying: "the target cannot be read"
+  replies "Diff", echoing: [:run, :target], with: { diff: { value: "cd34" } }
+  refuses "Check", where: { target: "lib/broken.bluebook" }, saying: "the target does not load with the edits"
+  replies "Check", echoing: [:run, :target], with: { outcome: { value: "passed" } }
+end
