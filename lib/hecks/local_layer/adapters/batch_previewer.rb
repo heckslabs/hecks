@@ -8,6 +8,7 @@ require "open3"
 require "tmpdir"
 require_relative "edit_applier"
 require_relative "edit_journal"
+require_relative "batch_journal"
 
 module Hecks
   module Adapters
@@ -30,6 +31,16 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil)
         @journal = File.expand_path(settings[:path] || EditJournal::DEFAULT_PATH)
         @root = settings[:root] || root || Dir.pwd
+        @held = BatchJournal.new(@journal)
+      end
+
+      # @param run [Hash, String] the batch's name
+      # @param target [Hash, String] the bluebook the batch edits
+      # @return [Hash{Symbol => String}] `text:` the target with the edits, `digest:` of the diff
+      # @raise [Refused] when the target cannot be read or an edit does not apply
+      def preview(run:, target:)
+        text = unified(plain(run), plain(target))
+        { text: patched(plain(run), plain(target)), digest: Digest::SHA256.hexdigest(text)[0, 12], diff: text }
       end
 
       # @param run [Hash, String] the batch's name
@@ -37,9 +48,9 @@ module Hecks
       # @return [Hash{Symbol => Object}] the run and target with `diff:` the digest of the diff
       # @raise [Refused] when the target cannot be read or an edit does not apply
       def diff(run:, target:, **)
-        text = unified(plain(run), plain(target))
-        File.write(diff_file(plain(run)), text)
-        { run: run, target: target, diff: { value: Digest::SHA256.hexdigest(text)[0, 12] } }
+        shown = preview(run: run, target: target)
+        File.write(diff_file(plain(run)), shown[:diff])
+        { run: run, target: target, diff: { value: shown[:digest] } }
       end
 
       # @param diff [Hash, String] the digest of the diff shown
@@ -55,7 +66,7 @@ module Hecks
 
       private
 
-      def plain(value) = value.is_a?(Hash) ? value.fetch(:value, "").to_s : value.to_s
+      def plain(value) = BatchJournal.plain(value)
 
       def source(target)
         File.read(File.expand_path(target, @root))
@@ -64,25 +75,10 @@ module Hecks
       end
 
       def patched(run, target)
-        EditApplier.call(source(target), gathered(run, target))
-      rescue EditApplier::Unapplicable => e
+        EditApplier.call(source(target), @held.gathered(run, target))
+      rescue EditApplier::Unapplicable, BatchJournal::Unreadable => e
         raise Refused, e.message
       end
-
-      # The latest journal record of each edit, kept when it is in this batch and not withdrawn.
-      def gathered(run, target)
-        latest = File.foreach(@journal).map { |line| JSON.parse(line, symbolize_names: true) }
-                     .to_h { |held| [plain(held[:run]), held] }
-        latest.values.select { |held| in_batch?(held, run, target) }.map { |held| fields(held) }
-      rescue SystemCallError => e
-        raise Refused, "the journal cannot be read: #{e.message}"
-      end
-
-      def in_batch?(held, run, target)
-        plain(held[:batch]) == run && plain(held[:target]) == target && held[:status] != "withdrawn"
-      end
-
-      def fields(held) = held.slice(:operation, :subject, :detail).transform_values { |value| plain(value) }
 
       def unified(run, target)
         Dir.mktmpdir do |dir|

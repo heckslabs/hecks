@@ -32,6 +32,17 @@ Hecks.hecksagon "LocalLayer" do
       refuses "ChecksFailed"
     end
   end
+
+  # Write holds the batch's patched copy to the digest shown, then replaces the target with it.
+  LocalLayer::Batch.port "Applying" do
+    asks "Write", to: Batch do
+      attribute :run,    BatchRun
+      attribute :target, Target
+      attribute :diff,   Digest
+      answers "TargetWritten"
+      refuses "TargetWriteRefused"
+    end
+  end
 end
 
 Hecks.hecksagon "Governance" do

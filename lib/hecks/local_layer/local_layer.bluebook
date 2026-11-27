@@ -169,8 +169,8 @@ Hecks.bluebook "LocalLayer" do
       transition "ShowDiff"     => "diffed",  from: "sealed"
       transition "RecordChecks" => "checked", from: "diffed"
       transition "Apply"        => "applied", from: "checked"
-      transition "Refuse"       => "refused", from: %w[open sealed diffed checked]
-      mark :terminal, "applied", "refused"
+      transition "Refuse"       => "refused", from: %w[open sealed diffed checked applied]
+      mark :terminal, "refused"
     end
 
     command "Open" do
@@ -230,6 +230,7 @@ Hecks.bluebook "LocalLayer" do
 
       reference_to Batch
       attribute :run,       BatchRun
+      attribute :target,    Target
       attribute :confirmed, Digest
       attribute :current,   Digest
 
@@ -295,6 +296,17 @@ Hecks.bluebook "LocalLayer" do
 
   policy "RefuseWhenChecksFail" do
     on      "Batch.ChecksFailed"
+    trigger Batch::Refuse, with: { run: :run }
+  end
+
+  # An applied batch is written to its target, against the digest of the diff that was shown.
+  policy "WriteWhenApplied" do
+    on      "Batch.BatchApplied"
+    ask     :write, with: { run: :run, target: :target, diff: :confirmed }
+  end
+
+  policy "RefuseWhenWriteFails" do
+    on      "Batch.TargetWriteRefused"
     trigger Batch::Refuse, with: { run: :run }
   end
 
