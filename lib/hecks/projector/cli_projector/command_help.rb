@@ -31,18 +31,25 @@ module Hecks
         def command_help_invocation_lines(program, name, spec, asking)
           ask, qualified = asking
           invocation = ask ? [program, ("query" if qualified), name].compact.join(" ") : "#{program} #{name}!"
-          ["", "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}", ""]
+          ["", "  #{invocation}#{spelled(spec).map { |a| " #{a[:path]}=…" }.join}", ""]
         end
 
         # One line per argument: its path padded to the widest, then its notes.
         def command_help_argument_lines(spec)
           return [] if spec[:arguments].empty?
 
-          width = spec[:arguments].map { |a| a[:path].length }.max
-          lines = spec[:arguments].map do |argument|
+          shown = spelled(spec)
+          width = shown.map { |a| a[:path].length }.max
+          lines = shown.map do |argument|
             "  #{argument[:path].ljust(width)}  #{argument_notes(argument).join("; ")}"
           end
           lines << ""
+        end
+
+        # The command's arguments as the launcher takes them: a sole value-object leaf by its
+        # attribute name, counting the legacy arguments `Cli.expand` also sees.
+        def spelled(spec)
+          Spelling.spell(spec[:arguments], Array(spec[:legacy_arguments]))
         end
 
         # What an argument's line says about it: type, constraints, note, then `optional`.

@@ -177,6 +177,20 @@ RSpec.describe Hecks::Projector::CliProjector do
     end
   end
 
+  describe "Spelling" do
+    def paths(arguments, siblings = [])
+      described_class::Spelling.spell(arguments.map { |path| { path: path } }, siblings).map { |a| a[:path] }
+    end
+
+    it "keeps a many-field value object dotted and shortens a sole leaf" do
+      expect(paths(%w[to.value price.cents price.currency])).to eq(%w[to price.cents price.currency])
+    end
+
+    it "keeps the dotted path when a sibling the launcher accepts shares its attribute" do
+      expect(paths(["n.value"], [{ path: "n.other" }])).to eq(["n.value"])
+    end
+  end
+
   describe "the arguments" do
     # A CLI hands over strings, so the declared type decides what to send; guessing from the
     # value would send the Integer 99 for a version string of "99".
