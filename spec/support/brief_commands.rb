@@ -43,9 +43,11 @@ module BriefCommands
     found.map { |command| command.gsub(/<[^>]*>/, "x").sub(/\s+\.\.\.\z/, "").strip }.uniq
   end
 
+  # The stall wake is the Hecks domain's translation of its own `StallFiled` into Agents' command.
+  #
   # @return [Object] what the stall wake passes as its brief: a `StallFiled` field, not a sentence
   def stall_wake_brief
-    agents.policies.find { |policy| policy.name == "WakeWhenAStallIsFiled" }.with_spec.to_h.transform_keys(&:to_s)["brief"]
+    hecks.policies.find { |policy| policy.name == "WakeWhenAStallIsFiled" }.with_spec.to_h.transform_keys(&:to_s)["brief"]
   end
 
   private
