@@ -12,11 +12,11 @@ survives regeneration.
 - [Command](command.md) — 19 words
 - [Entity](entity.md) — 13 words
 - [Policy](policy.md) — 8 words
-- [ProcessManager](process_manager.md) — 5 words
-- [Handler](handler.md) — 1 word
-- [Dispatch](dispatch.md) — 1 word
 - [ReadModel](read_model.md) — 21 words
 - [Query](query.md) — 13 words
+- [Saga](saga.md) — 5 words
+- [Handler](handler.md) — 1 word
+- [Dispatch](dispatch.md) — 1 word
 - [ValueObject](value_object.md) — 4 words
 - [OneOf](one_of.md) — 1 word
 - [Type](type.md) — 2 words

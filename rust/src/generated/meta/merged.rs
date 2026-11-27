@@ -18,10 +18,9 @@ pub struct Store {
     pub command: crate::kernel::InMemoryRepository<crate::generated::meta::command::Command>,
     pub entity: crate::kernel::InMemoryRepository<crate::generated::meta::entity::Entity>,
     pub policy: crate::kernel::InMemoryRepository<crate::generated::meta::policy::Policy>,
-    pub processmanager:
-        crate::kernel::InMemoryRepository<crate::generated::meta::processmanager::ProcessManager>,
     pub readmodel: crate::kernel::InMemoryRepository<crate::generated::meta::readmodel::ReadModel>,
     pub query: crate::kernel::InMemoryRepository<crate::generated::meta::query::Query>,
+    pub saga: crate::kernel::InMemoryRepository<crate::generated::meta::saga::Saga>,
     pub valueobject:
         crate::kernel::InMemoryRepository<crate::generated::meta::valueobject::ValueObject>,
     pub syntax: crate::kernel::InMemoryRepository<crate::generated::meta::syntax::Syntax>,
@@ -37,9 +36,9 @@ impl Store {
             command: crate::kernel::InMemoryRepository::new(),
             entity: crate::kernel::InMemoryRepository::new(),
             policy: crate::kernel::InMemoryRepository::new(),
-            processmanager: crate::kernel::InMemoryRepository::new(),
             readmodel: crate::kernel::InMemoryRepository::new(),
             query: crate::kernel::InMemoryRepository::new(),
+            saga: crate::kernel::InMemoryRepository::new(),
             valueobject: crate::kernel::InMemoryRepository::new(),
             syntax: crate::kernel::InMemoryRepository::new(),
             vocabulary: crate::kernel::InMemoryRepository::new(),
@@ -71,12 +70,6 @@ impl Store {
         for (id, record) in self.policy.entries() {
             instances.push((format!("{}{}", "Bluebook::Policy#", id), record.to_json()));
         }
-        for (id, record) in self.processmanager.entries() {
-            instances.push((
-                format!("{}{}", "Bluebook::ProcessManager#", id),
-                record.to_json(),
-            ));
-        }
         for (id, record) in self.readmodel.entries() {
             instances.push((
                 format!("{}{}", "Bluebook::ReadModel#", id),
@@ -85,6 +78,9 @@ impl Store {
         }
         for (id, record) in self.query.entries() {
             instances.push((format!("{}{}", "Bluebook::Query#", id), record.to_json()));
+        }
+        for (id, record) in self.saga.entries() {
+            instances.push((format!("{}{}", "Bluebook::Saga#", id), record.to_json()));
         }
         for (id, record) in self.valueobject.entries() {
             instances.push((
@@ -149,13 +145,6 @@ impl Store {
                     );
                     continue;
                 }
-                if let Some(id) = key.strip_prefix("Bluebook::ProcessManager#") {
-                    store.processmanager.save(
-                        id,
-                        crate::generated::meta::processmanager::ProcessManager::from_json(value)?,
-                    );
-                    continue;
-                }
                 if let Some(id) = key.strip_prefix("Bluebook::ReadModel#") {
                     store.readmodel.save(
                         id,
@@ -167,6 +156,12 @@ impl Store {
                     store
                         .query
                         .save(id, crate::generated::meta::query::Query::from_json(value)?);
+                    continue;
+                }
+                if let Some(id) = key.strip_prefix("Bluebook::Saga#") {
+                    store
+                        .saga
+                        .save(id, crate::generated::meta::saga::Saga::from_json(value)?);
                     continue;
                 }
                 if let Some(id) = key.strip_prefix("Bluebook::ValueObject#") {
@@ -247,14 +242,6 @@ impl crate::kernel::AggregateScan for Store {
                     .collect(),
             );
         }
-        if aggregate == "Bluebook::ProcessManager" {
-            return Some(
-                self.processmanager
-                    .json_entries(|record| record.to_json())
-                    .map(|(id, json)| (id.clone(), json.clone()))
-                    .collect(),
-            );
-        }
         if aggregate == "Bluebook::ReadModel" {
             return Some(
                 self.readmodel
@@ -266,6 +253,14 @@ impl crate::kernel::AggregateScan for Store {
         if aggregate == "Bluebook::Query" {
             return Some(
                 self.query
+                    .json_entries(|record| record.to_json())
+                    .map(|(id, json)| (id.clone(), json.clone()))
+                    .collect(),
+            );
+        }
+        if aggregate == "Bluebook::Saga" {
+            return Some(
+                self.saga
                     .json_entries(|record| record.to_json())
                     .map(|(id, json)| (id.clone(), json.clone()))
                     .collect(),
@@ -333,12 +328,6 @@ impl crate::kernel::AggregateScan for Store {
             }
             return true;
         }
-        if aggregate == "Bluebook::ProcessManager" {
-            for (id, json) in self.processmanager.json_entries(|record| record.to_json()) {
-                visit(id, json);
-            }
-            return true;
-        }
         if aggregate == "Bluebook::ReadModel" {
             for (id, json) in self.readmodel.json_entries(|record| record.to_json()) {
                 visit(id, json);
@@ -347,6 +336,12 @@ impl crate::kernel::AggregateScan for Store {
         }
         if aggregate == "Bluebook::Query" {
             for (id, json) in self.query.json_entries(|record| record.to_json()) {
+                visit(id, json);
+            }
+            return true;
+        }
+        if aggregate == "Bluebook::Saga" {
+            for (id, json) in self.saga.json_entries(|record| record.to_json()) {
                 visit(id, json);
             }
             return true;
@@ -4758,168 +4753,6 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
-        "Bluebook::ProcessManager.Declare" => {
-            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-            let route = invocation.route();
-            let facts_json = invocation.facts();
-            let args = if invocation.explicit_with() {
-                let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::DeclareArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::DeclareArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::DeclareArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::DeclareArgs::from_json(v)?;
-args.name.check_invariants()?;
-args.correlates_by.check_invariants()?;
-args.starts_on.check_invariants()?;
-if let Some(v) = &args.ends_on { v.check_invariants()?; }
-if let Some(items) = &args.endings { for item in items { item.check_invariants()?; } }
-if let Some(items) = &args.resumes { for item in items { item.check_invariants()?; } }
-if let Some(v) = &args.position { v.check_invariants()?; }
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::processmanager::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?;
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                args
-            } else {
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::DeclareArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::DeclareArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::DeclareArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::DeclareArgs::from_json(v)?;
-args.name.check_invariants()?;
-args.correlates_by.check_invariants()?;
-args.starts_on.check_invariants()?;
-if let Some(v) = &args.ends_on { v.check_invariants()?; }
-if let Some(items) = &args.endings { for item in items { item.check_invariants()?; } }
-if let Some(items) = &args.resumes { for item in items { item.check_invariants()?; } }
-if let Some(v) = &args.position { v.check_invariants()?; }
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::processmanager::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?
-            };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-            let owner_deref = Vec::new();
-            let command_deref = crate::kernel::command_deref(
-                &*store,
-                REFERENCE_TABLE,
-                &[crate::kernel::ReferenceSpec {
-                    field: "bluebook",
-                    as_name: "bluebook",
-                    target: "Bluebook::Bluebook",
-                }],
-                &args,
-            );
-            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::meta::processmanager::dispatch_declare(
-                &mut store.processmanager,
-                route,
-                args,
-                mutations,
-                owner_deref,
-                command_deref,
-                tenant_boundary_check,
-            )
-            .map(|(_, events)| stamp_payload(events, &payload))
-        }
-        "Bluebook::ProcessManager.State" => {
-            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-            let route = invocation.route();
-            let facts_json = invocation.facts();
-            let args = if invocation.explicit_with() {
-                let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::StateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::StateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::StateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::StateArgs::from_json(v)?;
-args.name.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "State", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::StateArgs| Ok(()) })?;
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                args
-            } else {
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::StateArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::StateArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::StateArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::StateArgs::from_json(v)?;
-args.name.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "State", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::StateArgs| Ok(()) })?
-            };
-            let bluebook = crate::kernel::creation_identity_part(
-                facts_json,
-                "bluebook",
-                "State",
-                "ProcessManager",
-                "bluebook, name.value",
-            )?;
-            let name = crate::kernel::creation_identity_part(
-                facts_json,
-                "name.value",
-                "State",
-                "ProcessManager",
-                "bluebook, name.value",
-            )?;
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-            let owner_deref = Vec::new();
-            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::meta::processmanager::dispatch_state(
-                &mut store.processmanager,
-                route,
-                &bluebook,
-                &name,
-                args,
-                mutations,
-                owner_deref,
-                command_deref,
-                tenant_boundary_check,
-            )
-            .map(|(_, events)| stamp_payload(events, &payload))
-        }
-        "Bluebook::ProcessManager.Handler" => {
-            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-            let route = invocation.route();
-            let facts_json = invocation.facts();
-            let args = if invocation.explicit_with() {
-                let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::HandlerArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::HandlerArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::HandlerArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::HandlerArgs::from_json(v)?;
-args.event_type.check_invariants()?;
-args.from_state.check_invariants()?;
-args.to_state.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Handler", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::HandlerArgs| Ok(()) })?;
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                args
-            } else {
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::HandlerArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::HandlerArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::HandlerArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::HandlerArgs::from_json(v)?;
-args.event_type.check_invariants()?;
-args.from_state.check_invariants()?;
-args.to_state.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Handler", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::HandlerArgs| Ok(()) })?
-            };
-            let bluebook = crate::kernel::creation_identity_part(
-                facts_json,
-                "bluebook",
-                "Handler",
-                "ProcessManager",
-                "bluebook, name.value",
-            )?;
-            let name = crate::kernel::creation_identity_part(
-                facts_json,
-                "name.value",
-                "Handler",
-                "ProcessManager",
-                "bluebook, name.value",
-            )?;
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-            let owner_deref = Vec::new();
-            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::meta::processmanager::dispatch_handler(
-                &mut store.processmanager,
-                route,
-                &bluebook,
-                &name,
-                args,
-                mutations,
-                owner_deref,
-                command_deref,
-                tenant_boundary_check,
-            )
-            .map(|(_, events)| stamp_payload(events, &payload))
-        }
         "Bluebook::ReadModel.Declare" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
@@ -6864,6 +6697,371 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
+        "Bluebook::Saga.Declare" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::saga::DeclareArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::saga::DeclareArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::saga::DeclareArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::saga::DeclareArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            args.correlates_by.check_invariants()?;
+                            args.starts_on.check_invariants()?;
+                            if let Some(v) = &args.ends_on {
+                                v.check_invariants()?;
+                            }
+                            if let Some(items) = &args.endings {
+                                for item in items {
+                                    item.check_invariants()?;
+                                }
+                            }
+                            if let Some(items) = &args.resumes {
+                                for item in items {
+                                    item.check_invariants()?;
+                                }
+                            }
+                            if let Some(v) = &args.position {
+                                v.check_invariants()?;
+                            }
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Declare",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references: &|args: &crate::generated::meta::saga::DeclareArgs| {
+                            crate::kernel::check_reference(
+                                &store.bluebook,
+                                &args.bluebook,
+                                "Bluebook",
+                                "name",
+                            )?;
+                            Ok(())
+                        },
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::saga::DeclareArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::saga::DeclareArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::saga::DeclareArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::saga::DeclareArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            args.correlates_by.check_invariants()?;
+                            args.starts_on.check_invariants()?;
+                            if let Some(v) = &args.ends_on {
+                                v.check_invariants()?;
+                            }
+                            if let Some(items) = &args.endings {
+                                for item in items {
+                                    item.check_invariants()?;
+                                }
+                            }
+                            if let Some(items) = &args.resumes {
+                                for item in items {
+                                    item.check_invariants()?;
+                                }
+                            }
+                            if let Some(v) = &args.position {
+                                v.check_invariants()?;
+                            }
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Declare",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references: &|args: &crate::generated::meta::saga::DeclareArgs| {
+                            crate::kernel::check_reference(
+                                &store.bluebook,
+                                &args.bluebook,
+                                "Bluebook",
+                                "name",
+                            )?;
+                            Ok(())
+                        },
+                    },
+                )?
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref = Vec::new();
+            let command_deref = crate::kernel::command_deref(
+                &*store,
+                REFERENCE_TABLE,
+                &[crate::kernel::ReferenceSpec {
+                    field: "bluebook",
+                    as_name: "bluebook",
+                    target: "Bluebook::Bluebook",
+                }],
+                &args,
+            );
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::meta::saga::dispatch_declare(
+                &mut store.saga,
+                route,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Bluebook::Saga.State" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::meta::saga::StateArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::meta::saga::StateArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::meta::saga::StateArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::meta::saga::StateArgs::from_json(v)?;
+                                args.name.check_invariants()?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| {
+                                crate::kernel::check_role_via(
+                                    Some("Language"),
+                                    "State",
+                                    caller_role,
+                                    caller_actor_id,
+                                    &*store,
+                                    QUERIES,
+                                    AUTHORIZATION_ASSIGNMENTS,
+                                )?;
+                                Ok(())
+                            },
+                            resolve_references:
+                                &|_args: &crate::generated::meta::saga::StateArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::meta::saga::StateArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::meta::saga::StateArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::meta::saga::StateArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::meta::saga::StateArgs::from_json(v)?;
+                                args.name.check_invariants()?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| {
+                                crate::kernel::check_role_via(
+                                    Some("Language"),
+                                    "State",
+                                    caller_role,
+                                    caller_actor_id,
+                                    &*store,
+                                    QUERIES,
+                                    AUTHORIZATION_ASSIGNMENTS,
+                                )?;
+                                Ok(())
+                            },
+                            resolve_references:
+                                &|_args: &crate::generated::meta::saga::StateArgs| Ok(()),
+                        },
+                    )?
+                };
+            let bluebook = crate::kernel::creation_identity_part(
+                facts_json,
+                "bluebook",
+                "State",
+                "Saga",
+                "bluebook, name.value",
+            )?;
+            let name = crate::kernel::creation_identity_part(
+                facts_json,
+                "name.value",
+                "State",
+                "Saga",
+                "bluebook, name.value",
+            )?;
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref = Vec::new();
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::meta::saga::dispatch_state(
+                &mut store.saga,
+                route,
+                &bluebook,
+                &name,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Bluebook::Saga.Handler" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::saga::HandlerArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::saga::HandlerArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::saga::HandlerArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::saga::HandlerArgs::from_json(v)?;
+                            args.event_type.check_invariants()?;
+                            args.from_state.check_invariants()?;
+                            args.to_state.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Handler",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references: &|_args: &crate::generated::meta::saga::HandlerArgs| {
+                            Ok(())
+                        },
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::saga::HandlerArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::saga::HandlerArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::saga::HandlerArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::saga::HandlerArgs::from_json(v)?;
+                            args.event_type.check_invariants()?;
+                            args.from_state.check_invariants()?;
+                            args.to_state.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Handler",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references: &|_args: &crate::generated::meta::saga::HandlerArgs| {
+                            Ok(())
+                        },
+                    },
+                )?
+            };
+            let bluebook = crate::kernel::creation_identity_part(
+                facts_json,
+                "bluebook",
+                "Handler",
+                "Saga",
+                "bluebook, name.value",
+            )?;
+            let name = crate::kernel::creation_identity_part(
+                facts_json,
+                "name.value",
+                "Handler",
+                "Saga",
+                "bluebook, name.value",
+            )?;
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref = Vec::new();
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::meta::saga::dispatch_handler(
+                &mut store.saga,
+                route,
+                &bluebook,
+                &name,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
         "Bluebook::ValueObject.Declare" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
@@ -7259,7 +7457,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "OneOf",
                                 "Lifecycle",
                                 "Policy",
-                                "ProcessManager",
+                                "Saga",
                                 "Handler",
                                 "Dispatch",
                                 "ReadModel",
@@ -7277,7 +7475,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "Saga", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if !["none", "keywords", "source", "rows"]
@@ -7363,7 +7561,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "OneOf",
                                 "Lifecycle",
                                 "Policy",
-                                "ProcessManager",
+                                "Saga",
                                 "Handler",
                                 "Dispatch",
                                 "ReadModel",
@@ -7381,7 +7579,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "Saga", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if !["none", "keywords", "source", "rows"]
@@ -7488,7 +7686,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "OneOf",
                                 "Lifecycle",
                                 "Policy",
-                                "ProcessManager",
+                                "Saga",
                                 "Handler",
                                 "Dispatch",
                                 "ReadModel",
@@ -7506,7 +7704,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "Saga", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if let Some(v) = &args.at {
@@ -7600,7 +7798,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 "OneOf",
                                 "Lifecycle",
                                 "Policy",
-                                "ProcessManager",
+                                "Saga",
                                 "Handler",
                                 "Dispatch",
                                 "ReadModel",
@@ -7618,7 +7816,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             ]
                             .contains(&args.context.value.as_str())
                             {
-                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "context", admits: "Syntax::Context", admitted: &["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "Saga", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate", "ContextMap", "Clock"], offered: format!("{:?}", args.context.value).as_str() }.render_args()));
                             }
                             args.context.check_invariants()?;
                             if let Some(v) = &args.at {
@@ -7704,17 +7902,17 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
-        "Bluebook::ProcessManager.Handler.Dispatch" => {
+        "Bluebook::Saga.Handler.Dispatch" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
             let facts_json = invocation.facts();
             if let Some(route) = route {
                 route.require_depth(1)?;
             }
-            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::HandlerDispatchEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::HandlerDispatchEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::HandlerDispatchEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::HandlerDispatchEntityArgs::from_json(v)?;
+            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::saga::HandlerDispatchEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::saga::HandlerDispatchEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::saga::HandlerDispatchEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::saga::HandlerDispatchEntityArgs::from_json(v)?;
 args.command_name.check_invariants()?;
 args.position.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Dispatch", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::HandlerDispatchEntityArgs| Ok(()) })?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Dispatch", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::saga::HandlerDispatchEntityArgs| Ok(()) })?;
             let (parent_id, element_id, element_wants) = match route {
                 Some(route) => {
                     let element_id = route.entities()[0].clone();
@@ -7725,32 +7923,31 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     )
                 }
                 None => {
-                    let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispatch acts on a ProcessManager's Handler — pass bluebook, name.value:".to_string()))?;
-                    let element_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.processmanager.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "ProcessManager", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Dispatch acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
+                    let parent_id = crate::generated::meta::saga::Saga::extract_id(facts_json)
+                        .map_err(|_| {
+                            crate::kernel::Refusal::NotFound(
+                                "Dispatch acts on a Saga's Handler — pass bluebook, name.value:"
+                                    .to_string(),
+                            )
+                        })?;
+                    let element_id = crate::generated::meta::saga::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.saga.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "Saga", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Dispatch acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
                     let element_wants =
-                        crate::generated::meta::processmanager::Handler::extract_wants(facts_json);
+                        crate::generated::meta::saga::Handler::extract_wants(facts_json);
                     (parent_id, element_id, element_wants)
                 }
             };
-            let owner_deref = crate::kernel::owner_deref(
-                &*store,
-                REFERENCE_TABLE,
-                "Bluebook::ProcessManager",
-                &parent_id,
-            );
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Saga", &parent_id);
             let mut command_deref =
                 crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-            if let Some(parent_node) = crate::kernel::parent_deref(
-                &*store,
-                REFERENCE_TABLE,
-                "Bluebook::ProcessManager",
-                &parent_id,
-            ) {
+            if let Some(parent_node) =
+                crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::Saga", &parent_id)
+            {
                 command_deref.push(("parent", parent_node));
             }
             let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::meta::processmanager::dispatch_entity_handler_dispatch(
-                &mut store.processmanager,
+            crate::generated::meta::saga::dispatch_entity_handler_dispatch(
+                &mut store.saga,
                 &parent_id,
                 &element_id,
                 &element_wants,
@@ -8157,17 +8354,17 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
-        "Bluebook::ProcessManager.Handler.Dispatch.Bind" => {
+        "Bluebook::Saga.Handler.Dispatch.Bind" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
             let facts_json = invocation.facts();
             if let Some(route) = route {
                 route.require_depth(2)?;
             }
-            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::from_json(v)?;
+            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::saga::DispatchBindNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::saga::DispatchBindNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::saga::DispatchBindNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::saga::DispatchBindNestedEntityArgs::from_json(v)?;
 args.key.check_invariants()?;
 args.value.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Bind", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::DispatchBindNestedEntityArgs| Ok(()) })?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Bind", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::saga::DispatchBindNestedEntityArgs| Ok(()) })?;
             let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {
                 Some(route) => {
                     let hop1_id = route.entities()[0].clone();
@@ -8181,30 +8378,23 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     )
                 }
                 None => {
-                    let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on a ProcessManager's Handler.Dispatch — pass bluebook, name.value:".to_string()))?;
-                    let hop1_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.processmanager.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "ProcessManager", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Bind acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
+                    let parent_id = crate::generated::meta::saga::Saga::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on a Saga's Handler.Dispatch — pass bluebook, name.value:".to_string()))?;
+                    let hop1_id = crate::generated::meta::saga::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.saga.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "Saga", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Bind acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
                     let hop1_wants =
-                        crate::generated::meta::processmanager::Handler::extract_wants(facts_json);
+                        crate::generated::meta::saga::Handler::extract_wants(facts_json);
                     let hop2_id =
-                        crate::generated::meta::processmanager::Dispatch::extract_id_lenient(
-                            facts_json,
-                        )
-                        .ok();
+                        crate::generated::meta::saga::Dispatch::extract_id_lenient(facts_json).ok();
                     let hop2_wants =
-                        crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json);
+                        crate::generated::meta::saga::Dispatch::extract_wants(facts_json);
                     (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants)
                 }
             };
-            let owner_deref = crate::kernel::owner_deref(
-                &*store,
-                REFERENCE_TABLE,
-                "Bluebook::ProcessManager",
-                &parent_id,
-            );
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Saga", &parent_id);
             let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
             let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_bind(
-                &mut store.processmanager,
+            crate::generated::meta::saga::dispatch_entity_handler_dispatch_bind(
+                &mut store.saga,
                 &parent_id,
                 &hop1_id,
                 &hop1_wants,
@@ -8217,16 +8407,16 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
-        "Bluebook::ProcessManager.Handler.Dispatch.Compensates" => {
+        "Bluebook::Saga.Handler.Dispatch.Compensates" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
             let facts_json = invocation.facts();
             if let Some(route) = route {
                 route.require_depth(2)?;
             }
-            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::from_json(v)?;
+            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::saga::DispatchCompensatesNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::saga::DispatchCompensatesNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::saga::DispatchCompensatesNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::saga::DispatchCompensatesNestedEntityArgs::from_json(v)?;
 args.compensates_command_name.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Compensates", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs| Ok(()) })?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Compensates", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::saga::DispatchCompensatesNestedEntityArgs| Ok(()) })?;
             let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {
                 Some(route) => {
                     let hop1_id = route.entities()[0].clone();
@@ -8240,30 +8430,23 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     )
                 }
                 None => {
-                    let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Compensates acts on a ProcessManager's Handler.Dispatch — pass bluebook, name.value:".to_string()))?;
-                    let hop1_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.processmanager.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "ProcessManager", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Compensates acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
+                    let parent_id = crate::generated::meta::saga::Saga::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Compensates acts on a Saga's Handler.Dispatch — pass bluebook, name.value:".to_string()))?;
+                    let hop1_id = crate::generated::meta::saga::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.saga.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "Saga", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Compensates acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
                     let hop1_wants =
-                        crate::generated::meta::processmanager::Handler::extract_wants(facts_json);
+                        crate::generated::meta::saga::Handler::extract_wants(facts_json);
                     let hop2_id =
-                        crate::generated::meta::processmanager::Dispatch::extract_id_lenient(
-                            facts_json,
-                        )
-                        .ok();
+                        crate::generated::meta::saga::Dispatch::extract_id_lenient(facts_json).ok();
                     let hop2_wants =
-                        crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json);
+                        crate::generated::meta::saga::Dispatch::extract_wants(facts_json);
                     (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants)
                 }
             };
-            let owner_deref = crate::kernel::owner_deref(
-                &*store,
-                REFERENCE_TABLE,
-                "Bluebook::ProcessManager",
-                &parent_id,
-            );
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Saga", &parent_id);
             let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
             let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_compensates(
-                &mut store.processmanager,
+            crate::generated::meta::saga::dispatch_entity_handler_dispatch_compensates(
+                &mut store.saga,
                 &parent_id,
                 &hop1_id,
                 &hop1_wants,
@@ -8276,17 +8459,17 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
-        "Bluebook::ProcessManager.Handler.Dispatch.BindCompensation" => {
+        "Bluebook::Saga.Handler.Dispatch.BindCompensation" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
             let facts_json = invocation.facts();
             if let Some(route) = route {
                 route.require_depth(2)?;
             }
-            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::from_json(v)?;
+            let args = crate::kernel::decode_entity_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::meta::saga::DispatchBindCompensationNestedEntityArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::meta::saga::DispatchBindCompensationNestedEntityArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::meta::saga::DispatchBindCompensationNestedEntityArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::meta::saga::DispatchBindCompensationNestedEntityArgs::from_json(v)?;
 args.key.check_invariants()?;
 args.value.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "BindCompensation", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs| Ok(()) })?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "BindCompensation", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::meta::saga::DispatchBindCompensationNestedEntityArgs| Ok(()) })?;
             let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {
                 Some(route) => {
                     let hop1_id = route.entities()[0].clone();
@@ -8300,29 +8483,34 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     )
                 }
                 None => {
-                    let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("BindCompensation acts on a ProcessManager's Handler.Dispatch — pass bluebook, name.value:".to_string()))?;
-                    let hop1_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.processmanager.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "ProcessManager", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("BindCompensation acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
+                    let parent_id = crate::generated::meta::saga::Saga::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("BindCompensation acts on a Saga's Handler.Dispatch — pass bluebook, name.value:".to_string()))?;
+                    let hop1_id = crate::generated::meta::saga::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.saga.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "Saga", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("BindCompensation acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
                     let hop1_wants =
-                        crate::generated::meta::processmanager::Handler::extract_wants(facts_json);
+                        crate::generated::meta::saga::Handler::extract_wants(facts_json);
                     let hop2_id =
-                        crate::generated::meta::processmanager::Dispatch::extract_id_lenient(
-                            facts_json,
-                        )
-                        .ok();
+                        crate::generated::meta::saga::Dispatch::extract_id_lenient(facts_json).ok();
                     let hop2_wants =
-                        crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json);
+                        crate::generated::meta::saga::Dispatch::extract_wants(facts_json);
                     (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants)
                 }
             };
-            let owner_deref = crate::kernel::owner_deref(
-                &*store,
-                REFERENCE_TABLE,
-                "Bluebook::ProcessManager",
-                &parent_id,
-            );
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Saga", &parent_id);
             let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
             let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_bind_compensation(&mut store.processmanager, &parent_id, &hop1_id, &hop1_wants, hop2_id.as_deref(), &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+            crate::generated::meta::saga::dispatch_entity_handler_dispatch_bind_compensation(
+                &mut store.saga,
+                &parent_id,
+                &hop1_id,
+                &hop1_wants,
+                hop2_id.as_deref(),
+                &hop2_wants,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
         }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!(
             "unknown command {other:?}"
@@ -8340,7 +8528,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
 /// whatever payload the generated dispatch built with the raw,
 /// unfiltered `args_json` this router itself received, after the
 /// fact, once dispatch has already decided whether to accept it.
-/// Load-bearing for process managers, not just payload fidelity: a
+/// Load-bearing for sagas, not just payload fidelity: a
 /// saga leg that forwards `reference: :reference` into `Account.
 /// Debit` (which doesn't declare a `reference` attribute) needs
 /// that field to survive onto `AccountDebited`'s own payload for
@@ -8400,14 +8588,6 @@ pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
         }],
     ),
     (
-        "Bluebook::ProcessManager",
-        &[crate::kernel::ReferenceSpec {
-            field: "bluebook",
-            as_name: "bluebook",
-            target: "Bluebook::Bluebook",
-        }],
-    ),
-    (
         "Bluebook::ReadModel",
         &[crate::kernel::ReferenceSpec {
             field: "bluebook",
@@ -8429,6 +8609,14 @@ pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
                 target: "Bluebook::Entity",
             },
         ],
+    ),
+    (
+        "Bluebook::Saga",
+        &[crate::kernel::ReferenceSpec {
+            field: "bluebook",
+            as_name: "bluebook",
+            target: "Bluebook::Bluebook",
+        }],
     ),
     (
         "Bluebook::ValueObject",
@@ -8481,12 +8669,6 @@ impl crate::kernel::ReferenceLookup for Store {
                 .find(id)
                 .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
         }
-        if target == "Bluebook::ProcessManager" {
-            return self
-                .processmanager
-                .find(id)
-                .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
-        }
         if target == "Bluebook::ReadModel" {
             return self
                 .readmodel
@@ -8496,6 +8678,12 @@ impl crate::kernel::ReferenceLookup for Store {
         if target == "Bluebook::Query" {
             return self
                 .query
+                .find(id)
+                .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+        }
+        if target == "Bluebook::Saga" {
+            return self
+                .saga
                 .find(id)
                 .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
         }
@@ -8534,9 +8722,9 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Bluebook::Command" => Some("command"),
         "Bluebook::Entity" => Some("entity"),
         "Bluebook::Policy" => Some("policy"),
-        "Bluebook::ProcessManager" => Some("process_manager"),
         "Bluebook::ReadModel" => Some("read_model"),
         "Bluebook::Query" => Some("query"),
+        "Bluebook::Saga" => Some("saga"),
         "Bluebook::ValueObject" => Some("value_object"),
         "Bluebook::Syntax" => Some("syntax"),
         "Bluebook::Vocabulary" => Some("vocabulary"),
@@ -8589,10 +8777,6 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::Entity.Mark" => true,
         "Bluebook::Policy.Declare" => true,
         "Bluebook::Policy.Bind" => true,
-        "Bluebook::ProcessManager.Declare" => true,
-        "Bluebook::ProcessManager.State" => true,
-        "Bluebook::ProcessManager.Handler" => true,
-        "Bluebook::ProcessManager.Handler.Dispatch" => false,
         "Bluebook::ReadModel.Declare" => true,
         "Bluebook::ReadModel.Gather" => true,
         "Bluebook::ReadModel.GroupBy" => true,
@@ -8611,6 +8795,10 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::Query.Option" => true,
         "Bluebook::Query.Need" => true,
         "Bluebook::Query.Argument" => true,
+        "Bluebook::Saga.Declare" => true,
+        "Bluebook::Saga.State" => true,
+        "Bluebook::Saga.Handler" => true,
+        "Bluebook::Saga.Handler.Dispatch" => false,
         "Bluebook::ValueObject.Declare" => true,
         "Bluebook::ValueObject.Field" => true,
         "Bluebook::ValueObject.Close" => true,
@@ -8811,19 +8999,6 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "position",
         ],
         "Bluebook::Policy.Bind" => &["key", "value"],
-        "Bluebook::ProcessManager.Declare" => &[
-            "bluebook",
-            "name",
-            "correlates_by",
-            "starts_on",
-            "ends_on",
-            "endings",
-            "resumes",
-            "position",
-        ],
-        "Bluebook::ProcessManager.State" => &["name"],
-        "Bluebook::ProcessManager.Handler" => &["event_type", "from_state", "to_state"],
-        "Bluebook::ProcessManager.Handler.Dispatch" => &["command_name", "position"],
         "Bluebook::ReadModel.Declare" => &[
             "bluebook",
             "name",
@@ -8869,6 +9044,19 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "admits",
             "relationship",
         ],
+        "Bluebook::Saga.Declare" => &[
+            "bluebook",
+            "name",
+            "correlates_by",
+            "starts_on",
+            "ends_on",
+            "endings",
+            "resumes",
+            "position",
+        ],
+        "Bluebook::Saga.State" => &["name"],
+        "Bluebook::Saga.Handler" => &["event_type", "from_state", "to_state"],
+        "Bluebook::Saga.Handler.Dispatch" => &["command_name", "position"],
         "Bluebook::ValueObject.Declare" => &["aggregate", "name", "position"],
         "Bluebook::ValueObject.Field" => &[
             "name",
@@ -9017,25 +9205,6 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         authorization: None,
     },
     crate::kernel::QueryDef {
-        verb: "Bluebook::ProcessManager.DeclaredIn",
-        aggregate: "Bluebook::ProcessManager",
-        conditions: &[crate::kernel::QueryCondition {
-            field: "bluebook",
-            comparator: crate::kernel::query_comparators::QueryComparator::Eq,
-            value: crate::kernel::QueryConditionValue::Arg("bluebook"),
-        }],
-        reference_hop_conditions: &[],
-        order_by: Some(crate::kernel::query_ordering::OrderBy {
-            field: "position",
-            descending: false,
-            nulls: crate::kernel::query_ordering::NullsMode::Native,
-        }),
-        offset: None,
-        limit: None,
-        cursor: false,
-        authorization: None,
-    },
-    crate::kernel::QueryDef {
         verb: "Bluebook::ReadModel.DeclaredIn",
         aggregate: "Bluebook::ReadModel",
         conditions: &[crate::kernel::QueryCondition {
@@ -9061,6 +9230,25 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
             field: "aggregate",
             comparator: crate::kernel::query_comparators::QueryComparator::Eq,
             value: crate::kernel::QueryConditionValue::Arg("aggregate"),
+        }],
+        reference_hop_conditions: &[],
+        order_by: Some(crate::kernel::query_ordering::OrderBy {
+            field: "position",
+            descending: false,
+            nulls: crate::kernel::query_ordering::NullsMode::Native,
+        }),
+        offset: None,
+        limit: None,
+        cursor: false,
+        authorization: None,
+    },
+    crate::kernel::QueryDef {
+        verb: "Bluebook::Saga.DeclaredIn",
+        aggregate: "Bluebook::Saga",
+        conditions: &[crate::kernel::QueryCondition {
+            field: "bluebook",
+            comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+            value: crate::kernel::QueryConditionValue::Arg("bluebook"),
         }],
         reference_hop_conditions: &[],
         order_by: Some(crate::kernel::query_ordering::OrderBy {
@@ -9150,15 +9338,6 @@ pub fn check_query_args(
             }
             Ok(())
         }
-        "Bluebook::ProcessManager.DeclaredIn" => {
-            if let Some(x) = args.get("bluebook") {
-                crate::generated::meta::processmanager::ProcessManagerText::from_json(
-                    &x.coerce_single_field("value"),
-                )?
-                .check_invariants()?;
-            }
-            Ok(())
-        }
         "Bluebook::ReadModel.DeclaredIn" => {
             if let Some(x) = args.get("bluebook") {
                 crate::generated::meta::readmodel::ReadModelText::from_json(
@@ -9174,6 +9353,13 @@ pub fn check_query_args(
                     &x.coerce_single_field("value"),
                 )?
                 .check_invariants()?;
+            }
+            Ok(())
+        }
+        "Bluebook::Saga.DeclaredIn" => {
+            if let Some(x) = args.get("bluebook") {
+                crate::generated::meta::saga::SagaText::from_json(&x.coerce_single_field("value"))?
+                    .check_invariants()?;
             }
             Ok(())
         }
@@ -9282,8 +9468,8 @@ pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] =
                 }],
             },
             crate::kernel::read_model::ReadModelHead {
-                aggregate: "Bluebook::ProcessManager",
-                as_name: "process_managers",
+                aggregate: "Bluebook::Saga",
+                as_name: "sagas",
                 many: true,
                 is_root: false,
                 reference_fields: &[crate::kernel::read_model::ReferenceField {
@@ -9331,9 +9517,9 @@ pub fn present(aggregate: &str, state: crate::kernel::Json) -> crate::kernel::Js
         "Bluebook::Command" => crate::generated::meta::command::present(state),
         "Bluebook::Entity" => crate::generated::meta::entity::present(state),
         "Bluebook::Policy" => crate::generated::meta::policy::present(state),
-        "Bluebook::ProcessManager" => crate::generated::meta::processmanager::present(state),
         "Bluebook::ReadModel" => crate::generated::meta::readmodel::present(state),
         "Bluebook::Query" => crate::generated::meta::query::present(state),
+        "Bluebook::Saga" => crate::generated::meta::saga::present(state),
         "Bluebook::ValueObject" => crate::generated::meta::valueobject::present(state),
         "Bluebook::Syntax" => crate::generated::meta::syntax::present(state),
         "Bluebook::Vocabulary" => crate::generated::meta::vocabulary::present(state),
