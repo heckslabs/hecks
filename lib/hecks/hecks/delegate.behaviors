@@ -58,4 +58,40 @@ Hecks.behaviors "Delegate" do
     input  family: { value: "false-stall" }, run: { value: "stall-x-2" }, text: { value: "q" }, answer: { value: "a" }, now: { value: 102 }
     expect refused: "spacing"
   end
+
+  test "Open opens the owner's standing, away" do
+    tests "Open", on: "OwnerStanding"
+    input standing: { value: "owner" }
+    expect emits: ["OwnerStandingOpened"]
+  end
+
+  test "Type records the owner typing once a reading heard it" do
+    tests "Type", on: "OwnerStanding"
+    setup  "Hecks::OwnerStanding.Open", standing: { value: "owner" }
+    input  standing: { value: "owner" }, reading: "beat-1"
+    expect emits: ["OwnerStandingTyped"]
+  end
+
+  test "Type refuses a second typing reading while the owner already types" do
+    tests "Type", on: "OwnerStanding"
+    setup  "Hecks::OwnerStanding.Open", standing: { value: "owner" }
+    setup  "Hecks::OwnerStanding.Type", standing: { value: "owner" }, reading: "beat-1"
+    input  standing: { value: "owner" }, reading: "beat-2"
+    expect refused: "typing"
+  end
+
+  test "Leave refuses while the owner is away" do
+    tests "Leave", on: "OwnerStanding"
+    setup  "Hecks::OwnerStanding.Open", standing: { value: "owner" }
+    input  standing: { value: "owner" }, reading: "beat-1"
+    expect refused: "types"
+  end
+
+  test "Leave records the owner away after typing" do
+    tests "Leave", on: "OwnerStanding"
+    setup  "Hecks::OwnerStanding.Open", standing: { value: "owner" }
+    setup  "Hecks::OwnerStanding.Type", standing: { value: "owner" }, reading: "beat-1"
+    input  standing: { value: "owner" }, reading: "beat-2"
+    expect emits: ["OwnerStandingLeft"]
+  end
 end
