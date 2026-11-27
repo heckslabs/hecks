@@ -40,7 +40,7 @@ Hecks.bluebook "Protocols" do
     # Accepted agreements no guard holds yet: the gap the retrospective reads.
     query "Unguarded" do
       description "Every accepted agreement no guard is named for, by reference."
-      where(status: "accepted", enforced_by: "")
+      where(status: "accepted", enforced_by: nil)
       order_by :reference
     end
 
