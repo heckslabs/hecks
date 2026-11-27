@@ -21,6 +21,14 @@ module Hecks
         { handed: told["tell"] }
       end
 
+      # The runtime hands an ask the record it addresses, so a routed or handed-on message is
+      # written from the ledger: its sender, its new addressee, its text and what it is about.
+      #
+      # @param ask [Hash] the `DeliverRecorded` ask's key, and the message as the ledger holds it
+      # @return [Hash] as {#deliver}
+      # @raise [Harness::Supervisor::Refused] as {#deliver}
+      def deliver_recorded(**ask) = deliver(**ask)
+
       private
 
       def supervisor = Harness::Supervisor.current || raise(Harness::Supervisor::Refused, "no supervisor is running")

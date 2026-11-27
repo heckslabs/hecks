@@ -16,7 +16,8 @@ pub fn preamble() -> String {
          could not deliver comes back to you as a turn that starts \"Notice from harness\". Where \
          your role says to read your inbox or to run exe/hecks Message.send!, {SEND_TOOL} \
          replaces it: name the session in to, and put the id of the message you answer or relay \
-         in about."
+         in about. Where it says to leave what you found on a message with Message.note!, send \
+         what you found to the orchestrator, about that message."
     )
 }
 
@@ -44,6 +45,11 @@ mod tests {
     fn opens_with_how_mail_works_in_a_harness_run() {
         assert!(of_role(FILE)
             .starts_with("You run as a harness session. Your one tool is send_message"));
+    }
+
+    #[test]
+    fn says_where_a_note_on_a_message_goes() {
+        assert!(preamble().contains("send what you found to the orchestrator, about that message."));
     }
 
     #[test]

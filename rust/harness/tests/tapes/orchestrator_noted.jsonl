@@ -1,0 +1,9 @@
+{"note":"An orchestrator handed a question with the scrum master's findings: the question comes first, then the findings, then it answers the coder."}
+{"expect":"user","contains":"You are the orchestrator"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-orchestrator-noted","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Leading."}}
+{"expect":"user","contains":"Message coder-1 from coder"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"A question; the findings follow."}}
+{"expect":"user","contains":"from scrum-master, about coder-1"}
+{"emit":{"type":"control_request","request_id":"o-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"coder","text":"Hold the branch until the freeze lifts.","about":"coder-1"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to coder"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Answered the coder."}}

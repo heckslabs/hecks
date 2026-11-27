@@ -34,6 +34,13 @@ Hecks.hecksagon "Harness" do
       answers "DeliveryHanded"
       refuses "DeliveryRefused"
     end
+
+    # A message delivered as the ledger holds it, once routing or handing on changed its addressee.
+    asks "DeliverRecorded", to: Message do
+      attribute :key, MessageKey
+      answers "DeliveryHanded"
+      refuses "RecordedDeliveryRefused"
+    end
   end
 end
 
