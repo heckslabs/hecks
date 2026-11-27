@@ -76,7 +76,7 @@ start-up files, `~/.config`, `~/Library/LaunchAgents` and `~/.claude.json`. Heck
 | `embryonaut_platform-scheme` | 6 | the same files as `embryonaut_platform`, an older copy | `deploy/sync/preflight.sh` is absent; `README.md:149`, `README.md:196`, `bluebook/translations/3-b83c3e.bluebook:18` |
 | `embryonaut_bluebooks` | 3 | `package.check` (a query) in a CI workflow; `package.release!` without a bang and `package.verify` in the README and Gemfile | `.github/workflows/versions.yml:27`, `README.md:45`, `README.md:50`, `Gemfile:4` |
 | `hecks_ai_training` | 5 | `build.project_rust!` and `build.build_host!` without a bang, run through `bundle exec hecks` in a script; positional `hecks model_check` and `hecks run` in spec comments | `bin/chess_native:54`, `bin/chess_native:65`, `spec/spec_helper.rb:8`, its conformance spec at line 19, `README.md:541` |
-| `hecks-glossary` | 5 | `hecks ask <query>` built by a site generator; `hecks run` copied from a query description | `build/pages.py:562`, `glossary.md:997`, `html/index.html:1253` |
+| `hecks-glossary` | 5 | `ask <query>` lines built by a site generator, which 8.0.0 refuses; `hecks run` copied from a query description | `build/pages.py:562`, `glossary.md:997`, `html/index.html:1253` |
 | `personal-cloud` | 1 | `package.verify` (a query) and `package.vendor!` in the README | `README.md:32`, `README.md:39` |
 | `lifeadelics_design` | 1 | `package.verify` and `package.vendor!` in a process page | `process/process.html:108`, `process/process.html:117` |
 | `embryonaut-company` | 1 | `Operation.run_behaviors!` with a bang, in a README | `engagements/README.md:2` |
@@ -91,9 +91,10 @@ What the outside calls mean for the sweep:
 - The scripts that run (`embryonaut_platform/deploy/sync/preflight.sh`,
   `embryonaut_bluebooks/.github/workflows/versions.yml`, `hecks_ai_training/bin/chess_native`) use
   queries or bang-less commands. Each project pins a hecks version, so they break only when it
-  upgrades; the rename table (step 26) keeps them running through the warning window.
-- `hecks-glossary` builds `hecks ask …` lines from the IR. Its generator needs the new spelling
-  once `ask` leaves; the glossary text itself is projected and follows the next build.
+  upgrades; the rename table (step 26) kept them running through 7.x, and from 8.0.0 an old
+  spelling is an unknown command.
+- `hecks-glossary` builds `ask …` lines from the IR. Its generator needs the bare spelling, since
+  8.0.0 takes `ask` as a name; the glossary text itself is projected and follows the next build.
 - The three `embryonaut_platform*` directories are copies of one project; a sweep of one is the
   sweep of all three.
 - The rest are READMEs and comments, which the rename table does not reach and a reader will

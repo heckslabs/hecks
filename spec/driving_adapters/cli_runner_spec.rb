@@ -223,18 +223,25 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   describe "asking" do
     it "answers rows, materialised out of their value objects", :aggregate_failures do
       a_pizza("Bare")
-      output, code = run("ask", "order.available")
+      output, code = run("order.available")
 
       expect(code).to eq(0)
       expect(JSON.parse(output).map { |row| row["name"] }).to include("Bare")
     end
 
-    it "answers through `query`, the word `ask` used to be", :aggregate_failures do
-      a_pizza("Bare")
+    it "refuses `query` before a query no command shares a name with, naming the bare spelling",
+       :aggregate_failures do
       output, code = run("query", "order.available")
 
-      expect(code).to eq(0)
-      expect(JSON.parse(output).map { |row| row["name"] }).to include("Bare")
+      expect(code).to eq(2)
+      expect(output).to eq("hecks run: query is needed only where a command shares the name; write order.available bare")
+    end
+
+    it "takes `ask` as a name, not as a word that opens a query", :aggregate_failures do
+      output, code = run("ask", "order.available")
+
+      expect(code).to eq(2)
+      expect(output).to start_with("[unknown_command] no such command: ask")
     end
 
     it "refuses a question by its bare name", :aggregate_failures do
@@ -247,7 +254,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     it "changes nothing" do
       a_pizza
       before = runtime.events.length
-      run("ask", "order.available")
+      run("order.available")
 
       expect(runtime.events.length).to eq(before)
     end
@@ -288,7 +295,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     end
 
     it "keeps questions and commands apart when refusing" do
-      expect(text("ask", "order.create_pizza!")).to include("no such query")
+      expect(text("query", "order.create_pizza!")).to include("no such query")
     end
   end
 

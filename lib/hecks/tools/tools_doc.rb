@@ -130,7 +130,8 @@ module Hecks
 
       # @return [Array<Hash>] the arguments the launcher spells, per attribute
       def spelled_arguments(spec, skip)
-        by_attribute(spec[:arguments].reject { |argument| skipped?(argument, skip) })
+        by_attribute(spec[:arguments].reject { |argument| skipped?(argument, skip) },
+                     Array(spec[:legacy_arguments]))
       end
 
       # @return [Boolean] whether the launcher mints the argument itself, or the row documents it
@@ -145,15 +146,13 @@ module Hecks
         named.first unless named.empty? || named.first[:type] == "Boolean"
       end
 
-      # A one-field value object's `x.value` leaf is spelled as the attribute, `x`; a value object
-      # with more fields keeps one leaf each.
+      # A one-field value object's leaf is spelled as the attribute; a value object with more
+      # fields keeps one leaf each.
       #
       # @param leaves [Array<Hash>] projected leaf arguments
       # @return [Array<Hash>] the arguments the launcher takes, one per attribute for a scalar
-      def by_attribute(leaves)
-        leaves.group_by { |argument| argument[:path].split(".").first }.flat_map do |head, group|
-          group.size == 1 && group.first[:path].end_with?(".value") ? [group.first.merge(path: head)] : group
-        end
+      def by_attribute(leaves, siblings = [])
+        Projector::CliProjector::Spelling.spell(leaves, siblings)
       end
 
       # @param argument [Hash] a projected argument

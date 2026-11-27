@@ -53,7 +53,6 @@ module Hecks
         def command_facts(aggregate, command)
           { summary: command.goal, role: command.role, role_gated: !command.role.to_s.empty?,
             group: aggregate.hecks_name, internal: internal?(command), audience: command.audience,
-            formerly: aggregate.former_name,
             creates: command.creates? }
         end
 

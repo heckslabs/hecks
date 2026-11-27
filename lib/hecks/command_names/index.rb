@@ -21,7 +21,7 @@ module Hecks
         typed = rest.drop(asking ? 1 : 0).first
         return if typed.nil? || free?(scope, typed)
 
-        resolution(scope, rest, typed, asking).problem
+        resolution(scope, typed, asking).problem
       end
 
       # @param words [Array<String>] the words after the launcher's name
@@ -30,15 +30,15 @@ module Hecks
       def command_of(words)
         scope, rest = scope_of(words)
         typed = rest.first
-        typed && resolution(scope, rest, typed, false).listed_command
+        typed && resolution(scope, typed, false).listed_command
       end
 
       private
 
       # The line read against its scope, or, when the first bluebook does not know the name and
       # exactly one attached bluebook does, against that one, as the launcher reads it.
-      def resolution(scope, rest, typed, asking)
-        read = ->(against) { Resolution.new(against, typed, asking, old_spelling: rest.first == "query") }
+      def resolution(scope, typed, asking)
+        read = ->(against) { Resolution.new(against, typed, asking) }
         own = read.call(scope)
         return own if own.known? || !scope.equal?(@scopes.fetch(""))
 
