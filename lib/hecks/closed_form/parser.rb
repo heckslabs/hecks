@@ -19,6 +19,11 @@ module Hecks
       # Raised when no binary is named and cargo cannot build one; the message says how to get one.
       class Missing < StandardError; end
 
+      # What {Missing} says when there is no cargo to build the parser with
+      NO_CARGO = "hecks-parse is needed to read declaration files (.bluebook, .hecksagon, " \
+                 ".world, .contextmap): install Rust (cargo) so the gem can build it, " \
+                 "or set HECKS_PARSE_BIN".freeze
+
       module_function
 
       # @return [String] the binary's path: `HECKS_PARSE_BIN`, or the build for these sources
@@ -53,9 +58,23 @@ module Hecks
       def built
         target = File.join(builds, sources_digest[0, 16])
         executable = File.join(target, "release", "hecks-parse")
-        build(target) unless File.executable?(executable)
+        return executable if File.executable?(executable)
+
+        one_build_at_a_time(target) { build(target) unless File.executable?(executable) }
         executable
       end
+
+      # Holds a lock on `target` while the block runs, so processes that need the same build wait
+      # for the first one rather than race it: cargo locks its target directory, but the toolchain
+      # rustup installs first, before cargo runs, takes no lock and breaks when two install it.
+      def one_build_at_a_time(target)
+        FileUtils.mkdir_p(target)
+        File.open(File.join(target, ".build.lock"), File::RDWR | File::CREAT) do |lock|
+          lock.flock(File::LOCK_EX)
+          yield
+        end
+      end
+      private_class_method :one_build_at_a_time
 
       # @return [String] where builds live: the crate's own `target/` when the crate is writable
       def builds
@@ -71,19 +90,28 @@ module Hecks
         end
       end
 
-      # Builds the parser into `target`; cargo's lock on the directory makes a parallel build wait.
+      # Builds the parser into `target`, under {.one_build_at_a_time}'s lock. A first build may have
+      # rustup fetch the toolchain, and a fetch that fails part way is tried once more.
       def build(target)
-        FileUtils.mkdir_p(target)
         warn "hecks: building hecks-parse for the closed form (once for these parser sources)"
-        _out, err, status = Open3.capture3("cargo", "build", "--release", "--quiet", "--manifest-path",
-                                           File.join(CRATE, "Cargo.toml"), "--target-dir", target)
-        raise Missing, "cargo could not build hecks-parse: #{err.strip}" unless status.success?
+        err = nil
+        2.times do
+          err, status = cargo_build(target)
+          return if status.success?
+        end
+        raise Missing, "cargo could not build hecks-parse: #{err.strip}"
       rescue Errno::ENOENT
-        raise Missing, "hecks-parse is needed to read declaration files (.bluebook, .hecksagon, " \
-                       ".world, .contextmap): install Rust (cargo) so the gem can build it, " \
-                       "or set HECKS_PARSE_BIN"
+        raise Missing, NO_CARGO
       end
       private_class_method :build
+
+      # @return [Array(String, Process::Status)] cargo's stderr and exit status for one build
+      def cargo_build(target)
+        _out, err, status = Open3.capture3("cargo", "build", "--release", "--quiet", "--manifest-path",
+                                           File.join(CRATE, "Cargo.toml"), "--target-dir", target)
+        [err, status]
+      end
+      private_class_method :cargo_build
     end
   end
 end
