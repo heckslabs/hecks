@@ -13,8 +13,7 @@ require_relative "replay/engine/kernel"
 module Hecks
   module Fuzzing
     # The Ruby-vs-Rust comparison of one generated sequence, shared by the QualityControl sweep
-    # (`hecks quality_control sweep.run`) and `hecks quality_control
-    # target.check_generated_domains --rust`.
+    # and its check of generated domains (both in Switchyard, ADR 0205).
     #
     # `differ` is duck-typed (the `RustConformanceHelpers` comparison helpers plus a
     # `structural_skips` set) so lib never requires spec/.

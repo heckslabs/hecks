@@ -1,7 +1,7 @@
 Hecks.behaviors "Codebase" do
   vision "A request to work on this repository is recorded, the tree is examined, and only a hecks checkout lets it through."
 
-  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon","environments/memory.world", modules: :all
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "stable_roll.hecksagon","environments/memory.world", modules: :all
 
   test "ProjectModel reports what the language projects, and keeps the answer" do
     tests "ProjectModel", on: "LanguageRun"
@@ -124,24 +124,6 @@ Hecks.behaviors "Codebase" do
     expect count: 1
   end
 
-  test "ProjectCiGates refuses a run that is not named" do
-    tests "ProjectCiGates", on: "RegenerationRun"
-    input run: { value: "" }
-    expect refused: "must match"
-  end
-
-  test "ProjectCiPipeline refuses a run that is not named" do
-    tests "ProjectCiPipeline", on: "RegenerationRun"
-    input run: { value: "" }
-    expect refused: "must match"
-  end
-
-  test "ProjectAgentRoles refuses a run that is not named" do
-    tests "ProjectAgentRoles", on: "RegenerationRun"
-    input run: { value: "" }
-    expect refused: "must match"
-  end
-
   test "ProjectToolsDoc refuses a run that is not named" do
     tests "ProjectToolsDoc", on: "RegenerationRun"
     input run: { value: "" }
@@ -151,12 +133,6 @@ Hecks.behaviors "Codebase" do
   test "ProjectGlossary refuses a bluebook name that is not a constant" do
     tests "ProjectGlossary", on: "RegenerationRun"
     input run: { value: "glossary-1" }, domain: { value: "qa" }, bluebook: { value: "quality control" }
-    expect refused: "must match"
-  end
-
-  test "DecideCiGate refuses a run that is not named" do
-    tests "DecideCiGate", on: "RegenerationRun"
-    input run: { value: "" }, gate: { value: "runtime_changed" }
     expect refused: "must match"
   end
 

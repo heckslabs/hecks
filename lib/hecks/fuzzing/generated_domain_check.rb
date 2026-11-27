@@ -8,7 +8,7 @@ require_relative "../text"
 
 module Hecks
   module Fuzzing
-    # The child-process half of `hecks quality_control target.check_generated_domains`: checks one
+    # The child-process half of the QualityControl check of generated domains (Switchyard): checks one
     # generated domain.
     #
     # One domain per process, since every generated domain is named `QaGenerated`.

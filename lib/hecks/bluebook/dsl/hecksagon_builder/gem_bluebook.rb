@@ -6,8 +6,8 @@ module Hecks
         # a directory that holds only wiring. Included into `HecksagonBuilder`.
         module GemBluebook
           # Loads the bluebook the gem carries under this hecksagon's own name, for a directory that
-          # holds only wiring (the QA ledger's `qa/bluebook` keeps its hecksagon and world while the
-          # bluebook ships in `lib/hecks/quality_control/`). Unlike `attaches` it records no
+          # holds only wiring (a ledger directory keeps its hecksagon and world while the bluebook
+          # ships in the gem). Unlike `attaches` it records no
           # attachment and marks nothing bounded; it brings the bluebook in so the binds after it
           # can name its aggregates, so it comes first in the block.
           #

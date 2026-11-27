@@ -9,8 +9,10 @@ module Hecks
     # branch that is on main.
     #
     # A work item's key is its branch's name. The candidates are the branch's tip, local or on
-    # `origin`, and the commits on `main` whose message names the key as a whole word (a merge or
-    # squash that brought the branch in); the first one `main` contains is the landing. It states
+    # `origin`, the merges on `main` whose subject names the branch (`Merge branch 'key'`,
+    # `Merge pull request #12 from owner/key`), and the commits on `main` that carry a
+    # `Work: key` trailer (a squash that brought the branch in); the first one `main` contains is
+    # the landing. A key written in prose names nothing. It states
     # the fact and judges nothing: closing the item is the Tickets bluebook's. It reads git and never
     # writes.
     class WorkLandings
@@ -51,14 +53,31 @@ module Hecks
         end
       end
 
-      def mentions(key)
-        listed = @git.capture("log", "main", "--format=%H%x00%B%x01", "--fixed-strings", "--grep=#{key}", chdir: @checkout)
+      def mentions(key) = merges(key) | trailered(key)
+
+      # The merges on main whose subject names the branch.
+      def merges(key)
+        branch = Regexp.escape(key)
+        named = %r{\AMerge (?:(?:remote-tracking )?branch '(?:origin/)?#{branch}'|pull request #\d+ from [^/\s]+/#{branch}\z)}
+        listed = @git.capture("log", "main", "--merges", "--format=%H%x00%s", chdir: @checkout)
         return [] unless listed.ok?
 
-        word = /(?<![\w\/.-])#{Regexp.escape(key)}(?![\w\/-])/
+        listed.out.lines.filter_map do |line|
+          sha, subject = line.chomp.split("\x00", 2)
+          sha if subject&.match?(named)
+        end
+      end
+
+      # The commits on main whose message carries a `Work: key` trailer.
+      def trailered(key)
+        listed = @git.capture("log", "main", "--format=%H%x00%B%x01", "--fixed-strings", "--grep=Work: #{key}",
+                              chdir: @checkout)
+        return [] unless listed.ok?
+
+        trailer = /^Work: #{Regexp.escape(key)}\s*$/
         listed.out.split("\x01").filter_map do |entry|
           sha, message = entry.strip.split("\x00", 2)
-          sha if message&.match?(word)
+          sha if message&.match?(trailer)
         end
       end
 

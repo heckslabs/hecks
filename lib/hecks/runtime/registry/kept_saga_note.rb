@@ -2,9 +2,9 @@ module Hecks
   module Runtime
     class Registry
       # The sentence the saga durability warning adds when a process manager starts on a kept
-      # aggregate: a `KeptAggregate` row of the Hecks bluebook's `LocalOverlay`, which the
-      # development pipeline reads back in a later process. The fix is then the checkout's overlay,
-      # not a new adapter. Mixed into {DurabilityWarnings}; the rows are read from the IR.
+      # aggregate: a `KeptAggregate` row of the Hecks bluebook's `LocalOverlay`, which a later
+      # process reads back. The fix is then the checkout's overlay, not a new adapter. Mixed into
+      # {DurabilityWarnings}; the rows are read from the IR.
       module KeptSagaNote
         private
 
@@ -17,7 +17,7 @@ module Hecks
                           .map { |aggregate| aggregate.hecks_name.to_s }.uniq
           return "" if names.empty?
 
-          " #{names.join(", ")} is on the dev pipeline's kept list: write this " \
+          " #{names.join(", ")} is on the cross-call kept list: write this " \
             "checkout's overlay with `exe/hecks LocalOverlay.write!`."
         end
 

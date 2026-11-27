@@ -8,7 +8,6 @@ require "hecks/adapters/driving/resident/stuck"
 require "hecks/adapters/driving/resident/trace"
 require "hecks/adapters/driving/resident/start_deadline"
 require "hecks/adapters/driving/resident/waiting"
-require "hecks/adapters/driving/resident/standing_answer"
 
 module Hecks
   module Adapters
@@ -24,11 +23,8 @@ module Hecks
           # Lines the launcher runs itself, since they need the terminal or run until interrupted.
           BYPASSED = %w[console interview init mcp].freeze
           # Long-running servers, by their plain names (no underscores, lower case, no `!`): under a
-          # resident each would be a child with a client waiting above it, for days, and a board
-          # that restarts itself would leave a waiting client behind at every restart. `board.serve`
-          # is the Hecks domain's spelling of the board (`Board.serve!`).
-          SERVING = %w[pipelineboard.serve board.serve server.present server.compose server.preview
-                       server.servequeryirmcp].freeze
+          # resident each would be a child with a client waiting above it, for days.
+          SERVING = %w[server.present server.preview server.servequeryirmcp].freeze
           # The namespace a command word may be written with.
           NAMESPACE = "Hecks::".freeze
           # Seconds the resident has, once it has said `fds`, to take the streams and say `ready`,
@@ -51,7 +47,6 @@ module Hecks
             Trace.launched(::HECKS_LAUNCHED_AT) if defined?(::HECKS_LAUNCHED_AT)
             return Outcome.note(Outcome::BYPASS) if bypass?
 
-            StandingAnswer.serve(ARGV)
             root = Paths.root_for(script)
             reason = Paths.unusable_reason(root)
             Outcome.note(reason ? unusable(reason) : attempt(root, script))
@@ -97,7 +92,8 @@ module Hecks
           def serving? = ARGV.first(2).any? { |word| SERVING.include?(plain(word)) }
 
           # @return [String] a command word as the launcher spells it however it was typed:
-          #   `Hecks::PipelineBoard.serve!` and `pipeline_board.serve` are `pipelineboard.serve`
+          #   `Hecks::Server.serve_query_ir_mcp!` and `server.serve_query_ir_mcp` are
+          #   `server.servequeryirmcp`
           def plain(word)
             bare = word.to_s.delete_prefix(NAMESPACE)
             bare.delete("_").downcase.chomp("!")

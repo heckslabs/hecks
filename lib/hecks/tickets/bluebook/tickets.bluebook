@@ -1,8 +1,7 @@
 # The Tickets bluebook: what a maintainer observed about Hecks that needs a decision or a fix, the
 # and the decisions that settle them.
 #
-# QualityControl has its own Ticket, the issue raised for a Bug in an outside tracker, and the
-# Hecks domain has its own Release, the record of a gem version. A Finding sits before both: it is
+# The Hecks domain has its own Release, the record of a gem version. A Finding sits before it: it is
 # any observation, not yet a proven bug, and it needs no sweep or failing test to be recorded.
 #
 # A Finding is the record. A gap, a parity divergence, a QA finding and an idea are kinds of it, not
@@ -1684,25 +1683,6 @@ Hecks.bluebook "Tickets" do
     trigger  Work::Close, with: { work: :work, landing: :landing, no_change: :no_change }
   end
 
-  # A composed sweep batch becomes one work item: every waiting sweep item is enlisted in it, it is
-  # planned with the brief the batch composed, and it is given a priority, the opt-in mark a roll
-  # starts by, so it reaches a coder by events alone. It claims the paths its members name.
-  policy "EnlistWhenSweepBatchComposed" do
-    on       "SweepBatch.SweepBatchComposed"
-    for_each "Work.SweepWaiting"
-    trigger  Work::Enlist, with: { work: :work, batch: :batch }
-  end
-
-  policy "PlanTheBatchWhenSweepBatchComposed" do
-    on      "SweepBatch.SweepBatchComposed"
-    trigger Work::Plan, with: { work: :batch, title: :title, detail: :brief, area: :area }
-  end
-
-  policy "PrioritizeTheBatchWhenSweepBatchComposed" do
-    on      "SweepBatch.SweepBatchComposed"
-    trigger Work::Prioritize, with: { work: :batch, priority: "next" }
-  end
-
   # A closed sprint frees its items, done ones too.
   policy "ReleaseWorkWhenSprintClosed" do
     on       "Sprint.SprintClosed"
@@ -1908,14 +1888,6 @@ Hecks.bluebook "Tickets" do
     ask     :check_cap, with: { work: :work }
   end
 
-  # A started work item whose session was declined holds a place for nothing, so it goes back to the
-  # plan at once with the refusal. The run is keyed by the work item; a run no work item keys, or an
-  # item no longer started, refuses the yield and nothing changes.
-  policy "YieldWhenItsRunIsDeclined" do
-    on      "AgentRun.AgentRunDeclined"
-    trigger Work::Yield, with: { work: :run, reason: :refusal }
-  end
-
   policy "YieldWhenCapReached" do
     on      "Work.CapRefused"
     trigger Work::Yield, with: { reason: :refusal }
@@ -1962,14 +1934,6 @@ Hecks.bluebook "Tickets" do
     trigger  Work::Return, with: { work: :work, reason: "its batch was dropped" }
   end
 
-  # Only a landing finishes a work item, never a submission, which a landing job may still refuse.
-  # The LandedWork port found the open work item the branch names (the whole name, else without a
-  # leading `qa/`); a branch with no open work item is refused there and never reaches here.
-  policy "CloseWorkWhenBranchLanded" do
-    on      "Landing.LandedWorkFound"
-    trigger Work::Close, with: { work: :branch, landing: :landed }
-  end
-
   # A finish that names why the item lands nothing closes it; one that names nothing asks the
   # WorkLandings port for a landing of its branch on main. The closes are roots, so the epic review
   # a close starts counts from the close, as it does from a landing, not from the hand finish.
@@ -2007,71 +1971,6 @@ Hecks.bluebook "Tickets" do
     trigger Work::Close, with: { work: :work, landing: :landing }
   end
 
-  # A landing job refused a submitted branch for a cause a coder can fix: its started work item is
-  # planned again, its detail ending with the refusal, so the next coder reads why. A third refusal
-  # (the complement of this one) sets the item aside, since a fourth coder would meet the same wall.
-  policy "RefuseWorkWhenLandingRefused" do
-    on      "Landing.RefusedWorkFound"
-    where   { refusals.value < 2 }
-    trigger Work::Refuse, with: { work: :work, detail: :detail }
-  end
-
-  # A landing job that died with nothing recorded planned the item's branch again the same way: the
-  # next coder reads the last line of the job's log as the reason.
-  policy "RefuseWorkWhenALandingJobFaulted" do
-    on      "LandingJobFault.FaultedWorkFound"
-    trigger Work::Refuse, with: { work: :work, detail: :detail }
-  end
-
-  # The third refusal of one work item drops it, the refusals as the reason, and files a finding so
-  # a person sees it on the pipeline board.
-  policy "DropWorkWhenLandingRefusedThrice" do
-    on      "Landing.RefusedWorkFound"
-    where   { refusals.value >= 2 }
-    trigger Work::Drop, with: { work: :work, reason: :detail }
-  end
-
-  policy "ReportWhenLandingRefusedThrice" do
-    on      "Landing.RefusedWorkFound"
-    where   { refusals.value >= 2 }
-    root
-    trigger Finding::ReportStoppedRun, with: { finding: :work, stage: "landing", body: :detail }
-  end
-
-  # A reverted merge reopens its Work item (RedEpisode's `work` key), first in line, once the revert
-  # is made: the detail is the revert's `report`, which names what broke, the revert commit and how
-  # the work lands again. A refused revert reopens nothing; an unknown key is refused by name.
-  policy "ReopenWorkWhenAnEpisodeReverts" do
-    on      "RedEpisode.EpisodeRevertMade"
-    root
-    where   { work.value.to_s != "" }
-    trigger Work::Reopen, with: { work: :work, title: "A red main reverted this work item's merge", detail: :report }
-  end
-
-  # A merge reverted with no Work item of its own (a culprit named by hand) is filed to land again,
-  # at priority now: its key is the branch and its detail the revert's report, which names the
-  # merge. It names no author.
-  policy "FileTheRelandOfAnUnplannedRevert" do
-    on      "RedEpisode.EpisodeRevertMade"
-    root
-    where   { work.value.to_s == "" && branch.value.to_s != "" }
-    trigger Work::Plan, with: { work: :branch, title: "A red main reverted this branch's merge: land it again", detail: :report, category: "bug" }
-  end
-
-  policy "PrioritizeTheRelandOfAnUnplannedRevert" do
-    on      "RedEpisode.EpisodeRevertMade"
-    root
-    where   { work.value.to_s == "" && branch.value.to_s != "" }
-    trigger Work::Prioritize, with: { work: :branch, priority: "now" }
-  end
-
-  policy "PrioritizeTheWorkAnEpisodeReverted" do
-    on      "RedEpisode.EpisodeRevertMade"
-    root
-    where   { work.value.to_s != "" }
-    trigger Work::Prioritize, with: { work: :work, priority: "now" }
-  end
-
   # A conformance or gate run that faults files its own finding.
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
@@ -2097,8 +1996,8 @@ Hecks.bluebook "Tickets" do
   end
 
   # A cause whose work item was finished or dropped and failed again is planned again with the new
-  # run's refusal, as a landing refused again is (RefuseWorkWhenLandingRefused). A work item still
-  # undone refuses the reopen, and a cause with no work item yet refuses it by name.
+  # run's refusal. A work item still undone refuses the reopen, and a cause with no work item yet
+  # refuses it by name.
   policy "ReopenWorkWhenGateFaultedAgain" do
     on      "GateRun.GateFaulted"
     where   { cause.value != nil && !cause.value.to_s.empty? }
@@ -2106,107 +2005,11 @@ Hecks.bluebook "Tickets" do
     trigger Work::Reopen, with: { work: :cause, title: :cause, detail: :refusal }
   end
 
-  # An integration run parked in needs_human (MainIntegration), or a shipment parked there
-  # (GateAndBoard, whose stop emits ShipmentStopped), files a finding a person sees on the pipeline
-  # board. An integration run is keyed by its landed commit, a shipment by its run. A faulted style
-  # run or boarding is not here: any caller's run of those commands faults, and only a shipment's
-  # waits on a person. A CI run that ends red is not here: it raises the red flag
-  # (RaiseTheFlagWhenCiFails). A refused landing is not here either: every refused
-  # `landing.finish!` emits it, and its caller reads the refusal.
-  policy "ReportWhenVerificationFailed" do
-    on      "Integration.MainVerificationFailed"
-    root
-    trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "verifying", body: :refusal }
-  end
-
-  # A landing whose impacted specs outran the gate budget landed anyway (the landing's shallow check
-  # passed); the specs it did not run are the finding's body.
-  policy "ReportWhenImpactedSpecsOverran" do
-    on      "ShallowCheck.ShallowCheckPassed"
-    root
-    where   { unrun.value != nil && !unrun.value.to_s.empty? }
-    trigger Finding::ReportUnrunSpecs, with: { finding: :run, body: :unrun }
-  end
-
-  policy "ReportWhenMainPushRefused" do
-    on      "Integration.MainPushRefused"
-    root
-    trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "boarding", body: :refusal }
-  end
-
-  policy "ReportWhenPullRequestClosed" do
-    on      "Integration.PullRequestClosed"
-    root
-    trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "ci_running", body: :report }
-  end
-
-  policy "ReportWhenShipmentStopped" do
-    on      "Shipment.ShipmentStopped"
-    root
-    trigger Finding::ReportStoppedRun, with: { finding: :run, stage: :stage, body: :refusal }
-  end
-
-  # A spec file that went red on main is a work item QA picks up: `Work.undone` lists it. The spec's own key is
-  # the work item's key, so a second red run, which only updates the spec, plans nothing twice.
-  policy "PlanWorkWhenSpecWentRed" do
-    on      "RedSpec.SpecWentRed"
-    trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail, category: "bug" }
-  end
-
-  # A file that fails again after it was cleared plans its finished work item again.
-  policy "ReopenWorkWhenSpecWentRedAgain" do
-    on      "RedSpec.SpecWentRedAgain"
-    trigger Work::Reopen, with: { work: :spec, title: :title, detail: :detail }
-  end
-
-  # The run that no longer fails the file closes its work item.
-  policy "CloseWorkWhenSpecWentGreen" do
-    on      "RedSpec.SpecWentGreen"
-    trigger Work::Close, with: { work: :spec, no_change: "a spec run no longer fails the file" }
-  end
-
-  # A train pull request whose CI failed past its reruns is one red work item, `red-train-<pr>`, for a
-  # coder; the fill starts red items over budget. The key is the dedupe: a second exhausted attempt of
-  # the same pull request plans nothing twice.
-  policy "PlanWorkWhenTrainPrExhausted" do
-    on      "TrainPr.TrainPrExhausted"
-    where   { cause.value == "spec" }
-    trigger Work::Plan, with: { work: :work, title: :title, detail: :detail, category: "bug" }
-  end
-
-  # A train pull request that kept failing before its specs ran (a runner, apt, the network, a checkout) has no
-  # code for a coder to fix: it is one finding naming the step, keyed by the failed attempt.
-  policy "ReportWhenTrainPrFailedInSetup" do
-    on      "TrainPr.TrainPrExhausted"
-    where   { cause.value == "setup" }
-    trigger Finding::ReportStoppedRun, with: { finding: :key, stage: :step, body: :detail }
-  end
-
   # The item is red by its key (`red-*`, which the fill starts first and over budget) and wanted now.
   policy "PrioritizeTheRedTrainWork" do
     on      "Work.WorkPlanned"
     where   { work.value.start_with?("red-train-") }
     trigger Work::Prioritize, with: { work: :work, priority: "now" }
-  end
-
-  # QA's push check: a push that is due beyond the world's thresholds is one work item, `push-due`. A look
-  # that finds it already open revises its detail; a look that finds it no longer due finishes it.
-  policy "PlanWorkWhenPushDue" do
-    on      "PushNudge.PushDueRead"
-    where   { due.value == "yes" && raised.value == "no" }
-    trigger Work::Plan, with: { work: :work, title: :title, detail: :detail }
-  end
-
-  policy "ReviseWorkWhenPushStillDue" do
-    on      "PushNudge.PushDueRead"
-    where   { due.value == "yes" && raised.value == "yes" }
-    trigger Work::Revise, with: { work: :work, title: :title, detail: :detail }
-  end
-
-  policy "CloseWorkWhenPushSettled" do
-    on      "PushNudge.PushDueRead"
-    where   { due.value == "no" && raised.value == "yes" }
-    trigger Work::Close, with: { work: :work, no_change: "the push is no longer due" }
   end
 
   policy "RecordTheIssue" do

@@ -7,8 +7,8 @@ module Hecks
   module Adapters
     class LocalFiles
       # Writes a command-line launcher beside each domain, named after its bluebook, for
-      # `Launch.ProjectCli`: `Hecks.bluebook "QualityControl"` in `qa/` becomes
-      # `qa/quality_control`.
+      # `Launch.ProjectCli`: `Hecks.bluebook "Pizzas"` in `examples/pizzas` becomes
+      # `examples/pizzas/pizzas`.
       #
       # Each launcher is a dozen lines pinning one directory and handing over to
       # `Adapters::Driving::CliRunner`; the surface itself is projected at the moment it runs,

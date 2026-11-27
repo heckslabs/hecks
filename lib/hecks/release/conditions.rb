@@ -4,7 +4,8 @@ module Hecks
   module Release
     # The auto-approval conditions of a release PR, judged from facts a check has gathered.
     #
-    # The names are the `ReleaseCondition` values the QualityControl bluebook declares. A release is
+    # The names are the `ReleaseCondition` values the release-PR approval names (its QualityControl
+    # caller moved to Switchyard, ADR 0205). A release is
     # approved only when every condition holds; otherwise the first failure in the order below is
     # named, and that name is the refusal.
     module Conditions

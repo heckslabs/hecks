@@ -14,7 +14,7 @@ module Hecks
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
         # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's
         # hecksagon
-        # attaches by name (`qa/` attaches QualityControl and also holds a Governance `.world`).
+        # attaches by name (a domain may attach another and also hold a Governance `.world`).
         # It picks by no other rule: guessing which is the domain is not this generator's call.
         #
         # @param domain [String] the domain directory
@@ -32,11 +32,11 @@ module Hecks
         end
 
         # The snake-cased names of the bluebooks a domain's hecksagons load from the gem by name
-        # (`bluebook_from :gem` in a `Hecks.hecksagon "QualityControl"` block), which its `.world`
+        # (`bluebook_from :gem` in a `Hecks.hecksagon "Governance"` block), which its `.world`
         # and `.hecksagon` files are named after.
         #
         # @param domain [String] the domain directory
-        # @return [Array<String>] such as `["quality_control"]`
+        # @return [Array<String>] such as `["governance"]`
         def attached_stems(domain)
           hecksagons = Dir.glob(File.join(domain, "bluebook", "*.hecksagon"))
           names = hecksagons.flat_map { |path| File.read(path).scan(BLUEBOOK_LOAD).flatten }
