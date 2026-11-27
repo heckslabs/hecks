@@ -16,6 +16,14 @@ Hecks.hecksagon "Harness" do
       refuses "SessionNotSpawned"
     end
 
+    # A stopped session's next child, started on the session as the ledger holds it: its brief, and
+    # the handover it left.
+    asks "ReopenSession", to: Session do
+      attribute :name, SessionName
+      answers "SessionSpawned"
+      refuses "SessionNotSpawned"
+    end
+
     asks "StopSession", to: Session do
       attribute :name, SessionName
       answers "SessionClosing"

@@ -82,6 +82,19 @@ Hecks.behaviors "Harness" do
     expect refused: "Brief.value must match"
   end
 
+  test "a session that never stopped is not reopened" do
+    tests "Reopen", on: "Session"
+    setup "Harness::Session.Open", name: { value: "scrum-master" }, brief: { value: "You are the scrum master." }
+    input session: "scrum-master", brief: { value: "You are the scrum master." }
+    expect refused: "Reopen moves it only from"
+  end
+
+  test "a seat's next run whose session never ran waits, and is never started" do
+    tests "TakeSeat", on: "AgentRun"
+    input run: { value: "seat-2" }, session: { value: "scrum-master" }, brief: { value: "You are the scrum master." }
+    expect emits: %w[SeatRunRequested], status: "requested", condition: ""
+  end
+
   test "a tick of the clock is recorded at its moment" do
     tests "Tick", on: "Clock"
     input reading: { value: "tick-60000" }, now: { value: 60_000 }

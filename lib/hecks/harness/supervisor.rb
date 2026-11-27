@@ -35,12 +35,12 @@ module Hecks
         @reader = Thread.new { read }
       end
 
-      # Starts a session's child on its brief.
+      # Starts a session's child on its brief, then the handover its seat's last child left, if any.
       #
       # @return [Hash] the `opened` tell
       # @raise [Refused] when the supervisor refuses or does not answer
-      def open(name:, brief:)
-        op = { op: "open", session: name, brief: brief, **@launch.call(name) }
+      def open(name:, brief:, handover: nil)
+        op = { op: "open", session: name, brief: brief, handover: handover, **@launch.call(name) }.compact
         answered(request(op) { |tell| tell["session"] == name && %w[opened refused].include?(tell["tell"]) })
       end
 

@@ -77,6 +77,7 @@ directories its files sit in, and the vision it declares, written from the files
 - **Identity** (`lib/hecks/framework/bluebook/`): Authentication proves an identifier; the organization decides what that identity means.
 - **Messaging** (`lib/hecks/framework/bluebook/`): A message tells a recipient something, hangs on whatever carries it, and is heard once.
 - **Privacy** (`lib/hecks/framework/bluebook/`): Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI.
+- **Refusal** (`lib/hecks/framework/bluebook/`): A command the domain refused leaves a fact, so a policy can answer what was turned away.
 - **Expression** (`lib/hecks/grammar/`): The subset of regular Ruby a predicate is allowed to be — small enough that every target can evaluate it, and carried as canonical text so no two readers can disagree about what was said.
 - **Translation** (`lib/hecks/grammar/`, `lib/hecks/language/translation/`): The declared bridge from one era of a domain's storage shape to the next — every rule checkable, every loss written down, carried as one edge file.
 - **Harness** (`lib/hecks/harness/`): A session opens on a brief and runs until it is stopped; a message one session sends another is posted here, delivered by policy and timed from sent to delivered.
