@@ -76,11 +76,11 @@ module Hecks
 
         private
 
-        # Lazy so a domain that never wires PostgresEra does not need the pg gem.
+        # Lazy so a domain that never wires Postgres's revision layout does not need the pg gem.
         def require_pg!(name)
           require "hecks/pg_options"
         rescue LoadError
-          raise LoadError, "#{name} binds PostgresEra, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
+          raise LoadError, "#{name} binds Postgres, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
         end
 
         def declared_database(name, settings)
@@ -88,7 +88,7 @@ module Hecks
           return declared unless declared.to_s.empty?
 
           raise Runtime::WiringError,
-                "#{name} binds PostgresEra, which needs a database connection, " \
+                "#{name} binds Postgres, which needs a database connection, " \
                 "but its world declares no \"database\"."
         end
 
@@ -115,7 +115,7 @@ module Hecks
 
         def bind_failure(name, declared, error)
           Runtime::WiringError.new(
-            "cannot bind PostgresEra at #{declared} for #{name}: #{error.message.strip} " \
+            "cannot bind Postgres at #{declared} for #{name}: #{error.message.strip} " \
             "-- to run without a database, set HECKS_ENVIRONMENT=memory (a domain needs an environments/memory overlay)"
           )
         end

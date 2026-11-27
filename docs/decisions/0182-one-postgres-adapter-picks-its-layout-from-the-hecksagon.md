@@ -1,6 +1,6 @@
 # One Postgres adapter picks its layout from the hecksagon
 
-**Status:** Proposed. Date: 2026-11-04. Owner: to be decided. Not yet built.
+**Status:** Accepted. Built for Hecks 8.0, on main ahead of the 8.0 release. Date: 2026-11-04; built 2026-11-27. The open questions were decided by the owner on 2026-11-04. What was built, and the one part of the decision left for later, is under "As built" at the end.
 
 ## Context
 
@@ -145,6 +145,74 @@ Decided by the owner on 2026-11-04, each as recommended.
 ## Verification status
 
 The table and revision DDL for `events` and `sagas` was read and matches. The `dialect.rb` and
-`journal.rb` differences come from reading the diffs and the code paths they touch. The specs
-were not run, and the boot path that selects an adapter was not read. Lambda's backing store
-was not checked.
+`journal.rb` differences come from reading the diffs and the code paths they touch. The boot path
+that selects an adapter was read and changed (see "As built"), and the specs listed there were run
+against a Postgres 16 server. `hecks_current_era` is a row-level-security policy on the journal
+(`CREATE POLICY hecks_current_era`, in the Ruby mint transaction and the Rust host's mint), not a
+table, view or column. Lambda's backing store was not checked.
+
+## As built
+
+**One adapter name, two layouts.** `persisted_by "Postgres"` is the only Postgres binding.
+`Ports::Persistence::Layout.adapter_class` asks the bound adapter's class for `layout_class`, and
+`Adapters::Postgres.layout_class(revisions:)` answers itself (the table layout) or the revision
+layout's class. `revisions?` is true when the domain's own hecksagon says `revisions true`, or when
+a hecksagon that says it attaches the domain and hands it its root `persisted_by` default. Every
+caller that turned a bind into a class goes through it: the repository factory, the boot's adapter
+load (which registers the era plugin), the era gate and status, the tenant check, the kept-ledger
+read, the lineage export and the era tools. The world's settings stay under `persisted_by("Postgres")`.
+A revision-only setting (`formerly`, `allow_superuser`, `mint_eras`, `disposable_ledger`,
+`mints_era`) given to a domain on the table layout is refused, naming `revisions true`.
+
+**The revision layout keeps its implementation.** The revision layout's class is still
+`Hecks::Adapters::PostgresEra` with its `postgres_era/` tree, reached only as Postgres's layout.
+The delegation this decision describes (one adapter whose journal, dialect, events and sagas
+delegate to the layout, with the forked `events.rb` and `sagas.rb` merged) was not done for 8.0. It
+changes no hecksagon, world or stored name, so it can land in a minor release.
+
+**The layout record (open question 3).** `hecks_layouts` holds one row per domain
+(`domain` primary key, `layout` of `table` or `revisions`, `recorded_at`). The table layout records
+itself on its first boot. The revision layout records itself when the domain is first provisioned
+(`Lineage#ensure_base!` in Ruby, `mint::ensure_base` in the Rust host), and its boot only reads.
+Every boot compares: the recorded row, else the database's own evidence (held eras for the domain
+mean the revision layout, an aggregate's `<storage>_entries` log the table layout). A boot whose
+hecksagon chose the other layout is refused, in the same words on both runtimes:
+
+```
+cannot boot <Domain> in Postgres's <layout> layout: its database holds <Domain> in the <held>
+layout, and a layout cannot change once data exists. To keep the data, <remove|keep> `revisions
+true` <from|in> its hecksagon; to start over, point the world at a database that holds no <Domain>.
+```
+
+`schema_revision.rename_domain` moves the row with the rest of the domain's history.
+
+**The removal (open question 4 and rule 3).** `postgres_era.adapter` is deleted. A hecksagon bind,
+a world `default_adapter` or a world `persisted_by` block naming `PostgresEra` (any case, with or
+without underscores) fails the boot before any adapter loads, and `AdapterNamespace.resolve`
+refuses the name too, so no lookup by name reaches the class:
+
+```
+<Domain>: its hecksagon binds PostgresEra, which Hecks 8.0 removed. Write persisted_by "Postgres"
+plus `revisions true` in the hecksagon (ADR 0182) instead: PostgresEra is now Postgres's revision
+layout, chosen in the hecksagon.
+```
+
+The Rust host refuses an IR that binds it with the same words (`refuse_retired_adapters`), and
+serves `Postgres` and `Memory` only. The Rust build's lineage and kept passes read
+`revisions true` from the hecksagon instead of scanning adapter classes for `lineage_capable?`.
+
+**Other adapters (rule 1).** `revisions true` is refused unless at least one of the domain's
+aggregates resolves to `Postgres`; a domain may keep some aggregates in Memory beside them.
+
+**Test plan, as run.**
+
+- Table layout unchanged: `spec/adapters/driven/postgres_table_layout_spec.rb` (the same tables
+  and columns as before, plus `hecks_layouts`).
+- Revision layout through `Postgres`: `spec/adapters/driven/postgres_revisions_boot_spec.rb`, and
+  the `postgres_era` specs, which build the layout's class directly or boot `persisted_by
+  "Postgres"` with `revisions true`.
+- Outbox against both layouts: `spec/runtime/outbox_postgres_spec.rb`.
+- The record: `spec/adapters/driven/postgres_layout_record_spec.rb` and the `layout` and
+  `boot_check` tests in `rust/host/src/store/mint.rs`.
+- The removal: `spec/runtime/retired_postgres_era_spec.rb`, `rust/host/core/src/ir.rs` and
+  `rust/host/src/boundary_fuzz/ir.rs`.

@@ -20,13 +20,15 @@ require_relative "../../runtime/event"
 require_relative "postgres/outbox"
 require_relative "postgres/reconnect"
 require_relative "postgres/shared_connection"
+require_relative "postgres/layout_record"
 require_relative "../../runtime/instance"
 require_relative "../../indifferent_key"
 
 module Hecks
   module Adapters
-    # The plain Postgres store: one table per aggregate, real typed columns
-    # for scalars, jsonb for nested/list attributes. See `PostgresEra` for lineage/era support.
+    # The Postgres store in its table layout: one table per aggregate, real typed columns for
+    # scalars, jsonb for nested/list attributes. A hecksagon that says `revisions true` picks the
+    # revision layout instead (`layout_class`, ADR 0182).
     class Postgres
       include SqlQueryBuilder
       include SchemaBuilder
@@ -49,6 +51,13 @@ module Hecks
       # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
       # @return [Array<Symbol>] atomic_put, optimistic_concurrency and dispatch_claims
       def persistence_capabilities = %i[atomic_put optimistic_concurrency dispatch_claims]
+
+      # The class that keeps a domain's rows in the layout its hecksagon chose: this one, the
+      # table layout, unless the hecksagon says `revisions true`.
+      #
+      # @param revisions [Boolean] whether the domain's hecksagon says `revisions true`
+      # @return [Class] this class, or the revision layout's
+      def self.layout_class(revisions:) = revisions ? Adapters::PostgresEra : self
 
       # Opens a connection to the database a world declares, scoped to its `schema` if any.
       #
@@ -108,17 +117,15 @@ module Hecks
       end
       private_class_method :require_pg, :refuse_undeclared, :open_connection, :configure
 
-      # Joins the process's shared connection for the declared database and schema, then
-      # creates the aggregate, journal, event, saga and outbox tables if absent.
+      # Joins the process's shared connection, records the table layout for the domain (see
+      # `PostgresLayoutRecord`), then creates the aggregate, journal, event, saga and outbox tables.
       #
       # @param aggregate [Bluebook::Aggregate] the aggregate whose table this adapter owns
       # @param settings [Hash{Symbol, String => Object}] world settings for the binding:
       #   `database` (required), `schema` and `domain` (optional; `domain` defaults to the
       #   aggregate's storage name and scopes saga rows)
-      # @param root [String, nil] project root directory; accepted for the shared adapter
-      #   constructor shape and ignored
-      # @raise [Runtime::WiringError] if the settings declare no `database` or the connection
-      #   is refused
+      # @param root [String, nil] project root directory, ignored
+      # @raise [Runtime::WiringError] if no `database`, a refused connection, or a revision layout
       # @raise [PG::Error] if creating a table or index fails
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
@@ -128,6 +135,7 @@ module Hecks
         # settings gives no domain (e.g. a directly-instantiated adapter).
         @domain = settings.fetch(:domain) { aggregate.storage_name }.to_s
         refuse_orphaned_rows!
+        PostgresLayoutRecord.new(@db, @domain).record!(PostgresLayoutRecord::TABLE_LAYOUT, [table])
         create_tables!
       end
 

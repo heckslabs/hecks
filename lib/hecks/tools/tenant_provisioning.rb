@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks"
-# --adapter=PostgresEra needs the era persistence plugin (ADR 0033).
+# A tenant in Postgres's revision layout needs the era persistence plugin (ADR 0033).
 require "hecks/ports/persistence/plugins/era"
 require "optparse"
 require "hecks/hecks/adapters/journal_store"
@@ -18,10 +18,10 @@ module Hecks
     # swallowed by `PolicyInterpreter#deliver`, so success is confirmed by query.
     #
     #   hecks deploy tenant.provision <domain-directory> <slug> --domain=name --realm=name \
-    #     --schema=name --database=name [--adapter=PostgresEra]
+    #     --schema=name --database=name [--adapter=Postgres]
     module TenantProvisioning
       USAGE = "usage: hecks deploy provision <domain-directory> <slug> --domain=NAME --realm=NAME " \
-              "--schema=NAME --database=NAME [--adapter=PostgresEra]"
+              "--schema=NAME --database=NAME [--adapter=Postgres]"
 
       # The bluebooks that must boot together for a tenant to be declared and registered.
       BLUEBOOK_FILES = %w[deploy/bluebook/deploy.bluebook deploy/bluebook/deploy.hecksagon
@@ -55,7 +55,7 @@ module Hecks
       # @return [Hash{Symbol => String}] `domain`, `realm`, `schema`, `database` and `adapter`
       # @raise [SystemExit] when a required flag is missing
       def parse(argv)
-        options = { adapter: "PostgresEra" }
+        options = { adapter: "Postgres" }
         OptionParser.new do |parser|
           %i[domain realm schema database adapter].each do |flag|
             parser.on("--#{flag}=NAME") { |v| options[flag] = v }
@@ -118,7 +118,7 @@ module Hecks
       end
 
       # Boots the domain under the tenant's overlay (which also provisions the schema, since
-      # `PostgresEra#connect_for` runs an idempotent `CREATE SCHEMA`), checks every bluebook of
+      # Postgres runs an idempotent `CREATE SCHEMA`), checks every bluebook of
       # the registry is tenant capable, and confirms the tenant by query.
       #
       # @param dispatcher [Hecks::Runtime::Dispatcher] the shared dispatcher

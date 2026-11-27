@@ -32,8 +32,9 @@ RSpec.describe Hecks::Runtime::Registry do
       2.times { expect { registry.verify_declarations! }.to raise_error(Hecks::Runtime::WiringError) }
     end
 
-    it "keeps the order the checks have always run in" do
-      expect(checks.first(3)).to eq(%i[verify_default_adapter! verify_world_defaults! verify_singleton_port_answers!])
+    it "refuses a retired adapter first, then keeps the order the checks have always run in" do
+      expect(checks.first(4)).to eq(%i[refuse_retired_adapters! verify_default_adapter! verify_world_defaults!
+                                       verify_singleton_port_answers!])
     end
   end
 

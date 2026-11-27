@@ -133,9 +133,7 @@ module Hecks
         where = shown(target)
         lines = ["wrote #{paths.length} files in #{where}/:"] + paths.sort.map { |path| "  #{path}" }
         lines << "" << "next:" << "  hecks docs #{where}/bluebook" << "  hecks console subject=#{where}"
-        unless %w[Postgres PostgresEra].include?(adapter)
-          lines << "" << "a Lambda deployment needs Postgres: run again with --adapter=Postgres."
-        end
+        lines << "" << "a Lambda deployment needs Postgres: run again with --adapter=Postgres." unless adapter == "Postgres"
         lines.join("\n")
       end
     end

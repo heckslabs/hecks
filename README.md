@@ -51,7 +51,8 @@ These terms make up the model.
   migration is a script you write and run against the database, while a
   translation is a declaration that `hecks schema_revision.audit_translation` replays
   against real records before boot, and boot refuses a shape change that has
-  none. Eras are tracked by the `PostgresEra` adapter (and the Rust host's Postgres store).
+  none. Eras are tracked by Postgres's revision layout, which a hecksagon picks with
+  `revisions true` (and by the Rust host's Postgres store).
 
 You write a domain in a bluebook, wire it with a hecksagon, and give a world
 the deployment's values. `Hecks.boot` reads the three, runs the domain, and
@@ -532,9 +533,9 @@ Only what this repository actually does today, checked, not aspired to:
   file is the entire migration between an in-memory adapter and a real
   database — the `.bluebook` file never names a backend, so it never
   changes. Every persistence adapter under `lib/hecks/adapters/driven/`
-  (`Memory`, `SqlitePersistence`, `Postgres`, `PostgresEra` (adds
-  schema-evolution tracking — see [Schema
-  evolution](docs/implemented/guides/schema-evolution.md)), `Heki`
+  (`Memory`, `SqlitePersistence`, `Postgres` (whose revision layout,
+  picked with `revisions true`, adds schema-evolution tracking — see
+  [Schema evolution](docs/implemented/guides/schema-evolution.md)), `Heki`
   (an append-only journal, no server), and others) satisfies the same
   persistence port.
 
@@ -670,9 +671,11 @@ A persistence adapter with no server: an append-only journal file per
 aggregate (`data/*.heki`, `*.heki.journal`). `examples/banking` is bound
 to it.
 
-### PostgresEra
+### Revision layout
 
-The Postgres persistence adapter that also tracks schema evolution. It
+The layout of the Postgres persistence adapter that also tracks schema
+evolution, picked by `revisions true` in a hecksagon beside
+`persisted_by "Postgres"` (ADR 0182; Hecks 7 called it `PostgresEra`). It
 holds the source text each [era](#era) of a domain was born from, refuses
 to boot on drift between that text and the booting text, and requires a
 `translations/*.bluebook` file before a shape change reinterprets old
@@ -682,7 +685,7 @@ Postgres. See [Schema evolution](docs/implemented/guides/schema-evolution.md).
 
 ### Era
 
-One version of a domain's shape as `PostgresEra` holds it, numbered in
+One version of a domain's shape as the [revision layout](#revision-layout) holds it, numbered in
 order. A declared translation carries existing records from one era to
 the next.
 

@@ -51,7 +51,8 @@ RSpec.describe "hecks deploy provision", :io do
   PROVISION_SCRATCH_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Scratch" do
       attaches "Governance"
-      Scratch::Widget.persisted_by("PostgresEra")
+      Scratch::Widget.persisted_by("Postgres")
+      revisions true
     end
   HECKSAGON
 

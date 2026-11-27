@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/hecks/adapters/settings_reading"
 require_relative "../lib/hecks/quality_control/adapters/main_maintenance"
 
-# The QA bundle's worlds declare their PostgresEra ledgers disposable, so a shape change needs no
+# The QA bundle's worlds declare their Postgres ledgers disposable, so a shape change needs no
 # mint, and a Maintenance mint of that ledger answers that none is needed instead of erroring.
 RSpec.describe "the QA ledger's disposable worlds" do
   let(:ledger) { File.expand_path("../qa/bluebook", __dir__) }
@@ -10,7 +10,7 @@ RSpec.describe "the QA ledger's disposable worlds" do
   %w[quality_control fixer governance].each do |name|
     it "declares disposable_ledger true in #{name}.world", :aggregate_failures do
       text = File.read(File.join(ledger, "#{name}.world"))
-      block = text[/persisted_by\("PostgresEra"\) do\n(.*?)\n  end/m, 1]
+      block = text[/persisted_by\("Postgres"\) do\n(.*?)\n  end/m, 1]
       expect(block).to match(/^\s*disposable_ledger true$/)
     end
   end

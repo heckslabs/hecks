@@ -4,8 +4,8 @@ require_relative "../support/postgres_probe"
 require_relative "../support/scratch_postgres"
 require_relative "../support/first_era_hold"
 
-# `spec/runtime/outbox_spec.rb`'s crash cases, against the two Postgres
-# adapters — the enqueue shares the save's transaction (`Adapters::
+# `spec/runtime/outbox_spec.rb`'s crash cases, against Postgres's two
+# layouts — the enqueue shares the save's transaction (`Adapters::
 # PostgresOutbox#transaction` joins an open one instead of nesting a
 # BEGIN), a pending row survives a crash and is redriven on the next
 # boot, a claimed row is surfaced and left alone.
@@ -53,17 +53,24 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
   def load_postgres_stack
     MemoryPorts.load!
     Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
-    Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
   end
 
-  def boot_shop(adapter)
+  # The shop's hecksagon: Postgres, in the revision layout when `revised`.
+  def shop_wiring(revised)
+    proc do
+      persisted_by "Postgres"
+      revisions revised
+    end
+  end
+
+  def boot_shop(layout)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       load_postgres_stack
       Hecks.bluebook("Shop", &OUTBOX_PG_SHOP_DOMAIN)
-      hold_declared_era!(registry.bluebook("Shop"), url: OUTBOX_SPEC_DB) if adapter == "PostgresEra"
-      Hecks.hecksagon("Shop") { persisted_by adapter }
-      Hecks.world("Shop") { persisted_by(adapter) { database(OUTBOX_SPEC_DB) } }
+      hold_declared_era!(registry.bluebook("Shop"), url: OUTBOX_SPEC_DB) if layout == "revisions"
+      Hecks.hecksagon("Shop", &shop_wiring(layout == "revisions"))
+      Hecks.world("Shop") { persisted_by("Postgres") { database(OUTBOX_SPEC_DB) } }
     end
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
@@ -81,10 +88,10 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
     runtime.registry.repository("Shop", runtime.registry.bluebook("Shop").aggregate("Order"))
   end
 
-  %w[Postgres PostgresEra].each do |adapter|
-    describe adapter do
-      let(:runtime) { boot_shop(adapter) }
-      let(:rebooted) { boot_shop(adapter) }
+  %w[table revisions].each do |layout|
+    describe "Postgres in its #{layout} layout" do
+      let(:runtime) { boot_shop(layout) }
+      let(:rebooted) { boot_shop(layout) }
 
       # A crash is not a StandardError, so nothing in the pipeline rescues it; stubbing
       # `message` on the target to raise Interrupt simulates the process vanishing mid-dispatch.

@@ -458,6 +458,120 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
     }
 
     install_transforms(client).await?;
+    record_revision_layout(client, domain).await?;
+    Ok(())
+}
+
+/// The layout every era-holding domain is kept in, as `hecks_layouts` records it
+/// (`lib/hecks/adapters/driven/postgres/layout_record.rb`, ADR 0182).
+pub const REVISION_LAYOUT: &str = "revisions";
+
+/// The refusal for a database that holds `domain` in another layout: the same
+/// words `PostgresLayoutRecord#refuse!` says on the Ruby side.
+pub fn layout_refusal(domain: &str, held: &str) -> String {
+    let keeping = if held == "table" {
+        "remove `revisions true` from its hecksagon"
+    } else {
+        "keep `revisions true` in its hecksagon"
+    };
+    format!(
+        "cannot boot {domain} in Postgres's {REVISION_LAYOUT} layout: its database holds {domain} in the \
+         {held} layout, and a layout cannot change once data exists. To keep the data, {keeping}; \
+         to start over, point the world at a database that holds no {domain}."
+    )
+}
+
+/// The layout the database holds `domain` in: the one `hecks_layouts` records, else the one its
+/// unrecorded rows show (held eras mean the revision layout, an aggregate's `<storage>_entries`
+/// log the table layout), else `None` for a domain with no data. Ruby's
+/// `PostgresLayoutRecord#found`, read the same way.
+async fn found_layout<C: GenericClient>(
+    client: &C,
+    domain: &str,
+    storage_names: &[&str],
+) -> anyhow::Result<Option<String>> {
+    if relation_exists(client, "hecks_layouts").await? {
+        let row = client
+            .query_opt(
+                "SELECT layout FROM hecks_layouts WHERE domain = $1",
+                &[&domain],
+            )
+            .await?;
+        if let Some(row) = row {
+            return Ok(Some(row.get(0)));
+        }
+    }
+    if relation_exists(client, "hecks_eras").await?
+        && client
+            .query_opt(
+                "SELECT 1 FROM hecks_eras WHERE domain = $1 LIMIT 1",
+                &[&domain],
+            )
+            .await?
+            .is_some()
+    {
+        return Ok(Some(REVISION_LAYOUT.to_string()));
+    }
+    for storage_name in storage_names {
+        if relation_exists(client, &format!("{storage_name}_entries")).await? {
+            return Ok(Some("table".to_string()));
+        }
+    }
+    Ok(None)
+}
+
+async fn relation_exists<C: GenericClient>(client: &C, name: &str) -> anyhow::Result<bool> {
+    let row = client
+        .query_one("SELECT to_regclass($1)::text AS relation", &[&name])
+        .await?;
+    Ok(row.get::<_, Option<String>>(0).is_some())
+}
+
+/// Refuses a boot of `domain` in the revision layout over a database that holds it in another,
+/// reading only, so a boot that writes nothing stays that way: Ruby's
+/// `PostgresLayoutRecord#check!`, which the revision layout runs on every boot.
+///
+/// # Errors
+///
+/// The [`layout_refusal`] naming both layouts, or a failed read.
+pub async fn check_revision_layout<C: GenericClient>(
+    client: &C,
+    domain: &str,
+    storage_names: &[&str],
+) -> anyhow::Result<()> {
+    match found_layout(client, domain, storage_names).await? {
+        Some(held) if held != REVISION_LAYOUT => anyhow::bail!(layout_refusal(domain, &held)),
+        _ => Ok(()),
+    }
+}
+
+/// Records the revision layout for `domain` in `hecks_layouts`, refusing a
+/// database that already holds another (the Ruby layout record's `record!`).
+async fn record_revision_layout<C: GenericClient>(client: &C, domain: &str) -> anyhow::Result<()> {
+    check_revision_layout(client, domain, &[]).await?;
+    client
+        .batch_execute(
+            "CREATE TABLE IF NOT EXISTS hecks_layouts (\
+             domain text PRIMARY KEY, layout text NOT NULL, \
+             recorded_at timestamptz NOT NULL DEFAULT now())",
+        )
+        .await?;
+    client
+        .execute(
+            "INSERT INTO hecks_layouts (domain, layout) VALUES ($1, $2) ON CONFLICT (domain) DO NOTHING",
+            &[&domain, &REVISION_LAYOUT],
+        )
+        .await?;
+    let held: String = client
+        .query_one(
+            "SELECT layout FROM hecks_layouts WHERE domain = $1",
+            &[&domain],
+        )
+        .await?
+        .get(0);
+    if held != REVISION_LAYOUT {
+        anyhow::bail!(layout_refusal(domain, &held));
+    }
     Ok(())
 }
 
@@ -1508,6 +1622,75 @@ async fn fill_snapshot_lifecycle_defaults<C: GenericClient>(
 #[cfg(test)]
 #[allow(clippy::items_after_statements)] // reason: tests declare a one-off fixture next to the statement that uses it
 mod tests {
+
+    #[test]
+    fn a_layout_refusal_names_both_layouts_in_the_ruby_record_s_own_words() {
+        assert_eq!(
+            super::layout_refusal("Ledger", "table"),
+            "cannot boot Ledger in Postgres's revisions layout: its database holds Ledger in the \
+             table layout, and a layout cannot change once data exists. To keep the data, remove \
+             `revisions true` from its hecksagon; to start over, point the world at a database that \
+             holds no Ledger."
+        );
+    }
+
+    /// The row Ruby's `PostgresLayoutRecord` reads: `hecks_layouts`, keyed by domain, `revisions`.
+    #[tokio::test]
+    async fn ensure_base_records_the_revision_layout_as_the_ruby_record_reads_it() {
+        let client = own_scratch_db("hecks_host_layout_recorded").await;
+        ensure_base(&client, "Ledger").await.expect("ensure_base");
+        let row = client
+            .query_one(
+                "SELECT layout FROM hecks_layouts WHERE domain = 'Ledger'",
+                &[],
+            )
+            .await
+            .expect("the layout row");
+        assert_eq!(row.get::<_, String>(0), "revisions");
+    }
+
+    #[tokio::test]
+    async fn ensure_base_refuses_a_database_recorded_in_the_table_layout() {
+        let client = own_scratch_db("hecks_host_layout_table_recorded").await;
+        client
+            .batch_execute(
+                "CREATE TABLE hecks_layouts (domain text PRIMARY KEY, layout text NOT NULL, \
+                 recorded_at timestamptz NOT NULL DEFAULT now()); \
+                 INSERT INTO hecks_layouts (domain, layout) VALUES ('Ledger', 'table')",
+            )
+            .await
+            .expect("a table-layout record");
+        let err = ensure_base(&client, "Ledger").await.unwrap_err();
+        assert_eq!(format!("{err:#}"), super::layout_refusal("Ledger", "table"));
+    }
+
+    /// A database written before the record existed: the table layout's entry log is the evidence.
+    #[tokio::test]
+    async fn a_boot_check_refuses_an_unrecorded_entry_log() {
+        let client = own_scratch_db("hecks_host_layout_entry_log").await;
+        client
+            .batch_execute("CREATE TABLE acct_entries (id bigserial PRIMARY KEY)")
+            .await
+            .expect("an entry log");
+        let err = super::check_revision_layout(&client, "Ledger", &["acct"])
+            .await
+            .unwrap_err();
+        assert_eq!(format!("{err:#}"), super::layout_refusal("Ledger", "table"));
+    }
+
+    #[tokio::test]
+    async fn a_boot_check_passes_a_domain_with_no_data_and_writes_nothing() {
+        let client = own_scratch_db("hecks_host_layout_empty").await;
+        super::check_revision_layout(&client, "Ledger", &["acct"])
+            .await
+            .expect("an empty database boots");
+        let recorded = client
+            .query_one("SELECT to_regclass('hecks_layouts')::text", &[])
+            .await
+            .expect("to_regclass")
+            .get::<_, Option<String>>(0);
+        assert_eq!(recorded, None);
+    }
 
     /// A throwaway database of its own — `mint.rs` also compiles into
     /// `bin/mint_harness`, which has no `dispatch` module to borrow a helper from.

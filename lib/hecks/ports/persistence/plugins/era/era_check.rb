@@ -62,7 +62,7 @@ module Hecks
           first = bluebook.aggregates.first
           next false unless first
 
-          lineage_capable?(registry, adapter_for(registry, bluebook.name, first))
+          lineage_capable?(registry, adapter_for(registry, bluebook.name, first), bluebook.name)
         end
       end
 
@@ -185,12 +185,12 @@ module Hecks
         return unless first
 
         adapter_name = adapter_for(registry, bluebook.name, first)
-        return unless lineage_capable?(registry, adapter_name)
+        return unless lineage_capable?(registry, adapter_name, bluebook.name)
 
         refuse_missing_source!(bluebook, directory) unless current_text
 
         settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter_name)
-        registry.adapter_class(adapter_name).era_check!(
+        layout_class(registry, bluebook.name, adapter_name).era_check!(
           registry: registry, bluebook: bluebook, current_text: current_text, settings: settings,
           directory: directory
         )
@@ -213,7 +213,7 @@ module Hecks
       # @param registry [Runtime::Registry] the registry holding the domain's hecksagon
       # @param domain [String, Symbol] name of the domain the aggregate belongs to
       # @param aggregate [Bluebook::Aggregate] the aggregate whose binding is resolved
-      # @return [String] the bound adapter's name, such as `"PostgresEra"`; `"Memory"` when
+      # @return [String] the bound adapter's name, such as `"Postgres"`; `"Memory"` when
       #   the domain declares no hecksagon
       # @raise [Runtime::WiringError] if the aggregate has no persistence bind, more than one
       #   authoritative bind, or a bind with a role the port does not support
@@ -221,17 +221,31 @@ module Hecks
         Ports::Persistence::BindingPolicy.resolve(registry, domain, aggregate).adapter
       end
 
-      # Asks a named adapter whether it carries eras.
+      # The class that keeps a domain's rows for the named adapter, in the layout its hecksagon
+      # chose: `Postgres` with `revisions true` is the revision layout, which carries eras.
       #
-      # Postgres alone answers true today; the seam lets a second
+      # @param registry [Runtime::Registry] the registry the adapter is declared in
+      # @param domain [String, Symbol, nil] the domain the adapter serves
+      # @param adapter_name [String] the adapter's name, as `adapter_for` returns it
+      # @return [Class] the layout's class
+      # @raise [Runtime::WiringError] if no Ruby class implements the adapter
+      def layout_class(registry, domain, adapter_name)
+        Ports::Persistence::Layout.adapter_class(registry, domain, adapter_name)
+      end
+
+      # Asks whether a named adapter carries eras for a domain, in the layout its hecksagon chose.
+      #
+      # The revision layout of Postgres alone answers true today; the seam lets a second
       # lineage-capable adapter arrive without touching this file.
       #
       # @param registry [Runtime::Registry] the registry whose `adapters` must list the name
       # @param adapter_name [String] the adapter's name, as `adapter_for` returns it
-      # @return [Boolean] the adapter's own answer; false if unlisted, not lineage-capable, or
+      # @param domain [String, Symbol, nil] the domain whose hecksagon picks the layout; nil
+      #   asks about the adapter's default layout
+      # @return [Boolean] the layout's own answer; false if unlisted, not lineage-capable, or
       #   any `StandardError` is raised
-      def lineage_capable?(registry, adapter_name)
-        adapter_class = registry.adapters[adapter_name] && registry.adapter_class(adapter_name)
+      def lineage_capable?(registry, adapter_name, domain = nil)
+        adapter_class = registry.adapters[adapter_name] && layout_class(registry, domain, adapter_name)
         adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
       rescue StandardError
         false

@@ -6,9 +6,10 @@ Hecks.hecksagon "Compliance" do
   # Governance itself, the same sibling shape banking.hecksagon uses.
   attaches "Governance"
 
-  # NO PER-AGGREGATE BINDS — compliance.world's own `default_adapter
-  # "PostgresEra"` binds every aggregate this hecksagon leaves out, so
-  # Review persists there without a line of its own.
+  # NO PER-AGGREGATE BINDS — compliance.world's `default_adapter "Postgres"`
+  # binds every aggregate this hecksagon leaves out, so Review persists there,
+  # in Postgres's revision layout, without a line of its own.
+  revisions true
 end
 
 # Governance binds Memory explicitly, which wins over compliance.world's

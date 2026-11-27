@@ -90,7 +90,7 @@ RSpec.describe Hecks::Runtime::BootGates do
       boot_registry do
         load_memory_ports
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
+        Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
       end

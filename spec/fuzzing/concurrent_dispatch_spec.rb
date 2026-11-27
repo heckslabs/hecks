@@ -129,7 +129,8 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
 
     CONCURRENT_DISPATCH_FIXTURE_HECKSAGON = <<~RUBY.freeze
       Hecks.hecksagon "ConcurrentDispatchFixture" do
-        ConcurrentDispatchFixture::Account.persisted_by("PostgresEra")
+        ConcurrentDispatchFixture::Account.persisted_by("Postgres")
+        revisions true
       end
     RUBY
 

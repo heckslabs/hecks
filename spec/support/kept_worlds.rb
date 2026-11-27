@@ -25,9 +25,10 @@ module KeptWorlds
 
   def remove_kept_directory = FileUtils.remove_entry(kept_directory)
 
-  def write_shop(adapter, world: nil, local: nil)
+  def write_shop(adapter, revisions: false, world: nil, local: nil)
     write_kept("shop.bluebook", BLUEBOOK)
-    write_kept("shop.hecksagon", %(Hecks.hecksagon "Shop" do\n  persisted_by "#{adapter}"\nend\n))
+    layout = revisions ? "  revisions true\n" : ""
+    write_kept("shop.hecksagon", %(Hecks.hecksagon "Shop" do\n  persisted_by "#{adapter}"\n#{layout}end\n))
     write_kept("shop.world", world_text(world)) if world
     write_kept("shop.local.world", world_text(local)) if local
   end

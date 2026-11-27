@@ -61,7 +61,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::LocalWorld do
   it "removes a link, and names why, when the owner's world gains mint_eras", :aggregate_failures do
     world
     sync
-    world("Hecks.world \"Hecks\" do\n  persisted_by(\"PostgresEra\") do\n    mint_eras true\n  end\nend\n")
+    world("Hecks.world \"Hecks\" do\n  persisted_by(\"Postgres\") do\n    mint_eras true\n  end\nend\n")
     expect(sync).to include("not linked")
     expect(File.symlink?(link)).to be(false)
   end

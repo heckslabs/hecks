@@ -8,7 +8,7 @@ require_relative "../support/first_era_hold"
 # the other Postgres-specific specs.
 RSpec.describe "durable saga/process-manager state, against Postgres", :io do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
-  POSTGRES_ERA_ADAPTER = InMemoryDomain::POSTGRES_ERA_ADAPTER
+  POSTGRES_ADAPTER = InMemoryDomain::POSTGRES_ADAPTER
   SAGA_DURABILITY_SPEC_DB = "hecks_saga_durability_spec".freeze
 
   include FirstEraHold
@@ -22,20 +22,21 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
   def bind_wire_hecksagons
     Hecks.hecksagon("Wire") do
       attaches "Governance"
-      persisted_by "PostgresEra"
+      persisted_by "Postgres"
+      revisions true
     end
     Hecks.hecksagon("Governance") do
       Governance::RoleAssignment.persisted_by("Memory")
       Governance::RoleTransition.persisted_by("Memory")
     end
-    Hecks.world("Wire") { persisted_by("PostgresEra") { database(SAGA_DURABILITY_SPEC_DB) } }
+    Hecks.world("Wire") { persisted_by("Postgres") { database(SAGA_DURABILITY_SPEC_DB) } }
   end
 
   def declare_wire
     Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
     Kernel.load(InMemoryDomain::EXTRACTION_PORT)
     Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-    Kernel.load(POSTGRES_ERA_ADAPTER)
+    Kernel.load(POSTGRES_ADAPTER)
     Kernel.load(InMemoryDomain::PRISM_ADAPTER)
     Kernel.load(WIRE_BLUEBOOK)
     bind_wire_hecksagons

@@ -1,7 +1,31 @@
+# Declares the Postgres adapter's port and fields; the class is `postgres.rb` beside it. Its
+# hecksagon picks the layout (ADR 0182): one table per aggregate, or, with `revisions true`, the
+# revision layout. This file is loaded on every boot, so it stays metadata only.
 Hecks.adapter "Postgres" do
   port  "persistence"
   field :database
   field :schema
+  # The role a mint connects as; `RepositoryFactory` strips it before either layout sees it.
+  field :role
+  # Only the revision layout reads this field and those below it; without `revisions true` a world
+  # setting one is refused (`Ports::Persistence::Layout`). `formerly "Old"`: the name this domain's
+  # history is held under until `schema_revision.rename_domain` moves it.
+  field :formerly
+  # Opt-in to boot over a superuser or BYPASSRLS role, which the era write fence cannot
+  # bite. Refused by default; see `Lineage#check_fence_applies!`.
+  field :allow_superuser
+  # Whether this copy may migrate the database to a newer storage shape at boot, by minting the
+  # next era through a translation edge. `false` refuses; unset follows
+  # `LineageManager::RevisionResolver::MINT_BY_DEFAULT`; see `Refusals#refuse_unpermitted_mint!`.
+  field :mint_eras
+  # A disposable tooling ledger: a shape change needs no era; an additive one applies in place,
+  # any other archives the rows under a dated name. Unset or `false` keeps the era guard; see
+  # `LineageManager::DisposableLedger`. Never for client data.
+  field :disposable_ledger
+  # The commands whose own record an unminted boot may write: `mints_era "Maintenance.MintEra"`, one
+  # `Aggregate.Command` name or a list. This is where the allowance is declared; a command's own
+  # `mints_era true` is a fallback that must agree. See `Ports::Persistence::MintDoor`.
+  field :mints_era
   # Rewrites every row of an aggregate in one statement.
   provides "set_transform"
 end

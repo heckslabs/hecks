@@ -5,6 +5,7 @@ require_relative "sql_query_builder"
 require_relative "postgres/outbox"
 require_relative "postgres/reconnect"
 require_relative "postgres/shared_connection"
+require_relative "postgres/layout_record"
 require_relative "postgres_era/lineage"
 require_relative "postgres_era/lineage_manager"
 require_relative "postgres_era/events"
@@ -72,14 +73,16 @@ module Hecks
       #
       # @param settings [Hash{Symbol, String => Object}] world settings plus what
       #   `RepositoryFactory.build` merges in: `domain`, `era` and `superseded_by`
-      # @raise [Runtime::WiringError] if `database` is missing, the connection is refused, or the
-      #   database holds no era, or the aggregate's rows are journaled under an earlier name
+      # @raise [Runtime::WiringError] if `database` is missing, the connection is refused, the
+      #   database holds no era or holds the domain in the table layout, or the aggregate's rows are
+      #   journaled under an earlier name
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
         @db = PostgresSharedConnection.for(aggregate.name, settings, connector: ReadConnector)
         @domain = journal_domain(aggregate, settings)
         @lineage = Lineage.new(@db, @domain, reading: true)
+        PostgresLayoutRecord.new(@db, @domain).check!(PostgresLayoutRecord::REVISION_LAYOUT, [table])
         resolve_era!(settings)
         refuse_orphaned_rows!
         @field_caches = existing_field_caches

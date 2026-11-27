@@ -196,7 +196,7 @@ end
 #
 # Binding one aggregate makes the wiring explicit, so the rest need a default too. It is not a root
 # bind here: a root bind is handed to Governance, which the attaching Hecks domain also hands its own
-# to, and the two would conflict where Hecks is PostgresEra. The Tickets world's `default_adapter`
+# to, and the two would conflict where Hecks is on Postgres. The Tickets world's `default_adapter`
 # (Memory, the tooling default) covers them where nothing is inherited, and a local overlay still
 # binds Finding and Work to its own store.
 Hecks.hecksagon "Tickets" do
