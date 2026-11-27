@@ -22,7 +22,7 @@ RSpec.describe "the cap counts live runs, not work items" do
     text = preview("p-1" => { status: "started", session: "abc" })
 
     expect(text).to include("started 3 of cap 3")
-    expect(text).not_to include("would start")
+    expect(text).to include("this fill would start 0", "p-2 skipped: cap 3 reached")
   end
 
   it "gives the seat back when the run has ended", :aggregate_failures do
@@ -35,7 +35,7 @@ RSpec.describe "the cap counts live runs, not work items" do
   it "reads a turned dial at the next beat" do
     world = { "limit" => 16 }
     registry = instance_double(Hecks::Runtime::Registry)
-    allow(registry).to receive(:world).with("Tickets").and_return(double(for_verb: { limit: world["limit"] })) # rubocop:disable RSpec/VerifiedDoubles
+    allow(registry).to receive(:world).with("Tickets").and_return(double(for_verb: { limit: world["limit"] }))
     expect(Hecks::Adapters::Dispatching::Settings.new(registry, cpus: 4).max_load).to eq(16.0)
   end
 end

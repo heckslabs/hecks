@@ -3,6 +3,7 @@
 require_relative "console_capture"
 require_relative "dispatching/settings"
 require_relative "dispatching/work_items"
+require_relative "dispatching/live_runs"
 require_relative "dispatching/plan"
 require_relative "dispatching/batch_reads"
 require_relative "dispatching/headroom"
@@ -158,7 +159,7 @@ module Hecks
       def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
       def plan_for(only = "", rolling: false, repo: nil)
-        Plan.new(planned(only, rolling: rolling), work_items.started, **limits, effective: effective_for(repo))
+        Plan.new(planned(only, rolling: rolling), live_holders, **limits, effective: effective_for(repo))
       end
 
       # What bounds a filling: the machine's cap and load, what pauses every work item, and the

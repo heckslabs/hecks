@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "pressure_limits"
+require_relative "live_runs"
 
 module Hecks
   module Adapters
@@ -10,6 +11,9 @@ module Hecks
       # includes it.
       module HeadroomReads
         private
+
+        # The work items that hold a seat under the cap: started, or planned beside a live run.
+        def live_holders = LiveRuns.holders(work_items.started, work_items.planned, work_items.runs)
 
         # The sessions the load has room for, from the stand-in `loads:` or the recent Machine
         # readings. Absent when no reading is recorded, so the cap and the load limit alone apply.
@@ -24,7 +28,7 @@ module Hecks
         end
 
         def headroom_for(gauge, loads)
-          Headroom.new(loads: loads, started: work_items.started.size, load: gauge.load, max_load: gauge.max_load)
+          Headroom.new(loads: loads, started: live_holders.size, load: gauge.load, max_load: gauge.max_load)
         end
 
         # Where the compared load came from and the sampler's newest reading beside it.
