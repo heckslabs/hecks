@@ -8,14 +8,17 @@ require_relative "support/process_table_fixtures"
 RSpec.describe "the machine's top CPU consumers by purpose" do
   include ProcessTableFixtures
 
-  Sampling = Hecks::Adapters::MachineSampling
+  Sampling = Hecks::Adapters::MachineSampling unless defined?(Sampling)
+
+  before { Sampling.last = nil }
 
   def table
-    [Entry.new(1, 0, 40.0, "/usr/bin/ruby /x/bin/rspec spec/a_spec.rb"),
-     Entry.new(2, 0, 30.0, "/usr/bin/ruby exe/hecks gate_run.gate! stage=quick"),
-     Entry.new(3, 0, 20.0, "/usr/bin/ruby exe/hecks Heartbeat.beat!"),
-     Entry.new(4, 0, 100.0, "/usr/libexec/fseventsd"),
-     Entry.new(5, 0, 12.0, "claude --bg work"), Entry.new(6, 0, 3.0, "/usr/sbin/mds_stores")]
+    [ProcessTableFixtures::Entry.new(1, 0, 40.0, "/usr/bin/ruby /x/bin/rspec spec/a_spec.rb"),
+     ProcessTableFixtures::Entry.new(2, 0, 30.0, "/usr/bin/ruby exe/hecks gate_run.gate! stage=quick"),
+     ProcessTableFixtures::Entry.new(3, 0, 20.0, "/usr/bin/ruby exe/hecks Heartbeat.beat!"),
+     ProcessTableFixtures::Entry.new(4, 0, 100.0, "/usr/libexec/fseventsd"),
+     ProcessTableFixtures::Entry.new(5, 0, 12.0, "claude --bg work"),
+     ProcessTableFixtures::Entry.new(6, 0, 3.0, "/usr/sbin/mds_stores")]
   end
 
   let(:rows) { Sampling::Consumers.new(table).rows }
