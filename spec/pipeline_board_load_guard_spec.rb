@@ -15,11 +15,6 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LoadGuard do
   let(:probe) { Hecks::Adapters::PipelineBoard::Probe }
   let(:unavailable) { Hecks::Adapters::PipelineBoard::Unavailable }
 
-  # The board's rules are its bluebook, described once per process, and describing it runs the
-  # parser as a child. Describe it first, so an example measures the state and not that one load,
-  # whichever spec happened to run before it.
-  before(:context) { Hecks::Adapters::PipelineBoard::Rules.tables }
-
   after do
     described_class.shared = nil
     FileUtils.rm_rf(base)
