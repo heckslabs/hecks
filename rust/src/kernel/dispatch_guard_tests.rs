@@ -207,6 +207,48 @@ fn a_given_that_does_not_hold_refuses_with_its_description() {
 }
 
 #[test]
+fn a_given_reads_the_record_through_old_where_an_argument_hides_the_field() {
+    // The argument `ok` is false and the record's `ok` is true: the bare name is the argument,
+    // `old.ok` the record.
+    let args = Item {
+        ok: false,
+        ..item("a", 1)
+    };
+    let bare = [given("the argument is ok", "ok")];
+    let held = [given("the record is ok", "old.ok")];
+
+    assert_eq!(
+        refusal_of(enforce_givens(
+            &acct(),
+            &args,
+            &bare,
+            "Close",
+            "D::Acct",
+            "a1"
+        )),
+        (
+            "GivenNotMet",
+            "Close refused — the argument is ok".to_string()
+        )
+    );
+    assert!(enforce_givens(&acct(), &args, &held, "Close", "D::Acct", "a1").is_ok());
+    assert_eq!(
+        refusal_of(enforce_givens(
+            &closed(),
+            &args,
+            &held,
+            "Close",
+            "D::Acct",
+            "a1"
+        )),
+        (
+            "GivenNotMet",
+            "Close refused — the record is ok".to_string()
+        )
+    );
+}
+
+#[test]
 fn a_failing_corrects_given_refuses_as_nothing_to_correct_naming_the_record() {
     let givens = [corrects_given("Opened", "ok")];
 

@@ -433,6 +433,21 @@ account.debit!(amount: { cents: 999 }, narrative: "nothing there")  # ~> GivenNo
 The description IS the message, verbatim — which is why a `given` is
 written as a sentence a caller can act on rather than a name.
 
+A bare name in a `given` reads the command's argument first, then the record, so an argument that
+shares a field's name hides that field. `old` names the record as it stands, as it does in an
+`ensures`, so the rule can read both: the argument by its bare name, the record as `old.<field>`.
+
+```ruby skip
+# spec/corpus/semantics/domains/tally/
+command "Raise" do
+  reference_to Tally
+  attribute :count, Count
+  given("the new count is above the one held") { count.value > old.count.value }
+  sets :count
+  emits "CountRaised"
+end
+```
+
 ## sets
 
 <!-- generated:begin word=sets -->
