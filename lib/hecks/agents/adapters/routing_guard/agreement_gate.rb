@@ -18,7 +18,7 @@ module Hecks
         # declare. With no durable store no agreement answers and the gate allows.
         #
         # @param registry [Runtime::Registry, nil] the boot answering the guard
-        # @param settings [Hash] `agreements:` and `policies:` callables standing in for the registry
+        # @param settings [Hash] `agreements:` and `policies:` callables standing in for its records
         # @return [AgreementGate]
         def self.build(registry, settings)
           return new(agreements: settings[:agreements], policies: settings[:policies]) if settings.key?(:agreements)
