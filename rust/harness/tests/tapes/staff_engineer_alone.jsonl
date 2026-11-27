@@ -1,0 +1,10 @@
+{"note":"The resident staff engineer with Miette not reached: the harness tells it her message did not arrive, and it tells the asker so and says nothing in her place."}
+{"expect":"user","contains":"You are the staff engineer role"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-staff-engineer-alone","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Resident; waiting for a question."}}
+{"expect":"user","contains":"Message reviewer-1 from reviewer"}
+{"emit":{"type":"control_request","request_id":"s-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"miette","text":"Is a told fact ever written?","about":"reviewer-1"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to miette"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Asked Miette for the reviewer."}}
+{"expect":"user","contains":"was not delivered"}
+{"emit":{"type":"control_request","request_id":"s-mcp-2","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"reviewer","text":"Miette was not reached, so nothing is said in her place.","about":"reviewer-1"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to reviewer"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Told the reviewer Miette was not reached."}}

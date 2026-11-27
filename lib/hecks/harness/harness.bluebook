@@ -177,6 +177,8 @@ Hecks.bluebook "Harness" do
     attribute :text,         MessageText
     attribute :sent_at,      Moment
     attribute :delivered_at, Moment, optional: true
+    # The message this one answers or relays, when its sender named one.
+    attribute :about,        MessageKey, optional: true
 
     # The supervisor's id for the message: the sender's name and a count.
     value_object "MessageKey" do
@@ -215,6 +217,9 @@ Hecks.bluebook "Harness" do
       attribute :addressee, Party
       attribute :text,      MessageText
       attribute :sent_at,   Moment
+      # Given on every post, nil when the message answers nothing: DeliverEachMessage reads it,
+      # and a policy's with: refuses a field the event does not carry.
+      attribute :about,     MessageKey, optional: true
 
       emits "MessagePosted"
     end
@@ -243,11 +248,42 @@ Hecks.bluebook "Harness" do
 
   policy "DeliverEachMessage" do
     on  "Message.MessagePosted"
-    ask :deliver, with: { key: :key, sender: :sender, addressee: :addressee, text: :text }
+    ask :deliver, with: { key: :key, sender: :sender, addressee: :addressee, text: :text, about: :about }
   end
 
   policy "RecordTheUndeliverable" do
     on      "Message.DeliveryRefused"
     trigger Message::RecordUndeliverable, with: { message: :key }
+  end
+
+  # The staff engineer's relays, recorded in StaffEngineer as the mail passes: a question opens one,
+  # Miette's answer about it is received, the send on to the asker is forwarded only in her words,
+  # and a send to her that is refused declines it, so nothing is said in her place.
+  policy "AskMietteThroughTheStaffEngineer" do
+    on      "Message.MessagePosted"
+    where   { addressee.value == "staff-engineer" && sender.value != "miette" }
+    across  "StaffEngineer"
+    trigger Relay::Ask, with: { relay: :key, question: :text, run: :sender }
+  end
+
+  policy "ReceiveMiettesAnswer" do
+    on      "Message.MessagePosted"
+    where   { sender.value == "miette" && addressee.value == "staff-engineer" }
+    across  "StaffEngineer"
+    trigger Relay::Receive, with: { relay: :about, received: :text }
+  end
+
+  policy "ForwardMiettesAnswer" do
+    on      "Message.MessagePosted"
+    where   { sender.value == "staff-engineer" && addressee.value != "miette" }
+    across  "StaffEngineer"
+    trigger Relay::Forward, with: { relay: :about, words: :text, author: "miette" }
+  end
+
+  policy "DeclineWhenMietteIsNotReached" do
+    on      "Message.DeliveryRefused"
+    where   { sender.value == "staff-engineer" && addressee.value == "miette" }
+    across  "StaffEngineer"
+    trigger Relay::Decline, with: { relay: :about }
   end
 end

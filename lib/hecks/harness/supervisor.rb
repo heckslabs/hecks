@@ -47,8 +47,8 @@ module Hecks
       #
       # @return [Hash] the `delivered` or `queued` tell
       # @raise [Refused] when the supervisor refuses or does not answer
-      def deliver(key:, sender:, addressee:, text:)
-        op = { op: "deliver", session: addressee, message: key, from: sender, text: text }
+      def deliver(key:, sender:, addressee:, text:, about: nil)
+        op = { op: "deliver", session: addressee, message: key, from: sender, text: text, about: about }.compact
         answered(request(op) { |tell| tell["message"] == key && %w[queued delivered refused].include?(tell["tell"]) })
       end
 
