@@ -59,13 +59,19 @@ What Hecks already has for the move:
 
 1. **One box runs the whole pipeline: the beat, dispatch, coders, gates, the train, the board and its
    watchers.** The box is projected from a world of the pipeline's own with `deployed_to("AwsBox")`, as client
-   services are. No infrastructure is written by hand. The first size is 4 vCPU and 16 GB on arm64
-   (`t4g.xlarge`) with a 200 GB volume, and the fill's headroom readings decide when it is too small. The box
+   services are. No infrastructure is written by hand. It goes into the AWS account the owner's services
+   already run in. The first size is 2 vCPU and 8 GB on arm64 (`t4g.large`) with a 100 GB volume, enough for
+   two or three coders at once, which is the pace the model credit allows; the fill's headroom readings decide
+   when it moves up to `t4g.xlarge`. It is reserved for a year once a month of readings shows the size holds. The
+   box gets its own instance and is not added to a client service's box, so a coder that fills memory or disk
+   cannot stop a client's service. The box
    runs Switchyard on a pinned Hecks, not Hecks itself: the owner decided on 2026-11-27 that the whole pipeline
    leaves Hecks for Switchyard ("We can move off the whole pipeline to switch yard"), so the cloud work is built
    with Switchyard as its home. Hecks keeps what any project uses (the `AwsBox` projection and the Postgres
    adapter), and Switchyard uses them as a client does.
-2. **The ledger moves to Postgres, on the RDS instance the same projection makes.** This is the shared ledger
+2. **The ledger moves to Postgres, as a database of its own on the RDS instance the owner's services already
+   use.** No new instance is made while the existing one has room; the projection makes one only for an account
+   that has none. This is the shared ledger
    every machine reads and claims from. It revisits 0213, which kept SQLite because one machine and one lock
    line did not pay for the move. A second machine is what pays for it, because SQLite cannot be shared over a
    network. 0213 §4 to §7 list what the move needs first: Postgres twins of `LedgerKeeping`, the outbox purge,
@@ -135,10 +141,11 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 ## Consequences
 
-- **Running cost, before model use.** About $98 a month for the box on demand (`t4g.xlarge` at about $0.134 an
-  hour in us-west-2) and about $23 a month for `db.t4g.small` Postgres, plus volumes and backups: roughly
-  $130 to $140 a month. Third-party price lists, read 2026-11-27; the owner's AWS bill is the measure. A
-  one-year reservation lowers the box to about $0.092 an hour.
+- **Running cost, before model use.** About $57 a month on demand: the box at about $49 (`t4g.large` at
+  about $0.067 an hour in us-east-1) and its 100 GB volume at about $8 ($0.08 a GB-month). A one-year
+  reservation lowers the box to about $31, so about $39 a month. The ledger adds storage to the existing
+  database (a few GB, under $1 a month) and no instance. Third-party price lists, read 2026-11-27; the owner's
+  AWS bill is the measure.
 - **Model cost.** The compute meter will measure it. As a working estimate, a landed item costs a few dollars
   of model use, so $200 of credit covers on the order of 50 to 150 items, against the 75 a day the board showed
   over the 13 days to 2026-11-25. The spend bound decides how fast the credit is used.
@@ -149,6 +156,13 @@ projection) lands in Hecks, and the rest waits for Switchyard.
   when the owner revokes it.
 
 ## Alternatives considered
+
+- **A new box and a new database of its own (`t4g.xlarge` and `db.t4g.small`).** About $130 to $140 a month,
+  for room the credit's pace does not use. It is where the box goes if the headroom readings call for it.
+- **Running on an existing client service's box.** It adds almost nothing to the bill, but coders and gates
+  would share memory and disk with a client's service, and a runaway run would take it down.
+- **Postgres on the pipeline box instead of the existing RDS instance.** The same cost as sharing the instance,
+  without its backups and restore point.
 
 - **Move only the board and copy the laptop's ledger to it.** The owner chose the whole pipeline. A copied
   board is only as current as the laptop that feeds it, and it gives no other caller a way to act.
@@ -161,6 +175,7 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 ## Open for the owner
 
-- The AWS account and region the box is projected into.
+- Which of the owner's existing AWS services the box sits beside: the account, the region and the RDS
+  instance whose room the ledger uses.
 - API credits or a subscription token for the coders, and the day's spend bound.
 - A Tailscale Funnel or a public address for the door.
