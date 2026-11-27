@@ -40,7 +40,7 @@ module Hecks
           registry.bluebooks.each_with_object({}) do |(domain, bluebook), out|
             bluebook.aggregates.each do |aggregate|
               repository = registry.repository(domain, aggregate)
-              next if domain.to_s == "Refusal"
+              next if domain.to_s == RECORDER.split("::").first
               next unless repository.is_a?(Ports::Persistence::AppendOnly)
 
               out["#{domain}::#{aggregate.name}"] = repository.entries.map { |e| [e.operation, e.id, e.state] }
