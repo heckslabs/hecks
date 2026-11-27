@@ -1265,6 +1265,24 @@ Hecks.bluebook "Tickets" do
       emits "WorkScheduled"
     end
 
+    # A done item is put into a sprint: the sprint keeps what it finished, so velocity read from it
+    # counts that work. The Maintainer names the sprint; the domain holds no finish day, so it cannot
+    # tell which day the item finished on. A done item sits in at most one sprint.
+    command "Record" do
+      role "Maintainer"
+      goal "Put a done work item into a sprint"
+
+      reference_to Work
+      reference_to Sprint, as: :into
+
+      sets :sprint, to: :into
+
+      given("a work item not done is not recorded") { status == "done" }
+      given("a work item in a sprint is not recorded again") { sprint.to_s.empty? }
+
+      emits "WorkRecorded"
+    end
+
     # Frees an item from its sprint. It has no status guard: a closing sprint frees done items too.
     command "Unschedule" do
       goal "Take a work item out of its sprint"
@@ -1756,6 +1774,13 @@ Hecks.bluebook "Tickets" do
   # again: an open sprint answers no row and nothing happens.
   policy "UnscheduleWorkScheduledIntoClosedSprint" do
     on       "Work.WorkScheduled"
+    for_each "Sprint.ClosedOf"
+    trigger  Work::Unschedule, with: { work: :work, from: :into }
+  end
+
+  # The same for a done item recorded into a closed sprint: nothing else would free it.
+  policy "UnscheduleWorkRecordedIntoClosedSprint" do
+    on       "Work.WorkRecorded"
     for_each "Sprint.ClosedOf"
     trigger  Work::Unschedule, with: { work: :work, from: :into }
   end
