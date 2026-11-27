@@ -145,20 +145,22 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 ## Consequences
 
-- **Running cost, before model use.** Third-party price lists, read 2026-11-27; the provider's bill is the
-  measure. Disk, backups and traffic are counted; the pipeline's outbound traffic (pushes, fetches, model calls)
-  is well under a terabyte a month. The plan first written here, a `t4g.xlarge` and a database instance of its
-  own, was about $130 to $140 a month.
-  - Hetzner `CAX21` (4 Arm vCPU, 8 GB, 80 GB disk) in Germany or Finland: about $12.49 a month, $0.60 for an IPv4
-    address and 20% for daily backups, so about $16 a month, with 20 TB of traffic included. Reviews from October
-    and November 2026 say the CX and CAX lines could not be ordered then. The x86 `CX33` (4 vCPU, 8 GB) is about
-    $10 a month on the same terms and has the same stock problem.
-  - Hetzner in the US (Ashburn or Hillsboro) offers only x86 there, and after the 2026 increases the closest fit
-    is `CCX13` (2 dedicated vCPU, 8 GB) at about $51, or about $62 with IPv4 and backups, with 1 TB of traffic.
-    It costs more than AWS reserved.
-  - AWS `t4g.large` (2 Arm vCPU, 8 GB) with a 100 GB volume: about $49 plus $8 on demand, so about $57 a month,
-    or about $39 with a one-year reservation; snapshots add a few dollars, and traffic under 100 GB a month is
-    free.
+- **Running cost, before model use.** Read 2026-11-27 from AWS's Price List API (us-east-1, published
+  2026-11-24) and Hetzner's own plan pages (EUR, excluding VAT, IPv4 included; dollars at about 1.14). The
+  provider's bill is the measure. The pipeline's outbound traffic (pushes, fetches, model calls) is well under
+  100 GB a month. The plan first written here, a `t4g.xlarge` and a database instance of its own, was about $130
+  to $140 a month.
+  - AWS `t4g.large` (2 Arm vCPU, 8 GB): $0.0672 an hour on demand ($49.06 a month) or $0.0421 with a one-year
+    standard reservation, no upfront ($30.73). A 100 GB gp3 volume is $8.00 ($0.08 a GB-month), a public IPv4
+    address $3.65 ($0.005 an hour) and snapshots about $1 ($0.05 a GB-month). Postgres on the box adds nothing,
+    so about $62 a month on demand or $43 reserved. Outbound traffic past the account's free 100 GB is $0.09 a GB.
+    A managed `db.t4g.micro` Postgres instead would add about $14 ($0.016 an hour and $0.115 a GB-month).
+  - Hetzner `CAX21` (4 Arm vCPU, 8 GB, 80 GB disk, 20 TB of traffic) in Germany or Finland: €10.99 a month and
+    about €2.20 for backups (20% of the server), so about €13.19, about $15. Postgres runs on the box; Hetzner
+    sells no managed Postgres. The page shows every CX and CAX plan sold out on 2026-11-27. The x86 `CX33` is
+    €8.99 on the same terms and also sold out.
+  - Hetzner `CCX13` (2 dedicated x86 vCPU, 8 GB, 80 GB): €36.99 in Finland or €43.99 in the US (1 TB of traffic
+    there), about $51 or $60 a month with backups, and shown unavailable in Finland on the same day.
 - **What changes the choice besides the price.**
   - *Deploy tooling.* Every box kind Hecks projects today is on AWS (`AwsBox`, `FargateTarget`, `LambdaTarget`,
     the shared RDS database), with its secrets in Secrets Manager and its rolls through SSM. Hetzner needs a new
