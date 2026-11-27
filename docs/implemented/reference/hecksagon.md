@@ -103,8 +103,8 @@ findings.find { |f| f.subject == compliance_policy.name }.kind  # => :unacknowle
 
 See `docs/implemented/reference/policy.md`'s own `## across` section for
 the other half. An `attaches` acknowledges an `across` to the SAME target as
-well: the attaching context depends on the one it attaches, so calling that
-context's commands from its own events keeps one direction, which is how two
+well: the attaching context depends on the one it attaches, so calling the
+commands of that context from its own events keeps one direction, which is how two
 contexts stop depending on each other (ADR 0207). The model-checker's own file
 says why this needs no new keyword at all.
 
