@@ -295,17 +295,20 @@ Hecks.bluebook "Harness" do
 
   policy "OpenTheRunsSession" do
     on      "AgentRun.RunRequested"
+    acts_as "Owner"
     trigger Session::Open, with: { name: :session, brief: :brief }
   end
 
   policy "BeginTheRunOfTheRunningSession" do
     on       "Session.SessionRunning"
+    acts_as  "System"
     for_each "AgentRun.Waiting"
     trigger  AgentRun::Begin, with: { agent_run: :agent_run }
   end
 
   policy "DeclineTheRunOfTheUnopenedSession" do
     on       "Session.SessionNotOpened"
+    acts_as  "System"
     for_each "AgentRun.Waiting"
     trigger  AgentRun::Decline, with: { agent_run: :agent_run }
   end
@@ -313,6 +316,7 @@ Hecks.bluebook "Harness" do
   # A turn that said nothing leaves the run's last report as it was.
   policy "RecordTheRunsReport" do
     on       "Session.TurnEnded"
+    acts_as  "System"
     where    { said.value != "" }
     for_each "AgentRun.Working"
     trigger  AgentRun::RecordReport, with: { agent_run: :agent_run, report: :said }
@@ -320,6 +324,7 @@ Hecks.bluebook "Harness" do
 
   policy "FinishTheRunDone" do
     on       "Session.SessionStopped"
+    acts_as  "System"
     where    { code.value == "0" }
     for_each "AgentRun.Working"
     trigger  AgentRun::Finish, with: { agent_run: :agent_run, condition: { value: "done" }, code: :code }
@@ -327,6 +332,7 @@ Hecks.bluebook "Harness" do
 
   policy "FinishTheRunFailed" do
     on       "Session.SessionStopped"
+    acts_as  "System"
     where    { code.value != "0" }
     for_each "AgentRun.Working"
     trigger  AgentRun::Finish, with: { agent_run: :agent_run, condition: { value: "failed" }, code: :code }
