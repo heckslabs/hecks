@@ -14,6 +14,9 @@ module Hecks
         # never needs it, so the client loads this file only when it has to start one (it takes the
         # standard library's `fileutils` and four files of its own).
         module Starting
+          # The resident's server, relative to a checkout's `lib`.
+          SERVER = "hecks/adapters/driving/resident/server.rb".freeze
+
           module_function
 
           # Starts the resident, unless the cap of residents is met; it takes its own lock, so a
@@ -34,10 +37,15 @@ module Hecks
             Outcome::STARTED
           end
 
+          # The resident runs the code of the checkout it serves, never its starter's: one that ran
+          # another checkout's code would load that checkout's vendored adapters beside its own.
+          # A checkout with no resident of its own is served by the starter's.
+          #
           # @return [Array<String>] the command that runs the resident for the checkout
           def server_command(root, script)
-            lib = File.expand_path("../../../..", __dir__)
-            [RbConfig.ruby, "-I", lib, File.join(__dir__, "server.rb"), root, File.realpath(script)]
+            lib = File.join(root, "lib")
+            lib = File.expand_path("../../../..", __dir__) unless File.file?(File.join(lib, SERVER))
+            [RbConfig.ruby, "-I", lib, File.join(lib, SERVER), root, File.realpath(script)]
           end
 
           # @return [Hash] the spawn options: nothing is inherited from the launcher but the
