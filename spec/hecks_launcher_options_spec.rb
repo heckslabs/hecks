@@ -91,7 +91,7 @@ RSpec.describe "the launcher's opt-in options" do
     it "shows the minted run key as optional in help, and fills the next argument from a bare word", :aggregate_failures do
       help, = run_verb("operation.run_behaviors!", "--help")
 
-      expect(help).to match(/run\.value\s+.*minted when omitted; optional/)
+      expect(help).to match(/run\s+.*minted when omitted; optional/)
       expect(Hecks::Adapters::Driving::Cli.arguments(hecks_spec("operation.run_behaviors"), ["examples/banking"]))
         .to eq(subject: { value: "examples/banking" })
     end
