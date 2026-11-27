@@ -1,8 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 
-# An aggregate renamed with `formerly_known_as` keeps the rows it wrote under its former name,
-# and the launcher still answers the former spelling, with a note once on standard error.
+# An aggregate renamed with `formerly_known_as` keeps the rows it wrote under its former name; the
+# launcher answers only the current spelling, and the former one is an unknown command.
 RSpec.describe "a renamed aggregate's former name" do
   around do |example|
     @dir = Dir.mktmpdir("hecks-former-name-")
@@ -69,12 +69,11 @@ RSpec.describe "a renamed aggregate's former name" do
     expect(run(boot, "Journal.post!", "run=k1", "label=rent")).to eq(first)
   end
 
-  it "resolves the former spelling to the renamed command and notes it once on standard error" do
-    File.write(fixture, source("Entry"))
-    run(boot, "Entry.post!", "run=k2", "label=rent")
+  it "refuses the former spelling as an unknown command, with the usage status", :aggregate_failures do
     File.write(fixture, source("Journal", "Entry"))
-    expect { run(boot, "Entry.post!", "run=k2", "label=rent") }
-      .to output(/Entry\.post is the former name of .*Journal/).to_stderr
+    text, status = run(boot, "Entry.post!", "run=k2", "label=rent")
+    expect(text).to start_with("[unknown_command] no such command: Entry.post")
+    expect(status).to eq(Hecks::Adapters::Driving::ExitStatus::USAGE)
   end
 
   it "refuses a name that no aggregate carries, as a usage error" do

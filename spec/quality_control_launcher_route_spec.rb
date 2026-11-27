@@ -49,7 +49,7 @@ RSpec.describe "exe/hecks quality_control reads the QA ledger", :io do
   end
 
   def query_targets
-    out, err, status = run_launcher("quality_control", "query", "Target.all")
+    out, err, status = run_launcher("quality_control", "Target.all")
     expect(status).to be_success, err
     out
   end

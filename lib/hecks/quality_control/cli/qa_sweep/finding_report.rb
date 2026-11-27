@@ -40,7 +40,7 @@ module Hecks
           puts "needs judgment this script does not have — hecks quality_control log is the entry point)"
           puts "and the sweep was not concluded. The ledger's own SuspendOnSurprise"
           puts "policy took the target out of the rotation; it stays out until a PERSON"
-          puts "runs: hecks quality_control ask run target=#{@target_reference} " \
+          puts "runs: hecks quality_control Sweep.run target=#{@target_reference} " \
                "arguments=\"--release --notes …\""
           puts "An agent decides from here: self-contained fix with a regression test"
           puts "and a PR (hecks quality_control patch.open), or a Bug left open for something bigger."

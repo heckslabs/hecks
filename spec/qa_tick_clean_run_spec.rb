@@ -10,7 +10,7 @@ RSpec.describe "hecks quality_control tick", :io do
   include_context "with a qa_tick fixture", "hecks_qa_tick_clean_run_spec"
 
   # The steps of a tick, in the order they must run: the PR check first, the sweep second.
-  TICK_STEP_ORDER = ["── hecks quality_control check_pull_requests", "── hecks quality_control ask run --all",
+  TICK_STEP_ORDER = ["── hecks quality_control check_pull_requests", "── hecks quality_control Sweep.run --all",
                      "── hecks quality_control check_generated_domains --from-dials",
                      "── hecks quality_control mutate --from-dials"].freeze
 

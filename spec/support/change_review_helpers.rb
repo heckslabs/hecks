@@ -35,7 +35,7 @@ module ChangeReviewHelpers
   def run_of(review) = change_review(review)&.fetch("run")
 
   # @return [Hash, nil] the started run with that key, as `agent_run.running` lists it
-  def running(run) = JSON.parse(launch("query", "agent_run.running").first.to_s).find { |row| row["run"] == run }
+  def running(run) = JSON.parse(launch("agent_run.running").first.to_s).find { |row| row["run"] == run }
 
   # @return [Hash, nil] the judged verdict the review sent to its coder
   def verdict_for(review) = rows("Verdict.judged").find { |row| row["run"] == run_of(review) }

@@ -3,9 +3,9 @@ require "json"
 require "hecks/ports/persistence/plugins/era"
 require "hecks/hecks/adapters/in_process_boot"
 
-# `hecks ask shape` (Introspection.Shape) against real files, through the adapter that answers
-# it, covering both modes: a single bluebook file (JSON) and a directory (one line per domain).
-RSpec.describe "hecks ask shape" do
+# `hecks Introspection.shape` against real files, through the adapter that answers it, covering
+# both modes: a single bluebook file (JSON) and a directory (one line per domain).
+RSpec.describe "hecks Introspection.shape" do
   def bluebook_text(domain, aggregate)
     <<~BLUEBOOK
       Hecks.bluebook "#{domain}" do

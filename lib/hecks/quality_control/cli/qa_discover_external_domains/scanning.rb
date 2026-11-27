@@ -79,10 +79,10 @@ module Hecks
         # live qa_tick or qa_sweep.
         def ledger_target_paths
           out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(@root, "exe/hecks"),
-                                            "run", "qa/bluebook", "ask", "target.all", chdir: @root)
+                                            "run", "qa/bluebook", "target.all", chdir: @root)
           unless status.success?
             raise Refused, "hecks quality_control discover_external_domains: could not read the ledger's targets " \
-                           "(hecks run qa/bluebook ask target.all exited #{status.exitstatus}):\n#{err}\n" \
+                           "(hecks run qa/bluebook target.all exited #{status.exitstatus}):\n#{err}\n" \
                            "pass --known-path <path> ... to run without the ledger", usage: false
           end
 

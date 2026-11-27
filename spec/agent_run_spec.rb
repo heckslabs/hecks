@@ -73,7 +73,7 @@ RSpec.describe "AgentRun through the Agents port" do
 
   def session_events(out) = out["events"].grep(/\ASession/)
 
-  def running = JSON.parse(launch("query", "agent_run.running").first)
+  def running = JSON.parse(launch("agent_run.running").first)
 
   it "starts a session in a directory that is there, and lists it as running", :aggregate_failures do
     out = dispatch("a-start")

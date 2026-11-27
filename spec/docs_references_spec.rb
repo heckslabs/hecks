@@ -44,7 +44,7 @@ module DocReferences
   UNQUALIFIED = (RETIRED + %w[console init version help]).freeze
 
   # Launchers that take a verb of their own after them: `hecks deploy recipe.project`.
-  BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control delivery].freeze
+  BLUEBOOK_LAUNCHERS = %w[query deploy site quality_control delivery].freeze
 
   # The bluebooks the Hecks domain attaches whose verbs the launcher also takes with no bluebook
   # written before them: `hecks landing.land!` reaches the delivery package.
@@ -100,11 +100,10 @@ module DocReferences
     second.to_s.match?(WORD) ? [first, second] : [first]
   end
 
-  # The verb after a launcher. A bluebook's own `query` or `ask` is passed over, as the bluebook's
-  # launcher passes it: `hecks quality_control query sweep.create_ledger_role`.
+  # The verb after a launcher. A bluebook's own `query` is passed over, as the bluebook's launcher
+  # passes it: `hecks quality_control query ticket.filed`.
   def bluebook_verb(launcher, rest)
-    asking = %w[query ask]
-    asking.include?(rest.first) && !asking.include?(launcher) ? rest[1] : rest.first
+    rest.first == "query" && launcher != "query" ? rest[1] : rest.first
   end
 
   # Every verb and query a launcher lists with `--all`, as `aggregate.name`.
@@ -120,14 +119,14 @@ module DocReferences
 
   def known_verbs
     @known_verbs ||= begin
-      own = (BLUEBOOK_LAUNCHERS - %w[query ask]).to_h { |bluebook| [[bluebook], listed(bluebook)] }
+      own = (BLUEBOOK_LAUNCHERS - %w[query]).to_h { |bluebook| [[bluebook], listed(bluebook)] }
       attached = ATTACHED.flat_map { |bluebook| own.fetch([bluebook]) }
       own.merge([] => listed + attached + UNQUALIFIED + BLUEBOOK_LAUNCHERS)
     end
   end
 
   def resolves?(argv)
-    launcher = argv.size == 2 && !%w[query ask].include?(argv.first) ? [argv.first] : []
+    launcher = argv.size == 2 && argv.first != "query" ? [argv.first] : []
     known_verbs.fetch(launcher, []).include?(argv.last) ||
       (argv.first == "query" && known_verbs[[]].include?(argv.last)) ||
       bluebook_query?(argv)
