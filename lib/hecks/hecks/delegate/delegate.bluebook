@@ -2203,11 +2203,13 @@ Hecks.bluebook "Hecks" do
 
     policy "OpenTheOwnerStandingWhenTheMachineIsRead" do
       on      "Machine.MachineSampled"
+      acts_as "System"
       trigger OwnerStanding::Open, with: { standing: "owner" }
     end
 
     policy "HearTheOwnerType" do
       on      "Machine.MachineSampled"
+      acts_as "System"
       root
       where   { owner_state && owner_state == "typing" }
       trigger OwnerStanding::Type, with: { owner_standing: "owner", reading: :id }
@@ -2215,6 +2217,7 @@ Hecks.bluebook "Hecks" do
 
     policy "HearTheOwnerLeave" do
       on      "Machine.MachineSampled"
+      acts_as "System"
       root
       where   { owner_state && owner_state == "away" }
       trigger OwnerStanding::Leave, with: { owner_standing: "owner", reading: :id }
@@ -2222,23 +2225,27 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheOwnerTypingOnItsReading" do
       on      "OwnerStanding.OwnerStandingTyped"
+      acts_as "System"
       trigger Machine::OwnerTypes, with: { machine: :reading }
     end
 
     policy "RecordTheOwnerAwayOnItsReading" do
       on      "OwnerStanding.OwnerStandingLeft"
+      acts_as "System"
       trigger Machine::OwnerLeaves, with: { machine: :reading }
     end
 
     # The owner at the keyboard yields one item, as a load over the mark does.
     policy "ShedWhenTheOwnerTypes" do
       on      "Machine.OwnerTyping"
+      acts_as "System"
       root
       trigger Shed::Look, with: { reading: :id }
     end
 
     policy "RollWhenTheOwnerLeaves" do
       on      "Machine.OwnerAway"
+      acts_as "System"
       root
       trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :id }
     end
