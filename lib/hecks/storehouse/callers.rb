@@ -1,4 +1,6 @@
+require_relative "../runtime/caller"
 require_relative "../runtime/refusal_wording"
+require_relative "../runtime/role_shadow"
 
 module Hecks
   module Storehouse
@@ -68,11 +70,22 @@ module Hecks
         Hecks.as_caller(role: role, actor_id: actor_id, &)
       end
 
+      # Binds a dispatching caller: the role/actor_id it named, or, when it named none, the
+      # outside caller who stated no role (ADR 0216), so the command and every reaction it sets
+      # off are checked as the Rust host checks a peer that named nobody.
+      # :nodoc:
+      def with_dispatching_caller(role, actor_id, &)
+        return Runtime::Caller.unstated(&) if role.nil?
+
+        Hecks.as_caller(role: role, actor_id: actor_id, &)
+      end
+
       # A caller who omits role: is refused at this door, in the words of the runtime's
-      # `role_unstated` refusal (ADR 0216); the runtime itself only records it, in shadow.
+      # `role_unstated` refusal (ADR 0216), unless `HECKS_ROLE_ENFORCEMENT` lets the unstated
+      # caller through, when the runtime counts it instead.
       # :nodoc:
       def require_caller_for_role_gated!(spec, role)
-        return unless spec[:role_gated] && role.nil?
+        return unless spec[:role_gated] && role.nil? && Runtime::RoleShadow.enforcing?
 
         raise Runtime::Unauthorized, Runtime::RefusalWording.render_site("Unauthorized", "role_unstated",
                                                                          command: spec[:command], role: spec[:role])

@@ -11,6 +11,7 @@ use std::process::{Command, Output};
 
 /// Each escape fixture, the line it is refused at and a piece of the reason it is refused for.
 const REFUSED: &[(&str, usize, &str)] = &[
+        ("acts_as_outside_policy.bluebook", 5, "'acts_as' is not a word Command admits"),
         ("argument_backticks.bluebook", 4, "a backtick runs a shell command"),
         ("argument_const_get.bluebook", 4, "`Object` is a handle on the host (its process, files or environment)"),
         ("argument_constant_call.bluebook", 4, "a method is called on a constant; an argument is a literal, not an expression"),
@@ -23,6 +24,7 @@ const REFUSED: &[(&str, usize, &str)] = &[
         ("argument_lambda.bluebook", 4, "`->` makes a lambda; an argument is a literal"),
         ("argument_modifier.bluebook", 4, "`if` is Ruby control flow; an argument list holds literals only"),
         ("argument_percent_shell.bluebook", 4, "only %w, %i and %q percent literals are closed; the others interpolate or run a shell"),
+        ("attaches_acts_as_env.hecksagon", 3, "'attaches' takes literals only: `ENV` is a handle on the host (its process, files or environment)"),
         ("block_assignment.bluebook", 4, "'name = ENV[\"HOME\"]' looks like a local variable assignment at byte 0 — this parser never interprets bare Ruby expressions or assignment"),
         ("block_conditional.bluebook", 4, "'if' is a bare Ruby control-flow/declaration form, which this parser never interprets — a bluebook may only use keyword calls this language declares"),
         ("block_define_method.bluebook", 4, "'define_method' is not a word Aggregate admits"),
@@ -45,6 +47,7 @@ const REFUSED: &[(&str, usize, &str)] = &[
         ("hecksagon_ruby_method.hecksagon", 3, "'system' is a Ruby method, not a declaration word — Ruby would run it"),
         ("loop_each.bluebook", 4, "'%w[a b].each { |w| attribute w.to_sym, String }' is not a word call — every line must be a keyword call or `end`"),
         ("loop_times.bluebook", 4, "'3.times { attribute :x, String }' is not a word call — every line must be a keyword call or `end`"),
+        ("policy_only_outside_command.bluebook", 6, "'policy_only' is not a word Policy admits"),
         ("rule_assignment.bluebook", 4, "`=` assigns; a rule compares with `==`"),
         ("rule_backticks.bluebook", 4, "a backtick runs a shell command"),
         ("rule_block_call.bluebook", 4, "`then` is Ruby, not a rule: the rule language has no such call"),

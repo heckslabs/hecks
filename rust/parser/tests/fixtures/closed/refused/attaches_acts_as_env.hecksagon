@@ -1,0 +1,4 @@
+# Refused: an attachment's role is a literal, never read from the host.
+Hecks.hecksagon "Probe" do
+  attaches "delivery", from: :vendor, acts_as: ENV.fetch("ROLE")
+end

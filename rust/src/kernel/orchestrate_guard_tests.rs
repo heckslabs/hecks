@@ -6,6 +6,8 @@ use super::*;
 
 struct Bus {
     calls: Vec<(String, Json)>,
+    // The caller role and reaction mark each dispatch saw.
+    callers: Vec<(Option<String>, bool)>,
 }
 
 impl AggregateScan for Bus {
@@ -36,11 +38,15 @@ fn script(
     bus: &mut Bus,
     verb: &str,
     args: &Json,
-    _caller_role: Option<&str>,
+    caller_role: Option<&str>,
     _caller_actor_id: Option<&str>,
     _mutations: &mut Vec<MutationRecord>,
 ) -> Result<Vec<Event>, Refusal> {
     bus.calls.push((verb.to_string(), args.clone()));
+    bus.callers.push((
+        caller_role.map(str::to_string),
+        crate::kernel::caller_rule::reacting(),
+    ));
     if verb.ends_with("Refuse") {
         return Err(Refusal::GivenNotMet("refused".to_string()));
     }
@@ -84,6 +90,7 @@ const fn policy(name: &'static str, event_name: &'static str, target: &'static s
         for_each_key: None,
         root: false,
         with_spec: NO_WITH,
+        acts_as: None,
     }
 }
 
@@ -366,17 +373,22 @@ struct World {
     cross_domain: Vec<PendingCrossDomainReaction>,
     reaction_log: Vec<Json>,
     saga_log: Vec<Json>,
+    reaction_callers: crate::kernel::caller_rule::ReactionCallers,
 }
 
 fn world() -> World {
     World {
-        bus: Bus { calls: vec![] },
+        bus: Bus {
+            calls: vec![],
+            callers: vec![],
+        },
         sagas: HashMap::new(),
         all_events: vec![],
         mutations: vec![],
         cross_domain: vec![],
         reaction_log: vec![],
         saga_log: vec![],
+        reaction_callers: crate::kernel::caller_rule::ReactionCallers::default(),
     }
 }
 
@@ -399,6 +411,7 @@ impl World {
             &mut self.cross_domain,
             &mut self.reaction_log,
             &mut self.saga_log,
+            self.reaction_callers,
         )
     }
 
@@ -414,6 +427,7 @@ impl World {
             cross_domain: &mut self.cross_domain,
             reaction_log: &mut self.reaction_log,
             saga_log: &mut self.saga_log,
+            reaction_callers: self.reaction_callers,
         }
     }
 
@@ -1310,4 +1324,71 @@ fn read_literal_wire_treats_a_lone_or_half_quoted_word_as_bare() {
     assert_eq!(read_literal_wire("abc\""), Json::str("abc\""));
     assert_eq!(read_literal_wire("\"abc"), Json::str("\"abc"));
     assert_eq!(read_literal_wire("\"\""), Json::str(""));
+}
+
+// ---- who a reaction runs as (ADR 0216) ----
+
+static ROLE_POLICIES: [PolicyRule; 2] = [
+    PolicyRule {
+        acts_as: Some("System"),
+        ..policy("AsSystem", "Declared", "D::Order.Note")
+    },
+    policy("Undeclared", "Plain", "D::Order.Note"),
+];
+
+// The caller role and reaction mark the reaction to `event_name` was dispatched with.
+fn reacted_as(
+    event_name: &str,
+    callers: crate::kernel::caller_rule::ReactionCallers,
+) -> Vec<(Option<String>, bool)> {
+    let mut w = world();
+    w.reaction_callers = callers;
+    let mut cascade = w.cascade();
+    cascade.tables = Tables {
+        policies: &ROLE_POLICIES,
+        ..tables()
+    };
+    cascade.react_policies(&event(event_name, "D::Order", "o1", Json::obj(vec![])), 0);
+    w.bus.callers
+}
+
+fn checked() -> crate::kernel::caller_rule::ReactionCallers {
+    crate::kernel::caller_rule::ReactionCallers::for_step(Some("Clerk"), None, None)
+}
+
+#[test]
+fn a_reaction_that_declares_acts_as_is_dispatched_as_that_role() {
+    assert_eq!(
+        reacted_as(
+            "Declared",
+            crate::kernel::caller_rule::ReactionCallers::default()
+        ),
+        vec![(Some("System".to_string()), true)]
+    );
+}
+
+#[test]
+fn an_undeclared_reaction_in_a_checked_cascade_is_dispatched_as_the_unstated_caller() {
+    assert_eq!(
+        reacted_as("Plain", checked()),
+        vec![(Some(crate::kernel::ANONYMOUS_ROLE.to_string()), true)]
+    );
+}
+
+#[test]
+fn an_undeclared_reaction_in_an_unchecked_cascade_names_no_caller() {
+    assert_eq!(
+        reacted_as(
+            "Plain",
+            crate::kernel::caller_rule::ReactionCallers::default()
+        ),
+        vec![(None, true)]
+    );
+}
+
+#[test]
+fn the_outermost_dispatch_is_not_a_reaction() {
+    let mut w = world();
+    w.orchestrate("D::Order.Place", 0).unwrap();
+    assert!(!w.bus.callers[0].1);
 }

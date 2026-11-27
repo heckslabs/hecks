@@ -40,9 +40,13 @@ Hecks.bluebook "Hecksagon" do
     # A bluebook this hecksagon attaches: `value` is its name, `source` is `gem` for a bluebook the
     # gem carries (a framework member such as Governance, or a language bluebook such as Deploy)
     # or `vendor` for a package vendored into the consuming project, not shipped in hecks's lib/.
+    # `acts_as` names the role the attached bluebook's policies run their reactions as when a policy
+    # declares none (ADR 0216): a vendored package is pinned by its lock, so the hecksagon that
+    # attaches it says what its reactions act as.
     value_object "Attachment" do
-      attribute :value,  String
-      attribute :source, String, default: "gem"
+      attribute :value,   String
+      attribute :source,  String, default: "gem"
+      attribute :acts_as, String, optional: true
       invariant("an attachment is named") { !value.to_s.empty? }
       invariant("an attachment comes from the gem or from vendor") { source == "gem" || source == "vendor" }
     end
@@ -89,8 +93,9 @@ Hecks.bluebook "Hecksagon" do
 
       attribute :bluebook, AttachedBluebookName
       attribute :source,  String, default: "gem"
+      attribute :acts_as, String, optional: true
 
-      sets :attachments, append: { value: :bluebook, source: :source }
+      sets :attachments, append: { value: :bluebook, source: :source, acts_as: :acts_as }
 
       emits "BluebookAttached"
     end
@@ -164,6 +169,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
       member keyword: "attaches",        context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "attachments"
       member keyword: "attaches",        context: "Hecksagon", at: "",  named: "from", kind: "symbol", required: "false", fills: "source"
+      member keyword: "attaches",        context: "Hecksagon", at: "",  named: "acts_as", kind: "text", required: "false", fills: "acts_as"
       member keyword: "driven_by",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "driving"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"

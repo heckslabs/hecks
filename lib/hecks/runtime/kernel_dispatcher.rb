@@ -1,6 +1,7 @@
 require_relative "event"
 require_relative "errors"
 require_relative "caller"
+require_relative "role_shadow"
 require_relative "declarations"
 require_relative "kernel_dispatcher/refusals"
 require_relative "kernel_dispatcher/unanswered"

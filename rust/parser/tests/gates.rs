@@ -353,6 +353,27 @@ fn hecksagon_fixtures_resolve_for_real() {
 }
 
 #[test]
+fn resolve_reports_the_role_an_attachment_acts_as() {
+    let path = fixture("attaches_acts_as.hecksagon");
+    let output = run(&[
+        "resolve",
+        "--bluebook",
+        "FixtureActsAs",
+        path.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        stdout.contains("\"acts_as\": {\n    \"delivery\": \"System\"\n  }"),
+        "expected delivery's acts_as and no role for Governance, got: {stdout}"
+    );
+}
+
+#[test]
 fn resolve_without_bluebook_is_a_usage_error_not_a_parse_error() {
     let path = fixture("hecksagon.hecksagon");
     let output = run(&["resolve", path.to_str().unwrap()]);

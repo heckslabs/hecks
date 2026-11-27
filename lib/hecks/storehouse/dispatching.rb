@@ -28,7 +28,7 @@ module Hecks
         require_caller_for_role_gated!(spec, request.role)
         envelope = command_envelope(request.args, spec)
 
-        result = with_caller(request.role, request.actor_id) { carry_out(request, spec, envelope) }
+        result = with_dispatching_caller(request.role, request.actor_id) { carry_out(request, spec, envelope) }
         result.merge(verb: spec[:command])
       end
 

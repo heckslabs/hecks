@@ -1,6 +1,7 @@
 //! Reactions to dispatched events: policy matching and process-manager advancement, recursive
 //! and bounded by `MAX_REACTION_DEPTH`. Cross-domain matches are returned for the host to deliver.
 
+use super::caller_rule::{as_reaction, ReactionCallers};
 use super::expr::{interpret, EvalContext, Expr, NoFields};
 use super::named_query;
 use super::repository::AggregateScan;
@@ -38,6 +39,9 @@ pub struct PolicyRule {
     /// `trigger ..., with:` as `(argument_name, binding)` pairs; empty forwards the whole payload.
     /// A binding starting with ":" names a source field; any other is a rendered literal.
     pub with_spec: &'static [(&'static str, &'static str)],
+    /// `acts_as "System"`: the role the reaction dispatches its trigger as (ADR 0216). `None` runs
+    /// it as `ReactionCallers` says.
+    pub acts_as: Option<&'static str>,
 }
 
 /// A policy block with `across "OtherDomain"`: matched here, delivered by the host.
@@ -274,6 +278,8 @@ struct Cascade<'a, S: AggregateScan> {
     cross_domain: &'a mut Vec<PendingCrossDomainReaction>,
     reaction_log: &'a mut Vec<Json>,
     saga_log: &'a mut Vec<Json>,
+    // Who a policy's reaction is dispatched as, fixed by the step that began the cascade.
+    reaction_callers: ReactionCallers,
 }
 
 /// One process-manager instance's leg of a cascade: which manager, which conversation, and the
@@ -302,6 +308,7 @@ impl SagaLeg<'_> {
 /// Only a refusal of the top-level `verb` is returned; reaction refusals are logged and swallowed.
 ///
 /// `saga_correlation` stamps every event this call produces; only saga-leg dispatches pass it.
+/// `reaction_callers` says who a policy's reaction runs as (`ReactionCallers::for_step`).
 // reason: every caller, here and in the generated code, holds default-hasher maps.
 #[allow(clippy::too_many_arguments, clippy::implicit_hasher)]
 pub fn orchestrate<S: AggregateScan>(
@@ -323,6 +330,7 @@ pub fn orchestrate<S: AggregateScan>(
     cross_domain: &mut Vec<PendingCrossDomainReaction>,
     reaction_log: &mut Vec<Json>,
     saga_log: &mut Vec<Json>,
+    reaction_callers: ReactionCallers,
 ) -> Result<(), Refusal> {
     Cascade {
         store,
@@ -335,6 +343,7 @@ pub fn orchestrate<S: AggregateScan>(
         cross_domain,
         reaction_log,
         saga_log,
+        reaction_callers,
     }
     .run(
         verb,
@@ -852,14 +861,17 @@ impl<S: AggregateScan> Cascade<'_, S> {
                         policy.target_verb,
                         &tables,
                     );
-                    let outcome = self.run(
-                        policy.target_verb,
-                        &args,
-                        None,
-                        None,
-                        None,
-                        reaction_depth(policy.root, depth),
-                    );
+                    let role = self.reaction_callers.role_for(policy.acts_as);
+                    let outcome = as_reaction(|| {
+                        self.run(
+                            policy.target_verb,
+                            &args,
+                            role,
+                            None,
+                            None,
+                            reaction_depth(policy.root, depth),
+                        )
+                    });
                     match outcome {
                         Ok(()) => self
                             .reaction_log
@@ -873,17 +885,20 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 continue;
             }
 
-            // No `with:`: the whole payload forwards verbatim. Reactions are system-triggered, so
-            // no caller role, and only saga legs stamp a correlation.
+            // No `with:`: the whole payload forwards verbatim. A reaction runs as its policy's
+            // `acts_as` role (`ReactionCallers`), and only saga legs stamp a correlation.
             let args = trigger_args(policy, event, None, policy.target_verb, &tables);
-            let outcome = self.run(
-                policy.target_verb,
-                &args,
-                None,
-                None,
-                None,
-                reaction_depth(policy.root, depth),
-            );
+            let role = self.reaction_callers.role_for(policy.acts_as);
+            let outcome = as_reaction(|| {
+                self.run(
+                    policy.target_verb,
+                    &args,
+                    role,
+                    None,
+                    None,
+                    reaction_depth(policy.root, depth),
+                )
+            });
             match outcome {
                 Ok(()) => self
                     .reaction_log
@@ -1109,9 +1124,11 @@ impl<S: AggregateScan> Cascade<'_, S> {
             }
         }
 
-        // System-triggered, so no caller role; `Some(stamp)` stamps every event this dispatch
-        // produces.
-        let outcome = self.run(&qualified, args, None, None, Some(&leg.stamp()), depth + 1);
+        // System-triggered, so no caller role (a saga declares no `acts_as`), but a reaction for
+        // `policy_only`; `Some(stamp)` stamps every event this dispatch produces.
+        let stamp = leg.stamp();
+        let outcome =
+            as_reaction(|| self.run(&qualified, args, None, None, Some(&stamp), depth + 1));
         match outcome {
             Ok(()) => {
                 self.saga_log
@@ -1170,14 +1187,9 @@ impl<S: AggregateScan> Cascade<'_, S> {
         // A compensation's `command_name` is bare on the wire, like a forward dispatch's.
         let qualified = qualify_saga_command_name(leg.domain_name, &entry.command_name);
 
-        let outcome = self.run(
-            &qualified,
-            &entry.args,
-            None,
-            None,
-            Some(&leg.stamp()),
-            depth + 1,
-        );
+        let stamp = leg.stamp();
+        let outcome =
+            as_reaction(|| self.run(&qualified, &entry.args, None, None, Some(&stamp), depth + 1));
         match outcome {
             Ok(()) => self.saga_log.push(record(vec![
                 ("delivered", Json::Bool(true)),
@@ -1674,6 +1686,7 @@ mod tests {
             &mut cross_domain,
             &mut reaction_log,
             &mut saga_log,
+            crate::kernel::caller_rule::ReactionCallers::default(),
         );
         assert!(
             outcome.is_ok(),
@@ -1774,6 +1787,7 @@ mod tests {
             &mut Vec::new(),
             &mut Vec::new(),
             &mut Vec::new(),
+            crate::kernel::caller_rule::ReactionCallers::default(),
         )
     }
 
@@ -1907,6 +1921,7 @@ mod tests {
             &mut cross_domain,
             &mut reaction_log,
             &mut saga_log,
+            crate::kernel::caller_rule::ReactionCallers::default(),
         );
         assert!(
             outcome.is_ok(),
@@ -2020,6 +2035,7 @@ mod tests {
             for_each_key: None,
             root: false,
             with_spec: &[("subject_key", ":id"), ("subject_kind", "\"box\"")],
+            acts_as: None,
         }
     }
 
@@ -2407,6 +2423,7 @@ mod tests {
             &mut cross_domain,
             &mut reaction_log,
             &mut saga_log,
+            crate::kernel::caller_rule::ReactionCallers::default(),
         );
         assert!(outcome.is_ok(), "Post should not refuse: {outcome:?}");
 
@@ -2503,6 +2520,7 @@ mod tests {
             for_each_key: None,
             root: false,
             with_spec: &[],
+            acts_as: None,
         }];
         static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];
         static QUERIES: &[crate::kernel::QueryDef] = &[];
@@ -2545,6 +2563,7 @@ mod tests {
                 &mut cross_domain,
                 &mut reaction_log,
                 &mut saga_log,
+                crate::kernel::caller_rule::ReactionCallers::default(),
             );
             assert!(outcome.is_ok(), "{verb} should not refuse: {outcome:?}");
         }

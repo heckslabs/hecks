@@ -156,7 +156,8 @@ module Hecks
 
       # Dispatches `bluebook` into the meta-domain and reads the result back.
       # A refused bluebook carries only its refusals — the records are
-      # half-written by definition.
+      # half-written by definition. The judge is the process reading its own
+      # language, so it dispatches with no caller bound, whoever loaded the bluebook.
       #
       # @param bluebook [Object] a built bluebook graph, as `call`
       #   receives it
@@ -165,7 +166,7 @@ module Hecks
       #   declaration: Hash}`, the assembled graph `Reconstruction.of` reads
       #   back from the judged records
       def self.hold(bluebook)
-        judge = Judge.new(bluebook)
+        judge = Runtime::Caller.without { Judge.new(bluebook) }
         return { refusals: judge.refusals } unless judge.refusals.empty?
 
         { refusals: [], declaration: Reconstruction.of(judge.runtime, bluebook.hecks_name) }

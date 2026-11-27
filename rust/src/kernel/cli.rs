@@ -333,6 +333,7 @@ pub fn run(input: &str) -> String {
             &mut step_cross_domain,
             &mut reaction_log,
             &mut saga_log,
+            reaction_callers(step, caller_role, caller_actor_id),
         ) {
             refusals.push((verb.to_string(), refusal));
         }
@@ -627,6 +628,7 @@ impl Session {
                 &mut Vec::new(),
                 &mut self.reaction_log,
                 &mut self.saga_log,
+                reaction_callers(step, caller_role, caller_actor_id),
             );
             match outcome {
                 Ok(()) => Json::obj(vec![
@@ -725,6 +727,19 @@ fn filter_label(filter: &Json) -> String {
         field("field"),
         field("op")
     )
+}
+
+/// Who the step's reactions run as: the step's caller and the host's `role_enforcement` mode
+/// decide whether a reaction that declares no `acts_as` runs as the unstated caller (ADR 0216).
+fn reaction_callers(
+    step: &Json,
+    caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
+) -> super::caller_rule::ReactionCallers {
+    let enforcement = step
+        .get(super::caller_rule::ENFORCEMENT_KEY)
+        .and_then(Json::as_str);
+    super::caller_rule::ReactionCallers::for_step(caller_role, caller_actor_id, enforcement)
 }
 
 fn command_input<'a>(step: &'a Json, legacy_args: &'a Json) -> &'a Json {

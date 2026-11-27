@@ -314,8 +314,7 @@ pub fn parse_bluebook(
                     &lines,
                     &mut pos,
                     &mut bluebook,
-                    &mut Vec::new(),
-                    &mut Vec::new(),
+                    &mut super::hecksagon::Attached::default(),
                     true,
                 )?;
             } else {
@@ -326,8 +325,7 @@ pub fn parse_bluebook(
                     &lines,
                     &mut pos,
                     &mut discarded,
-                    &mut Vec::new(),
-                    &mut Vec::new(),
+                    &mut super::hecksagon::Attached::default(),
                     false,
                 )?;
             }
@@ -343,12 +341,11 @@ pub fn resolve_hecksagon_dependencies(
     declaration_name: &str,
     path: &str,
     source: &str,
-) -> ParseResult<(Vec<String>, Vec<String>)> {
+) -> ParseResult<super::hecksagon::Attached> {
     let joined = lex::join_continuations(source);
     let lines = lex::lines(&joined);
     let mut pos = 0usize;
-    let mut framework_names: Vec<String> = Vec::new();
-    let mut vendored_names: Vec<String> = Vec::new();
+    let mut attached = super::hecksagon::Attached::default();
     let mut found = false;
 
     while pos < lines.len() {
@@ -368,15 +365,7 @@ pub fn resolve_hecksagon_dependencies(
         if declared_name.as_deref() == Some(declaration_name) {
             found = true;
             let mut discarded = ir::Bluebook::default();
-            super::hecksagon::apply(
-                path,
-                &lines,
-                &mut pos,
-                &mut discarded,
-                &mut framework_names,
-                &mut vendored_names,
-                false,
-            )?;
+            super::hecksagon::apply(path, &lines, &mut pos, &mut discarded, &mut attached, false)?;
         } else {
             let mut discarded = ir::Bluebook::default();
             super::hecksagon::apply(
@@ -384,8 +373,7 @@ pub fn resolve_hecksagon_dependencies(
                 &lines,
                 &mut pos,
                 &mut discarded,
-                &mut Vec::new(),
-                &mut Vec::new(),
+                &mut super::hecksagon::Attached::default(),
                 false,
             )?;
         }
@@ -399,7 +387,7 @@ pub fn resolve_hecksagon_dependencies(
         ));
     }
 
-    Ok((framework_names, vendored_names))
+    Ok(attached)
 }
 
 /// Parses a `Hecks.bluebook "Name" do ... end` body into an existing accumulator.

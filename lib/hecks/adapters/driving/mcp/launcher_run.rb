@@ -45,7 +45,7 @@ module Hecks
           def launched(runtime, args)
             argv = LauncherLine.argv(args["command"], args["args"], wait: args["wait"] != false, plan: args["plan"] == true)
             err  = StringIO.new
-            text, status, reason = Storehouse.with_caller(args["role"], args["actor_id"]) do
+            text, status, reason = Storehouse.with_dispatching_caller(args["role"], args["actor_id"]) do
               CliRunner.call(runtime: runtime, argv: argv, program: PROGRAM, err: err)
             end
             answered(text, status, reason, err.string)

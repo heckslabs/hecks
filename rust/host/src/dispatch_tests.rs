@@ -1129,13 +1129,22 @@ pub mod tests {
     }
 
     #[test]
-    fn enforcement_reads_off_shadow_and_enforce_and_defaults_to_shadow() {
-        assert_eq!(Enforcement::parse(None), Enforcement::Shadow);
-        assert_eq!(Enforcement::parse(Some("")), Enforcement::Shadow);
-        assert_eq!(Enforcement::parse(Some("nonsense")), Enforcement::Shadow);
+    fn enforcement_reads_off_shadow_and_enforce_and_defaults_to_enforce() {
+        assert_eq!(Enforcement::parse(None), Enforcement::Enforce);
+        assert_eq!(Enforcement::parse(Some("")), Enforcement::Enforce);
+        assert_eq!(Enforcement::parse(Some("nonsense")), Enforcement::Enforce);
         assert_eq!(Enforcement::parse(Some(" off ")), Enforcement::Off);
         assert_eq!(Enforcement::parse(Some("Shadow")), Enforcement::Shadow);
         assert_eq!(Enforcement::parse(Some(" enforce ")), Enforcement::Enforce);
+    }
+
+    // The kernel runs a reaction that declares no `acts_as` unchecked unless the step says the
+    // mode is `enforce`, which it assumes when the step says nothing.
+    #[test]
+    fn only_shadow_and_off_are_written_on_the_step() {
+        assert_eq!(Enforcement::Enforce.step_word(), None);
+        assert_eq!(Enforcement::Shadow.step_word(), Some("shadow"));
+        assert_eq!(Enforcement::Off.step_word(), Some("off"));
     }
 
     #[test]
@@ -1310,7 +1319,7 @@ pub mod tests {
         assert!(refused_for_role(&enforced.result), "{:?}", enforced.result);
         let error = enforced.result["refusals"][0]["error"].as_str().unwrap();
         assert!(
-            error.contains("Branch clerk") && error.contains(ANONYMOUS_ROLE),
+            error.contains("Branch clerk") && error.ends_with("and the caller stated no role"),
             "{error}"
         );
 

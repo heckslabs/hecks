@@ -2,6 +2,7 @@
 Hecks.world "Probe" do
   realm "local"
   default_database "~/.hecks/probe.db"
+  launcher "Launcher", caller_roles: ["Clerk", "System"]
   heki do
     dir "tmp/heki"
   end
