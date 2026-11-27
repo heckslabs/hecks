@@ -1883,28 +1883,28 @@
       {
         "name": "Event",
         "storage_name": "event",
-        "adapter": "PostgresEra"
+        "adapter": "Postgres"
       },
       {
         "name": "Registration",
         "storage_name": "registration",
-        "adapter": "PostgresEra"
+        "adapter": "Postgres"
       },
       {
         "name": "PaymentConnection",
         "storage_name": "payment_connection",
-        "adapter": "PostgresEra"
+        "adapter": "Postgres"
       }
     ]
   },
   "adapters": [
     {
-      "name": "PostgresEra",
+      "name": "Postgres",
       "port": "persistence",
       "fields": [
         "database",
-        "role",
         "schema",
+        "role",
         "formerly",
         "allow_superuser",
         "mint_eras",
@@ -1926,7 +1926,7 @@
     "default_database": false,
     "persistence": [
       {
-        "adapter": "PostgresEra",
+        "adapter": "Postgres",
         "settings": [
           "database",
           "allow_superuser"
