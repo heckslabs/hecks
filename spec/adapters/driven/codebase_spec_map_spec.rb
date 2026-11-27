@@ -1,0 +1,280 @@
+require "spec_helper"
+require "fileutils"
+require "tmpdir"
+require "hecks/hecks/adapters/git_rehearsal"
+
+# The map from a push's changed files to the specs that exercise them, over a temporary tree.
+RSpec.describe Hecks::Adapters::Codebase::SpecMap do
+  let(:root) { Dir.mktmpdir("hecks-spec-map") }
+  let(:files) do
+    {
+      "lib/hecks/widgets/gear_box.rb"                   => nested("Hecks", "Widgets", "GearBox"),
+      "lib/hecks/language/bluebook/vocabulary.bluebook" => %(Hecks.bluebook "Vocabulary" do\nend\n),
+      "lib/hecks/shop/shop.bluebook"                    => %(Hecks.bluebook "Shop" do\nend\n),
+      "spec/gear_box_spec.rb"                           => "# named for the file\n",
+      "spec/requires_spec.rb"                           => %(require "hecks/widgets/gear_box"\n),
+      "spec/relative_spec.rb"                           => %(require_relative "../lib/hecks/widgets/gear_box"\n),
+      "spec/constant_spec.rb"                           => "RSpec.describe Hecks::Widgets::GearBox do\nend\n",
+      "spec/unrelated_spec.rb"                          => "# nothing here\n"
+    }
+  end
+  let(:map) { described_class.new(root) }
+
+  def nested(*names)
+    names.each_with_index.map { |name, depth| "#{"  " * depth}#{depth == names.size - 1 ? "class" : "module"} #{name}\n" }.join
+  end
+
+  before do
+    files.each do |path, text|
+      FileUtils.mkdir_p(File.dirname(File.join(root, path)))
+      File.write(File.join(root, path), text)
+    end
+  end
+
+  after { FileUtils.remove_entry(root) }
+
+  def specs(*changed, limit: 60, skip: ->(_spec) {}) = map.map(changed, limit: limit, skip: skip).specs
+
+  def add(path, text = "# #{path}\n")
+    FileUtils.mkdir_p(File.dirname(File.join(root, path)))
+    File.write(File.join(root, path), text)
+  end
+
+  it "runs a changed spec itself" do
+    expect(specs("spec/unrelated_spec.rb")).to eq(["spec/unrelated_spec.rb"])
+  end
+
+  it "runs the spec named for a changed Ruby file first" do
+    expect(specs("lib/hecks/widgets/gear_box.rb").first).to eq("spec/gear_box_spec.rb")
+  end
+
+  it "runs the specs that require a changed Ruby file by either spelling" do
+    expect(specs("lib/hecks/widgets/gear_box.rb")).to include("spec/requires_spec.rb", "spec/relative_spec.rb")
+  end
+
+  it "runs the specs that name its constant" do
+    expect(specs("lib/hecks/widgets/gear_box.rb")).to include("spec/constant_spec.rb")
+  end
+
+  it "leaves out a spec that has nothing to do with the file" do
+    expect(specs("lib/hecks/widgets/gear_box.rb")).not_to include("spec/unrelated_spec.rb")
+  end
+
+  it "runs the specs that mention a bluebook's domain name or path" do
+    add("spec/shop_spec.rb", %(Hecks.load("Shop")\n))
+    add("spec/path_spec.rb", %(File.read("lib/hecks/shop/shop.bluebook")\n))
+    expect(specs("lib/hecks/shop/shop.bluebook")).to contain_exactly("spec/shop_spec.rb", "spec/path_spec.rb")
+  end
+
+  it "runs the specs that mention a world's declared name" do
+    add("lib/hecks/shop/shop.world", %(Hecks.world "Shop" do\nend\n))
+    add("spec/shop_spec.rb", %(Hecks.load("Shop")\n))
+    expect(specs("lib/hecks/shop/shop.world")).to eq(["spec/shop_spec.rb"])
+  end
+
+  context "with the language's own bluebooks" do
+    before { %w[shape_ledger_spec conformance_run_spec semantics_corpus_spec].each { |name| add("spec/#{name}.rb") } }
+
+    it "adds the ledger, conformance and corpus specs" do
+      expect(specs("lib/hecks/language/bluebook/vocabulary.bluebook"))
+        .to include("spec/shape_ledger_spec.rb", "spec/conformance_run_spec.rb", "spec/semantics_corpus_spec.rb")
+    end
+
+    it "adds the frozen IR golden and vocabulary specs" do
+      %w[ir_golden_spec vocabulary_table_spec].each { |name| add("spec/#{name}.rb") }
+      expect(specs("lib/hecks/language/bluebook/vocabulary.bluebook"))
+        .to include("spec/ir_golden_spec.rb", "spec/vocabulary_table_spec.rb")
+    end
+
+    it "leaves them to an ordinary bluebook" do
+      expect(specs("lib/hecks/shop/shop.bluebook")).not_to include("spec/shape_ledger_spec.rb")
+    end
+  end
+
+  it "runs only the Ruby specs that drive a changed Rust file" do
+    %w[rust_parity_spec semantics_corpus_spec docs_links_spec].each { |name| add("spec/#{name}.rb") }
+    expect(specs("rust/src/lib.rs")).to contain_exactly("spec/rust_parity_spec.rb", "spec/semantics_corpus_spec.rb")
+  end
+
+  it "runs the docs specs for a changed docs file" do
+    docs = %w[docs_links_spec reference_index_spec changelog_shape_spec adr_rows_spec]
+    (docs + ["rust_parity_spec"]).each { |name| add("spec/#{name}.rb") }
+    expect(specs("docs/guide.md")).to match_array(docs.map { |name| "spec/#{name}.rb" })
+  end
+
+  context "when the limit is below what maps" do
+    let(:mapping) { map.map(["lib/hecks/widgets/gear_box.rb"], limit: 2) }
+
+    it "keeps the closest specs" do
+      expect(mapping.specs.first).to eq("spec/gear_box_spec.rb")
+    end
+
+    it "says how many ran and that the rest run in CI" do
+      expect(mapping.cap_note).to eq("capped at 2 of 4; the rest run in CI")
+    end
+  end
+
+  it "says nothing about a cap when everything runs" do
+    expect(map.map(["lib/hecks/widgets/gear_box.rb"], limit: 60).cap_note).to eq("")
+  end
+
+  it "leaves out a spec the skip says cannot run, and says why" do
+    skip = ->(spec) { "needs cargo" if spec == "spec/requires_spec.rb" }
+    mapping = map.map(["lib/hecks/widgets/gear_box.rb"], limit: 60, skip: skip)
+    expect(mapping.skipped).to eq("spec/requires_spec.rb" => "needs cargo")
+  end
+
+  context "with the triggered behaviors spec, which no changed file names" do
+    let(:behaviors) { "spec/behaviors_examples_spec.rb" }
+
+    before { add(behaviors, "# runs every .behaviors file\n") }
+
+    it "runs it for a changed bluebook" do
+      expect(specs("lib/hecks/shop/shop.bluebook")).to include(behaviors)
+    end
+
+    it "runs the IR golden spec for a changed bluebook too" do
+      add("spec/ir_golden_spec.rb", "# pins the frozen IR\n")
+      expect(specs("lib/hecks/shop/shop.bluebook")).to include(behaviors, "spec/ir_golden_spec.rb")
+    end
+
+    it "runs it for a changed .behaviors file" do
+      expect(specs("examples/shop/shop.behaviors")).to include(behaviors)
+    end
+
+    it "does not run it for a change to a doc alone" do
+      expect(specs("docs/guide.md")).not_to include(behaviors)
+    end
+
+    it "keeps it when the limit leaves specs out" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", "lib/hecks/shop/shop.bluebook", limit: 1)).to eq([behaviors])
+    end
+
+    it "takes the rule the Tickets world declares" do
+      add("lib/hecks/hecks/tickets.world", %(Hecks.world "Tickets" do\n  triggered_specs "Specs", ) +
+                                           %(paths: ["docs/**/*.md"], specs: ["spec/gear_box_spec.rb"]\nend\n))
+      expect(specs("docs/guide.md")).to include("spec/gear_box_spec.rb")
+    end
+  end
+
+  context "with a lib file that declares several constants and a spec that never requires it" do
+    let(:ledger) { "lib/hecks/shape_ledger/edge.rb" }
+    let(:source) do
+      "module Hecks\n  module ShapeLedger\n    class Edge\n    end\n\n    class EdgeHygiene\n    end\n  end\nend\n"
+    end
+
+    before do
+      add(ledger, source)
+      add("spec/hygiene_spec.rb", "RSpec.describe Hecks::ShapeLedger::EdgeHygiene do\nend\n")
+      add("spec/namespace_spec.rb", "Hecks::ShapeLedger.freeze\n")
+    end
+
+    it "runs a spec that names any constant the file declares, not only the first" do
+      expect(specs(ledger)).to include("spec/hygiene_spec.rb")
+    end
+
+    it "leaves out a spec that names only a namespace the file passes through" do
+      expect(specs(ledger)).not_to include("spec/namespace_spec.rb")
+    end
+
+    it "runs nothing extra for a change to a doc alone" do
+      expect(specs("docs/guide.md")).not_to include("spec/hygiene_spec.rb")
+    end
+
+    it "keeps a constant whose namespaces are generic but whose own name is not" do
+      add("lib/hecks/adapters/thing.rb", "module Hecks\n  module Adapters\n    class Thing\n    end\n  end\nend\n")
+      add("spec/thing_spec.rb", "Hecks::Adapters::Thing.new\n")
+      expect(specs("lib/hecks/adapters/thing.rb")).to include("spec/thing_spec.rb")
+    end
+
+    it "takes nothing from a file that declares only generic namespaces" do
+      add("lib/hecks/adapters/bare.rb", "module Hecks\n  module Adapters\n  end\nend\n")
+      add("spec/adapters_spec.rb", "Hecks::Adapters.freeze\n")
+      expect(specs("lib/hecks/adapters/bare.rb")).not_to include("spec/adapters_spec.rb")
+    end
+  end
+
+  context "with a spec tagged :repo_scan, which reads the whole tree" do
+    let(:scan) { "spec/tree_scan_spec.rb" }
+
+    before { add(scan, %(RSpec.describe "a scan of the tree", :io, :repo_scan do\nend\n)) }
+
+    it "runs it for a change no spec mentions, ahead of the specs the change reaches", :aggregate_failures do
+      expect(specs("lib/hecks/shop/shop.bluebook").first).to eq(scan)
+      expect(specs("lib/hecks/widgets/gear_box.rb")[0..1]).to eq([scan, "spec/gear_box_spec.rb"])
+    end
+
+    it "keeps it when the limit leaves specs out" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", limit: 1)).to eq([scan])
+    end
+
+    it "runs it even when the skip rules would leave it out" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", skip: ->(_spec) { "needs cargo" })).to include(scan)
+    end
+
+    it "runs none when nothing changed" do
+      expect(specs).to eq([])
+    end
+
+    it "does not take a spec that only mentions the tag in its text" do
+      add("spec/mentions_spec.rb", %(# the tag is ", :repo_scan" in a describe\n))
+      expect(specs("lib/hecks/widgets/gear_box.rb")).not_to include("spec/mentions_spec.rb")
+    end
+
+    it "runs none for a change wholly under docs/, which no scan reads", :aggregate_failures do
+      add("docs/guide.md")
+      add("spec/docs_guide_spec.rb", "docs/guide.md\n")
+      expect(specs("docs/guide.md")).not_to include(scan)
+      expect(specs("docs/guide.md")).to include("spec/docs_guide_spec.rb")
+    end
+
+    it "runs it when a docs change comes with a change outside docs/" do
+      expect(specs("docs/guide.md", "lib/hecks/widgets/gear_box.rb")).to include(scan)
+    end
+
+    it "still runs a spec the world triggers for a docs change" do
+      add("lib/hecks/hecks/tickets.world", %(Hecks.world "Tickets" do\n  triggered_specs "Specs", ) +
+                                           %(paths: ["docs/**/*.md"], specs: ["spec/gear_box_spec.rb"]\nend\n))
+      expect(specs("docs/guide.md")).to include("spec/gear_box_spec.rb")
+    end
+  end
+
+  context "with a world whose triggered_specs row names always-run specs" do
+    let(:always) { "spec/always_spec.rb" }
+    let(:world) do
+      %(Hecks.world "Tickets" do\n  triggered_specs "Specs", paths: ["docs/**/*.md"], ) +
+        %(specs: ["spec/gear_box_spec.rb"], always: ["spec/always_spec.rb"]\nend\n)
+    end
+
+    before do
+      add(always, "# nothing points here\n")
+      add("lib/hecks/hecks/tickets.world", world)
+    end
+
+    it "runs them for a change touching none of their files, ahead of the limit" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", limit: 1)).to eq([always])
+    end
+
+    it "runs them with a docs change that comes with a change outside docs/" do
+      expect(specs("docs/guide.md", "lib/hecks/widgets/gear_box.rb")).to include(always)
+    end
+
+    it "does not run them for a change wholly under docs/", :aggregate_failures do
+      expect(specs("docs/guide.md")).not_to include(always)
+      expect(specs("docs/guide.md")).to include("spec/gear_box_spec.rb")
+    end
+
+    it "runs none when nothing changed" do
+      expect(specs).to eq([])
+    end
+
+    it "leaves one out when the skip rules say it cannot run" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", skip: ->(spec) { "no" if spec == always })).not_to include(always)
+    end
+
+    it "takes no always list from a row that declares none" do
+      add("lib/hecks/hecks/tickets.world", world.sub(%(, always: ["spec/always_spec.rb"]), ""))
+      expect(specs("lib/hecks/widgets/gear_box.rb")).not_to include(always)
+    end
+  end
+end

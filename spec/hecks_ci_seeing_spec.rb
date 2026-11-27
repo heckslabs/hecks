@@ -4,7 +4,7 @@ require "spec_helper"
 require "tmpdir"
 
 require "hecks/hecks/adapters/ci_seeing"
-require "hecks/hecks/adapters/main_integration/kept_rows"
+require "hecks/hecks/adapters/local_overlaying/kept_rows"
 
 # `CiLook` asks which CI runs GitHub lists in a state no record holds. The adapter reads `gh`, keys
 # each run by its id, attempt and whether it was going or done, and reads the jobs of a completed
@@ -66,7 +66,7 @@ RSpec.describe Hecks::Adapters::CiSeeing do
   end
 
   it "declares the record a kept aggregate, so a run noted by one beat is read by the next" do
-    rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry)
+    rows = Hecks::Adapters::KeptRows.from_registry(boot_hecks_in_memory.registry)
     expect(rows.map { |row| row[:aggregate] }).to include("CiRunRecord")
   end
 end

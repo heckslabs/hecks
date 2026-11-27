@@ -5,8 +5,8 @@ require "hecks/hecks/adapters/main_integration/train"
 # A checkout's machine-local overlay is written from the one list of kept aggregates, the
 # `KeptAggregate` rows of the Hecks bluebook, so neither the train's copy nor the main checkout
 # holds a hand copy that falls behind.
-RSpec.describe Hecks::Adapters::MainIntegration::LocalOverlay do
-  before(:all) { @rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry) }
+RSpec.describe Hecks::Adapters::LocalOverlay do
+  before(:all) { @rows = Hecks::Adapters::KeptRows.from_registry(boot_hecks_in_memory.registry) }
 
   let(:root) { Dir.mktmpdir("local-overlay") }
   let(:file) { File.join(root, described_class::PATH) }
@@ -18,7 +18,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::LocalOverlay do
   end
 
   def listed(copy)
-    Hecks::Adapters::MainIntegration::KeptRows.for_copy(@rows, copy).map { |row| [row[:domain], row[:aggregate]] }
+    Hecks::Adapters::KeptRows.for_copy(@rows, copy).map { |row| [row[:domain], row[:aggregate]] }
   end
 
   it "binds exactly the rows each copy keeps, the Ticker and the Epic among them", :aggregate_failures do

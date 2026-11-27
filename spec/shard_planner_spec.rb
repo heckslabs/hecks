@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/ci_speed/adapters/shard_planner"
+require "hecks/adapters/shard_planner"
 
 # The split every sharded CI family shares: a pure function of the items, the shard count and the
 # prices, so every leg that computes it agrees.

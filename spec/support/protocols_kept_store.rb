@@ -21,7 +21,7 @@ module ProtocolsKeptStore
   end
 
   def self.files(root, rows)
-    overlay = Hecks::Adapters::MainIntegration::LocalOverlay.new(root, rows, "main").text
+    overlay = Hecks::Adapters::LocalOverlay.new(root, rows, "main").text
     [write(root, "protocols.hecksagon", overlay[/^Hecks\.hecksagon "Protocols" do.*?^end/m]),
      write(root, "protocols.world", world(root))]
   end

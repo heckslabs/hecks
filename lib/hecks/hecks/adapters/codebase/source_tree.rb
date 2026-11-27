@@ -16,7 +16,6 @@ require_relative "codemods"
 require_relative "test_suite"
 require_relative "test_scope"
 require_relative "corpus_tasks"
-require_relative "composing"
 require_relative "previewing"
 require_relative "publishing"
 require_relative "promotion"
@@ -251,7 +250,7 @@ module Hecks
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
                   Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
-                  Codebase::CorpusTasks, Codebase::Composing, Codebase::Previewing,
+                  Codebase::CorpusTasks, Codebase::Previewing,
                   Codebase::Publishing, Codebase::Promotion, Codebase::Scripting].freeze
 
       private

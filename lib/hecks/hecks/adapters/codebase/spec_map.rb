@@ -1,0 +1,173 @@
+# frozen_string_literal: true
+
+require_relative "spec_map/changes"
+require_relative "spec_map/corpus"
+require_relative "spec_map/locked_package"
+require_relative "spec_map/needles"
+require_relative "spec_map/triggers"
+
+module Hecks
+  module Adapters
+    module Codebase
+      # Maps the files a push changes to the spec files that exercise them: conservatively and
+      # cheaply, by name and by text, with no index and no dependency beyond the standard library.
+      #
+      # A changed spec runs itself. A changed Ruby file runs the spec named for it and the specs
+      # that require it or mention its path or its constant. A changed bluebook, hecksagon, world or
+      # behaviors file runs the specs that mention its path or domain name (and, for the language's
+      # own bluebooks, the shape-ledger, conformance, corpus, golden and vocabulary specs). A
+      # changed `rust/` file runs the Ruby specs that drive it, never cargo; a changed `docs/`
+      # file runs the docs specs, and a change wholly under `docs/` runs no repository scan
+      # (`docs_only?`). A changed path the world's `triggered_specs` rule names runs that
+      # rule's specs first, ahead of the limit (`Triggers`). A changed file beneath a directory that
+      # holds a `bluebook.lock` runs the specs that name that directory (`LockedPackage`).
+      class SpecMap
+        # What was mapped.
+        #
+        # @!attribute [r] specs
+        #   @return [Array<String>] the specs to run, closest first, at most the limit
+        # @!attribute [r] total
+        #   @return [Integer] how many specs the change maps to once skipped ones are left out
+        # @!attribute [r] skipped
+        #   @return [Hash{String => String}] each spec left out and why
+        # @!attribute [r] because
+        #   @return [Hash{String => String}] each kept spec a changed name reached, and the name
+        Mapping = Struct.new(:specs, :total, :skipped, :because) do
+          # @return [Boolean] whether the limit left specs out
+          def capped? = total > specs.size
+
+          # @return [Array<String>] one "also ran" line per changed name, its specs and the change
+          def also_ran
+            because.group_by { |_spec, why| why }.map { |why, rows| "also ran: #{rows.map(&:first).join(", ")}, because #{why}" }
+          end
+
+          # @return [String] how many ran and that the rest run in CI; empty when none were left out
+          def cap_note = capped? ? "capped at #{specs.size} of #{total}; the rest run in CI" : ""
+        end
+
+        # The spec families a changed `docs/` file and a changed `rust/` file run.
+        DOCS = %w[docs_ reference_ changelog_ adr_].freeze
+        RUST = %w[rust_ semantics_corpus_spec].freeze
+        LANGUAGE = %r{\Alib/hecks/language/}
+        LEDGER = /shape_ledger|conformance|corpus|golden|vocabulary/
+        EXTENSIONS = /\..*\z/
+        SCAN = /^RSpec\.describe\b.*,\s*:repo_scan\b/
+        LIB_SCAN = /^RSpec\.describe\b.*,\s*:lib_scan\b/
+        SCAN_TIER = -1
+
+        # @param root [String] the tree whose `spec/` is searched
+        def initialize(root)
+          @root = root
+          @corpus = Corpus.new(root)
+          @triggers = Triggers.new(root)
+        end
+
+        # @param changed [Array<String>] changed paths relative to the root
+        # @param limit [Integer] the most specs to return
+        # @param skip [#call] given a spec, nil to run it or the reason to leave it out
+        # @param since [String, nil] the ref the diff is read against; a changed world setting or
+        #   bluebook declaration then also reaches the specs that name it (`Changes`)
+        # @return [Mapping]
+        def map(changed, limit:, skip: ->(_spec) {}, since: nil)
+          @names = since ? Changes.new(@root, since).names(changed) : {}
+          @because = {}
+          ranked = tiers(changed).sort_by { |spec, tier| [tier, spec] }.map(&:first)
+          reasons = ranked.to_h { |spec| [spec, (skip.call(spec) unless scan?(spec))] }.compact
+          mapping(ranked - reasons.keys, limit, reasons)
+        end
+
+        private
+
+        def mapping(kept, limit, reasons)
+          Mapping.new(kept.first(limit), kept.size, reasons, @because.slice(*kept.first(limit)))
+        end
+
+        # The closest tier each spec is reached at: -1 a repository scan or a triggered spec, 0
+        # itself, 1 named for the file, 2 mentions it.
+        def tiers(changed)
+          found = changed.each_with_object({}) do |path, reached|
+            reach(path).each { |spec, tier| reached[spec] = [reached[spec], tier].compact.min }
+          end
+          found.merge(first(changed).to_h { |spec| [spec, SCAN_TIER] })
+        end
+
+        # The specs that run ahead of the limit: the scans, the triggered ones and the lock checks.
+        def first(changed) = changed.empty? ? [] : scans(changed) | @triggers.specs(changed) | locked(changed)
+
+        # The specs tagged `:repo_scan`: each reads the whole tree, so no changed file points at it
+        # and any change can break it. They run first, before the limit, and ignore the skip rules.
+        # A scan also tagged `:lib_scan` reads only `lib/`, so a change that touches no file outside
+        # `spec/` leaves it out; a changed spec support file still reaches it by what it mentions.
+        # A change wholly under `docs/` runs none: no scan reads `docs/`, so a spec that does must
+        # not be tagged `:repo_scan` alone.
+        def scans(changed)
+          return [] if docs_only?(changed)
+
+          @corpus.files.select { |spec| scan?(spec) && (!lib_scan?(spec) || outside_spec?(changed)) }
+        end
+
+        def outside_spec?(changed) = changed.any? { |path| !path.start_with?("spec/") }
+
+        def docs_only?(changed) = changed.any? && changed.all? { |path| path.start_with?("docs/") }
+
+        def lib_scan?(spec) = LIB_SCAN.match?(@corpus.text(spec))
+
+        # The specs that name the directory of each locked package a changed path sits in, so the
+        # spec that checks the lock runs first, ahead of the limit.
+        def locked(changed)
+          packages = changed.filter_map { |path| LockedPackage.of(@root, path) }.uniq
+          packages.flat_map { |package| naming(package) }
+        end
+
+        def naming(package)
+          @corpus.files.select { |spec| @corpus.text(spec).include?(package) }.each do |spec|
+            @because[spec] ||= "#{package} is locked"
+          end
+        end
+
+        def scan?(spec) = SCAN.match?(@corpus.text(spec))
+
+        def reach(path)
+          return { path => 0 } if itself?(path)
+
+          found = named(path).to_h { |spec| [spec, 1] }
+          found.merge!(mentioning(path).to_h { |spec| [spec, 2] }) { |_spec, near, _far| near }
+          families(path).each { |spec| found[spec] ||= 3 }
+          found
+        end
+
+        def itself?(path) = path.end_with?("_spec.rb") && File.exist?(File.join(@root, path))
+
+        def named(path)
+          wanted = "#{File.basename(path).sub(EXTENSIONS, "")}_spec.rb"
+          @corpus.files.select { |spec| File.basename(spec) == wanted }
+        end
+
+        def mentioning(path)
+          return [] if path.start_with?("docs/", "rust/")
+
+          needles = Needles.new(File.join(@root, path), path, @names.to_h.fetch(path, []))
+          return [] if needles.none?
+
+          @corpus.files.select { |spec| needles.match?(@corpus.text(spec)).tap { |hit| because(needles, spec) if hit } }
+        end
+
+        def because(needles, spec)
+          why = needles.because(@corpus.text(spec))
+          @because[spec] ||= why if why
+        end
+
+        def families(path)
+          return starting(DOCS) if path.start_with?("docs/")
+          return starting(RUST) if path.start_with?("rust/")
+
+          path.match?(LANGUAGE) && Needles::DOMAIN.match?(path) ? @corpus.files.grep(LEDGER) : []
+        end
+
+        def starting(prefixes)
+          @corpus.files.select { |spec| prefixes.any? { |prefix| File.basename(spec).start_with?(prefix) } }
+        end
+      end
+    end
+  end
+end

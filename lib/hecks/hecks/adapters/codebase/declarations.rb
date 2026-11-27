@@ -2,7 +2,6 @@
 
 require_relative "tree"
 require_relative "search"
-require "hecks/composer/outline"
 
 module Hecks
   module Adapters
@@ -11,13 +10,13 @@ module Hecks
       # declaring file with the extent of each block, kept per checkout and rebuilt only when a
       # declaring file's size or modification time moves.
       #
-      # The scan reads the text alone, as the Composer outline does, so it works on a file that
-      # does not parse. It also reads the definitions of a Ruby file and the headings of a
+      # The scan reads the text alone, so it works on a file that does not parse. It also reads the definitions of a Ruby file and the headings of a
       # Markdown file, for `Outline`, which are scanned on demand and never kept.
       module Declarations
-        # What a bluebook-family file declares: the constructs the Composer outline jumps to, and
-        # the ones it leaves out.
-        KINDS = (Composer::Outline::KINDS + %w[read_model lifecycle port adapter]).freeze
+        # What a bluebook-family file declares: the domain's constructs, its read models and
+        # lifecycles, and a hecksagon's ports and adapters.
+        KINDS = %w[aggregate entity value_object command query policy process_manager
+                   read_model lifecycle port adapter].freeze
 
         # The files whose declarations are indexed.
         DECLARING = "**/*.{bluebook,hecksagon,behaviors,world,adapter,port}"

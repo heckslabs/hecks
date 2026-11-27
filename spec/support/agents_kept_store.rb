@@ -11,7 +11,7 @@ module AgentsKeptStore
   # @param rows [Array<Hash>] the `KeptAggregate` rows of the Hecks bluebook
   # @return [Array<String>] the world and the hecksagon files, to load after the bluebook
   def self.files(root, rows)
-    overlay = Hecks::Adapters::MainIntegration::LocalOverlay.new(root, rows, "main").text
+    overlay = Hecks::Adapters::LocalOverlay.new(root, rows, "main").text
     [write(root, "agents.world", world(root)), write(root, "agents.hecksagon", overlay[/^Hecks\.hecksagon "Agents" do.*?^end/m])]
   end
 

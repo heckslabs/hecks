@@ -251,12 +251,6 @@ Hecks.behaviors "Codebase" do
     expect refused: "a port is 1 to 65535"
   end
 
-  test "Compose refuses a port that is not one" do
-    tests "Compose", on: "Server"
-    input port: { value: 70_000 }, run: { value: "compose" }
-    expect refused: "a port is 1 to 65535"
-  end
-
   test "Preview refuses a port that is not one" do
     tests "Preview", on: "Server"
     input directory: { value: "site" }, port: { value: 70_000 }, run: { value: "preview" }

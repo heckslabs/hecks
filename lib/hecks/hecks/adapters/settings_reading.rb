@@ -5,7 +5,6 @@ require_relative "console_capture"
 require_relative "../../ports/persistence/binding_policy"
 require_relative "settings_reading/stores"
 require_relative "settings_reading/disposable_ledger"
-require_relative "settings_reading/push_nudge"
 require_relative "settings_reading/test_scope"
 require_relative "settings_reading/event_tap_row"
 require_relative "work_limits"
@@ -29,7 +28,6 @@ module Hecks
 
       include Stores
       include DisposableLedger
-      include PushNudge
       include TestScope
       include EventTapRow
 
@@ -60,7 +58,7 @@ module Hecks
 
       def rows(directory)
         [environment, database(directory), mint_eras(directory), disposable_ledger(directory), work_cap(directory),
-         push_nudge(directory), test_scope(directory),
+         test_scope(directory),
          schema, project_environment,
          variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
          variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),

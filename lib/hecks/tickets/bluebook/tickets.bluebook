@@ -959,20 +959,6 @@ Hecks.bluebook "Tickets" do
       invariant("a time budget is not negative") { !value.negative? }
     end
 
-    # How many lines a report prints.
-    value_object "Rows" do
-      attribute :value, Integer
-
-      invariant("a report prints at least one line") { value.positive? }
-    end
-
-    # How many columns a report fits.
-    value_object "Columns" do
-      attribute :value, Integer
-
-      invariant("a report is at least forty columns wide") { value >= 40 }
-    end
-
     value_object "WorkKey" do
       attribute :value, String, matches: :present
 
@@ -1001,15 +987,6 @@ Hecks.bluebook "Tickets" do
       member kind: "missing_passage",  waits: "time", counted: true,  first: false
       member kind: "already_recorded", waits: "run",  counted: true,  first: false
       member kind: "load",             waits: "load", counted: false, first: true
-    end
-
-    # What a standup covers when the caller names no time: the work items finished in the last
-    # `hours`, and the first `upcoming` planned work items in the order Dispatch starts them.
-    value_object "StandupWindow" do
-      attribute :hours,    Integer
-      attribute :upcoming, Integer
-
-      member hours: 24, upcoming: 3
     end
 
     # How many pomodoros, whole rounds of work: a size or a count spent.
@@ -1585,25 +1562,6 @@ Hecks.bluebook "Tickets" do
       where(status: "planned")
       order_by :step
       limit 1
-    end
-
-    # The Dispatching ordering made readable: the port's adapter asks the one ordering Dispatch rolls
-    # forward with, and the plan that says why a planned item would wait.
-    query "PriorityReport" do
-      description "Every open work item in the order Dispatch would start it (red first, then now, next, later, none; by step then id), with why each planned one waits."
-      attribute :tier,  String, optional: true
-      attribute :limit, Rows, optional: true
-      attribute :width, Columns, optional: true
-      returns Document
-    end
-
-    # The standup, read and never written: the event tap says what finished, the PriorityReport
-    # ordering says what starts next, and the machine says its own load and memory. What is blocked
-    # is left out until the stall ledger can list its open stalls.
-    query "Standup" do
-      description "A standup anyone can read: the work items finished since a time (the last 24 hours when none is given), the next three planned work items in the order Dispatch would start them with why each starts or waits, and the machine's load and memory. Read-only."
-      attribute :since, WorkText, optional: true
-      returns Document
     end
 
     # The velocity of a day, read and never written: the work items the tap shows finished that day, in

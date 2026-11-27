@@ -49,7 +49,7 @@ module Hecks
 
         def mint(era, request)
           name = HeldDomain.open(@directory).domain_name
-          QaRevisionMint.call(@directory, domain: name, era: era, request: request, ledger: @directory)
+          RevisionMint.call(domain: name, era: era, request: request, ledger: @directory)
         end
       end
     end

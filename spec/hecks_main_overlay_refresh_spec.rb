@@ -5,10 +5,10 @@ require "hecks/hecks/adapters/main_integration/main_overlay"
 # A boarding keeps the owner's checkout overlay in step with the KeptAggregate rows, so a row
 # added to the list (the Sprint) reaches the live store instead of waiting for a hand write.
 RSpec.describe "a boarding refreshes the owner's main overlay" do
-  before(:all) { @rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry) }
+  before(:all) { @rows = Hecks::Adapters::KeptRows.from_registry(boot_hecks_in_memory.registry) }
 
   let(:root) { Dir.mktmpdir("main-overlay") }
-  let(:file) { File.join(root, Hecks::Adapters::MainIntegration::LocalOverlay::PATH) }
+  let(:file) { File.join(root, Hecks::Adapters::LocalOverlay::PATH) }
   let(:overlay) { Hecks::Adapters::MainIntegration::MainOverlay.new(root, @rows) }
 
   before { FileUtils.mkdir_p(File.join(root, ".git")) }

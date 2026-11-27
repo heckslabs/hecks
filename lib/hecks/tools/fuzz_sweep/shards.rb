@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../tools"
-require_relative "../../ci_speed/adapters/shard_planner"
+require_relative "../../adapters/shard_planner"
 
 module Hecks
   module Tools

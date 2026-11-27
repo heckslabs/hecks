@@ -1,7 +1,0 @@
-# Binds the `MailSpooling` port to `MailSpool`, which reads the spool a send appends to and moves
-# its cursor. Required by name, not relative, so a copy of this directory shares the one implementation loaded.
-require "hecks/agents/adapters/mail_spool"
-
-Hecks.adapter "MailSpool" do
-  port "MailSpooling"
-end

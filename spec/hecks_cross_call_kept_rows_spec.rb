@@ -7,7 +7,7 @@ RSpec.describe "cross-call kept rows" do
   rows = nil
   before(:all) do
     registry = boot_hecks_in_memory.registry
-    rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(registry)
+    rows = Hecks::Adapters::KeptRows.from_registry(registry)
   end
 
   {
@@ -24,7 +24,7 @@ RSpec.describe "cross-call kept rows" do
     ["Tickets", "Sprint"]    => "main"
   }.each do |(domain, aggregate), checkout|
     it "keeps #{domain}::#{aggregate} for the #{checkout} checkout, with a reason", :aggregate_failures do
-      row = Hecks::Adapters::MainIntegration::KeptRows.find(rows, domain, aggregate)
+      row = Hecks::Adapters::KeptRows.find(rows, domain, aggregate)
       expect(row).not_to be_nil
       expect(row[:checkout]).to eq(checkout)
       expect(row[:reason].to_s.strip).not_to be_empty

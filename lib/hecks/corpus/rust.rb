@@ -3,7 +3,7 @@ module Hecks
     # Every Rust-facing list reads `rust/Cargo.toml`'s `[features]` as its
     # one source, rather than each consumer typing it out by hand.
     GENERATED_DIR = "rust/src/generated".freeze
-    RUST_DOMAIN_KINDS = %i[example stress semantics fixture].freeze
+    RUST_DOMAIN_KINDS = %i[example semantics fixture].freeze
 
     RustDomain = Struct.new(:feature, :dir, :kind)
 
@@ -46,7 +46,7 @@ module Hecks
       BLUEBOOK_NAME = /^\s*Hecks\.bluebook\s+"([^"]+)"/
 
       # The corpus kinds holding bluebooks the gem carries and a hecksagon attaches by name.
-      GEM_BLUEBOOK_KINDS = %i[qa deploy site tickets composer tenancy bulk ci_pipeline].freeze
+      GEM_BLUEBOOK_KINDS = %i[deploy site tickets tenancy bulk].freeze
 
       # Every place a Rust-facing domain's own `attaches` attachment could be declared.
       #

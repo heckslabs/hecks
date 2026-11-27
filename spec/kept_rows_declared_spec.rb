@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/hecks/adapters/main_integration/local_overlay"
+require "hecks/hecks/adapters/local_overlaying/local_overlay"
 
 # The overlay `LocalOverlay.write!` writes binds exactly the KeptAggregate rows, so a row naming an
 # aggregate its bluebook does not declare would write a stale bind into every checkout. Retiring
@@ -8,8 +8,8 @@ RSpec.describe "the kept rows name declared aggregates" do
   before(:all) { @registry = boot_hecks_in_memory.registry }
 
   def undeclared(copy)
-    rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(@registry)
-    Hecks::Adapters::MainIntegration::KeptRows.for_copy(rows, copy).reject do |row|
+    rows = Hecks::Adapters::KeptRows.from_registry(@registry)
+    Hecks::Adapters::KeptRows.for_copy(rows, copy).reject do |row|
       @registry.bluebook(row[:domain])&.aggregate(row[:aggregate])
     end
   end

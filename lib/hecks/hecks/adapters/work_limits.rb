@@ -3,10 +3,6 @@
 require_relative "started_work"
 require_relative "console_capture"
 require_relative "work_slots"
-require_relative "moving_cap"
-require_relative "dispatching/work_items"
-require_relative "dispatching/admission_switch"
-require_relative "dispatching/admitting"
 
 module Hecks
   module Adapters
@@ -14,8 +10,8 @@ module Hecks
     # items.
     #
     # It reads the other Work items from the registry it is built with, the cap from the Tickets
-    # world's `work_limit` setting. It decides nothing
-    # about what happens next: the bluebook sends a refused start back to the plan.
+    # world's `work_limit` setting. It decides nothing about what happens next: the bluebook sends
+    # a refused start back to the plan.
     class WorkLimits
       # The cap when the Tickets world declares none.
       DEFAULT_CAP = 8
@@ -26,26 +22,21 @@ module Hecks
       # The world verb that carries the cap.
       VERB = "work_limit"
 
+      # One started work item, as {WorkSlots} reads it.
+      Holder = Struct.new(:key, :title, :priority, keyword_init: true)
+
       # @param registry [Runtime::Registry, nil] the booted registry whose Work items are read
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `admitting:` stands in for Signalbox's admission
+      # @param settings [Hash] unused
       def initialize(registry: nil, aggregate: nil, settings: {})
         @registry = registry
-        @settings = settings
       end
 
-      # The cap on started work items: the moving cap's place while the owner has it move
-      # ({MovingCap}), else the one the registry's Tickets world declares.
-      #
-      # @param registry [Runtime::Registry, nil]
-      # @return [Integer] the moving cap, else the declared cap, else {DEFAULT_CAP}
-      def self.cap(registry) = MovingCap.current(registry) || fixed_cap(registry)
-
-      # The fixed cap on started work items a registry's Tickets world declares.
+      # The cap on started work items the registry's Tickets world declares.
       #
       # @param registry [Runtime::Registry, nil]
       # @return [Integer] the declared cap, else {DEFAULT_CAP}
-      def self.fixed_cap(registry)
+      def self.cap(registry)
         declared = registry&.world("Tickets")&.for_verb(VERB)
         declared && !declared[:cap].nil? ? Integer(declared[:cap]) : DEFAULT_CAP
       end
@@ -59,40 +50,14 @@ module Hecks
         declared && !declared[:urgent_reserve].nil? ? Integer(declared[:urgent_reserve]) : DEFAULT_URGENT_RESERVE
       end
 
-      # The world verb that carries the owner's stop and start switch for new work.
-      SWITCH = "dispatch_roll_forward"
-
-      # How every refusal of a start stopped by the owner's switch opens.
-      STOPPED = "new work is stopped"
-
-      # Whether the owner's switch lets new work start. It is the one fact the Settings page
-      # shows and every start reads; a merge window is a separate pause and does not count.
-      #
-      # @param registry [Runtime::Registry, nil]
-      # @return [Boolean] false only when the Tickets world says `roll_forward: false`
-      def self.switch_on?(registry)
-        declared = registry&.world("Tickets")&.for_verb(SWITCH)
-        !declared || declared[:roll_forward] != false
-      end
-
-      # Clears a just-started work item against the owner's switch and the cap, or with the
-      # `admission.signalbox` switch on against Signalbox's admission by headroom.
+      # Clears a just-started work item against the cap and the red reserve, as {WorkSlots} holds
+      # them.
       #
       # @param held [Hash] the Work item: `work`
       # @return [Hash{Symbol => Hash}] `output:` the line that says the cap holds
-      # @raise [ConsoleCapture::Failure] when new work is stopped, or naming the cap, the count and
-      #   the holders
+      # @raise [ConsoleCapture::Failure] naming the cap, the count and the holders
       def check_cap(**held)
-        raise ConsoleCapture::Failure, "#{STOPPED}: #{SWITCH} is off" unless self.class.switch_on?(@registry)
-
         key = plain(held[:work])
-        Dispatching::AdmissionSwitch.on?(@registry) ? admitted(key) : within_cap(key)
-      end
-
-      private
-
-      # The cap and the red reserve, as {WorkSlots} holds them.
-      def within_cap(key)
         holders = started
         item = holders.find { |candidate| candidate.key == key }
         limit = self.class.cap(@registry)
@@ -101,24 +66,11 @@ module Hecks
         { output: { value: "#{key} is within the cap of #{limit} (#{holders.size} started)" } }
       end
 
-      # The item is put to Signalbox as a fill puts it, its own run not counted against the ramp.
-      def admitted(key)
-        item = started.find { |candidate| candidate.key == key }
-        reason = item && admitting.reason(item)
-        raise ConsoleCapture::Failure, "#{key} is not admitted: #{reason}" if reason
-
-        { output: { value: "#{key} is admitted by #{admitting.clause}" } }
-      end
-
-      def admitting
-        @admitting ||= @settings[:admitting] ||
-                       Dispatching::Admitting.new(runs: Dispatching::WorkItems.new(@registry).runs, now: Time.now,
-                                                  meter: Dispatching::Admitting.meter(@registry))
-      end
+      private
 
       def started
         StartedWork.items(@registry).map do |item|
-          Dispatching::Plan::Item.new(key: item[:key], title: item[:title].to_s, priority: item[:priority].to_s)
+          Holder.new(key: item[:key], title: item[:title].to_s, priority: item[:priority].to_s)
         end
       end
 

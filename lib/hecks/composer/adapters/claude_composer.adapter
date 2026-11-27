@@ -1,3 +1,0 @@
-Hecks.adapter "ClaudeComposer" do
-  port "composer_agent"
-end

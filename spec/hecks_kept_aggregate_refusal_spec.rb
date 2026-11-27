@@ -10,7 +10,7 @@ require "hecks/hecks/adapters/local_overlaying"
 RSpec.describe Hecks::Adapters::Driving::KeptCheck do
   before(:all) do
     @registry = boot_hecks_in_memory.registry
-    @rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(@registry)
+    @rows = Hecks::Adapters::KeptRows.from_registry(@registry)
     @stores = Hecks::Adapters::Driving::LedgerStores.registry_rows(@registry)
   end
 

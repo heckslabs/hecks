@@ -8,7 +8,7 @@ RSpec.describe "a hand-started session's registration, across processes" do
   include AgentsMessageHelpers
 
   let(:root) { Dir.mktmpdir("hand-run-store") }
-  let(:rows) { Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry) }
+  let(:rows) { Hecks::Adapters::KeptRows.from_registry(boot_hecks_in_memory.registry) }
 
   after { FileUtils.remove_entry(root) }
 

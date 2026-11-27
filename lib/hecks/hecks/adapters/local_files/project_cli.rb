@@ -139,8 +139,7 @@ module Hecks
           executable = setting[:executable]
           label      = executable || "#{path}/#{snake}"
           text       = launcher(path, name, program, executable: executable,
-                                                     memory_commands: setting[:memory_commands], opted: !setting.empty?,
-                                                     ledgers: executable ? Corpus::ROTATION_LEDGER : {})
+                                                     memory_commands: setting[:memory_commands], opted: !setting.empty?)
           Target.new(name, label, File.join(root, label), text, snake, executable)
         end
 

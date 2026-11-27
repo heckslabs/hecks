@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "hecks/hecks/adapters/main_integration/local_overlay"
+require "hecks/hecks/adapters/local_overlaying/local_overlay"
 require "hecks/hecks/adapters/quieting"
 require "hecks/hecks/adapters/dispatching"
 
@@ -64,8 +64,8 @@ RSpec.describe "a merge window" do
   # it from processes of their own, so it has to be kept, not held in the memory of the call that
   # opened it.
   it "is persisted by the overlay, so a later call can close it" do
-    rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry)
-    text = Hecks::Adapters::MainIntegration::LocalOverlay.new(Dir.pwd, rows, "train").text
+    rows = Hecks::Adapters::KeptRows.from_registry(boot_hecks_in_memory.registry)
+    text = Hecks::Adapters::LocalOverlay.new(Dir.pwd, rows, "train").text
 
     expect(text).to include("Hecks::MergeWindow.persisted_by(\"SqlitePersistence\")")
   end

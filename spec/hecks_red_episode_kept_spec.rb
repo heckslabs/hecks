@@ -1,6 +1,6 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/hecks/adapters/main_integration/local_overlay"
+require "hecks/hecks/adapters/local_overlaying/local_overlay"
 require "hecks/adapters/driven/sqlite"
 
 # A red episode is decided by the process that verified main and read back by later ones, so it is
@@ -19,8 +19,8 @@ RSpec.describe "a red episode" do
   let(:aggregate) { @registry.bluebook("Hecks").aggregate("RedEpisode") }
 
   def overlay(copy)
-    rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(@registry)
-    Hecks::Adapters::MainIntegration::LocalOverlay.new(Dir.pwd, rows, copy).text
+    rows = Hecks::Adapters::KeptRows.from_registry(@registry)
+    Hecks::Adapters::LocalOverlay.new(Dir.pwd, rows, copy).text
   end
 
   # A store opened on the example's file, as a process that has just started opens it.

@@ -2,7 +2,6 @@
 
 require "etc"
 require "hecks/rust_build/world_rows"
-require "hecks/hecks/adapters/machine_profiling"
 
 module Hecks
   module Adapters
@@ -38,9 +37,8 @@ module Hecks
         end
 
         # @param root [String] a hecks checkout
-        # @return [Integer] the cap its Tickets world's `spec_workers` line sets (the owner's
-        #   override), else the one the machine's profile derives, else `DEFAULT_MAX`
-        def max_of(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:max] || MachineProfiling.of(VERB, DEFAULT_MAX))
+        # @return [Integer] the cap its Tickets world's `spec_workers` line sets, else `DEFAULT_MAX`
+        def max_of(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:max] || DEFAULT_MAX)
       end
     end
   end
