@@ -52,9 +52,28 @@ Hecks.bluebook "Hecks" do
         member event: "WorkFinished"
       end
 
+      # A poll that stays: the outside world cannot push it (the OS load, the process list, a viewer's
+      # pull of the board), so one sampler reads it and everything after the reading is an event.
+      value_object "EdgeSampler" do
+        attribute :source, String
+        attribute :reason, String
+
+        member source: "os_load",      reason: "the operating system pushes no load change; a sampler reads it and emits a reading"
+        member source: "process_list", reason: "the process table pushes no exit to a bluebook; a sampler reads it"
+        member source: "board_view",   reason: "a viewer pulls the board's Snapshot and Glance queries; nothing pushes to a terminal"
+      end
+
       query "Read" do
         description "Gross events an hour, finished items an hour and finished items per 1,000 events over a window (`1h` unless given: 5m, 1h, 24h or week), the noise left out of gross as the bluebook lists it. A window with no events, or no tap, reads zero."
         attribute :run,    RunKey
+        attribute :window, String, optional: true
+        returns Document
+      end
+
+      query "Count" do
+        description "Events counted by name over a window (`1h` unless given), one line each, the noise included: names are space-separated, and a name that did not happen, or a world with no tap, reads zero. Run it twice, before and after a poll's driving event replaces it, with the same window."
+        attribute :run,    RunKey
+        attribute :names,  String
         attribute :window, String, optional: true
         returns Document
       end

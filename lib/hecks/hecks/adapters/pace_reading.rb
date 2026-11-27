@@ -5,6 +5,7 @@ require "hecks/runtime/event_feed"
 require "hecks/adapters/driven/system_clock"
 require_relative "pace_reading/rows"
 require_relative "pace_reading/count"
+require_relative "pace_reading/named"
 
 module Hecks
   module Adapters
@@ -32,6 +33,15 @@ module Hecks
         window = @rows.window(plain(held[:window]))
         counted = Count.new(lines, window, @rows, SystemClock.now)
         { text: counted.text }
+      end
+
+      # @param held [Hash] `names` (space-separated event names) and the query's `window` label
+      # @return [Hash{Symbol => String}] `text:` the window and one `Name: n` line per name, zero
+      #   where there is no tap or the event did not happen
+      def count(**held)
+        window = @rows.window(plain(held[:window]))
+        names = plain(held[:names]).to_s.split
+        { text: Named.new(lines, window, SystemClock.now).text(names) }
       end
 
       private
