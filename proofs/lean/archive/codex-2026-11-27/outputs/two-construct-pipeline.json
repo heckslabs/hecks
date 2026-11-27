@@ -1,0 +1,126 @@
+{
+  "observations": [
+    {
+      "case": "plan",
+      "outcome": {
+        "kind": "success",
+        "stage": "planned"
+      },
+      "new_events": [
+        "PassagePlanned"
+      ],
+      "instance": {
+        "change": {"value":"p1"},
+        "title": null,
+        "session": null,
+        "landed": null,
+        "pushed": null,
+        "flag": null,
+        "stalled": {"value":""},
+        "stage": "planned"
+      }
+    },
+    {
+      "case": "push_before_land",
+      "outcome": {
+        "kind": "refusal",
+        "code": "lifecycle_refused",
+        "stage": "state",
+        "message": "Push refused — stage is \"planned\", and Push moves it only from \"landed\""
+      },
+      "new_events": [],
+      "instance": {
+        "change": {"value":"p1"},
+        "title": null,
+        "session": null,
+        "landed": null,
+        "pushed": null,
+        "flag": null,
+        "stalled": {"value":""},
+        "stage": "planned"
+      }
+    },
+    {
+      "case": "land",
+      "outcome": {
+        "kind": "success",
+        "stage": "landed"
+      },
+      "new_events": [
+        "PassageLanded"
+      ],
+      "instance": {
+        "change": {"value":"p1"},
+        "title": null,
+        "session": null,
+        "landed": null,
+        "pushed": null,
+        "flag": null,
+        "stalled": {"value":""},
+        "stage": "landed"
+      }
+    },
+    {
+      "case": "push",
+      "outcome": {
+        "kind": "success",
+        "stage": "pushed"
+      },
+      "new_events": [
+        "PassagePushed"
+      ],
+      "instance": {
+        "change": {"value":"p1"},
+        "title": null,
+        "session": null,
+        "landed": null,
+        "pushed": {"value":"abc"},
+        "flag": null,
+        "stalled": {"value":""},
+        "stage": "pushed"
+      }
+    },
+    {
+      "case": "verify",
+      "outcome": {
+        "kind": "success",
+        "stage": "verified"
+      },
+      "new_events": [
+        "PassageVerified"
+      ],
+      "instance": {
+        "change": {"value":"p1"},
+        "title": null,
+        "session": null,
+        "landed": null,
+        "pushed": {"value":"abc"},
+        "flag": null,
+        "stalled": {"value":""},
+        "stage": "verified"
+      }
+    }
+  ],
+  "two_construct_parity": [
+    {
+      "case": "plan",
+      "matched": true
+    },
+    {
+      "case": "push_before_land",
+      "matched": true
+    },
+    {
+      "case": "land",
+      "matched": true
+    },
+    {
+      "case": "push",
+      "matched": true
+    },
+    {
+      "case": "verify",
+      "matched": true
+    }
+  ]
+}

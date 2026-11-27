@@ -1,0 +1,340 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "correction_needs_prior_emission.json",
+      "status": "mismatch",
+      "steps": 6,
+      "expected": {
+        "refusals": [
+          {
+            "verb": "Banking::Account.CorrectFee",
+            "error": "CorrectFee refused — corrects FeeApplied, but Banking::Account #acct-1 has never emitted it",
+            "kind": "NothingToCorrect"
+          }
+        ],
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 10000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "AccountCredited",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 10000,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "opening deposit"
+              }
+            }
+          },
+          {
+            "name": "FeeApplied",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 500,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "monthly fee"
+              }
+            }
+          },
+          {
+            "name": "FeeCorrected",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 500,
+                "currency": "USD"
+              }
+            }
+          }
+        ]
+      },
+      "actual": {
+        "refusals": [
+          {
+            "verb": "Banking::Account.CorrectFee",
+            "error": "CorrectFee refused — a correction cannot exceed collected fees",
+            "kind": "GivenNotMet"
+          }
+        ],
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 10000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "AccountCredited",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 10000,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "opening deposit"
+              }
+            }
+          },
+          {
+            "name": "FeeApplied",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 500,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "monthly fee"
+              }
+            }
+          },
+          {
+            "name": "FeeCorrected",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 500,
+                "currency": "USD"
+              }
+            }
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 2,
+        "events": 5
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 2,
+        "events": 5
+      },
+      "expected_refusal_kinds": [
+        "NothingToCorrect"
+      ],
+      "actual_refusal_kinds": [
+        "GivenNotMet"
+      ]
+    }
+  ]
+}

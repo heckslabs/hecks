@@ -1,0 +1,301 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "reference_argument_dereferenced.json",
+      "status": "mismatch",
+      "steps": 5,
+      "expected": {
+        "refusals": [
+          {
+            "verb": "Banking::Account.Open",
+            "error": "Open refused — customer is active",
+            "kind": "GivenNotMet"
+          }
+        ],
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::Customer#cust-2": {
+            "reference": {
+              "value": "cust-2"
+            },
+            "name": {
+              "given": "Grace",
+              "family": "Hopper"
+            },
+            "email": {
+              "address": "grace@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "suspended"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-2",
+            "payload": {
+              "reference": {
+                "value": "cust-2"
+              },
+              "name": {
+                "given": "Grace",
+                "family": "Hopper"
+              },
+              "email": {
+                "address": "grace@example.com"
+              }
+            }
+          },
+          {
+            "name": "CustomerSuspended",
+            "aggregate": "Banking::Customer",
+            "id": "cust-2",
+            "payload": {
+              "reference": {
+                "value": "cust-2"
+              },
+              "standing": {
+                "value": "under review"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              }
+            }
+          }
+        ]
+      },
+      "actual": {
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::Customer#cust-2": {
+            "reference": {
+              "value": "cust-2"
+            },
+            "name": {
+              "given": "Grace",
+              "family": "Hopper"
+            },
+            "email": {
+              "address": "grace@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "suspended"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 100000
+            },
+            "ledger": [],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-2",
+            "payload": {
+              "reference": {
+                "value": "cust-2"
+              },
+              "name": {
+                "given": "Grace",
+                "family": "Hopper"
+              },
+              "email": {
+                "address": "grace@example.com"
+              }
+            }
+          },
+          {
+            "name": "CustomerSuspended",
+            "aggregate": "Banking::Customer",
+            "id": "cust-2",
+            "payload": {
+              "reference": {
+                "value": "cust-2"
+              },
+              "standing": {
+                "value": "under review"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 100000
+              }
+            }
+          }
+        ],
+        "refusals": [
+          {
+            "verb": "Banking::Account.Open",
+            "error": "Open refused — customer is active",
+            "kind": "GivenNotMet"
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 3,
+        "events": 4
+      },
+      "actual_counts": {
+        "instances": 3,
+        "events": 4,
+        "refusals": 1
+      },
+      "expected_refusal_kinds": [
+        "GivenNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "GivenNotMet"
+      ]
+    }
+  ]
+}

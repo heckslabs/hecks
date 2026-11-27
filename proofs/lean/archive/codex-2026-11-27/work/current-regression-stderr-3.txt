@@ -1,0 +1,14 @@
+/Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:241:in `block (2 levels) in run': undefined method `fetch' for an instance of String (NoMethodError)
+
+      path.split(".").reduce(args) { |value, field| value.fetch(field) }
+                                                         ^^^^^^
+	from /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:241:in `each'
+	from /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:241:in `reduce'
+	from /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:241:in `block in run'
+	from /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:240:in `map'
+	from /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:240:in `run'
+	from work/current_regression_probe.rb:22:in `block (2 levels) in <main>'
+	from work/current_regression_probe.rb:16:in `each'
+	from work/current_regression_probe.rb:16:in `block in <main>'
+	from work/current_regression_probe.rb:13:in `map'
+	from work/current_regression_probe.rb:13:in `<main>'

@@ -1,0 +1,320 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "ensures_old_denotes_prestate.json",
+      "status": "mismatch",
+      "steps": 4,
+      "expected": {
+        "refusals": [],
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 7000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                },
+                "sequence": {
+                  "value": 1
+                },
+                "state": "posted"
+              },
+              {
+                "amount": {
+                  "cents": 3000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "cash withdrawal"
+                },
+                "direction": {
+                  "value": "debit"
+                },
+                "sequence": {
+                  "value": 2
+                },
+                "state": "posted"
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "AccountCredited",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 10000,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "opening deposit"
+              }
+            }
+          },
+          {
+            "name": "AccountDebited",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 3000,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "cash withdrawal"
+              }
+            }
+          }
+        ]
+      },
+      "actual": {
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 7000,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [
+              {
+                "amount": {
+                  "cents": 10000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "opening deposit"
+                },
+                "direction": {
+                  "value": "credit"
+                }
+              },
+              {
+                "amount": {
+                  "cents": 3000,
+                  "currency": "USD"
+                },
+                "narrative": {
+                  "text": "cash withdrawal"
+                },
+                "direction": {
+                  "value": "debit"
+                }
+              }
+            ],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "AccountCredited",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 10000,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "opening deposit"
+              }
+            }
+          },
+          {
+            "name": "AccountDebited",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "number": {
+                "value": "acct-1"
+              },
+              "amount": {
+                "cents": 3000,
+                "currency": "USD"
+              },
+              "narrative": {
+                "text": "cash withdrawal"
+              }
+            }
+          }
+        ],
+        "refusals": []
+      },
+      "expected_counts": {
+        "refusals": 0,
+        "instances": 2,
+        "events": 4
+      },
+      "actual_counts": {
+        "instances": 2,
+        "events": 4,
+        "refusals": 0
+      },
+      "expected_refusal_kinds": [],
+      "actual_refusal_kinds": []
+    }
+  ]
+}

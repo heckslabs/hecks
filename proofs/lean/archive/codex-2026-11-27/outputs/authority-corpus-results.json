@@ -1,0 +1,56 @@
+{
+  "prefixes": [
+    {
+      "prefix": 1,
+      "refusals": [],
+      "instance_keys": [
+        "Banking::Customer#cust-1"
+      ],
+      "events": [
+        "CustomerRegistered"
+      ]
+    },
+    {
+      "prefix": 2,
+      "refusals": [
+        "Unauthorized"
+      ],
+      "instance_keys": [
+        "Banking::Customer#cust-1"
+      ],
+      "events": [
+        "CustomerRegistered"
+      ]
+    },
+    {
+      "prefix": 3,
+      "refusals": [
+        "Unauthorized",
+        "Unauthorized"
+      ],
+      "instance_keys": [
+        "Banking::Customer#cust-1"
+      ],
+      "events": [
+        "CustomerRegistered"
+      ]
+    },
+    {
+      "prefix": 4,
+      "refusals": [
+        "Unauthorized",
+        "Unauthorized"
+      ],
+      "instance_keys": [
+        "Banking::Account#acct-1",
+        "Banking::Customer#cust-1"
+      ],
+      "events": [
+        "CustomerRegistered",
+        "AccountOpened"
+      ]
+    }
+  ],
+  "unchanged_after_wrong_roles": true,
+  "allowed_role_committed": true
+}

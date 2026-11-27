@@ -1,0 +1,52 @@
+{
+  "lone_refusal": {
+    "blocking": [
+      "RefuseLedger"
+    ],
+    "defects": []
+  },
+  "same_event_alternative": {
+    "blocking": [],
+    "defects": []
+  },
+  "different_event": {
+    "blocking": [
+      "RefuseLedger"
+    ],
+    "defects": []
+  },
+  "missing_event_identity": {
+    "blocking": [],
+    "defects": []
+  },
+  "different_aggregate": {
+    "blocking": [
+      "RefuseLedger"
+    ],
+    "defects": []
+  },
+  "idempotent_duplicate": {
+    "blocking": [],
+    "defects": []
+  },
+  "wrong_creator": {
+    "blocking": [
+      "CreatePizza"
+    ],
+    "defects": []
+  },
+  "answered_ask": {
+    "blocking": [],
+    "defects": []
+  },
+  "held_store": {
+    "blocking": [],
+    "defects": []
+  },
+  "defect": {
+    "blocking": [],
+    "defects": [
+      "RefuseLedger"
+    ]
+  }
+}

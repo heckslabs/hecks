@@ -1,0 +1,19 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 2,
+  "summary": {
+    "unsupported": 2
+  },
+  "results": [
+    {
+      "fixture": "events_and_reactions_order.json",
+      "status": "unsupported",
+      "reason": "NoMethodError: /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `block in lookup': undefined method `fetch' for an instance of String (NoMethodError)\n | \n |     path.reduce(root) { |x, k| x.fetch(k) }\n |                                 ^^^^^^\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `each'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `reduce'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `lookup'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:139:in `eval_ast'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:155:in `eval_ast'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:318:in `block in run'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:261:in `each'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:261:in `run'\n"
+    },
+    {
+      "fixture": "refused_reaction_keeps_trigger.json",
+      "status": "unsupported",
+      "reason": "NoMethodError: /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `block in lookup': undefined method `fetch' for an instance of String (NoMethodError)\n | \n |     path.reduce(root) { |x, k| x.fetch(k) }\n |                                 ^^^^^^\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `each'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `reduce'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:134:in `lookup'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:139:in `eval_ast'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:155:in `eval_ast'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:318:in `block in run'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:261:in `each'\n | \tfrom /Users/christopheryoung/Documents/Codex/2026-11-27/referenced-chatgpt-conversation-this-is-an/outputs/ir_relationship_core.rb:261:in `run'\n"
+    }
+  ]
+}

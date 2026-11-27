@@ -1,0 +1,104 @@
+{
+  "observations": [
+    {
+      "case": "valid_create",
+      "outcome": {
+        "kind": "success",
+        "state": {
+          "name": {"value":"First"},
+          "pizza": {"price_cents":{"cents":1200},"size":{"value":"large"}},
+          "toppings": [],
+          "customer_name": null,
+          "status": "available"
+        }
+      },
+      "new_events": [
+        "PizzaCreated"
+      ],
+      "instance_keys": [
+        "Pizzas::Order#First"
+      ]
+    },
+    {
+      "case": "blank_name",
+      "outcome": {
+        "kind": "refusal",
+        "code": "type_mismatch",
+        "stage": "arguments",
+        "message": "PizzaName.value must match [^ \\t\\n\\r], got \"\""
+      },
+      "new_events": [],
+      "instance_keys": [
+        "Pizzas::Order#First"
+      ]
+    },
+    {
+      "case": "duplicate_name",
+      "outcome": {
+        "kind": "refusal",
+        "code": "already_exists",
+        "stage": "state",
+        "message": "CreatePizza creates a Order that already exists — name.value \"First\""
+      },
+      "new_events": [],
+      "instance_keys": [
+        "Pizzas::Order#First"
+      ]
+    },
+    {
+      "case": "wrong_role",
+      "outcome": {
+        "kind": "refusal",
+        "code": "unauthorized",
+        "stage": "role",
+        "message": "CreatePizza refused — role: Chef, and the caller stated Customer"
+      },
+      "new_events": [],
+      "instance_keys": [
+        "Pizzas::Order#First"
+      ]
+    },
+    {
+      "case": "valid_after_refusals",
+      "outcome": {
+        "kind": "success",
+        "state": {
+          "name": {"value":"Second"},
+          "pizza": {"price_cents":{"cents":1200},"size":{"value":"large"}},
+          "toppings": [],
+          "customer_name": null,
+          "status": "available"
+        }
+      },
+      "new_events": [
+        "PizzaCreated"
+      ],
+      "instance_keys": [
+        "Pizzas::Order#First",
+        "Pizzas::Order#Second"
+      ]
+    }
+  ],
+  "two_construct_parity": [
+    {
+      "case": "valid_create",
+      "matched": true
+    },
+    {
+      "case": "blank_name",
+      "matched": true
+    },
+    {
+      "case": "duplicate_name",
+      "matched": true
+    },
+    {
+      "case": "wrong_role",
+      "matched": true
+    },
+    {
+      "case": "valid_after_refusals",
+      "matched": true
+    }
+  ]
+}

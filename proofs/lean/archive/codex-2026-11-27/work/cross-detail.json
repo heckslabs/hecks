@@ -1,0 +1,106 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "cross_domain_with_reads_payload_field.json",
+      "status": "mismatch",
+      "steps": 1,
+      "expected": {
+        "refusals": [],
+        "instances": {
+          "Outbound::Parcel#T1": {
+            "tag": {
+              "value": "T1"
+            },
+            "note": {
+              "value": "fragile"
+            }
+          }
+        },
+        "events": [
+          {
+            "name": "ParcelAnnotated",
+            "aggregate": "Outbound::Parcel",
+            "id": "T1",
+            "payload": {
+              "tag": {
+                "value": "T1"
+              },
+              "note": {
+                "value": "fragile"
+              }
+            }
+          }
+        ],
+        "cross_domain": [
+          {
+            "policy": "FileOnAnnotate",
+            "target_verb": "Registry::Filing.Open",
+            "payload": {
+              "subject_kind": "annotation",
+              "detail": {
+                "value": "fragile"
+              }
+            }
+          }
+        ]
+      },
+      "actual": {
+        "refusals": [],
+        "instances": {
+          "Outbound::Parcel#T1": {
+            "tag": {
+              "value": "T1"
+            },
+            "note": null
+          }
+        },
+        "events": [
+          {
+            "name": "ParcelAnnotated",
+            "aggregate": "Outbound::Parcel",
+            "id": "T1",
+            "payload": {
+              "tag": {
+                "value": "T1"
+              },
+              "note": {
+                "value": "fragile"
+              }
+            }
+          }
+        ],
+        "cross_domain": [
+          {
+            "policy": "FileOnAnnotate",
+            "target_verb": "Registry::Filing.Open",
+            "payload": {
+              "subject_kind": "annotation",
+              "detail": {
+                "value": "fragile"
+              }
+            }
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 0,
+        "instances": 1,
+        "events": 1,
+        "cross_domain": 1
+      },
+      "actual_counts": {
+        "refusals": 0,
+        "instances": 1,
+        "events": 1,
+        "cross_domain": 1
+      },
+      "expected_refusal_kinds": [],
+      "actual_refusal_kinds": []
+    }
+  ]
+}

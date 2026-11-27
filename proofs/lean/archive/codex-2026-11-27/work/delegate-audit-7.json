@@ -1,0 +1,488 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 52,
+  "summary": {
+    "match": 36,
+    "mismatch": 13,
+    "unsupported": 3
+  },
+  "results": [
+    {
+      "fixture": "absent_argument_refused.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "accepted_pizza_lifecycle.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "bare_argument_type_refused.json",
+      "status": "mismatch",
+      "steps": 8,
+      "expected_counts": {
+        "refusals": 5,
+        "instances": 1,
+        "events": 3
+      },
+      "actual_counts": {
+        "refusals": 5,
+        "instances": 1,
+        "events": 3
+      },
+      "expected_refusal_kinds": [
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch"
+      ],
+      "actual_refusal_kinds": [
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch"
+      ]
+    },
+    {
+      "fixture": "collection_guard_toppings.json",
+      "status": "match",
+      "steps": 12
+    },
+    {
+      "fixture": "correction_needs_prior_emission.json",
+      "status": "mismatch",
+      "steps": 6,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 2,
+        "events": 5
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 2,
+        "events": 5
+      },
+      "expected_refusal_kinds": [
+        "NothingToCorrect"
+      ],
+      "actual_refusal_kinds": [
+        "GivenNotMet"
+      ]
+    },
+    {
+      "fixture": "cross_domain_with_literals_and_id.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "cross_domain_with_reads_payload_field.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "cross_domain_without_with_forwards_payload.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "delegated_event_dropped_on_parent_refusal.json",
+      "status": "mismatch",
+      "steps": 7,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 6
+      },
+      "actual_counts": {
+        "refusals": 2,
+        "instances": 1,
+        "events": 5
+      },
+      "expected_refusal_kinds": [
+        "EnsuresNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "NothingToCorrect",
+        "NothingToCorrect"
+      ]
+    },
+    {
+      "fixture": "effects_read_the_pre_state.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "ensures_old_denotes_prestate.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "ensures_reads_settled_state.json",
+      "status": "mismatch",
+      "steps": 4,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 3
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 3
+      },
+      "expected_refusal_kinds": [
+        "EnsuresNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "EnsuresNotMet"
+      ]
+    },
+    {
+      "fixture": "entity_invariant_on_candidate.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "environment_caller_role.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "events_and_reactions_order.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "fault_is_not_a_refusal.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "float_overflow_is_fault.json",
+      "status": "mismatch",
+      "steps": 3,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 2
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 2
+      },
+      "expected_refusal_kinds": [
+        "Fault"
+      ],
+      "actual_refusal_kinds": [
+        "Fault"
+      ]
+    },
+    {
+      "fixture": "given_first_failure_wins.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "given_reads_argument_first.json",
+      "status": "mismatch",
+      "steps": 4,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 3
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 3
+      },
+      "expected_refusal_kinds": [
+        "GivenNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "GivenNotMet"
+      ]
+    },
+    {
+      "fixture": "given_unmet_leaves_the_record_purchasable.json",
+      "status": "match",
+      "steps": 6
+    },
+    {
+      "fixture": "integer_out_of_range_refused_at_boundary.json",
+      "status": "mismatch",
+      "steps": 2,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 1
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 1
+      },
+      "expected_refusal_kinds": [
+        "TypeMismatch"
+      ],
+      "actual_refusal_kinds": [
+        "TypeMismatch"
+      ]
+    },
+    {
+      "fixture": "integer_overflow_is_fault.json",
+      "status": "mismatch",
+      "steps": 4,
+      "expected_counts": {
+        "refusals": 2,
+        "instances": 1,
+        "events": 2
+      },
+      "actual_counts": {
+        "refusals": 2,
+        "instances": 1,
+        "events": 2
+      },
+      "expected_refusal_kinds": [
+        "Fault",
+        "Fault"
+      ],
+      "actual_refusal_kinds": [
+        "Fault",
+        "Fault"
+      ]
+    },
+    {
+      "fixture": "invariant_refused_events_dropped.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "lifecycle_from_guard_refused.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "nil_equality.json",
+      "status": "mismatch",
+      "steps": 5,
+      "expected_counts": {
+        "refusals": 2,
+        "instances": 1,
+        "events": 3
+      },
+      "actual_counts": {
+        "refusals": 2,
+        "instances": 1,
+        "events": 3
+      },
+      "expected_refusal_kinds": [
+        "Fault",
+        "GivenNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "Fault",
+        "GivenNotMet"
+      ]
+    },
+    {
+      "fixture": "numeric_effects_absent_target_and_operand.json",
+      "status": "mismatch",
+      "steps": 11,
+      "expected_counts": {
+        "refusals": 0,
+        "instances": 4,
+        "events": 11
+      },
+      "actual_counts": {
+        "refusals": 0,
+        "instances": 4,
+        "events": 11
+      },
+      "expected_refusal_kinds": [],
+      "actual_refusal_kinds": []
+    },
+    {
+      "fixture": "numeric_int_float_compare.json",
+      "status": "mismatch",
+      "steps": 5,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 4
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 4
+      },
+      "expected_refusal_kinds": [
+        "GivenNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "GivenNotMet"
+      ]
+    },
+    {
+      "fixture": "numeric_operand_type_mismatch.json",
+      "status": "mismatch",
+      "steps": 2,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 1
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 1
+      },
+      "expected_refusal_kinds": [
+        "TypeMismatch"
+      ],
+      "actual_refusal_kinds": [
+        "TypeMismatch"
+      ]
+    },
+    {
+      "fixture": "policy_with_reads_emitter_id.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "query_argument_typed.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "reaction_depth_bound.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "reaction_depth_bound_compensation.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: unsupported expected output: sagas"
+    },
+    {
+      "fixture": "reaction_depth_four_compensation_runs.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: unsupported expected output: sagas"
+    },
+    {
+      "fixture": "reaction_order_per_event.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "reference_argument_dereferenced.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "refusal_kind_already_exists.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_kind_given_not_met.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "refusal_kind_invariant.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_kind_lifecycle.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "refusal_kind_not_found.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "refusal_kind_type_mismatch.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_kind_unknown_argument.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_order.json",
+      "status": "match",
+      "steps": 9
+    },
+    {
+      "fixture": "refused_leaves_state_unchanged.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "refused_reaction_keeps_trigger.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "remove_all_matches.json",
+      "status": "unsupported",
+      "reason": "NoMethodError: undefined method `<<' for an instance of Hash"
+    },
+    {
+      "fixture": "saga_leg_selected_by_state.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "string_field_refuses_other_scalars.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "string_order_is_codepoint.json",
+      "status": "mismatch",
+      "steps": 3,
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 2
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 2
+      },
+      "expected_refusal_kinds": [
+        "GivenNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "GivenNotMet"
+      ]
+    },
+    {
+      "fixture": "vo_argument_type_refused.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "vo_field_null_refused.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "vo_pattern_before_invariant.json",
+      "status": "match",
+      "steps": 2
+    }
+  ]
+}

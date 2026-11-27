@@ -1,0 +1,270 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 52,
+  "summary": {
+    "match": 42,
+    "unsupported": 10
+  },
+  "results": [
+    {
+      "fixture": "absent_argument_refused.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "accepted_pizza_lifecycle.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "bare_argument_type_refused.json",
+      "status": "match",
+      "steps": 8
+    },
+    {
+      "fixture": "collection_guard_toppings.json",
+      "status": "match",
+      "steps": 12
+    },
+    {
+      "fixture": "correction_needs_prior_emission.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: unsupported mutation corrects"
+    },
+    {
+      "fixture": "cross_domain_with_literals_and_id.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "cross_domain_with_reads_payload_field.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "cross_domain_without_with_forwards_payload.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "delegated_event_dropped_on_parent_refusal.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: unsupported source {:kind=>\"literal\", :value=>\"white\"}"
+    },
+    {
+      "fixture": "effects_read_the_pre_state.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "ensures_old_denotes_prestate.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "ensures_reads_settled_state.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "entity_invariant_on_candidate.json",
+      "status": "unsupported",
+      "reason": "KeyError: key not found: :attributes"
+    },
+    {
+      "fixture": "environment_caller_role.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "events_and_reactions_order.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "fault_is_not_a_refusal.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: unsupported ad hoc query"
+    },
+    {
+      "fixture": "float_overflow_is_fault.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "given_first_failure_wins.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "given_reads_argument_first.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "given_unmet_leaves_the_record_purchasable.json",
+      "status": "match",
+      "steps": 6
+    },
+    {
+      "fixture": "integer_out_of_range_refused_at_boundary.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "integer_overflow_is_fault.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "invariant_refused_events_dropped.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "lifecycle_from_guard_refused.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "nil_equality.json",
+      "status": "unsupported",
+      "reason": "NoMethodError: undefined method `fetch' for nil"
+    },
+    {
+      "fixture": "numeric_effects_absent_target_and_operand.json",
+      "status": "match",
+      "steps": 11
+    },
+    {
+      "fixture": "numeric_int_float_compare.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "numeric_operand_type_mismatch.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "policy_with_reads_emitter_id.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "query_argument_typed.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "reaction_depth_bound.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "reaction_depth_bound_compensation.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: unsupported expected output: sagas"
+    },
+    {
+      "fixture": "reaction_depth_four_compensation_runs.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: unsupported expected output: sagas"
+    },
+    {
+      "fixture": "reaction_order_per_event.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "reference_argument_dereferenced.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "refusal_kind_already_exists.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_kind_given_not_met.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "refusal_kind_invariant.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_kind_lifecycle.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "refusal_kind_not_found.json",
+      "status": "unsupported",
+      "reason": "KeyError: key not found: \"customer_status\""
+    },
+    {
+      "fixture": "refusal_kind_type_mismatch.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_kind_unknown_argument.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "refusal_order.json",
+      "status": "unsupported",
+      "reason": "KeyError: key not found: \"customer_status\""
+    },
+    {
+      "fixture": "refused_leaves_state_unchanged.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "refused_reaction_keeps_trigger.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "remove_all_matches.json",
+      "status": "match",
+      "steps": 5
+    },
+    {
+      "fixture": "saga_leg_selected_by_state.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: transition source mismatch"
+    },
+    {
+      "fixture": "string_field_refuses_other_scalars.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "string_order_is_codepoint.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "vo_argument_type_refused.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "vo_field_null_refused.json",
+      "status": "match",
+      "steps": 4
+    },
+    {
+      "fixture": "vo_pattern_before_invariant.json",
+      "status": "match",
+      "steps": 2
+    }
+  ]
+}

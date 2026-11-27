@@ -1,0 +1,1 @@
+[hecks] reaction RecordOrder was refused (Shop::Ledger.Record): Record refused — deliberate refusal

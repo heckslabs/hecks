@@ -1,0 +1,43 @@
+{
+  "refused_reaction": {
+    "command": "success",
+    "order": {
+      "number": {"value":"o-1"}
+    },
+    "events": [
+      "OrderPlaced"
+    ],
+    "reactions": [
+      {
+        "policy": "RecordOrder",
+        "on": "OrderPlaced",
+        "trigger": "Shop::Ledger.Record",
+        "delivered": false,
+        "reason": "Record refused — deliberate refusal"
+      }
+    ],
+    "outbox_rows": [
+      {
+        "status": "refused",
+        "consumer": "policy:Shop::RecordOrder",
+        "error": "Record refused — deliberate refusal"
+      }
+    ]
+  },
+  "failed_reaction": {
+    "command": "success",
+    "order": {
+      "number": {"value":"o-2"}
+    },
+    "outbox_rows": [
+      {
+        "status": "refused",
+        "error": "Record refused — deliberate refusal"
+      },
+      {
+        "status": "failed",
+        "error": "RuntimeError: consumer exploded"
+      }
+    ]
+  }
+}

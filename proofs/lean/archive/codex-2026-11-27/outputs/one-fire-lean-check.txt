@@ -1,0 +1,7 @@
+'OneFire.fire_sound' depends on axioms: [propext]
+'OneFire.fire_complete_if_functional' depends on axioms: [propext]
+'OneFire.first_match_is_a_determination' depends on axioms: [propext]
+'OneFire.fresh_source_has_no_fire' depends on axioms: [propext]
+'OneFire.finite_table_cannot_increment_everywhere' depends on axioms: [propext]
+'OneFire.symbolic_fire_exact' does not depend on any axioms
+'OneFire.symbolic_increment_everywhere' does not depend on any axioms

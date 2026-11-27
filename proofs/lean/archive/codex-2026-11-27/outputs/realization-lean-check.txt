@@ -1,0 +1,10 @@
+'RealizationBoundary.full_is_flip_invariant' depends on axioms: [propext]
+'RealizationBoundary.no_equivariant_selector' depends on axioms: [propext]
+'RealizationBoundary.chosen_true_is_unique' does not depend on any axioms
+'RealizationBoundary.determined_witness_is_admissible' does not depend on any axioms
+'RealizationBoundary.both_choices_refine_full' does not depend on any axioms
+'RealizationBoundary.both_choices_are_single_valued' does not depend on any axioms
+'RealizationBoundary.determinations_can_disagree' does not depend on any axioms
+'RealizationBoundary.classicalRealizer' depends on axioms: [Classical.choice]
+'RealizationBoundary.composition_only_is_identity' depends on axioms: [propext, Quot.sound]
+'RealizationBoundary.composition_only_cannot_force_true' depends on axioms: [propext, Quot.sound]

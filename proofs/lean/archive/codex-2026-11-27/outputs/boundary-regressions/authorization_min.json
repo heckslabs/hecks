@@ -1,0 +1,34 @@
+{
+  "domain": "examples/banking",
+  "source_fixture": "environment_caller_role.json",
+  "note": "One valid Open with a stated wrong role; authorization precedes reference lookup and save.",
+  "steps": [
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Wrong Role",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    }
+  ],
+  "expect": {
+    "instances": {},
+    "events": [],
+    "refusals": [
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — role: Branch clerk, and the caller stated Wrong Role",
+        "kind": "Unauthorized"
+      }
+    ]
+  }
+}

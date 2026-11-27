@@ -1,0 +1,114 @@
+{
+  "compiled_tags": [
+    "append",
+    "commit",
+    "event",
+    "from",
+    "given",
+    "order",
+    "required",
+    "set",
+    "transition",
+    "validate",
+    "where_lt"
+  ],
+  "compiled_instruction_counts": {
+    "CreatePizza": 7,
+    "AddTopping": 8,
+    "Purchase": 11,
+    "CostingLessThan": 3
+  },
+  "results": [
+    {
+      "fixture": "accepted_pizza_lifecycle",
+      "matched": true
+    },
+    {
+      "fixture": "given_unmet_leaves_the_record_purchasable",
+      "matched": true
+    },
+    {
+      "fixture": "collection_guard_toppings",
+      "matched": true
+    },
+    {
+      "fixture": "absent_argument_refused",
+      "matched": true
+    },
+    {
+      "fixture": "vo_pattern_before_invariant",
+      "matched": true
+    },
+    {
+      "fixture": "string_field_refuses_other_scalars",
+      "matched": true
+    },
+    {
+      "fixture": "vo_field_null_refused",
+      "matched": true
+    },
+    {
+      "fixture": "query_argument_typed",
+      "matched": true,
+      "query_answer_matched": true,
+      "query_observations": [
+        {
+          "rows": null,
+          "error": "Price invariant violated — a price is never negative (given {\"cents\":-1})"
+        },
+        {
+          "rows": [
+            {
+              "name": {
+                "value": "everything"
+              },
+              "pizza": {
+                "price_cents": {
+                  "cents": 2400
+                },
+                "size": {
+                  "value": "large"
+                }
+              },
+              "toppings": [],
+              "customer_name": null,
+              "status": "available",
+              "id": "everything"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sold_state_refusal_matches": {
+    "Purchase": true,
+    "AddTopping": true
+  },
+  "meter_second_domain": {
+    "matched": true,
+    "compiled_instruction_counts": {
+      "Install": 5,
+      "Read": 6
+    },
+    "current": {
+      "value": 9
+    },
+    "previous": {
+      "value": 5
+    },
+    "sequential_candidate_read_matched": false,
+    "sequential_candidate_previous": {
+      "value": 9
+    }
+  },
+  "two_pizza_query_match": true,
+  "two_pizza_query_ids": [
+    [
+      "alpha"
+    ],
+    [
+      "alpha",
+      "zeta"
+    ]
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 5,
+  "summary": {
+    "mismatch": 1,
+    "match": 4
+  },
+  "results": [
+    {
+      "fixture": "authorization_min.json",
+      "status": "mismatch",
+      "steps": 1,
+      "expected_counts": {
+        "instances": 0,
+        "events": 0,
+        "refusals": 1
+      },
+      "actual_counts": {
+        "instances": 0,
+        "events": 0,
+        "refusals": 1
+      },
+      "expected_refusal_kinds": [
+        "Hecks::Runtime::Unauthorized"
+      ],
+      "actual_refusal_kinds": [
+        "Unauthorized"
+      ]
+    },
+    {
+      "fixture": "policy_binding_min.json",
+      "status": "match",
+      "steps": 1
+    },
+    {
+      "fixture": "projection_refresh_min.json",
+      "status": "match",
+      "steps": 3
+    },
+    {
+      "fixture": "reaction_depth_min.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "reaction_order_min.json",
+      "status": "match",
+      "steps": 2
+    }
+  ]
+}

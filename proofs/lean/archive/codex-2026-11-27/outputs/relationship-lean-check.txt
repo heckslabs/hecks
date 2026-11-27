@@ -1,0 +1,6 @@
+'RelationshipExperiment.associative' does not depend on any axioms
+'RelationshipExperiment.composition_congruent' does not depend on any axioms
+'RelationshipExperiment.conditions_compose_as_conjunction' does not depend on any axioms
+'RelationshipExperiment.preserves_chain' depends on axioms: [propext]
+'RelationshipExperiment.observation_not_congruent_under_continuation' depends on axioms: [propext, Quot.sound]
+'RelationshipExperiment.two_implementations_refine_same_relation' depends on axioms: [propext, Quot.sound]

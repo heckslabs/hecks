@@ -1,0 +1,188 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "invariant_refused_events_dropped.json",
+      "status": "mismatch",
+      "steps": 3,
+      "expected": {
+        "refusals": [
+          {
+            "verb": "Banking::SafeDepositBox.LogVisit",
+            "error": "Visit refused — a written note is not blank",
+            "kind": "InvariantViolation"
+          }
+        ],
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::SafeDepositBox#DTN:12": {
+            "customer": "cust-1",
+            "branch_code": {
+              "value": "DTN"
+            },
+            "box_number": {
+              "value": 12
+            },
+            "size": {
+              "value": "small"
+            },
+            "visits": [],
+            "keys": [],
+            "status": "rented",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "BoxRented",
+            "aggregate": "Banking::SafeDepositBox",
+            "id": "DTN:12",
+            "payload": {
+              "customer": "cust-1",
+              "branch_code": {
+                "value": "DTN"
+              },
+              "box_number": {
+                "value": 12
+              },
+              "size": {
+                "value": "small"
+              }
+            }
+          }
+        ]
+      },
+      "actual": {
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "good"
+            },
+            "status": "active"
+          },
+          "Banking::SafeDepositBox#DTN": {
+            "customer": "cust-1",
+            "branch_code": {
+              "value": "DTN"
+            },
+            "box_number": {
+              "value": 12
+            },
+            "size": {
+              "value": "small"
+            },
+            "visits": [],
+            "keys": [],
+            "status": "rented",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "BoxRented",
+            "aggregate": "Banking::SafeDepositBox",
+            "id": "DTN",
+            "payload": {
+              "customer": "cust-1",
+              "branch_code": {
+                "value": "DTN"
+              },
+              "box_number": {
+                "value": 12
+              },
+              "size": {
+                "value": "small"
+              }
+            }
+          }
+        ],
+        "refusals": [
+          {
+            "verb": "Banking::SafeDepositBox.LogVisit",
+            "error": "Visit refused — a written note is not blank",
+            "kind": "InvariantViolation"
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 2,
+        "events": 2
+      },
+      "actual_counts": {
+        "instances": 2,
+        "events": 2,
+        "refusals": 1
+      },
+      "expected_refusal_kinds": [
+        "InvariantViolation"
+      ],
+      "actual_refusal_kinds": [
+        "InvariantViolation"
+      ]
+    }
+  ]
+}

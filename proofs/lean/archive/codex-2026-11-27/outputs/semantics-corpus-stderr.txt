@@ -1,0 +1,9 @@
+[hecks] reaction FileOnSend was refused (Registry::Filing.Open): no domain "Registry" loaded (verb Registry::Filing.Open)
+[hecks] reaction FileOnAnnotate was refused (Registry::Filing.Open): no domain "Registry" loaded (verb Registry::Filing.Open)
+[hecks] reaction FileOnForward was refused (Registry::Filing.Open): no domain "Registry" loaded (verb Registry::Filing.Open)
+[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)
+[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)
+[hecks] reaction PingAgain was refused (Echo::Beacon.Ping): reaction depth 5 reached
+[hecks] reaction FlickerAgain was refused (Echo::Lamp.Flicker): reaction depth 5 reached
+[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)
+[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)

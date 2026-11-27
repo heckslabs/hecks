@@ -1,0 +1,123 @@
+{
+  "refusal_first": {
+    "declared_policies": [
+      "RefuseLedger",
+      "RecordAudit"
+    ],
+    "command": "success",
+    "result_refusals": [
+      "RefuseLedger"
+    ],
+    "result_blockers": [
+      "RefuseLedger"
+    ],
+    "reactions": [
+      {
+        "policy": "RefuseLedger",
+        "delivered": false
+      },
+      {
+        "policy": "RecordAudit",
+        "delivered": true
+      }
+    ],
+    "events": [
+      "OrderPlaced",
+      "AuditRecorded"
+    ],
+    "outbox": [
+      {
+        "consumer": "policy:Shop::RefuseLedger",
+        "status": "refused"
+      },
+      {
+        "consumer": "policy:Shop::RecordAudit",
+        "status": "delivered"
+      }
+    ],
+    "cli_status": {
+      "ordinary": 0,
+      "waited": 1
+    }
+  },
+  "success_first": {
+    "declared_policies": [
+      "RecordAudit",
+      "RefuseLedger"
+    ],
+    "command": "success",
+    "result_refusals": [
+      "RefuseLedger"
+    ],
+    "result_blockers": [
+      "RefuseLedger"
+    ],
+    "reactions": [
+      {
+        "policy": "RecordAudit",
+        "delivered": true
+      },
+      {
+        "policy": "RefuseLedger",
+        "delivered": false
+      }
+    ],
+    "events": [
+      "OrderPlaced",
+      "AuditRecorded"
+    ],
+    "outbox": [
+      {
+        "consumer": "policy:Shop::RecordAudit",
+        "status": "delivered"
+      },
+      {
+        "consumer": "policy:Shop::RefuseLedger",
+        "status": "refused"
+      }
+    ],
+    "cli_status": {
+      "ordinary": 0,
+      "waited": 1
+    }
+  },
+  "same_aggregate_alternative": {
+    "declared_policies": [
+      "RefuseLedger",
+      "RecordAudit"
+    ],
+    "command": "success",
+    "result_refusals": [
+      "RefuseLedger"
+    ],
+    "result_blockers": [],
+    "reactions": [
+      {
+        "policy": "RefuseLedger",
+        "delivered": false
+      },
+      {
+        "policy": "RecordAudit",
+        "delivered": true
+      }
+    ],
+    "events": [
+      "OrderPlaced",
+      "LedgerAccepted"
+    ],
+    "outbox": [
+      {
+        "consumer": "policy:Shop::RefuseLedger",
+        "status": "refused"
+      },
+      {
+        "consumer": "policy:Shop::RecordAudit",
+        "status": "delivered"
+      }
+    ],
+    "cli_status": {
+      "ordinary": 0,
+      "waited": 0
+    }
+  }
+}

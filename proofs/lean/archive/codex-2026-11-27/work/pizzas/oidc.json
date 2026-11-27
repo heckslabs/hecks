@@ -1,0 +1,24 @@
+{
+  "audience": "Pizzas",
+  "scopes": [
+    {
+      "scope": "pizzas:order.add_topping",
+      "verb": "Pizzas::Order.AddTopping",
+      "role": "Chef"
+    },
+    {
+      "scope": "pizzas:order.create_pizza",
+      "verb": "Pizzas::Order.CreatePizza",
+      "role": "Chef"
+    },
+    {
+      "scope": "pizzas:order.purchase",
+      "verb": "Pizzas::Order.Purchase",
+      "role": "Customer"
+    }
+  ],
+  "roles": [
+    "Chef",
+    "Customer"
+  ]
+}

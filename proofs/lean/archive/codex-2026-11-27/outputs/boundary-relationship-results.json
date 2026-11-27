@@ -1,0 +1,18 @@
+{
+  "reaction_boundary_matches_hecks": true,
+  "fault_rollback_matches_atomic_law": true,
+  "fault_boundary_matches_hecks_sqlite": true,
+  "reopened_database": {
+    "records": 0,
+    "events": 0,
+    "outbox": 0
+  },
+  "instruction_tags": [
+    "stage_record",
+    "stage_event",
+    "stage_outbox",
+    "commit",
+    "claim",
+    "refuse"
+  ]
+}

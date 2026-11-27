@@ -1,0 +1,206 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "bare_argument_type_refused.json",
+      "status": "mismatch",
+      "steps": 8,
+      "expected": {
+        "refusals": [
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.times expects Integer, got 2.5",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.ratio expects Float, got \"heavy\"",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.note expects String, got [\"a\",\"b\"]",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.urgent expects TrueClass, got {\"flag\":true}",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.urgent expects TrueClass, got [true]",
+            "kind": "TypeMismatch"
+          }
+        ],
+        "instances": {
+          "Tallying::Tally#t1": {
+            "tag": {
+              "value": "t1"
+            },
+            "count": {
+              "value": 0
+            },
+            "weight": {
+              "value": 0.0
+            },
+            "label": {
+              "value": ""
+            },
+            "limit": null,
+            "tags": []
+          }
+        },
+        "events": [
+          {
+            "name": "TallyOpened",
+            "aggregate": "Tallying::Tally",
+            "id": "t1",
+            "payload": {
+              "tag": {
+                "value": "t1"
+              }
+            }
+          },
+          {
+            "name": "Measured",
+            "aggregate": "Tallying::Tally",
+            "id": "t1",
+            "payload": {
+              "tally": "t1",
+              "times": 3,
+              "ratio": 1.5,
+              "note": "ok",
+              "urgent": true
+            }
+          },
+          {
+            "name": "Measured",
+            "aggregate": "Tallying::Tally",
+            "id": "t1",
+            "payload": {
+              "tally": "t1",
+              "times": 3,
+              "ratio": 1.5,
+              "note": "ok",
+              "urgent": true
+            }
+          }
+        ]
+      },
+      "actual": {
+        "refusals": [
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.times expects Integer, got 2.5",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.ratio expects Float, got \"heavy\"",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.note expects String, got [\"a\",\"b\"]",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.urgent expects TrueClass, got {\"flag\":true}",
+            "kind": "TypeMismatch"
+          },
+          {
+            "verb": "Tallying::Tally.Measure",
+            "error": "Tally.urgent expects TrueClass, got [true]",
+            "kind": "TypeMismatch"
+          }
+        ],
+        "instances": {
+          "Tallying::Tally#t1": {
+            "tag": {
+              "value": "t1"
+            },
+            "count": {
+              "value": 0
+            },
+            "weight": {
+              "value": 0.0
+            },
+            "label": {
+              "value": ""
+            },
+            "limit": null,
+            "tags": {
+              "value": []
+            }
+          }
+        },
+        "events": [
+          {
+            "name": "TallyOpened",
+            "aggregate": "Tallying::Tally",
+            "id": "t1",
+            "payload": {
+              "tag": {
+                "value": "t1"
+              }
+            }
+          },
+          {
+            "name": "Measured",
+            "aggregate": "Tallying::Tally",
+            "id": "t1",
+            "payload": {
+              "tally": "t1",
+              "times": 3,
+              "ratio": 1.5,
+              "note": "ok",
+              "urgent": true
+            }
+          },
+          {
+            "name": "Measured",
+            "aggregate": "Tallying::Tally",
+            "id": "t1",
+            "payload": {
+              "tally": "t1",
+              "times": 3,
+              "ratio": 1.5,
+              "note": "ok",
+              "urgent": true
+            }
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 5,
+        "instances": 1,
+        "events": 3
+      },
+      "actual_counts": {
+        "refusals": 5,
+        "instances": 1,
+        "events": 3
+      },
+      "expected_refusal_kinds": [
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch"
+      ],
+      "actual_refusal_kinds": [
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch",
+        "TypeMismatch"
+      ]
+    }
+  ]
+}

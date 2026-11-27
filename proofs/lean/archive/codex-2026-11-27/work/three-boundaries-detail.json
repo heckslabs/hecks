@@ -1,0 +1,480 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 4,
+  "summary": {
+    "mismatch": 3,
+    "match": 1
+  },
+  "results": [
+    {
+      "fixture": "given_first_failure_wins.json",
+      "status": "mismatch",
+      "steps": 4,
+      "expected": {
+        "refusals": [
+          {
+            "verb": "Banking::Account.ApplyFee",
+            "error": "ApplyFee refused — customer is active",
+            "kind": "GivenNotMet"
+          }
+        ],
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "suspended"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "CustomerSuspended",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "standing": {
+                "value": "under review"
+              }
+            }
+          },
+          {
+            "name": "AccountFrozen",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {}
+          }
+        ]
+      },
+      "actual": {
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "suspended"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "CustomerSuspended",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "standing": {
+                "value": "under review"
+              }
+            }
+          },
+          {
+            "name": "AccountFrozen",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "account": "acct-1"
+            }
+          }
+        ],
+        "refusals": [
+          {
+            "verb": "Banking::Account.ApplyFee",
+            "error": "ApplyFee refused — status is \"frozen\", and ApplyFee moves it only from \"open\"",
+            "kind": "LifecycleRefused"
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 2,
+        "events": 4
+      },
+      "actual_counts": {
+        "instances": 2,
+        "events": 4,
+        "refusals": 1
+      },
+      "expected_refusal_kinds": [
+        "GivenNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "LifecycleRefused"
+      ]
+    },
+    {
+      "fixture": "policy_with_reads_emitter_id.json",
+      "status": "mismatch",
+      "steps": 1,
+      "expected": {
+        "refusals": [],
+        "instances": {
+          "Ledgerbook::Shelf#A:3": {
+            "row": {
+              "value": "A"
+            },
+            "slot": {
+              "value": "3"
+            }
+          },
+          "Ledgerbook::Register#A:3": {
+            "shelf": {
+              "value": "A:3"
+            }
+          }
+        },
+        "events": [
+          {
+            "name": "ShelfStocked",
+            "aggregate": "Ledgerbook::Shelf",
+            "id": "A:3",
+            "payload": {
+              "row": {
+                "value": "A"
+              },
+              "slot": {
+                "value": "3"
+              }
+            }
+          },
+          {
+            "name": "ShelfNoted",
+            "aggregate": "Ledgerbook::Register",
+            "id": "A:3",
+            "payload": {
+              "shelf": {
+                "value": "A:3"
+              }
+            }
+          }
+        ]
+      },
+      "actual": {
+        "instances": {
+          "Ledgerbook::Shelf#A:3": {
+            "row": {
+              "value": "A"
+            },
+            "slot": null
+          },
+          "Ledgerbook::Register#A:3": {
+            "shelf": {
+              "value": "A:3"
+            }
+          }
+        },
+        "events": [
+          {
+            "name": "ShelfStocked",
+            "aggregate": "Ledgerbook::Shelf",
+            "id": "A:3",
+            "payload": {
+              "row": {
+                "value": "A"
+              },
+              "slot": {
+                "value": "3"
+              }
+            }
+          },
+          {
+            "name": "ShelfNoted",
+            "aggregate": "Ledgerbook::Register",
+            "id": "A:3",
+            "payload": {
+              "shelf": {
+                "value": "A:3"
+              }
+            }
+          }
+        ],
+        "refusals": []
+      },
+      "expected_counts": {
+        "refusals": 0,
+        "instances": 2,
+        "events": 2
+      },
+      "actual_counts": {
+        "instances": 2,
+        "events": 2,
+        "refusals": 0
+      },
+      "expected_refusal_kinds": [],
+      "actual_refusal_kinds": []
+    },
+    {
+      "fixture": "reaction_depth_bound.json",
+      "status": "match",
+      "steps": 2
+    },
+    {
+      "fixture": "reaction_order_per_event.json",
+      "status": "mismatch",
+      "steps": 2,
+      "expected": {
+        "refusals": [],
+        "instances": {
+          "Courier::Run#r1": {
+            "tag": {
+              "value": "r1"
+            }
+          }
+        },
+        "events": [
+          {
+            "name": "RunStarted",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "tag": {
+                "value": "r1"
+              }
+            }
+          },
+          {
+            "name": "RunLegged",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "run": "r1"
+            }
+          },
+          {
+            "name": "RunReported",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "run": "r1"
+            }
+          },
+          {
+            "name": "RunLogged",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {}
+          },
+          {
+            "name": "RunNoted",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "run": "r1"
+            }
+          }
+        ]
+      },
+      "actual": {
+        "instances": {
+          "Courier::Run#r1": {
+            "tag": {
+              "value": "r1"
+            }
+          }
+        },
+        "events": [
+          {
+            "name": "RunStarted",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "tag": {
+                "value": "r1"
+              }
+            }
+          },
+          {
+            "name": "RunLegged",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "run": "r1"
+            }
+          },
+          {
+            "name": "RunReported",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "run": "r1"
+            }
+          },
+          {
+            "name": "RunLogged",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "run": "r1"
+            }
+          },
+          {
+            "name": "RunNoted",
+            "aggregate": "Courier::Run",
+            "id": "r1",
+            "payload": {
+              "run": "r1"
+            }
+          }
+        ],
+        "refusals": []
+      },
+      "expected_counts": {
+        "refusals": 0,
+        "instances": 1,
+        "events": 5
+      },
+      "actual_counts": {
+        "instances": 1,
+        "events": 5,
+        "refusals": 0
+      },
+      "expected_refusal_kinds": [],
+      "actual_refusal_kinds": []
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+'AuthorityRelationship.protected_run_realizes_relation' depends on axioms: [propext]
+'AuthorityRelationship.unauthorized_program_cannot_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'AuthorityRelationship.cross_world_write_is_refused' does not depend on any axioms
+'AuthorityRelationship.bypass_is_not_protected' does not depend on any axioms

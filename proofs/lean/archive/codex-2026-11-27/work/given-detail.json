@@ -1,0 +1,242 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "given_first_failure_wins.json",
+      "status": "mismatch",
+      "steps": 4,
+      "expected": {
+        "refusals": [
+          {
+            "verb": "Banking::Account.ApplyFee",
+            "error": "ApplyFee refused — customer is active",
+            "kind": "GivenNotMet"
+          }
+        ],
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "suspended"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "frozen",
+            "customer_status": "suspended"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "CustomerSuspended",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "standing": {
+                "value": "under review"
+              }
+            }
+          },
+          {
+            "name": "AccountFrozen",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {}
+          }
+        ]
+      },
+      "actual": {
+        "instances": {
+          "Banking::Customer#cust-1": {
+            "reference": {
+              "value": "cust-1"
+            },
+            "name": {
+              "given": "Ada",
+              "family": "Lovelace"
+            },
+            "email": {
+              "address": "ada@example.com"
+            },
+            "standing": {
+              "value": "under review"
+            },
+            "status": "suspended"
+          },
+          "Banking::Account#acct-1": {
+            "customer": "cust-1",
+            "number": {
+              "value": "acct-1"
+            },
+            "balance": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "kind": {
+              "name": "current"
+            },
+            "daily_limit": {
+              "cents": 50000
+            },
+            "ledger": [],
+            "fees_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "interest_cents": {
+              "cents": 0,
+              "currency": "USD"
+            },
+            "status": "open",
+            "customer_status": "active"
+          }
+        },
+        "events": [
+          {
+            "name": "CustomerRegistered",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "name": {
+                "given": "Ada",
+                "family": "Lovelace"
+              },
+              "email": {
+                "address": "ada@example.com"
+              }
+            }
+          },
+          {
+            "name": "AccountOpened",
+            "aggregate": "Banking::Account",
+            "id": "acct-1",
+            "payload": {
+              "customer": "cust-1",
+              "number": {
+                "value": "acct-1"
+              },
+              "kind": {
+                "name": "current"
+              },
+              "daily_limit": {
+                "cents": 50000
+              }
+            }
+          },
+          {
+            "name": "CustomerSuspended",
+            "aggregate": "Banking::Customer",
+            "id": "cust-1",
+            "payload": {
+              "reference": {
+                "value": "cust-1"
+              },
+              "standing": {
+                "value": "under review"
+              }
+            }
+          }
+        ],
+        "refusals": [
+          {
+            "verb": "Banking::Account.ApplyFee",
+            "error": "ApplyFee refused — the balance covers a fee",
+            "kind": "GivenNotMet"
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 2,
+        "events": 4
+      },
+      "actual_counts": {
+        "instances": 2,
+        "events": 3,
+        "refusals": 1
+      },
+      "expected_refusal_kinds": [
+        "GivenNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "GivenNotMet"
+      ]
+    }
+  ]
+}

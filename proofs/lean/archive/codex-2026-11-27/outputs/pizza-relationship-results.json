@@ -1,0 +1,19 @@
+{
+  "instruction_tags": [
+    "require",
+    "put",
+    "append",
+    "event",
+    "commit"
+  ],
+  "results": [
+    {
+      "fixture": "accepted_pizza_lifecycle",
+      "matched": true
+    },
+    {
+      "fixture": "given_unmet_leaves_the_record_purchasable",
+      "matched": true
+    }
+  ]
+}

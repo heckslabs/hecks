@@ -1,0 +1,3 @@
+'PreStateEffects.run_realizes_relation' depends on axioms: [propext]
+'PreStateEffects.meter_reads_pre_state' does not depend on any axioms
+'PreStateEffects.sequential_candidate_read_is_wrong' does not depend on any axioms

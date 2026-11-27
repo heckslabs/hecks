@@ -1,0 +1,59 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "unsupported": 1
+  },
+  "results": [
+    {
+      "fixture": "delegated_event_dropped_on_parent_refusal.json",
+      "status": "unsupported",
+      "reason": "RuntimeError: delegated entity row missing Piece: \"wk\" among []",
+      "world": {
+        "instances": {
+          "Chess::Game#g1": {
+            "label": {
+              "value": "g1"
+            },
+            "turn": "white",
+            "draw_offer": "none",
+            "ply": 0,
+            "pieces": [],
+            "status": "in_progress"
+          }
+        },
+        "events": [
+          {
+            "name": "GameStarted",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              }
+            }
+          }
+        ],
+        "refusals": [
+          {
+            "verb": "Chess::Game.PlacePiece",
+            "error": "PlacePiece refused — status is \"in_progress\", and PlacePiece moves it only from [\"in_progress\",\"check\"]",
+            "kind": "LifecycleRefused"
+          },
+          {
+            "verb": "Chess::Game.PlacePiece",
+            "error": "PlacePiece refused — status is \"in_progress\", and PlacePiece moves it only from [\"in_progress\",\"check\"]",
+            "kind": "LifecycleRefused"
+          },
+          {
+            "verb": "Chess::Game.AdvanceTurn",
+            "error": "AdvanceTurn refused — status is \"in_progress\", and AdvanceTurn moves it only from [\"in_progress\",\"check\"]",
+            "kind": "LifecycleRefused"
+          }
+        ],
+        "queries": [],
+        "cross_domain": []
+      }
+    }
+  ]
+}

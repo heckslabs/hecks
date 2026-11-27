@@ -1,0 +1,6 @@
+[hecks] reaction RefuseLedger was refused (Shop::Ledger.Record): Record refused — deliberate refusal
+[hecks] reaction RefuseLedger was refused (Shop::Ledger.Record): Record refused — deliberate refusal
+[hecks] reaction RefuseLedger was refused (Shop::Ledger.Record): Record refused — deliberate refusal
+[hecks] reaction RefuseLedger was refused (Shop::Ledger.Record): Record refused — deliberate refusal
+[hecks] reaction RefuseLedger was refused (Shop::Ledger.Record): Record refused — deliberate refusal
+[hecks] reaction RefuseLedger was refused (Shop::Ledger.Record): Record refused — deliberate refusal

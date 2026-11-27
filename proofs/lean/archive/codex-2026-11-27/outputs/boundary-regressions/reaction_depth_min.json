@@ -1,0 +1,87 @@
+{
+  "domain": "spec/corpus/semantics/domains/echo",
+  "source_fixture": "reaction_depth_bound.json",
+  "note": "Light establishes the beacon; one Ping starts the depth-limited self-reaction chain.",
+  "steps": [
+    {
+      "verb": "Echo::Beacon.Light",
+      "args": {
+        "name": {
+          "value": "b1"
+        }
+      }
+    },
+    {
+      "verb": "Echo::Beacon.Ping",
+      "args": {
+        "beacon": "b1"
+      }
+    }
+  ],
+  "expect": {
+    "instances": {
+      "Echo::Beacon#b1": {
+        "name": {"value":"b1"}
+      }
+    },
+    "events": [
+      {
+        "name": "BeaconLit",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "name": {"value":"b1"}
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      }
+    ],
+    "refusals": []
+  }
+}

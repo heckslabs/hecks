@@ -1,0 +1,69 @@
+{
+  "domain": "spec/corpus/semantics/domains/courier",
+  "source_fixture": "reaction_order_per_event.json",
+  "note": "Start establishes the run; Advance emits two events whose saga and policy reactions must run per event.",
+  "steps": [
+    {
+      "verb": "Courier::Run.Start",
+      "args": {
+        "tag": {
+          "value": "r1"
+        }
+      }
+    },
+    {
+      "verb": "Courier::Run.Advance",
+      "args": {
+        "run": "r1"
+      }
+    }
+  ],
+  "expect": {
+    "instances": {
+      "Courier::Run#r1": {
+        "tag": {"value":"r1"}
+      }
+    },
+    "events": [
+      {
+        "name": "RunStarted",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "tag": {"value":"r1"}
+        }
+      },
+      {
+        "name": "RunLegged",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "run": "r1"
+        }
+      },
+      {
+        "name": "RunReported",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "run": "r1"
+        }
+      },
+      {
+        "name": "RunLogged",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {}
+      },
+      {
+        "name": "RunNoted",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "run": "r1"
+        }
+      }
+    ],
+    "refusals": []
+  }
+}

@@ -1,0 +1,359 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "fixture_count": 1,
+  "summary": {
+    "mismatch": 1
+  },
+  "results": [
+    {
+      "fixture": "delegated_event_dropped_on_parent_refusal.json",
+      "status": "mismatch",
+      "steps": 7,
+      "expected": {
+        "refusals": [
+          {
+            "verb": "Chess::Game.MovePiece",
+            "error": "MovePiece refused — the mover's own king remains on the board after the move",
+            "kind": "EnsuresNotMet"
+          }
+        ],
+        "instances": {
+          "Chess::Game#g1": {
+            "label": {
+              "value": "g1"
+            },
+            "turn": {
+              "value": "white"
+            },
+            "draw_offer": {
+              "value": "none"
+            },
+            "ply": {
+              "value": 2
+            },
+            "pieces": [
+              {
+                "id": {
+                  "value": "wk"
+                },
+                "kind": {
+                  "value": "king"
+                },
+                "color": {
+                  "value": "white"
+                },
+                "square": {
+                  "file": 4,
+                  "rank": 0
+                },
+                "moved": {
+                  "value": "unmoved"
+                },
+                "status": "captured"
+              },
+              {
+                "id": {
+                  "value": "wp"
+                },
+                "kind": {
+                  "value": "pawn"
+                },
+                "color": {
+                  "value": "white"
+                },
+                "square": {
+                  "file": 0,
+                  "rank": 1
+                },
+                "moved": {
+                  "value": "unmoved"
+                },
+                "status": "on_board"
+              }
+            ],
+            "status": "in_progress"
+          }
+        },
+        "events": [
+          {
+            "name": "GameStarted",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              }
+            }
+          },
+          {
+            "name": "PiecePlaced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "id": {
+                "value": "wk"
+              },
+              "kind": {
+                "value": "king"
+              },
+              "color": {
+                "value": "white"
+              },
+              "square": {
+                "file": 4,
+                "rank": 0
+              }
+            }
+          },
+          {
+            "name": "PiecePlaced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "id": {
+                "value": "wp"
+              },
+              "kind": {
+                "value": "pawn"
+              },
+              "color": {
+                "value": "white"
+              },
+              "square": {
+                "file": 0,
+                "rank": 1
+              }
+            }
+          },
+          {
+            "name": "TurnAdvanced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "turn": {
+                "value": "black"
+              }
+            }
+          },
+          {
+            "name": "PieceCaptured",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "id": {
+                "value": "wk"
+              },
+              "by": {
+                "value": "black"
+              }
+            }
+          },
+          {
+            "name": "TurnAdvanced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "turn": {
+                "value": "white"
+              }
+            }
+          }
+        ]
+      },
+      "actual": {
+        "refusals": [
+          {
+            "verb": "Chess::Game.MovePiece",
+            "error": "MovePiece refused — the mover's own king remains on the board after the move",
+            "kind": "EnsuresNotMet"
+          }
+        ],
+        "instances": {
+          "Chess::Game#g1": {
+            "label": {
+              "value": "g1"
+            },
+            "turn": {
+              "value": "white"
+            },
+            "draw_offer": {
+              "value": "none"
+            },
+            "ply": {
+              "value": 2
+            },
+            "pieces": [
+              {
+                "id": {
+                  "value": "wk"
+                },
+                "kind": {
+                  "value": "king"
+                },
+                "color": {
+                  "value": "white"
+                },
+                "square": {
+                  "file": 4,
+                  "rank": 0
+                },
+                "moved": {
+                  "value": "unmoved"
+                },
+                "status": "captured"
+              },
+              {
+                "id": {
+                  "value": "wp"
+                },
+                "kind": {
+                  "value": "pawn"
+                },
+                "color": {
+                  "value": "white"
+                },
+                "square": {
+                  "file": 0,
+                  "rank": 1
+                },
+                "moved": {
+                  "value": "unmoved"
+                },
+                "status": "on_board"
+              }
+            ],
+            "status": "in_progress"
+          }
+        },
+        "events": [
+          {
+            "name": "GameStarted",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              }
+            }
+          },
+          {
+            "name": "PiecePlaced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "id": {
+                "value": "wk"
+              },
+              "kind": {
+                "value": "king"
+              },
+              "color": {
+                "value": "white"
+              },
+              "square": {
+                "file": 4,
+                "rank": 0
+              }
+            }
+          },
+          {
+            "name": "PiecePlaced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "id": {
+                "value": "wp"
+              },
+              "kind": {
+                "value": "pawn"
+              },
+              "color": {
+                "value": "white"
+              },
+              "square": {
+                "file": 0,
+                "rank": 1
+              }
+            }
+          },
+          {
+            "name": "TurnAdvanced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "turn": {
+                "value": "black"
+              }
+            }
+          },
+          {
+            "name": "PieceCaptured",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "id": {
+                "value": "wk"
+              },
+              "by": {
+                "value": "black"
+              }
+            }
+          },
+          {
+            "name": "TurnAdvanced",
+            "aggregate": "Chess::Game",
+            "id": "g1",
+            "payload": {
+              "label": {
+                "value": "g1"
+              },
+              "turn": {
+                "value": "white"
+              }
+            }
+          }
+        ]
+      },
+      "expected_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 6
+      },
+      "actual_counts": {
+        "refusals": 1,
+        "instances": 1,
+        "events": 6
+      },
+      "expected_refusal_kinds": [
+        "EnsuresNotMet"
+      ],
+      "actual_refusal_kinds": [
+        "EnsuresNotMet"
+      ]
+    }
+  ]
+}

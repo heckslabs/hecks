@@ -1,0 +1,9 @@
+'ExecutableRelationship.run_realizes_relation' depends on axioms: [propext]
+'ExecutableRelationship.commit_atomic_in_model' depends on axioms: [propext]
+'ExecutableRelationship.refused_guard_does_not_commit' depends on axioms: [propext]
+'ExecutableRelationship.reaction_refusal_keeps_commit' depends on axioms: [propext]
+'ExecutableRelationship.commit_fault_rolls_back' depends on axioms: [propext]
+'ExecutableRelationship.torn_commit_is_not_atomic' does not depend on any axioms
+'ExecutableRelationship.accepted_example' does not depend on any axioms
+'ExecutableRelationship.refused_example' does not depend on any axioms
+'ExecutableRelationship.reaction_example' does not depend on any axioms

@@ -1,0 +1,35 @@
+Run options: include {:full_description=>/the\ Ruby\ runtime\ answers\ every\ fixture/}
+
+Randomized with seed 64216
+...[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)
+..[hecks] reaction FileOnAnnotate was refused (Registry::Filing.Open): no domain "Registry" loaded (verb Registry::Filing.Open)
+.[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)
+.[hecks] reaction FlickerAgain was refused (Echo::Lamp.Flicker): reaction depth 5 reached
+...................[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)
+.....[hecks] reaction FileOnSend was refused (Registry::Filing.Open): no domain "Registry" loaded (verb Registry::Filing.Open)
+.......[hecks] reaction FileOnForward was refused (Registry::Filing.Open): no domain "Registry" loaded (verb Registry::Filing.Open)
+.[hecks] reaction ReviewOnFreeze was refused (Compliance::Review.Open): no domain "Compliance" loaded (verb Compliance::Review.Open)
+.........[hecks] reaction PingAgain was refused (Echo::Beacon.Ping): reaction depth 5 reached
+....
+An error occurred in an `after(:suite)` hook.
+Failure/Error:
+  `ps -A -o pid=,ppid=,pgid=,stat=`.lines.filter_map do |line|
+    pid, ppid, pgid, stat = line.split
+    Row.new(pid.to_i, ppid.to_i, pgid.to_i, stat) if stat
+  end
+
+Errno::EPERM:
+  Operation not permitted - ps
+# ./spec/support/process_tree.rb:18:in ``'
+# ./spec/support/process_tree.rb:18:in `rows'
+# ./spec/support/child_process_guard.rb:36:in `standing'
+# ./spec/support/child_process_guard.rb:26:in `check'
+# ./spec/support/child_process_guard.rb:44:in `block (2 levels) in <top (required)>'
+
+
+Finished in 8.04 seconds (files took 4.52 seconds to load)
+52 examples, 0 failures, 1 error occurred outside of examples
+
+Randomized with seed 64216
+
+WARNING: Could not write example statuses to tmp/rspec_examples.txt (configured as `config.example_status_persistence_file_path`) due to a system error: #<Errno::EPERM: Operation not permitted @ rb_sysopen - tmp/rspec_examples.txt>. Please check that the config option is set to an accessible, valid file path.

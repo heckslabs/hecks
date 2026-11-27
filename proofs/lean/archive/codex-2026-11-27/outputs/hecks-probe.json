@@ -1,0 +1,17 @@
+{
+  "source_commit": "8a8a2699961a00c54fa6858fa5d7d52bd47d084d",
+  "instance_keys": [
+    "Pizzas::Order#First",
+    "Pizzas::Order#Second"
+  ],
+  "event_names": [
+    "PizzaCreated",
+    "PizzaCreated"
+  ],
+  "refusals": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "error": "PizzaName.value must match [^ \\t\\n\\r], got \"\""
+    }
+  ]
+}

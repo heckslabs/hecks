@@ -1,0 +1,155 @@
+{:name=>"Move",
+ :role=>nil,
+ :goal=>"Move this piece to a new square, on its own color's turn",
+ :references=>nil,
+ :attributes=>
+  [{:name=>:id,
+    :type=>"PieceId",
+    :list=>false,
+    :default=>nil,
+    :optional=>false,
+    :pattern=>nil,
+    :admits=>nil,
+    :relationship=>nil},
+   {:name=>:destination,
+    :type=>"Square",
+    :list=>false,
+    :default=>nil,
+    :optional=>false,
+    :pattern=>nil,
+    :admits=>nil,
+    :relationship=>nil},
+   {:name=>:by,
+    :type=>"Color",
+    :list=>false,
+    :default=>nil,
+    :optional=>false,
+    :pattern=>nil,
+    :admits=>nil,
+    :relationship=>nil},
+   {:name=>:outcome,
+    :type=>"GameOutcome",
+    :list=>false,
+    :default=>nil,
+    :optional=>false,
+    :pattern=>nil,
+    :admits=>nil,
+    :relationship=>nil}],
+ :givens=>
+  [{:description=>"only an active game may be played",
+    :canonical=>
+     "parent.status == \"in_progress\" || parent.status == \"check\"",
+    :ast=>
+     {"op"=>"or",
+      "left"=>
+       {"op"=>"compare",
+        "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+        "left"=>{"op"=>"lookup", "path"=>["parent", "status"]},
+        "right"=>{"op"=>"str", "value"=>"in_progress"}},
+      "right"=>
+       {"op"=>"compare",
+        "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+        "left"=>{"op"=>"lookup", "path"=>["parent", "status"]},
+        "right"=>{"op"=>"str", "value"=>"check"}}}},
+   {:description=>"only the color to move may move a piece",
+    :canonical=>"parent.turn.value == by.value",
+    :ast=>
+     {"op"=>"compare",
+      "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+      "left"=>{"op"=>"lookup", "path"=>["parent", "turn", "value"]},
+      "right"=>{"op"=>"lookup", "path"=>["by", "value"]}}},
+   {:description=>"a piece may only be moved by its own color",
+    :canonical=>"by.value == color.value",
+    :ast=>
+     {"op"=>"compare",
+      "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+      "left"=>{"op"=>"lookup", "path"=>["by", "value"]},
+      "right"=>{"op"=>"lookup", "path"=>["color", "value"]}}},
+   {:description=>"the destination differs from the current square",
+    :canonical=>
+     "square.file != destination.file || square.rank != destination.rank",
+    :ast=>
+     {"op"=>"or",
+      "left"=>
+       {"op"=>"compare",
+        "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>true},
+        "left"=>{"op"=>"lookup", "path"=>["square", "file"]},
+        "right"=>{"op"=>"lookup", "path"=>["destination", "file"]}},
+      "right"=>
+       {"op"=>"compare",
+        "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>true},
+        "left"=>{"op"=>"lookup", "path"=>["square", "rank"]},
+        "right"=>{"op"=>"lookup", "path"=>["destination", "rank"]}}}},
+   {:description=>
+     "no piece of the same color already stands on the destination",
+    :canonical=>
+     "parent.pieces.none? { |p| p.status == \"on_board\" && p.color.value == color.value && p.square.file == destination.file && p.square.rank == destination.rank }",
+    :ast=>
+     {"op"=>"block_predicate",
+      "mode"=>"none",
+      "receiver"=>{"op"=>"lookup", "path"=>["parent", "pieces"]},
+      "param"=>"p",
+      "predicate"=>
+       {"op"=>"and",
+        "left"=>
+         {"op"=>"compare",
+          "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+          "left"=>{"op"=>"lookup", "path"=>["p", "status"]},
+          "right"=>{"op"=>"str", "value"=>"on_board"}},
+        "right"=>
+         {"op"=>"and",
+          "left"=>
+           {"op"=>"compare",
+            "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+            "left"=>{"op"=>"lookup", "path"=>["p", "color", "value"]},
+            "right"=>{"op"=>"lookup", "path"=>["color", "value"]}},
+          "right"=>
+           {"op"=>"and",
+            "left"=>
+             {"op"=>"compare",
+              "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+              "left"=>{"op"=>"lookup", "path"=>["p", "square", "file"]},
+              "right"=>{"op"=>"lookup", "path"=>["destination", "file"]}},
+            "right"=>
+             {"op"=>"compare",
+              "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+              "left"=>{"op"=>"lookup", "path"=>["p", "square", "rank"]},
+              "right"=>
+               {"op"=>"lookup", "path"=>["destination", "rank"]}}}}}}}],
+ :ensures=>
+  [{:description=>"the piece is exactly where it was told to move",
+    :canonical=>
+     "square.file == destination.file && square.rank == destination.rank",
+    :ast=>
+     {"op"=>"and",
+      "left"=>
+       {"op"=>"compare",
+        "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+        "left"=>{"op"=>"lookup", "path"=>["square", "file"]},
+        "right"=>{"op"=>"lookup", "path"=>["destination", "file"]}},
+      "right"=>
+       {"op"=>"compare",
+        "cmp"=>{"less_than"=>false, "equal"=>true, "negated"=>false},
+        "left"=>{"op"=>"lookup", "path"=>["square", "rank"]},
+        "right"=>{"op"=>"lookup", "path"=>["destination", "rank"]}}}}],
+ :needs=>[],
+ :mutations=>
+  [{:target=>:square,
+    :op=>:set,
+    :sign=>"",
+    :source=>{:kind=>"argument", :name=>"destination"}},
+   {:target=>:moved,
+    :op=>:set,
+    :sign=>"",
+    :source=>{:kind=>"literal", :value=>"moved"}}],
+ :emits=>["PieceMoved"],
+ :from=>"on_board",
+ :provenance=>nil,
+ :idempotent=>false,
+ :mints_era=>false}
+["id.value"]
+{:field=>"status",
+ :default=>"on_board",
+ :transitions=>
+  [{:command=>"Capture", :to_state=>"captured", :from_state=>"on_board"}],
+ :marks=>{"terminal"=>["captured"]}}

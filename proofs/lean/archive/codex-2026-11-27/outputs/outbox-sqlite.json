@@ -1,0 +1,45 @@
+{
+  "after_crash": {
+    "crash": "crash before claim",
+    "stored_order": true,
+    "events": [
+      "OrderPlaced"
+    ],
+    "outbox": [
+      "pending"
+    ]
+  },
+  "after_redrive": {
+    "redriven": [
+      "policy:Shop::RecordOrder"
+    ],
+    "outbox": [
+      "delivered"
+    ],
+    "ledger": true
+  },
+  "after_claimed_crash": {
+    "crash": "crash after claim",
+    "stored_order": true,
+    "outbox": [
+      "delivered",
+      "claimed"
+    ],
+    "redriven_without_evidence": [],
+    "ledger": false
+  },
+  "failed_transaction": {
+    "error": "disk full",
+    "stored_order": false,
+    "new_events": 0,
+    "new_outbox_rows": 0
+  },
+  "after_reboot": {
+    "outbox": [
+      "delivered",
+      "claimed"
+    ],
+    "ledger_o1": true,
+    "ledger_o2": false
+  }
+}

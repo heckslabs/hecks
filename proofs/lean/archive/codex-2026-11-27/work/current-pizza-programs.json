@@ -1,0 +1,295 @@
+{
+  "CreatePizza": [
+    [
+      "required",
+      [
+        "name",
+        "pizza"
+      ],
+      [
+        "name",
+        "pizza"
+      ]
+    ],
+    [
+      "known",
+      [
+        "name",
+        "pizza",
+        "id",
+        "order"
+      ],
+      [
+        "name",
+        "pizza"
+      ]
+    ],
+    [
+      "validate",
+      "name",
+      "PizzaName",
+      false
+    ],
+    [
+      "validate",
+      "pizza",
+      "Pizza",
+      false
+    ],
+    [
+      "set",
+      "name",
+      "argument",
+      "name"
+    ],
+    [
+      "set",
+      "pizza",
+      "argument",
+      "pizza"
+    ],
+    [
+      "event",
+      "PizzaCreated"
+    ],
+    [
+      "commit"
+    ]
+  ],
+  "AddTopping": [
+    [
+      "required",
+      [
+        "topping",
+        "amount"
+      ],
+      [
+        "topping",
+        "amount"
+      ]
+    ],
+    [
+      "known",
+      [
+        "topping",
+        "amount",
+        "name",
+        "id",
+        "order"
+      ],
+      [
+        "topping",
+        "amount"
+      ]
+    ],
+    [
+      "validate",
+      "topping",
+      "ToppingName",
+      false
+    ],
+    [
+      "validate",
+      "amount",
+      "ToppingAmount",
+      false
+    ],
+    [
+      "from",
+      "available"
+    ],
+    [
+      "given",
+      {
+        "op": "compare",
+        "cmp": {
+          "less_than": true,
+          "equal": false,
+          "negated": false
+        },
+        "left": {
+          "op": "size",
+          "receiver": {
+            "op": "lookup",
+            "path": [
+              "toppings"
+            ]
+          }
+        },
+        "right": {
+          "op": "int",
+          "value": 10
+        }
+      },
+      "at most 10 toppings"
+    ],
+    [
+      "append",
+      "toppings",
+      {
+        "name": [
+          "argument",
+          "topping",
+          true
+        ],
+        "amount": [
+          "argument",
+          "amount",
+          true
+        ]
+      }
+    ],
+    [
+      "event",
+      "ToppingAdded"
+    ],
+    [
+      "commit"
+    ]
+  ],
+  "Purchase": [
+    [
+      "required",
+      [
+        "amount"
+      ],
+      [
+        "amount",
+        "customer_name"
+      ]
+    ],
+    [
+      "known",
+      [
+        "amount",
+        "customer_name",
+        "name",
+        "id",
+        "order"
+      ],
+      [
+        "amount",
+        "customer_name"
+      ]
+    ],
+    [
+      "validate",
+      "amount",
+      "Price",
+      false
+    ],
+    [
+      "validate",
+      "customer_name",
+      "CustomerName",
+      true
+    ],
+    [
+      "from",
+      "available"
+    ],
+    [
+      "given",
+      {
+        "op": "sign_test",
+        "cmp": {
+          "less_than": true,
+          "equal": true,
+          "negated": true
+        },
+        "receiver": {
+          "op": "size",
+          "receiver": {
+            "op": "lookup",
+            "path": [
+              "toppings"
+            ]
+          }
+        }
+      },
+      "a pizza needs at least one topping"
+    ],
+    [
+      "given",
+      {
+        "op": "sign_test",
+        "cmp": {
+          "less_than": true,
+          "equal": true,
+          "negated": true
+        },
+        "receiver": {
+          "op": "lookup",
+          "path": [
+            "amount",
+            "cents"
+          ]
+        }
+      },
+      "a payment was actually made"
+    ],
+    [
+      "given",
+      {
+        "op": "compare",
+        "cmp": {
+          "less_than": true,
+          "equal": false,
+          "negated": true
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "amount",
+            "cents"
+          ]
+        },
+        "right": {
+          "op": "lookup",
+          "path": [
+            "pizza",
+            "price_cents",
+            "cents"
+          ]
+        }
+      },
+      "the payment covers the price"
+    ],
+    [
+      "set",
+      "customer_name",
+      "argument",
+      "customer_name"
+    ],
+    [
+      "transition",
+      "status",
+      "available",
+      "sold"
+    ],
+    [
+      "event",
+      "PizzaPurchased"
+    ],
+    [
+      "commit"
+    ]
+  ],
+  "CostingLessThan": [
+    [
+      "validate",
+      "ceiling",
+      "Price",
+      false
+    ],
+    [
+      "where_lt",
+      "pizza.price_cents.cents",
+      ":ceiling"
+    ],
+    [
+      "order",
+      "name"
+    ]
+  ]
+}
