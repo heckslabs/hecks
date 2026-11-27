@@ -328,8 +328,8 @@ Style/OpenStructUse:
 Lint/UnusedMethodArgument:
   AllowUnusedKeywordArguments: true
 
-# A `.bluebook` file is a Ruby DSL script, so `Kernel.eval` on repo-committed sources or
-# spec fixtures is the gem's job, not an untrusted-input hazard.
+# The gem evaluates only text the closed parser admitted for a `.bluebook`, `.hecksagon` or `.world`
+# file (lib/hecks/closed_form.rb), and specs evaluate their own fixtures; neither is untrusted input.
 Security/Eval:
   Enabled: false
 

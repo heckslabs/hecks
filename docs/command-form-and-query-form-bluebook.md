@@ -231,7 +231,8 @@ splitting it would mean two copies drifting, for no reader's benefit:
   and `spec/model_check_spec.rb` (`Dir.glob(examples/*)`), each expected to
   be a complete, independently model-checked domain with its own corpus
   script. The demo config is a sample of *this feature*, not a domain, so
-  it lives at `lib/hecks/forms/examples/banking_console.bluebook`
+  it lives at `lib/hecks/forms/examples/banking_console.rb`, a Ruby file since `Forms.configure`
+  is no bluebook word,
   instead — found this the hard way, mid-build, when adding a second example
   directory turned two unrelated specs red.
 - **No field-level refusal attribution.** A domain refusal is a typed
@@ -287,7 +288,7 @@ Then, for example: `open http://localhost:4567/`,
 `curl http://localhost:4567/Banking/Account/Debit`.
 
 To point this at a different domain, write a
-`lib/hecks/forms/examples/banking_console.bluebook`-shaped file
+`lib/hecks/forms/examples/banking_console.rb`-shaped file
 (anywhere but `examples/*` — see above) declaring which bluebooks to
 expose, and adapt `hecks present`'s own boot block (or, for a domain whose
 `.hecksagon` already binds a real adapter rather than needing the

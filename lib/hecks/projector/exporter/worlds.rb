@@ -1,4 +1,5 @@
 require "json"
+require_relative "../../closed_form"
 
 module Hecks
   module Projector
@@ -58,7 +59,7 @@ module Hecks
         # @return [Array<Hash{String => Object}>] `worlds` of that registry
         def worlds_in_files(paths)
           registry = Runtime::Registry.new
-          Hecks.with_registry(registry) { paths.each { |path| Kernel.load(path) } }
+          Hecks.with_registry(registry) { paths.each { |path| Hecks::ClosedForm.load_file(path) } }
           worlds(registry)
         end
 

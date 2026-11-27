@@ -1,0 +1,12 @@
+# Admitted: bind verbs, aggregate receivers and a port, as wiring is written.
+Hecks.hecksagon "Probe" do
+  persisted_by "Memory"
+  attaches "Governance"
+  Probe::Order.persisted_by "Heki"
+  Probe::Order.port "Feed" do
+    asks "Fetch", to: Order do
+      attribute :run, String
+      answers "Fetched"
+    end
+  end
+end

@@ -1,0 +1,8 @@
+# Refused: calls a Ruby method in a computed value.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    command "Total" do
+      sets total: amount.instance_eval("1")
+    end
+  end
+end

@@ -1,0 +1,7 @@
+# Refused: opens a Ruby block with parameters.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    lifecycle :status do |x|
+    end
+  end
+end

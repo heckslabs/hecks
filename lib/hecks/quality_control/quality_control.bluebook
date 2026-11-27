@@ -1,28 +1,8 @@
 # Quality control: every check writes its expectation down before it looks at the answer.
 # A bug is logged with the failing test that proves it, or it is not logged.
 
-# Tunable dials for the QA loop: values in qa/settings.yml, what each is in the `QaDial` rows of the
-# Vocabulary bluebook.
-# `require`, not `require_relative`: isolated fuzz boots load a copy of this file from a tmpdir.
-require "hecks/fuzzing/qa_settings"
-
-unless defined?(QualityControlDials)
-  module QualityControlDials
-    # `DEFAULT_PATH` resolves from QaSettings' own location: this directory is copied for isolated
-    # boots. HECKS_QA_SETTINGS_PATH lets a subprocess test read a different settings file.
-    settings = Hecks::Fuzzing::QaSettings.load(ENV.fetch("HECKS_QA_SETTINGS_PATH", Hecks::Fuzzing::QaSettings::DEFAULT_PATH))
-
-    # Each dial of qa/settings.yml as a constant named for it: `PR_CAP_PER_DAY` is `pr_cap_per_day`.
-    # What each is and takes is declared once, as its `QaDial` row in the Vocabulary bluebook.
-    Hecks::Vocabulary.rows("QaDial").each do |dial|
-      const_set(dial.fetch("name").upcase, settings.public_send(dial.fetch("name")))
-    end
-
-    # The identity the loop runs as. `WaivedBy` repeats this literal (invariants read literals,
-    # not constants); `spec/quality_control_spec.rb` pins the two equal.
-    AUTOMATED_ENGINEER = "qa_sweep"
-  end
-end
+# The QA loop's tunable dials are settings, so they are read on the adapter side
+# (adapters/qa_dials.rb), never here.
 
 Hecks.bluebook "QualityControl" do
   vision "A user should never be made to feel stupid by something that took what they said and quietly did otherwise. Every check writes down what it expected before it looks, every bug carries the test that proves it, and nothing reaches the outside world that nobody first tried to fix."

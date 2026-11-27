@@ -1,0 +1,7 @@
+# Refused: runs code after the declaration.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :total, Integer
+  end
+end
+puts "loaded"

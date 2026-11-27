@@ -1,3 +1,4 @@
+require_relative "../../closed_form"
 module Hecks
   module Tools
     module ModelCheck
@@ -23,7 +24,7 @@ module Hecks
 
         # @api private
         def load_source(source)
-          FRAMEWORK_FILES.each { |file| Kernel.load(File.join(HECKS_DIR, file)) }
+          FRAMEWORK_FILES.each { |file| Hecks::ClosedForm.load_file(File.join(HECKS_DIR, file)) }
           folder = Adapters::Folder.new
           if File.directory?(source)
             folder.load_bluebooks(source)
@@ -43,7 +44,7 @@ module Hecks
         #
         # @api private
         def load_wiring(source)
-          (hecksagons_of(source) + context_maps_of(source)).each { |file| Kernel.load(file) if File.exist?(file) }
+          (hecksagons_of(source) + context_maps_of(source)).each { |file| Hecks::ClosedForm.load_file(file) if File.exist?(file) }
         end
 
         # @api private

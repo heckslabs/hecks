@@ -240,7 +240,7 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
       vendor(ref: "1.0.0")
       commit_broken_release
 
-      expect { vendor(ref: "1.1.0") }.to raise_error(Hecks::Vendoring::Error, /do not load: RuntimeError: broken/)
+      expect { vendor(ref: "1.1.0") }.to raise_error(Hecks::Vendoring::Error, /do not load: .*'broken'.* sits outside/)
       expect(lock.version).to eq("1.0.0")
     end
   end

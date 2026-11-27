@@ -1,0 +1,6 @@
+# Refused: reads a file in an argument.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description File.read("README.md")
+  end
+end

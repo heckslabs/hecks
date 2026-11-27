@@ -6,6 +6,7 @@ require_relative "../hecks"
 require_relative "grammar/operators"
 require_relative "grammar/dialects"
 require_relative "grammar/translation_ledger"
+require_relative "closed_form"
 
 module Hecks
   # The sublanguage grammar domains (grammar/*.bluebook) and the one boot path
@@ -52,8 +53,8 @@ module Hecks
     def load_bluebook(registry, declaration)
       root = File.expand_path("../..", __dir__)
       Hecks.with_registry(registry) do
-        BLUEBOOK_PREREQUISITES.each { |file| Kernel.load(File.join(root, file)) }
-        Kernel.load(declaration)
+        BLUEBOOK_PREREQUISITES.each { |file| Hecks::ClosedForm.load_file(File.join(root, file)) }
+        Hecks::ClosedForm.load_file(declaration)
       end
     end
 

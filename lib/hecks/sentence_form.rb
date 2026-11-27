@@ -2,6 +2,7 @@ require "digest"
 require "fileutils"
 require "open3"
 require_relative "cache_dir"
+require_relative "closed_form"
 
 module Hecks
   # A `.bluebook` written as plain sentences (its first line is `Domain: <name>`) rather than in
@@ -25,8 +26,9 @@ module Hecks
     # Raised when no `hecks-parse` binary can be found.
     class ParserMissing < StandardError; end
 
-    # Raised when the parser refuses a sentence file; the message is its diagnostic.
-    class Refused < StandardError; end
+    # Raised when the parser refuses a sentence file; the message is its diagnostic. A sentence
+    # file loads through the closed form, so its refusal is the closed form's own.
+    Refused = ClosedForm::Refused
 
     module_function
 
@@ -146,29 +148,22 @@ module Hecks
          .select { |file| declaration_name(file) == declaration }
     end
 
-    # Loads a bluebook file in whichever form it is written: sentences through the parser, anything
-    # else as Ruby. Every place that reads a `.bluebook` goes through here, so no boot path accepts
-    # one form and refuses the other.
+    # Loads a bluebook file in whichever form it is written, through the closed form, which reads
+    # sentences and the Ruby form alike (see {ClosedForm.load_file}).
     #
-    # @param path [String] a bluebook file, or any other Ruby file
+    # @param path [String] a bluebook file, or any other file the gem boots from
     # @return [void]
     def load_file(path)
-      sentences = path.end_with?(".bluebook") && File.file?(path) && sentences?(path)
-      sentences ? load(path) : Kernel.load(path)
+      ClosedForm.load_file(path)
     end
 
-    # Declares the bluebook a sentence-form file holds, in the registry now current.
-    #
-    # The Ruby text is loaded from a file of its own, because a predicate's source is recovered
-    # from the file it was written in; the registry then records the sentence file as the
-    # bluebook's source, not the generated one.
+    # Declares the bluebook a sentence-form file holds, in the registry now current, through the
+    # closed form (see {ClosedForm.load}).
     #
     # @param path [String] a sentence-form `.bluebook`
     # @return [void]
     def load(path)
-      generated = write_generated(path, ruby_text(path))
-      Kernel.load(generated)
-      point_sources_at(generated, path)
+      ClosedForm.load(path)
     end
 
     # Makes the registry record the sentence file `path` as the source of what `generated` declared.

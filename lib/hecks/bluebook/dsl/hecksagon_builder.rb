@@ -1,5 +1,6 @@
 require_relative "word_gate"
 require_relative "hecksagon_builder/bluebook_scope"
+require_relative "hecksagon_builder/gem_bluebook"
 require_relative "clock_builder"
 module Hecks
   module Bluebook
@@ -10,6 +11,7 @@ module Hecks
         GRAMMAR_CONTEXT = "Hecksagon".freeze
 
         include WordGate
+        include GemBluebook
         extend BluebookScope
 
         # Lets the Hecks bluebook's own hecksagon spell its aggregates `Hecks::Operation`.

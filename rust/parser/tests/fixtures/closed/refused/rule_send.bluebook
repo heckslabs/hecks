@@ -1,0 +1,8 @@
+# Refused: reaches a method by name in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      send(:system, "id")
+    end
+  end
+end

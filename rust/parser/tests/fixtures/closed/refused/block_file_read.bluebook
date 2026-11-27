@@ -1,0 +1,6 @@
+# Refused: reads a file.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    File.read("/etc/passwd")
+  end
+end

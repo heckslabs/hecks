@@ -1,0 +1,6 @@
+# Refused: runs a shell command in backticks.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description `id`
+  end
+end

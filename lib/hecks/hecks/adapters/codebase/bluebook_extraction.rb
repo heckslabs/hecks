@@ -17,6 +17,8 @@ module Hecks
       module BluebookExtraction
         # The extension that marks a file as a bluebook.
         BLUEBOOK = /\.bluebook\z/
+        # The Rust parser's own fixtures: grammar cases, some refused on purpose, never domains.
+        PARSER_FIXTURES = %r{\Arust/parser/tests/fixtures/}
 
         module_function
 
@@ -35,11 +37,12 @@ module Hecks
         # A checkout with no `base` (a shallow clone) has nothing to compare with, so only what the
         # working tree changed since the head commit counts.
         #
-        # @return [Array<String>] the bluebooks that differ from the merge-base with `base`
+        # @return [Array<String>] the bluebooks that differ from the merge-base with `base`, less
+        #   the parser's fixtures
         def changed(tree, base)
           merge, status = Open3.capture2e("git", "-C", tree.root, "merge-base", "HEAD", base)
           ref = status.success? ? merge.strip : "HEAD"
-          bluebooks = ChangedSpecs.changed_files(tree, ref).grep(BLUEBOOK)
+          bluebooks = ChangedSpecs.changed_files(tree, ref).grep(BLUEBOOK).grep_v(PARSER_FIXTURES)
           bluebooks.select { |file| File.file?(File.join(tree.root, file)) }.sort
         end
 

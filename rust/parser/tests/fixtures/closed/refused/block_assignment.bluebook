@@ -1,0 +1,6 @@
+# Refused: assigns a local.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    name = ENV["HOME"]
+  end
+end

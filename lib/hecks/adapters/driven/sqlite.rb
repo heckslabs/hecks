@@ -178,9 +178,12 @@ module Hecks
         create_checkpoint_table!
       end
 
+      # A declared `~/` path is under the home directory of whoever boots: a world says where in
+      # words, and the adapter, not the world, reads the home directory.
       def resolve_path(settings, root)
         declared = settings[:database]
         return declared if declared.start_with?("/")
+        return File.expand_path(declared) if declared.start_with?("~/")
 
         File.join(root || Dir.pwd, declared)
       end

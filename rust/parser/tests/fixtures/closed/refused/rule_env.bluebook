@@ -1,0 +1,8 @@
+# Refused: reads the environment in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      ENV["X"] == "1"
+    end
+  end
+end

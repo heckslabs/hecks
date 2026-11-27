@@ -1,0 +1,4 @@
+# Refused: calls a host constant.
+Hecks.hecksagon "Probe" do
+  File.write("x", "y")
+end

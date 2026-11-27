@@ -2,6 +2,7 @@
 
 require_relative "../text"
 require_relative "world_overlay"
+require_relative "../closed_form"
 
 module Hecks
   module RustBuild
@@ -53,7 +54,7 @@ module Hecks
         worlds = []
         collector = Object.new
         collector.define_singleton_method(:add_world) { |world| worlds << world }
-        Hecks.with_registry(collector) { Kernel.load(file) }
+        Hecks.with_registry(collector) { Hecks::ClosedForm.load_file(file) }
         worlds
       end
 

@@ -1,0 +1,6 @@
+# Refused: loads a Ruby file inside a block.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    load "other.rb"
+  end
+end

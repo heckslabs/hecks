@@ -1,0 +1,6 @@
+# Refused: runs a shell command with %x.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description %x(id)
+  end
+end

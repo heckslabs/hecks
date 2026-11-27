@@ -130,6 +130,9 @@ Hecks.bluebook "Hecksagon" do
       member word: "translates",      context: "Hecksagon",     body: "keywords", inner: "Policy",        opens: "Policy",        fills: ""
       # Marks a consumer-owned bounded context; framework and vendored packages get it implicitly.
       member word: "bounded",         context: "Hecksagon", body: "none", inner: "", opens: "", fills: ""
+      # Wires the bluebook of this hecksagon's own name that the gem carries, for a directory that
+      # holds only wiring (`bluebook_from :gem`); unlike `attaches`, it attaches nothing.
+      member word: "bluebook_from",   context: "Hecksagon", body: "none", inner: "", opens: "", fills: ""
 
     end
 
@@ -158,6 +161,7 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "translates",      context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "clock",           context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "bluebook_from",   context: "Hecksagon", at: "1", named: "", kind: "symbol", required: "true", fills: ""
 
     end
   end

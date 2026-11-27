@@ -4,9 +4,27 @@ Hecks.hecksagon "Hecks" do
   # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
   # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
-  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
-     Coder Fixer PipelineBoard Pipeline Agents Triage Interviews Protocols]
-    .each { |declaration| attaches declaration }
+  attaches "Bluebook"
+  attaches "Hecksagon"
+  attaches "World"
+  attaches "Adapter"
+  attaches "Port"
+  attaches "Translation"
+  attaches "Expression"
+  attaches "Tenancy"
+  attaches "Deploy"
+  attaches "Site"
+  attaches "Tickets"
+  attaches "Composer"
+  attaches "QualityControl"
+  attaches "Coder"
+  attaches "Fixer"
+  attaches "PipelineBoard"
+  attaches "Pipeline"
+  attaches "Agents"
+  attaches "Triage"
+  attaches "Interviews"
+  attaches "Protocols"
   # Signalbox shares the Hecks bus (ADR 0222, phase 3b), so the clock's beat begins its pressure beat
   # and the settled pressure is posted as the machine's one signal. It persists in Memory, as the
   # overlay's default; its beats are each one launcher call's own.
@@ -195,12 +213,34 @@ Hecks.hecksagon "Hecks" do
   end
 
   Hecks::RedFlag.port "Flagging" do
-    %w[Hoist SignIn Lower Survey Pass].each do |step|
-      asks step, to: RedFlag do
-        attribute :run, RunKey
-        answers "FlagAnswered"
-        refuses "FlagRefused"
-      end
+    asks "Hoist", to: RedFlag do
+      attribute :run, RunKey
+      answers "FlagAnswered"
+      refuses "FlagRefused"
+    end
+
+    asks "SignIn", to: RedFlag do
+      attribute :run, RunKey
+      answers "FlagAnswered"
+      refuses "FlagRefused"
+    end
+
+    asks "Lower", to: RedFlag do
+      attribute :run, RunKey
+      answers "FlagAnswered"
+      refuses "FlagRefused"
+    end
+
+    asks "Survey", to: RedFlag do
+      attribute :run, RunKey
+      answers "FlagAnswered"
+      refuses "FlagRefused"
+    end
+
+    asks "Pass", to: RedFlag do
+      attribute :run, RunKey
+      answers "FlagAnswered"
+      refuses "FlagRefused"
     end
 
     answers_query "Status"

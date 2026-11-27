@@ -1,0 +1,6 @@
+# Refused: opens a heredoc.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description <<~TEXT
+  end
+end

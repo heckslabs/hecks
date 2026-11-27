@@ -1,0 +1,6 @@
+# Refused: reads the environment in an argument.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :x, String, default: ENV.fetch("X")
+  end
+end
