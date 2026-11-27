@@ -5,10 +5,6 @@ module Hecks
         # The walk over a built bluebook: every sibling is declared before any is detailed, and
         # each node's own setters, appends, children and sealers are offered in a fixed order.
         module Walking
-          # The built reader of a category whose name is not its reader's: the language
-          # names a saga `ProcessManager` (ADR 0180), and a built bluebook answers `sagas`.
-          READERS = { "ProcessManager" => "sagas" }.freeze
-
           private
 
           # Every sibling is declared before any is detailed, so one
@@ -134,11 +130,10 @@ module Hecks
 
           def eager?(category, child) = Array(EAGER_CHILDREN[category]).include?(child)
 
-          # Command -> commands, ValueObject -> value_objects, Query ->
-          # queries: convention, with `READERS` for a category the convention
-          # does not spell. Naming.plural is kept as the single implementation,
-          # so a second one can't disagree with it.
-          def collection_reader(category) = READERS.fetch(category) { Naming.plural(Naming.snake(category)) }
+          # Command -> commands, ValueObject -> value_objects, Saga -> sagas: convention.
+          # Naming.plural is kept as the single implementation, so a second one can't
+          # disagree with it.
+          def collection_reader(category) = Naming.plural(Naming.snake(category))
         end
       end
     end

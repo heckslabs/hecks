@@ -25,6 +25,16 @@ use crate::lex::{self, Call, LineShape, Opener, SourceLine};
 use crate::parse;
 use crate::render_ruby;
 
+/// Which text a file is read as: live source, or text frozen in an earlier era.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Era {
+    /// Source the gem boots from now: a word kept only as a row's `was:` is refused.
+    Live,
+    /// Text held from an earlier era, which the gem shadow-parses: it keeps the spellings it was
+    /// written in, so a word kept as a row's `was:` is admitted.
+    Frozen,
+}
+
 /// What the lines inside a block are read against.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Frame {
@@ -44,20 +54,21 @@ enum Closer {
 /// The only receiver a file's top line may name.
 const FILE_RECEIVER: &str = "Hecks.";
 
-/// Admits one file, in either form, and returns the text the gem may load in its place.
+/// Admits one file read as `era`, in either form, and returns the text the gem may load in its
+/// place.
 ///
 /// A bluebook written as sentences (its first line `Domain: <name>`) is read by the sentence
 /// parser and rendered as declarations, and the rendering is checked like any other file, so the
 /// gem never evaluates text this module did not admit.
-pub fn admit(file: &str, source: &str) -> ParseResult<String> {
+pub fn admit(era: Era, file: &str, source: &str) -> ParseResult<String> {
     let Some(name) = sentence_domain(source) else {
-        return check(file, source);
+        return check(era, file, source);
     };
     let loaded = vec![(file.to_string(), source.to_string())];
     let bluebook = parse::declaration::parse_bluebook(&name, &loaded)?;
     let rendered =
         render_ruby::ruby_form(&bluebook).map_err(|why| Diagnostic::new(file, 1, why))?;
-    check(file, &rendered)
+    check(era, file, &rendered)
 }
 
 /// The bluebook name a sentence-form file declares, each word of its `Domain:` line capitalised
@@ -80,11 +91,13 @@ fn sentence_domain(source: &str) -> Option<String> {
     Some(name)
 }
 
-/// Checks one declaration-form file and returns the text the gem may load in its place.
-pub fn check(file: &str, source: &str) -> ParseResult<String> {
+/// Checks one declaration-form file read as `era` and returns the text the gem may load in its
+/// place.
+pub fn check(era: Era, file: &str, source: &str) -> ParseResult<String> {
     let joined = lex::join_continuations(source);
     let rows: Vec<&str> = joined.split('\n').collect();
     let mut walker = Walker {
+        era,
         file,
         rows: &rows,
         out: vec![String::new(); rows.len()],
@@ -99,6 +112,7 @@ pub fn check(file: &str, source: &str) -> ParseResult<String> {
 }
 
 struct Walker<'a> {
+    era: Era,
     file: &'a str,
     rows: &'a [&'a str],
     out: Vec<String>,
@@ -186,6 +200,9 @@ impl<'a> Walker<'a> {
         line: usize,
     ) -> ParseResult<&'static KeywordRow> {
         let candidates = parse::word_gate(self.file, &call.word, context, line)?;
+        if self.era == Era::Live {
+            parse::refuse_retired_saga_spelling(self.file, line, &call.word)?;
+        }
         // A rule word written without a body names a rule declared elsewhere
         // (`given "positive"`), so it reads like any other bodiless word.
         if call.opener == Opener::None {

@@ -1321,15 +1321,12 @@ pub fn generate(
         ));
     }
 
-    // Policies and process managers have no per-instance skip condition.
+    // Policies and sagas have no per-instance skip condition.
     for policy in ir.get("policies").map_or_default(Json::each) {
         manifest.routed("policy", format!("{domain_name}::{}", node_name(policy)));
     }
     for pm in &sagas {
-        manifest.routed(
-            "process_manager",
-            format!("{domain_name}::{}", node_name(pm)),
-        );
+        manifest.routed("saga", format!("{domain_name}::{}", node_name(pm)));
     }
     // Lineage-capable aggregates are always generated and routed; the journal path is generic.
     let lineage_aggregates = ir

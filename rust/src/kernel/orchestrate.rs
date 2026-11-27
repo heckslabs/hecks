@@ -79,7 +79,7 @@ pub struct DispatchSpec {
     pub compensates: Option<&'static Self>,
 }
 
-/// One leg of a process manager: on `event_type` from `from_state`, move to `to_state` and
+/// One leg of a saga: on `event_type` from `from_state`, move to `to_state` and
 /// dispatch.
 pub struct Handler {
     pub event_type: &'static str,
@@ -1229,7 +1229,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
         else {
             return;
         };
-        // A process manager with no compensating leg is silent; a state no leg answers from is
+        // A saga with no compensating leg is silent; a state no leg answers from is
         // logged as `advanced: false`.
         if !pm.handlers.iter().any(|h| h.event_type == REFUSED) {
             return;

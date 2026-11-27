@@ -147,6 +147,57 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
     end
   end
 
+  # Frozen era text written before ADR 0180 spells its sagas `process_manager`. The closed form
+  # refuses that spelling in live source, so shadow_parse must fall back to reading it as frozen
+  # era text and build the saga the live spelling declares.
+  describe "a saga spelled process_manager in frozen era text" do
+    LIVE_SAGA_SOURCE = <<~BLUEBOOK.freeze
+      Hecks.bluebook "FrozenSagaFixture" do
+        generic
+
+        aggregate "Order" do
+          identified_by :reference
+          attribute :reference, OrderReference
+          value_object("OrderReference") { attribute :value, String }
+
+          command "Place" do
+            attribute :reference, OrderReference
+            sets :reference
+            emits "OrderPlaced"
+          end
+
+          command "Complete" do
+            attribute :reference, OrderReference
+            emits "OrderCompleted"
+          end
+        end
+
+        saga "Checkout" do
+          correlates_by :"order.reference"
+          starts_on "OrderPlaced"
+          ends_on "OrderCompleted"
+
+          transition "OrderPlaced" => "placed", from: "start" do
+            dispatch Order::Complete
+          end
+        end
+      end
+    BLUEBOOK
+
+    FROZEN_SAGA_SOURCE = LIVE_SAGA_SOURCE.sub(%(  saga "), %(  process_manager ")).freeze
+
+    def sagas_of(name, source)
+      sagas = nil
+      shadow_parsed(name, source) { |bluebook| sagas = bluebook.sagas.map(&:to_h) }
+      sagas
+    end
+
+    it "reads through shadow_parse as the saga the live spelling declares", :aggregate_failures do
+      expect(FROZEN_SAGA_SOURCE).to include(%(process_manager "Checkout"))
+      expect(sagas_of("frozen_saga", FROZEN_SAGA_SOURCE)).to eq(sagas_of("live_saga", LIVE_SAGA_SOURCE))
+    end
+  end
+
   describe "MetaValidator.while_shadow_parsing" do
     def seen_inside_block
       seen = nil

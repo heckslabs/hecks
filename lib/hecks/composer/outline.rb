@@ -5,7 +5,7 @@ module Hecks
     # `description` on hover from it.
     module Outline
       # The constructs that name something a reader may want to jump to.
-      KINDS = %w[aggregate entity value_object command query policy process_manager].freeze
+      KINDS = %w[aggregate entity value_object command query policy saga].freeze
 
       DECLARATION = /\A\s*(#{KINDS.join("|")})\s+"([^"]+)"/
       SUMMARY = /\A\s*(?:goal|description)\s+"((?:[^"\\]|\\.)*)"/

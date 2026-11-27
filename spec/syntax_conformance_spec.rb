@@ -55,9 +55,9 @@ RSpec.describe "the declared syntax" do
     "OneOf"                => D::ValueObjectBuilder,
     "Lifecycle"            => D::LifecycleBuilder,
     "Policy"               => D::PolicyBuilder,
-    "ProcessManager"       => D::ProcessManagerBuilder,
-    "Handler"              => D::ProcessManagerBuilder::HandlerBuilder,
-    "Dispatch"             => D::ProcessManagerBuilder::HandlerBuilder::DispatchBuilder,
+    "Saga"                 => D::SagaBuilder,
+    "Handler"              => D::SagaBuilder::HandlerBuilder,
+    "Dispatch"             => D::SagaBuilder::HandlerBuilder::DispatchBuilder,
     "ReadModel"            => D::ReadModelBuilder,
     "Type"                 => D::AttributeCollector,
     "Hecksagon"            => D::HecksagonBuilder,
@@ -127,7 +127,7 @@ RSpec.describe "the declared syntax" do
       build:                  "the builder's closing act, called by self.build",
       attributes:             "AttributeCollector's collection, read by whoever owns it",
       closed_sets:            "AttributeCollector's synthesised sets, installed by the aggregate",
-      dispatches:             "HandlerBuilder's collection, read by ProcessManagerBuilder",
+      dispatches:             "HandlerBuilder's collection, read by SagaBuilder",
       add_aggregate_head:     "ReadModelBuilder's own build calls it; nothing types it",
       # `_impl`-suffixed methods below aren't words themselves: each Keyword
       # row's `calls:` column names one as the real method its word forwards
@@ -179,10 +179,10 @@ RSpec.describe "the declared syntax" do
       percentile_impl:        "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
       transition_impl:        "the owning builder's own real implementation, called by GenericDispatch's calls:",
       mark_impl:              "LifecycleBuilder's own real implementation, called by GenericDispatch's calls:",
-      starts_on_impl:         "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
-      ends_on_impl:           "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
-      resumes_impl:           "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
-      correlates_by_impl:     "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
+      starts_on_impl:         "SagaBuilder's own real implementation, called by GenericDispatch's calls:",
+      ends_on_impl:           "SagaBuilder's own real implementation, called by GenericDispatch's calls:",
+      resumes_impl:           "SagaBuilder's own real implementation, called by GenericDispatch's calls:",
+      correlates_by_impl:     "SagaBuilder's own real implementation, called by GenericDispatch's calls:",
       created_by_impl:        "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       mints_era_impl:         "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       policy_only_impl:       "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
@@ -212,7 +212,7 @@ RSpec.describe "the declared syntax" do
   # The one place a spelling and a Ruby signature diverge: `transition` takes
   # one Hash and deletes `:from` out of it, so `from:` is written like a kwarg
   # but received as a reserved key of the pairs argument.
-  RESERVED_KEY = { %w[transition Lifecycle] => %w[from], %w[transition ProcessManager] => %w[from] }.freeze
+  RESERVED_KEY = { %w[transition Lifecycle] => %w[from], %w[transition Saga] => %w[from] }.freeze
 
   def self.words_answered_by(context)
     listed = public_methods_of(BUILDER.fetch(context))
@@ -532,7 +532,7 @@ RSpec.describe "the declared syntax" do
     "ContextMap"           => %w[ContextMap],
     "Lifecycle"            => %w[Aggregate Entity],
     "Policy"               => %w[Policy],
-    "ProcessManager"       => %w[ProcessManager],
+    "Saga"                 => %w[Saga],
     "Handler"              => %w[Dispatch],
     "ReadModel"            => %w[ReadModel],
     "Type"                 => [],

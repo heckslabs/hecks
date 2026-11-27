@@ -36,7 +36,7 @@ RSpec.describe "the IR the builder produces, frozen" do
   LOADABLE = {
     "Pizzas"          => "examples/pizzas/bluebook/pizzas.bluebook",
     # Composite identity, a command that announces twice, two entities on one head, a second
-    # read_model and process_manager: the rare forms the coverage gates exist to catch.
+    # read_model and saga: the rare forms the coverage gates exist to catch.
     "Banking"         => InMemoryDomain::BANKING_BLUEBOOK_DIR,
     "Expression"      => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"        => "spec/fixtures/till.bluebook",

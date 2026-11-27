@@ -404,18 +404,16 @@ fn document_symbol_json(symbol: &outline::Symbol) -> Json {
 
 /// Maps a construct to an LSP `SymbolKind` number by how it reads in an outline.
 const fn lsp_symbol_kind(kind: outline::Kind) -> i64 {
-    use outline::Kind::{
-        Aggregate, Command, Entity, Policy, ProcessManager, Query, ReadModel, ValueObject,
-    };
+    use outline::Kind::{Aggregate, Command, Entity, Policy, Query, ReadModel, Saga, ValueObject};
     match kind {
-        Aggregate => 5,      // Class
-        ProcessManager => 5, // Class
-        Entity => 23,        // Struct
-        ValueObject => 23,   // Struct
-        ReadModel => 23,     // Struct
-        Command => 6,        // Method
-        Query => 12,         // Function
-        Policy => 11,        // Interface
+        Aggregate => 5,    // Class
+        Saga => 5,         // Class
+        Entity => 23,      // Struct
+        ValueObject => 23, // Struct
+        ReadModel => 23,   // Struct
+        Command => 6,      // Method
+        Query => 12,       // Function
+        Policy => 11,      // Interface
     }
 }
 

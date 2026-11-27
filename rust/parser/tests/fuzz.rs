@@ -111,7 +111,7 @@ const WORDS: &[&str] = &[
     "list_of",
     "reference_to",
     "identified_by",
-    "process_manager",
+    "saga",
     "starts_on",
     "ends_on",
     "dispatch",

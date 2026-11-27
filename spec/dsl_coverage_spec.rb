@@ -21,7 +21,7 @@ RSpec.describe "the DSL surface is fully covered" do
       Hecks::Bluebook::DSL::BluebookBuilder,
       # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets.
       %i[vision attaches_to_impl provides_impl aggregate_impl report read_model policy
-         process_manager classification resolve_pending_bluebook_givens! resolve_pending_bluebook_entity_givens!]
+         saga process_manager classification resolve_pending_bluebook_givens! resolve_pending_bluebook_entity_givens!]
     ],
     "BluebookBuilder::Metadata"   => [
       # `namespace` is tested in spec/bluebook_namespace_spec.rb.

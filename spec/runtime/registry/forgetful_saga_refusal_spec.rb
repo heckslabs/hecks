@@ -2,11 +2,11 @@ require "spec_helper"
 require "tmpdir"
 require_relative "../../support/memory_ports"
 
-# verify! refuses a process manager whose checkpoints no store keeps when it dispatches to an
+# verify! refuses a saga whose checkpoints no store keeps when it dispatches to an
 # aggregate a store keeps across a restart (ADR 0170). Wire's Carry dispatches to Drawer and Wire.
 RSpec.describe "verify! refusal for a saga less durable than the aggregates it moves" do
   WIRE_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_FIXTURE)
-  FORGETFUL_CARRY = /Carry dispatches to Wire, which SqlitePersistence keeps/ unless defined?(FORGETFUL_CARRY)
+  FORGETFUL_CARRY = /Wire's saga Carry dispatches to Wire, which SqlitePersistence keeps/ unless defined?(FORGETFUL_CARRY)
   SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter") unless defined?(SQLITE_ADAPTER)
 
   def load_wire(registry)

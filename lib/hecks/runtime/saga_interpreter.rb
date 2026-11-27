@@ -14,7 +14,7 @@ require_relative "outbox"
 
 module Hecks
   module Runtime
-    # Runs one domain's declared process managers against a just-emitted
+    # Runs one domain's declared sagas against a just-emitted
     # event, checkpointing each transition durably before its dispatches run.
     class SagaInterpreter
       include Correlation
@@ -102,7 +102,7 @@ module Hecks
       attr_reader :registry
 
       # @param registry [Runtime::Registry] the booted registry whose declared
-      #   process managers and saga persistence this interpreter runs against
+      #   sagas and saga persistence this interpreter runs against
       # @param dispatcher [Runtime::Dispatcher] the dispatcher a saga leg's own dispatch
       #   re-enters through
       def initialize(registry, dispatcher:)
@@ -110,14 +110,14 @@ module Hecks
         @dispatcher = dispatcher
       end
 
-      # Runs the declared process managers against `event`: begins, advances or ends each matching
-      # saga instance. A process manager hears an event by its name from any loaded bluebook, as a
+      # Runs the declared sagas against `event`: begins, advances or ends each matching
+      # saga instance. A saga hears an event by its name from any loaded bluebook, as a
       # policy does: the emitting domain's own run first, then the others' in load order (C10.2),
       # each in its own bluebook, whose checkpoints and dispatches are its own.
       #
       # @param event [Runtime::Event] the just-emitted event to react to
       # @param domain [String, Symbol] the domain that emitted the event
-      # @param only [Bluebook::Saga, nil] one process manager to run, not all loaded
+      # @param only [Bluebook::Saga, nil] one saga to run, not all loaded
       # @param home [String, Symbol, nil] the bluebook declaring `only`; the emitting one when nil
       # @return [void]
       def advance(event, domain, only: nil, home: nil)
@@ -148,7 +148,7 @@ module Hecks
 
       private
 
-      # Each process manager that may hear an event the domain emitted, with the bluebook that
+      # Each saga that may hear an event the domain emitted, with the bluebook that
       # declares it: the emitting domain's own first, then the others' in load order.
       def hearers(domain, only, home)
         return [[only, (home || domain).to_s]] if only

@@ -5,7 +5,7 @@ module Hecks
         # Groups a bluebook's aggregates in the modules it declares (ADR 0163). `domain_module
         # "Deliver" do … end` opens a block whose `aggregate` words are recorded under the module;
         # the module changes no aggregate, it names the task each one belongs to. Policies, read
-        # models and process managers inside the block are the bluebook's own, as they are outside
+        # models and sagas inside the block are the bluebook's own, as they are outside
         # it.
         module Modules
           # Opens the module `name` and evaluates its body; a module of that name that an earlier

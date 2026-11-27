@@ -18,7 +18,7 @@ module Hecks
 
         private
 
-        # A domain with policies or process managers on an adapter with no outbox refuses to boot,
+        # A domain with policies or sagas on an adapter with no outbox refuses to boot,
         # unless its hecksagon sets `inline_reactions true` (ADR 0182): a crash between a commit and
         # its reaction would lose the reaction. Memory and the other outbox adapters pass.
         def refuse_undurable_outbox!(hecksagon)
@@ -28,7 +28,7 @@ module Hecks
           return unless bind
 
           raise WiringError,
-                "#{hecksagon.domain} declares policies or process managers, but its persistence adapter " \
+                "#{hecksagon.domain} declares policies or sagas, but its persistence adapter " \
                 "(#{bind.adapter}) has no outbox, so a crash would lose its reactions — bind Postgres, " \
                 "Sqlite or Memory, or write `inline_reactions true` in its hecksagon to accept that"
         end
@@ -46,7 +46,7 @@ module Hecks
           bind
         end
 
-        # A domain with policies/a process_manager but no outbox on its bound adapter
+        # A domain with policies or a saga but no outbox on its bound adapter
         # (`AppendOnly#outbox?`) runs reactions inline — lost on a crash between a
         # commit and its reaction. A warning, not a refusal: Memory has an in-process
         # outbox, so dev/test stays quiet, but file/remote adapters need this to be loud.
@@ -115,10 +115,10 @@ module Hecks
           return if undurable.empty? || memory_only?(hecksagon.domain)
 
           names = undurable.map(&:name).join(", ")
-          warn "[hecks] #{hecksagon.domain} declares process_manager(s) #{names} but its resolved " \
+          warn "[hecks] #{hecksagon.domain} declares saga(s) #{names} but its resolved " \
                "persistence adapter has no save_saga — saga state advances correctly in-process " \
                "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
-               "Bind this domain to an adapter that implements save_saga if this process_manager " \
+               "Bind this domain to an adapter that implements save_saga if this saga " \
                "must survive a crash.#{kept_saga_note(hecksagon.domain, undurable)}"
         end
 
@@ -134,7 +134,7 @@ module Hecks
           false
         end
 
-        # The process managers whose checkpoints no store keeps: each is held by its starting
+        # The sagas whose checkpoints no store keeps: each is held by its starting
         # aggregate's store or by the domain's, and either may be the null store.
         def undurable_sagas(domain)
           sagas = bluebook(domain)&.sagas || []

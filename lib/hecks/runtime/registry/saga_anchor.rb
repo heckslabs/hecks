@@ -1,16 +1,16 @@
 module Hecks
   module Runtime
     class Registry
-      # Which aggregate's store holds a process manager's checkpoints: the one aggregate whose
-      # command emits the event the process manager starts on, when the hecksagon of the bluebook
+      # Which aggregate's store holds a saga's checkpoints: the one aggregate whose
+      # command emits the event the saga starts on, when the hecksagon of the bluebook
       # that declares that aggregate binds it on its own. The aggregate is the domain's own, or,
       # when the domain declares no such event, one of a bluebook it is loaded with: a process
       # manager that starts on an attached bluebook's event is kept with that bluebook's record. A
-      # process manager with no such aggregate is held by the domain's store. Mixed into
+      # saga with no such aggregate is held by the domain's store. Mixed into
       # {SagaPersistence}.
       module SagaAnchor
-        # @param domain [String, Symbol] the domain declaring the process manager
-        # @param process_manager [Bluebook::Saga, String] the process manager or its name
+        # @param domain [String, Symbol] the domain declaring the saga
+        # @param process_manager [Bluebook::Saga, String] the saga or its name
         # @return [Bluebook::Aggregate, nil] the starting aggregate with a bind of its own, or nil
         def saga_anchor(domain, process_manager)
           declared = declared_process_manager(domain, process_manager) or return nil
@@ -33,7 +33,7 @@ module Hecks
 
         private
 
-        # Every process manager of the domain whose store is not the domain's own, by name.
+        # Every saga of the domain whose store is not the domain's own, by name.
         def routed_sagas(domain)
           home = saga_persistence(domain)
           stores = sagas_of(domain).to_h { |declared| [declared.name, saga_persistence(domain, declared)] }
@@ -49,7 +49,7 @@ module Hecks
         end
 
         # The aggregates that emit an event: the domain's own, else those of the other loaded
-        # bluebooks, since a process manager hears an event by its name from any of them.
+        # bluebooks, since a saga hears an event by its name from any of them.
         def starting_aggregates(domain, event_name)
           return [] if event_name.empty?
 

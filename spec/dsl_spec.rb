@@ -936,11 +936,11 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    def build_ref_amount_bluebook(domain_name, &process_manager_block)
+    def build_ref_amount_bluebook(domain_name, &saga_block)
       thing = ref_amount_declaration
       build_bluebook(domain_name) do
         instance_eval(&thing)
-        process_manager("Broken", &process_manager_block)
+        saga("Broken", &saga_block)
       end
     end
 
@@ -1258,10 +1258,10 @@ RSpec.describe "the DSL surface" do
     end
 
     # The checkout saga declared with two `ends_on` lines, so it ends on either.
-    def several_endings_process_manager
+    def several_endings_saga
       transition = checkout_transition
       build_bluebook("Converse") do
-        process_manager "Checkout" do
+        saga "Checkout" do
           correlates_by :"order.id"
           starts_on "OrderPlaced"
           ends_on   "OrderCompleted"
@@ -1271,10 +1271,12 @@ RSpec.describe "the DSL surface" do
       end.sagas.first
     end
 
-    def checkout_process_manager
+    # The checkout saga spelled with `word`: the live `saga`, or `process_manager`, the spelling
+    # it keeps as its `was:`.
+    def checkout_spelled(word)
       transition = checkout_transition
       build_bluebook("Converse") do
-        process_manager "Checkout" do
+        send(word, "Checkout") do
           correlates_by :"order.id"
           starts_on "OrderPlaced"
           ends_on   "OrderCompleted"
@@ -1283,8 +1285,21 @@ RSpec.describe "the DSL surface" do
       end.sagas.first
     end
 
-    it "process_manager declares a correlated conversation", :aggregate_failures do
-      checkout = checkout_process_manager
+    def checkout_saga = checkout_spelled(:saga)
+
+    it "process_manager is gone — saga is the word now (ADR 0180)" do
+      expect { checkout_spelled(:process_manager) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, "process_manager is gone — saga is the word now")
+    end
+
+    it "process_manager still answers under shadow-parsing, building the same saga" do
+      frozen = Hecks::Bluebook::MetaValidator.while_shadow_parsing { checkout_spelled(:process_manager) }
+
+      expect(frozen.to_h).to eq(checkout_saga.to_h)
+    end
+
+    it "saga declares a correlated conversation", :aggregate_failures do
+      checkout = checkout_saga
 
       expect([checkout.correlates_by, checkout.starts_on]).to eq([:"order.id", "OrderPlaced"])
       # `correlates_by` must cross the wire as the same bare word Symbol
@@ -1293,30 +1308,30 @@ RSpec.describe "the DSL surface" do
       expect(checkout.to_h[:correlates_by]).to eq("order.id")
     end
 
-    it "process_manager derives its states from the transitions that name them" do
+    it "saga derives its states from the transitions that name them" do
       # States are derived from the transitions that name them, first-seen
       # order — the same reading `Behaviour::Lifecycle#states` gives an
       # aggregate's own field.
-      expect(checkout_process_manager.states).to eq(["awaiting_payment", "paid"])
+      expect(checkout_saga.states).to eq(["awaiting_payment", "paid"])
     end
 
-    it "process_manager with one ends_on ends on that event alone" do
-      expect(checkout_process_manager.ending_events).to eq(["OrderCompleted"])
+    it "saga with one ends_on ends on that event alone" do
+      expect(checkout_saga.ending_events).to eq(["OrderCompleted"])
     end
 
-    it "process_manager with several ends_on ends on any of them, in declaration order" do
-      expect(several_endings_process_manager.ending_events).to eq(["OrderCompleted", "OrderCancelled"])
+    it "saga with several ends_on ends on any of them, in declaration order" do
+      expect(several_endings_saga.ending_events).to eq(["OrderCompleted", "OrderCancelled"])
     end
 
-    it "process_manager with several ends_on keeps the first as ends_on" do
-      expect(several_endings_process_manager.ends_on).to eq("OrderCompleted")
+    it "saga with several ends_on keeps the first as ends_on" do
+      expect(several_endings_saga.ends_on).to eq("OrderCompleted")
     end
 
     # The checkout saga with a stage map: each stage names the command that resumes it.
-    def resumable_process_manager
+    def resumable_saga
       transition = checkout_transition
       build_bluebook("Converse") do
-        process_manager "Checkout" do
+        saga "Checkout" do
           correlates_by :"order.id"
           starts_on "OrderPlaced"
           resumes "gated=GateRun.Gate"
@@ -1326,34 +1341,34 @@ RSpec.describe "the DSL surface" do
       end.sagas.first
     end
 
-    it "process_manager carries its stage map in declaration order" do
-      expect(resumable_process_manager.resumes).to eq(["gated=GateRun.Gate", "checking=ConformanceRun.CheckShapeLedger"])
+    it "saga carries its stage map in declaration order" do
+      expect(resumable_saga.resumes).to eq(["gated=GateRun.Gate", "checking=ConformanceRun.CheckShapeLedger"])
     end
 
-    it "process_manager without resumes carries an empty stage map" do
-      expect(checkout_process_manager.resumes).to eq([])
+    it "saga without resumes carries an empty stage map" do
+      expect(checkout_saga.resumes).to eq([])
     end
 
-    it "process_manager keeps what a transition dispatches", :aggregate_failures do
-      handler = checkout_process_manager.handler_for("PaymentAuthorized")
+    it "saga keeps what a transition dispatches", :aggregate_failures do
+      handler = checkout_saga.handler_for("PaymentAuthorized")
 
       expect([handler.from_state, handler.to_state]).to eq(["awaiting_payment", "paid"])
       expect(handler.dispatches.first.to_h)
         .to eq({ command_name: "Order.Confirm", with_spec: [["order", ":order_id"]], compensates: nil })
     end
 
-    # A process manager built straight from the IR class can carry a nil
+    # A saga built straight from the IR class can carry a nil
     # `correlates_by`, even though the DSL itself always refuses to mint
     # one without it; `to_h` must read back `nil`, not the ambiguous `""`.
-    it "a process manager's absent correlates_by survives to_h as nil, not an empty string" do
+    it "a saga's absent correlates_by survives to_h as nil, not an empty string" do
       expect(Hecks::Bluebook::Saga.new(name: "Untethered").to_h[:correlates_by]).to be_nil
     end
 
-    # Builds a process manager that has already declared its correlation and start, then runs
+    # Builds a saga that has already declared its correlation and start, then runs
     # the block inside it, expecting the declaration to be refused.
     def expect_process_manager_refusal(message, &body)
       expect_refusal(:bluebook, "Broken", message, StandardError) do
-        process_manager("Broken") do
+        saga("Broken") do
           correlates_by :"id.value"
           starts_on "Started"
           instance_eval(&body) if body
@@ -1361,30 +1376,30 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    it "process_manager refuses a machine with no transitions at all" do
+    it "saga refuses a machine with no transitions at all" do
       expect_process_manager_refusal(/declares no transitions/)
     end
 
     # States are derived from the transitions that name them, so this
     # isn't a transition through an undeclared state — it's a transition
     # naming no from: at all, which no admission check would ever match.
-    it "process_manager refuses a transition naming no from: — it would match no instance ever" do
+    it "saga refuses a transition naming no from: — it would match no instance ever" do
       expect_process_manager_refusal(/names no from:/) { transition("Next" => "b") { dispatch X::Y } }
     end
 
     # A leg is selected by (event, current state); two from different
     # states are fine, but two from the same state would leave the
     # runtime picking by declaration order, silently.
-    it "process_manager refuses two transitions on one event from the same state — the leg would be ambiguous" do
+    it "saga refuses two transitions on one event from the same state — the leg would be ambiguous" do
       expect_process_manager_refusal(/declares two transitions on "Next" from "a"/) do
         transition "Next" => "b", from: "a"
         transition "Next" => "c", from: ["z", "a"]
       end
     end
 
-    def relay_process_manager
+    def relay_saga
       build_bluebook("TwoLegs") do
-        process_manager "Relay" do
+        saga "Relay" do
           correlates_by :"id.value"
           starts_on "Started"
           transition "Next" => "b", from: "a"
@@ -1393,18 +1408,18 @@ RSpec.describe "the DSL surface" do
       end.sagas.first
     end
 
-    it "process_manager accepts two transitions on one event from different states", :aggregate_failures do
-      pm = relay_process_manager
+    it "saga accepts two transitions on one event from different states", :aggregate_failures do
+      pm = relay_saga
 
       expect([pm.handler_for("Next", "a").to_state, pm.handler_for("Next", "b").to_state]).to eq(%w[b c])
       expect(pm.handler_for("Next", "c")).to be_nil
     end
 
-    def expect_ref_amount_refusal(domain_name, message, &process_manager_block)
-      expect { build_ref_amount_bluebook(domain_name, &process_manager_block) }.to raise_error(message)
+    def expect_ref_amount_refusal(domain_name, message, &saga_block)
+      expect { build_ref_amount_bluebook(domain_name, &saga_block) }.to raise_error(message)
     end
 
-    it "process_manager refuses correlates_by that resolves to a value object, not a scalar" do
+    it "saga refuses correlates_by that resolves to a value object, not a scalar" do
       # `ref.amount` reaches a real field, but that field's type (`Amount`)
       # is itself a value object, not a scalar — the same one-VO-short
       # mistake `identified_by` already refuses on the aggregate side.
@@ -1415,7 +1430,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    it "process_manager refuses correlates_by naming a field no emitting command declares that shape for" do
+    it "saga refuses correlates_by naming a field no emitting command declares that shape for" do
       expect_ref_amount_refusal("StrandedKey", /Ref has no field "currency"/) do
         correlates_by :"ref.currency"
         starts_on "Started"
@@ -1423,7 +1438,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    # The command that takes a sighting's code and emits the event the process manager starts on.
+    # The command that takes a sighting's code and emits the event the saga starts on.
     def raise_with_code
       proc do
         attribute :code, Code
@@ -1444,11 +1459,11 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    def bare_identity_process_manager
+    def bare_identity_saga
       sighting = sighting_declaration
       build_bluebook("BareIdentity") do
         instance_eval(&sighting)
-        process_manager("Keyed") do
+        saga("Keyed") do
           correlates_by Sighting
           starts_on "Started"
           transition("Started" => "b", from: "a") { dispatch Sighting::Raise }
@@ -1457,11 +1472,11 @@ RSpec.describe "the DSL surface" do
     end
 
     # A bare aggregate name (`correlates_by Thing`) means that aggregate's identity.
-    def bare_key_process_manager(domain_name, &declaration)
+    def bare_key_saga(domain_name, &declaration)
       thing = ref_amount_declaration
       build_bluebook(domain_name) do
         instance_eval(&thing)
-        process_manager("Keyed") do
+        saga("Keyed") do
           instance_eval(&declaration)
           starts_on "Started"
           transition("Started" => "b", from: "a") { dispatch Thing::Start }
@@ -1469,28 +1484,28 @@ RSpec.describe "the DSL surface" do
       end.sagas.first
     end
 
-    it "process_manager expands a bare aggregate name to its identity field", :aggregate_failures do
-      keyed = bare_key_process_manager("BareAggregate") { correlates_by Thing }
+    it "saga expands a bare aggregate name to its identity field", :aggregate_failures do
+      keyed = bare_key_saga("BareAggregate") { correlates_by Thing }
 
       expect(keyed.correlates_by).to eq(:"Thing.id")
       expect(keyed.correlation_head).to eq(:Thing)
     end
 
-    it "process_manager expands a bare aggregate name to the identity it declares, not id" do
-      keyed = bare_identity_process_manager
+    it "saga expands a bare aggregate name to the identity it declares, not id" do
+      keyed = bare_identity_saga
 
       expect(keyed.correlates_by).to eq(:"Sighting.code")
     end
 
-    it "process_manager refuses a bare name that names no aggregate of its bluebook" do
+    it "saga refuses a bare name that names no aggregate of its bluebook" do
       expect do
-        bare_key_process_manager("BareValueObject") { correlates_by ThingId }
-      end.to raise_error(Hecks::Bluebook::DSL::ProcessManagerBuilder::InvalidSaga,
+        bare_key_saga("BareValueObject") { correlates_by ThingId }
+      end.to raise_error(Hecks::Bluebook::DSL::SagaBuilder::InvalidSaga,
                          /Keyed correlates_by ThingId, which names a whole field/)
     end
 
-    it "process_manager leaves a dotted correlates_by unchanged" do
-      keyed = bare_key_process_manager("DottedKey") { correlates_by "Thing.ref.amount" }
+    it "saga leaves a dotted correlates_by unchanged" do
+      keyed = bare_key_saga("DottedKey") { correlates_by "Thing.ref.amount" }
 
       expect(keyed.correlates_by).to eq(:"Thing.ref.amount")
     end

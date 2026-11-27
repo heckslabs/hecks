@@ -14,7 +14,7 @@ RSpec.describe "the language's own definition" do
 
   def language_shapes
     ["Bluebook", "Aggregate", "Command", "ValueObject", "Query", "Entity",
-     "Policy", "ProcessManager", "ReadModel", "Vocabulary"]
+     "Policy", "Saga", "ReadModel", "Vocabulary"]
   end
 
   it "declares the shapes a bluebook is made of", :aggregate_failures do

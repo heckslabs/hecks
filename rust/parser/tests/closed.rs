@@ -45,6 +45,7 @@ const REFUSED: &[(&str, usize, &str)] = &[
         ("hecksagon_ruby_method.hecksagon", 3, "'system' is a Ruby method, not a declaration word — Ruby would run it"),
         ("loop_each.bluebook", 4, "'%w[a b].each { |w| attribute w.to_sym, String }' is not a word call — every line must be a keyword call or `end`"),
         ("loop_times.bluebook", 4, "'3.times { attribute :x, String }' is not a word call — every line must be a keyword call or `end`"),
+        ("retired_process_manager.bluebook", 5, "process_manager is gone — saga is the word now"),
         ("rule_assignment.bluebook", 4, "`=` assigns; a rule compares with `==`"),
         ("rule_backticks.bluebook", 4, "a backtick runs a shell command"),
         ("rule_block_call.bluebook", 4, "`then` is Ruby, not a rule: the rule language has no such call"),
@@ -183,6 +184,21 @@ fn the_admitted_fixtures_come_back_line_for_line() {
         assert!(output.status.success(), "{name}: {}", stderr(&output));
         assert_eq!(text.lines().count(), source.lines().count(), "{name}");
     }
+}
+
+#[test]
+fn frozen_era_text_keeps_the_process_manager_spelling_live_source_refuses() {
+    // ADR 0180: the gem reads text held from an earlier era with `--frozen` while it
+    // shadow-parses, so a saga spelled `process_manager` there still comes back line for line.
+    let dir = crate_dir().join("tests/fixtures/closed/refused");
+    let name = "retired_process_manager.bluebook";
+    let output = closed(&["--frozen", name], &dir);
+    let source = std::fs::read_to_string(dir.join(name)).unwrap();
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout).lines().count(),
+        source.lines().count()
+    );
 }
 
 /// Every declaration file the repository tracks, `bluebook.bluebook` first, leaving out the escape
