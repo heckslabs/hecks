@@ -42,13 +42,6 @@
 # `everyday` names the commands and queries the help lists first, under its own heading, each
 # spelled as the call to type, for anyone the aggregate is not hidden from (ADR 0163).
 #
-# `caller_roles` names the roles whoever runs this launcher holds (ADR 0216): a line that states no
-# `--as <Role>` dispatches as the first of them its command declares, and a command none of them
-# names refuses the line as a caller who stated no role. `System` is listed because this launcher's
-# own adapters and agents run the pipeline's system steps as lines (a ticker's tick, a landing
-# fault, a batch's commits). The owner's roles (`Release owner`, `Governance administrator`) are
-# not: a line states them with `--as`.
-#
 # **test_scope** `suite_runs_in` names where the full suite runs ("ci": a local run of it is refused by name).
 # A local `run_spec_files!` or `run_impacted_specs!` call runs as many spec files as it is given.
 #

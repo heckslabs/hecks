@@ -40,9 +40,6 @@ Hecks.bluebook "Hecksagon" do
     # A bluebook this hecksagon attaches: `value` is its name, `source` is `gem` for a bluebook the
     # gem carries (a framework member such as Governance, or a language bluebook such as Deploy)
     # or `vendor` for a package vendored into the consuming project, not shipped in hecks's lib/.
-    # `acts_as` names the role the attached bluebook's policies run their reactions as when a policy
-    # declares none (ADR 0216): a vendored package is pinned by its lock, so the hecksagon that
-    # attaches it says what its reactions act as.
     value_object "Attachment" do
       attribute :value,   String
       attribute :source,  String, default: "gem"
