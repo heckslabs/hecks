@@ -355,9 +355,11 @@ pub fn dispatch_start(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Check {
-                        run: Some(args.run.clone()),
-                        booking: Some(args.booking.clone()),
+                    build: Box::new(|| {
+                        Ok(Check {
+                            run: Some(args.run.clone()),
+                            booking: Some(args.booking.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -366,9 +368,11 @@ pub fn dispatch_start(
                 let __hydrate_id: String = args.run.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Check {
-                        run: Some(args.run.clone()),
-                        booking: Some(args.booking.clone()),
+                    build: Box::new(|| {
+                        Ok(Check {
+                            run: Some(args.run.clone()),
+                            booking: Some(args.booking.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

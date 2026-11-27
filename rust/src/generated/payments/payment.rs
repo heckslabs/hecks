@@ -1114,18 +1114,20 @@ pub fn dispatch_initiate(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Payment {
-                        reference: Some(args.reference.clone()),
-                        processor: Some(args.processor.clone()),
-                        payment_type: Some(args.payment_type.clone()),
-                        amount: Some(args.amount.clone()),
-                        client: Some(args.client.clone()),
-                        transaction_id: None,
-                        failure_reason: None,
-                        lapse_reason: Some(FailureReason {
-                            value: "checkout_expired".to_string(),
-                        }),
-                        status: "pending".to_string(),
+                    build: Box::new(|| {
+                        Ok(Payment {
+                            reference: Some(args.reference.clone()),
+                            processor: Some(args.processor.clone()),
+                            payment_type: Some(args.payment_type.clone()),
+                            amount: Some(args.amount.clone()),
+                            client: Some(args.client.clone()),
+                            transaction_id: None,
+                            failure_reason: None,
+                            lapse_reason: Some(FailureReason {
+                                value: "checkout_expired".to_string(),
+                            }),
+                            status: "pending".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

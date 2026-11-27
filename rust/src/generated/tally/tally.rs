@@ -575,15 +575,17 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.tag.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Tally {
-                        tag: Some(args.tag.clone()),
-                        count: Some(Count { value: 0 }),
-                        weight: Some(Weight { value: 0.0 }),
-                        label: Some(Label {
-                            value: "".to_string(),
-                        }),
-                        limit: None,
-                        tags: vec![],
+                    build: Box::new(|| {
+                        Ok(Tally {
+                            tag: Some(args.tag.clone()),
+                            count: Some(Count { value: 0 }),
+                            weight: Some(Weight { value: 0.0 }),
+                            label: Some(Label {
+                                value: "".to_string(),
+                            }),
+                            limit: None,
+                            tags: vec![],
+                        })
                     }),
                     state_independent: false,
                 }

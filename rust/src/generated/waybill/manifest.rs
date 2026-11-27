@@ -1040,9 +1040,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Manifest {
-                        reference: Some(args.reference.clone()),
-                        slots: vec![],
+                    build: Box::new(|| {
+                        Ok(Manifest {
+                            reference: Some(args.reference.clone()),
+                            slots: vec![],
+                        })
                     }),
                     state_independent: false,
                 }

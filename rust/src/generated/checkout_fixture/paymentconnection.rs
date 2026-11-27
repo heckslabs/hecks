@@ -806,13 +806,15 @@ pub fn dispatch_connect(
                 let __hydrate_id: String = args.slug.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| PaymentConnection {
-                        slug: Some(args.slug.clone()),
-                        processor: Some(args.processor.clone()),
-                        account_ref: Some(args.account_ref.clone()),
-                        mode: Some(args.mode.clone()),
-                        display_name: Some(args.display_name.clone()),
-                        status: "connected".to_string(),
+                    build: Box::new(|| {
+                        Ok(PaymentConnection {
+                            slug: Some(args.slug.clone()),
+                            processor: Some(args.processor.clone()),
+                            account_ref: Some(args.account_ref.clone()),
+                            mode: Some(args.mode.clone()),
+                            display_name: Some(args.display_name.clone()),
+                            status: "connected".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

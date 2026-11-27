@@ -361,10 +361,12 @@ pub fn dispatch_install(
                 let __hydrate_id: String = args.tag.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Gauge {
-                        tag: Some(args.tag.clone()),
-                        current: Some(Reading { value: 0 }),
-                        previous: Some(Reading { value: 0 }),
+                    build: Box::new(|| {
+                        Ok(Gauge {
+                            tag: Some(args.tag.clone()),
+                            current: Some(Reading { value: 0 }),
+                            previous: Some(Reading { value: 0 }),
+                        })
                     }),
                     state_independent: false,
                 }

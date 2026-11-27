@@ -1123,9 +1123,11 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Kiosk {
-                        code: Some(args.code.clone()),
-                        lines: vec![],
+                    build: Box::new(|| {
+                        Ok(Kiosk {
+                            code: Some(args.code.clone()),
+                            lines: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -1134,9 +1136,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.code.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Kiosk {
-                        code: Some(args.code.clone()),
-                        lines: vec![],
+                    build: Box::new(|| {
+                        Ok(Kiosk {
+                            code: Some(args.code.clone()),
+                            lines: vec![],
+                        })
                     }),
                     state_independent: true,
                 }

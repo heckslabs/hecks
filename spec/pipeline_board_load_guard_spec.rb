@@ -81,6 +81,9 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LoadGuard do
   end
 
   it "builds a whole state on a loaded machine starting no program but gh", :aggregate_failures do
+    # The board's rules are its bluebook, described once a process and kept: a boot cost that may
+    # start the parser, not a reading. Describe them first, so the example holds in any order.
+    Hecks::Adapters::PipelineBoard::Rules.stale_statuses
     stand(39.0)
     state = nil
     expect(children_started { state = board.state }.map(&:first).uniq - ["gh"]).to be_empty

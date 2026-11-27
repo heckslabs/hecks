@@ -425,8 +425,10 @@ pub fn dispatch_cancel(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Cancellation {
-                        r#ref: Some(args.r#ref.clone()),
+                    build: Box::new(|| {
+                        Ok(Cancellation {
+                            r#ref: Some(args.r#ref.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -435,8 +437,10 @@ pub fn dispatch_cancel(
                 let __hydrate_id: String = args.r#ref.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Cancellation {
-                        r#ref: Some(args.r#ref.clone()),
+                    build: Box::new(|| {
+                        Ok(Cancellation {
+                            r#ref: Some(args.r#ref.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

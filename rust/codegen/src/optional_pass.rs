@@ -1,23 +1,18 @@
-//! Marks value-object and entity fields `optional` when an `append` mutation binds them to an
-//! optional command argument, so the generated struct field is an `Option`.
+//! Marks entity fields `optional` when an `append` mutation binds them to an optional command
+//! argument, so the generated struct field is an `Option` that can hold the absent argument.
 //!
-//! Resolves the appended element as `Hecks::RustBuild::AppendOptionals` does in Ruby: a local
-//! entity wins over any value object of the same name, a local value object over a domain-wide one,
-//! and an `append` into another aggregate's value object marks that value object.
-
-use std::collections::HashMap;
+//! Only an entity is marked. Ruby builds an appended entity's fields as plain state, so an absent
+//! optional argument leaves its field `nil`. An appended value object is built through
+//! `Value.build`, which refuses a required field left `nil` with `TypeMismatch`; its declared shape
+//! stands, and the generated append refuses the absent argument instead (`append_field_rhs`). The
+//! appended element resolves as `mutations::append_element` resolves it: a local entity first.
 
 use crate::json::Json;
 
-/// Where an appended element lives: its aggregate's index, then its own index in that aggregate.
-#[derive(Clone, Copy)]
-enum Element {
-    ValueObject(usize, usize),
-    Entity(usize, usize),
-}
-
+/// A field to mark: the aggregate's index, the entity's index in it, and the field's name.
 struct Mark {
-    element: Element,
+    aggregate: usize,
+    entity: usize,
     field: String,
 }
 
@@ -34,50 +29,11 @@ fn name_of(node: &Json) -> Option<&str> {
     node.get("name").and_then(Json::as_str)
 }
 
-// Every value object in the domain by name; the last one declared wins, as a Ruby `to_h` does.
-fn domain_wide_value_objects(aggregates: &[Json]) -> HashMap<&str, (usize, usize)> {
-    let mut by_name = HashMap::new();
-    for (a, aggregate) in aggregates.iter().enumerate() {
-        for (v, value_object) in list(aggregate, "value_objects").iter().enumerate() {
-            if let Some(name) = name_of(value_object) {
-                by_name.insert(name, (a, v));
-            }
-        }
-    }
-    by_name
-}
-
-fn find_element(
-    aggregates: &[Json],
-    a: usize,
-    domain_wide: &HashMap<&str, (usize, usize)>,
-    type_name: &str,
-) -> Option<Element> {
-    let aggregate = &aggregates[a];
-    if let Some(e) = list(aggregate, "entities")
-        .iter()
-        .position(|entity| name_of(entity) == Some(type_name))
-    {
-        return Some(Element::Entity(a, e));
-    }
-    if let Some(v) = list(aggregate, "value_objects")
-        .iter()
-        .rposition(|value_object| name_of(value_object) == Some(type_name))
-    {
-        return Some(Element::ValueObject(a, v));
-    }
-    domain_wide
-        .get(type_name)
-        .map(|&(owner, v)| Element::ValueObject(owner, v))
-}
-
-// Read first, write after: the commands are read while the elements they mark are mutated.
+// Read first, write after: the commands are read while the entities they mark are mutated.
 fn collect_marks(ir: &Json) -> Vec<Mark> {
-    let aggregates = list(ir, "aggregates");
-    let domain_wide = domain_wide_value_objects(aggregates);
     let mut marks = Vec::new();
 
-    for (a, aggregate) in aggregates.iter().enumerate() {
+    for (a, aggregate) in list(ir, "aggregates").iter().enumerate() {
         for attribute in list(aggregate, "attributes") {
             let (Some(attr_name), Some(type_name)) = (
                 name_of(attribute),
@@ -85,12 +41,19 @@ fn collect_marks(ir: &Json) -> Vec<Mark> {
             ) else {
                 continue;
             };
-            let Some(element) = find_element(aggregates, a, &domain_wide, type_name) else {
+            let Some(entity) = list(aggregate, "entities")
+                .iter()
+                .position(|entity| name_of(entity) == Some(type_name))
+            else {
                 continue;
             };
 
             for field in collect_fields_to_mark(aggregate, attr_name) {
-                marks.push(Mark { element, field });
+                marks.push(Mark {
+                    aggregate: a,
+                    entity,
+                    field,
+                });
             }
         }
     }
@@ -141,17 +104,12 @@ fn apply_marks(ir: &mut Json, marks: &[Mark]) {
     };
 
     for mark in marks {
-        let (a, key, index) = match mark.element {
-            Element::ValueObject(a, v) => (a, "value_objects", v),
-            Element::Entity(a, e) => (a, "entities", e),
-        };
-        let element = aggregates
-            .get_mut(a)
-            .and_then(|aggregate| aggregate.get_mut(key))
+        let Some(attrs) = aggregates
+            .get_mut(mark.aggregate)
+            .and_then(|aggregate| aggregate.get_mut("entities"))
             .and_then(Json::as_array_mut)
-            .and_then(|elements| elements.get_mut(index));
-        let Some(attrs) = element
-            .and_then(|element| element.get_mut("attributes"))
+            .and_then(|entities| entities.get_mut(mark.entity))
+            .and_then(|entity| entity.get_mut("attributes"))
             .and_then(Json::as_array_mut)
         else {
             continue;
@@ -216,23 +174,6 @@ mod tests {
         amount.get("optional").unwrap().as_bool()
     }
 
-    // The input and expectation `spec/rust_build_generation_helpers_spec.rb` holds the Ruby pass to,
-    // recorded from it. Read at test time, not compiled in: an installed gem has no `spec/`.
-    #[test]
-    fn marks_what_the_ruby_pass_marks_on_the_shared_fixture() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../spec/fixtures/append_optionals");
-        let read = |name: &str| {
-            Json::parse(&std::fs::read_to_string(dir.join(name)).expect("reads the fixture"))
-                .expect("parses")
-        };
-
-        let mut ir = read("input.json");
-        run(&mut ir);
-
-        assert_eq!(ir, read("expected.json"));
-    }
-
     // Banking's `Account.Credit` shape: entity list `ledger`, one `append` binding `amount` from
     // an optional argument and `direction` from a literal Hash.
     #[test]
@@ -243,8 +184,20 @@ mod tests {
         assert!(amount_optional(&ir, 0, "entities"));
     }
 
+    // `Bluebook.Normalise`'s shape: an optional argument appended into a value object whose field
+    // is required. Ruby refuses the absent argument when it builds the value object, so the field
+    // keeps its declared shape.
     #[test]
-    fn marks_a_value_object_another_aggregate_declares() {
+    fn leaves_a_value_object_field_as_declared() {
+        let local = aggregate_with("", &element(false), "LedgerEntry");
+        let mut ir = domain(&[local]);
+        run(&mut ir);
+
+        assert!(!amount_optional(&ir, 0, "value_objects"));
+    }
+
+    #[test]
+    fn leaves_a_value_object_another_aggregate_declares_as_declared() {
         let owner =
             r#"{"attributes": [], "value_objects": [LEDGER], "entities": [], "commands": []}"#
                 .replace("LEDGER", &element(false));
@@ -252,10 +205,7 @@ mod tests {
         let mut ir = domain(&[appender, owner]);
         run(&mut ir);
 
-        assert!(
-            amount_optional(&ir, 1, "value_objects"),
-            "the value object lives in the second aggregate"
-        );
+        assert!(!amount_optional(&ir, 1, "value_objects"));
     }
 
     #[test]

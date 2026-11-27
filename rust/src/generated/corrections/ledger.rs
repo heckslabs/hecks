@@ -864,10 +864,12 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Ledger {
-                        reference: Some(args.reference.clone()),
-                        entries: vec![],
-                        emitted_entry_recorded: false,
+                    build: Box::new(|| {
+                        Ok(Ledger {
+                            reference: Some(args.reference.clone()),
+                            entries: vec![],
+                            emitted_entry_recorded: false,
+                        })
                     }),
                     state_independent: false,
                 }

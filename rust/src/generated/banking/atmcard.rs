@@ -1652,15 +1652,17 @@ pub fn dispatch_issue(
                 let __hydrate_id: String = args.serial.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ATMCard {
-                        account: Some(args.account.clone()),
-                        serial: Some(args.serial.clone()),
-                        nickname: None,
-                        daily_fee: Some(args.daily_fee.clone()),
-                        withdrawals: vec![],
-                        account_status: None,
-                        account_customer_status: None,
-                        status: "issued".to_string(),
+                    build: Box::new(|| {
+                        Ok(ATMCard {
+                            account: Some(args.account.clone()),
+                            serial: Some(args.serial.clone()),
+                            nickname: None,
+                            daily_fee: Some(args.daily_fee.clone()),
+                            withdrawals: vec![],
+                            account_status: None,
+                            account_customer_status: None,
+                            status: "issued".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

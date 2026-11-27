@@ -174,6 +174,9 @@ pub fn parse_body(
     let mut pending_commands: Vec<(String, Option<ir::CommandFrom>, super::PendingBody)> =
         Vec::new();
     let mut pending_queries: Vec<(String, super::PendingBody)> = Vec::new();
+    // An inline `one_of(...)` attribute's synthesized set, installed on the owning aggregate once
+    // the piece is built (Ruby's `install_closed_sets!`), so the runtime has it to admit against.
+    let mut closed_sets: Vec<(usize, ir::ValueObject)> = Vec::new();
 
     loop {
         // Peeked before `next_line`: the grammar row still requires a block for `given`, so a
@@ -235,9 +238,14 @@ pub fn parse_body(
                     1,
                 )?);
             }
-            "attribute" => entity
-                .attributes
-                .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
+            "attribute" => {
+                let (attribute, closed_set) =
+                    super::build_attribute(file, line, "attribute", &gated.args)?;
+                entity.attributes.push(attribute);
+                if let Some(closed_set) = closed_set {
+                    closed_sets.push((line, closed_set));
+                }
+            }
             "identified_by" => {
                 if pending_identity.is_some() {
                     return Err(Diagnostic::new(
@@ -532,9 +540,118 @@ pub fn parse_body(
         &entity.commands,
     )?;
 
+    for (line, closed_set) in closed_sets {
+        install_closed_set(
+            file,
+            line,
+            name,
+            closed_set,
+            owner_value_objects,
+            identity_value_object_insert_at,
+        )?;
+    }
+
     Ok((
         entity,
         pending_bluebook_entity_givens,
         pending_entity_command_givens,
     ))
+}
+
+/// Installs a piece's synthesized closed set onto the owning aggregate, after its explicit value
+/// objects as Ruby's installer appends it. Two pieces synthesizing the same set install it once; a
+/// name the aggregate already holds with other members is refused, with Ruby's message.
+fn install_closed_set(
+    file: &str,
+    line: usize,
+    name: &str,
+    closed_set: ir::ValueObject,
+    owner_value_objects: &mut Vec<ir::ValueObject>,
+    insert_at: &mut usize,
+) -> ParseResult<()> {
+    match owner_value_objects.iter().find(|held| held.name == closed_set.name) {
+        None => {
+            let index = (*insert_at).min(owner_value_objects.len());
+            owner_value_objects.insert(index, closed_set);
+            *insert_at += 1;
+            Ok(())
+        }
+        Some(held)
+            if crate::emit::value_object_json(held)
+                == crate::emit::value_object_json(&closed_set) =>
+        {
+            Ok(())
+        }
+        Some(_) => Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{name}'s one_of synthesizes {:?}, but the aggregate already holds a different {:?} \
+                 — name the closed set's field differently",
+                closed_set.name, closed_set.name
+            ),
+        )),
+    }
+}
+
+#[cfg(test)]
+mod closed_set_tests {
+    fn parse(body: &str) -> crate::parse::ParseResult<crate::ir::Bluebook> {
+        let source = format!(
+            "Hecks.bluebook \"Probe\" do\n  aggregate \"Sweep\" do\n    attribute :notes, String\n{body}\n  end\nend\n"
+        );
+        super::super::declaration::parse_bluebook(
+            "Probe",
+            &[("probe.bluebook".to_string(), source)],
+        )
+    }
+
+    fn value_object_names(bluebook: &crate::ir::Bluebook) -> Vec<String> {
+        bluebook.aggregates[0]
+            .value_objects
+            .iter()
+            .map(|value_object| value_object.name.clone())
+            .collect()
+    }
+
+    #[test]
+    fn a_pieces_inline_one_of_installs_its_set_on_the_aggregate() {
+        let bluebook = parse(
+            "    value_object \"Note\" do\n      attribute :value, String\n    end\n    \
+             entity \"Check\" do\n      attribute :ever_surprised, one_of(\"no\", \"yes\")\n    end",
+        )
+        .expect("parses");
+        assert_eq!(value_object_names(&bluebook), ["Note", "EverSurprised"]);
+        let set = &bluebook.aggregates[0].value_objects[1];
+        assert!(set.closed_set);
+        assert_eq!(set.members.len(), 2);
+        assert_eq!(
+            bluebook.aggregates[0].entities[0].attributes[0].type_name,
+            "EverSurprised"
+        );
+    }
+
+    #[test]
+    fn two_pieces_with_the_same_set_install_it_once() {
+        let bluebook = parse(
+            "    entity \"Check\" do\n      attribute :mark, one_of(\"a\", \"b\")\n    end\n    \
+             entity \"Probe\" do\n      attribute :mark, one_of(\"a\", \"b\")\n    end",
+        )
+        .expect("parses");
+        assert_eq!(value_object_names(&bluebook), ["Mark"]);
+    }
+
+    #[test]
+    fn a_set_that_disagrees_with_one_already_held_is_refused() {
+        let refusal = parse(
+            "    entity \"Check\" do\n      attribute :mark, one_of(\"a\", \"b\")\n    end\n    \
+             entity \"Probe\" do\n      attribute :mark, one_of(\"a\", \"c\")\n    end",
+        )
+        .expect_err("refused")
+        .to_string();
+        assert!(
+            refusal.contains("Probe's one_of synthesizes \"Mark\", but the aggregate already holds a different \"Mark\""),
+            "{refusal}"
+        );
+    }
 }

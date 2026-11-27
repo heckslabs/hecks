@@ -752,17 +752,19 @@ pub fn dispatch_request(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Transfer {
-                        source: Some(args.source.clone()),
-                        destination: Some(args.destination.clone()),
-                        reference: Some(args.reference.clone()),
-                        amount: Some(args.amount.clone()),
-                        narrative: Some(args.narrative.clone()),
-                        source_account_status: None,
-                        source_customer_status: None,
-                        destination_account_status: None,
-                        destination_customer_status: None,
-                        status: "requested".to_string(),
+                    build: Box::new(|| {
+                        Ok(Transfer {
+                            source: Some(args.source.clone()),
+                            destination: Some(args.destination.clone()),
+                            reference: Some(args.reference.clone()),
+                            amount: Some(args.amount.clone()),
+                            narrative: Some(args.narrative.clone()),
+                            source_account_status: None,
+                            source_customer_status: None,
+                            destination_account_status: None,
+                            destination_customer_status: None,
+                            status: "requested".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

@@ -501,12 +501,14 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| OnboardingCase {
-                        customer: Some(args.customer.clone()),
-                        reference: Some(args.reference.clone()),
-                        account_number: Some(args.account_number.clone()),
-                        customer_status: None,
-                        status: "screening".to_string(),
+                    build: Box::new(|| {
+                        Ok(OnboardingCase {
+                            customer: Some(args.customer.clone()),
+                            reference: Some(args.reference.clone()),
+                            account_number: Some(args.account_number.clone()),
+                            customer_status: None,
+                            status: "screening".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

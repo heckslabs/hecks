@@ -580,11 +580,13 @@ pub fn dispatch_request(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Consignment {
-                        reference: Some(args.reference.clone()),
-                        number: Some(args.number.clone()),
-                        item: Some(args.item.clone()),
-                        status: "requested".to_string(),
+                    build: Box::new(|| {
+                        Ok(Consignment {
+                            reference: Some(args.reference.clone()),
+                            number: Some(args.number.clone()),
+                            item: Some(args.item.clone()),
+                            status: "requested".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

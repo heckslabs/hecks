@@ -437,9 +437,11 @@ pub fn dispatch_issue(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Referral {
-                        code: Some(args.code.clone()),
-                        member: Some(args.member.clone()),
+                    build: Box::new(|| {
+                        Ok(Referral {
+                            code: Some(args.code.clone()),
+                            member: Some(args.member.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -448,9 +450,11 @@ pub fn dispatch_issue(
                 let __hydrate_id: String = args.code.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Referral {
-                        code: Some(args.code.clone()),
-                        member: Some(args.member.clone()),
+                    build: Box::new(|| {
+                        Ok(Referral {
+                            code: Some(args.code.clone()),
+                            member: Some(args.member.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

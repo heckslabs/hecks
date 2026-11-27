@@ -323,9 +323,11 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Circle {
-                        id: Some(args.id.clone()),
-                        members: vec![],
+                    build: Box::new(|| {
+                        Ok(Circle {
+                            id: Some(args.id.clone()),
+                            members: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -334,9 +336,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.id.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Circle {
-                        id: Some(args.id.clone()),
-                        members: vec![],
+                    build: Box::new(|| {
+                        Ok(Circle {
+                            id: Some(args.id.clone()),
+                            members: vec![],
+                        })
                     }),
                     state_independent: true,
                 }

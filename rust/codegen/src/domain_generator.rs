@@ -661,7 +661,6 @@ pub fn generate(
                     puts_blank(&mut out);
                 }
 
-                let nested_identified_by = nested.get("identified_by").map_or_default(Json::each);
                 for command in nested.get("commands").map_or_default(Json::each) {
                     let nested_command_verb = format!("{nested_verb}.{}", node_name(command));
                     if let Some(reason) = commands::entity_command_skip_reason(
@@ -744,11 +743,6 @@ pub fn generate(
                             .collect::<Vec<_>>()
                             .join(", "),
                         nested_name: nested_name_str.to_string(),
-                        nested_identity_reading: nested_identified_by
-                            .iter()
-                            .map(Json::to_s)
-                            .collect::<Vec<_>>()
-                            .join(", "),
                         unrouted_supported,
                     });
                 }
@@ -986,11 +980,17 @@ pub fn generate(
 
             let creates = crate::shared::creates_owner(aggregate, command);
             let identity = mutations::identity_components(aggregate, command);
-            let identity_extra_params: Vec<String> = if creates {
-                identity.iter().filter_map(|c| c.head.clone()).collect()
+            let extra_components: Vec<&mutations::IdentityComponent> = if creates {
+                identity.iter().filter(|c| c.head.is_some()).collect()
             } else {
                 Vec::new()
             };
+            let identity_extra_params: Vec<String> = extra_components
+                .iter()
+                .filter_map(|c| c.head.clone())
+                .collect();
+            let identity_extra_paths: Vec<String> =
+                extra_components.iter().map(|c| c.path.clone()).collect();
 
             if !creates && !can_route {
                 manifest.unrouted(
@@ -1013,6 +1013,14 @@ pub fn generate(
                 args_struct,
                 creates,
                 identity_extra_params,
+                identity_extra_paths,
+                identity_reading: aggregate
+                    .get("identified_by")
+                    .map_or_default(Json::each)
+                    .iter()
+                    .map(Json::to_s)
+                    .collect::<Vec<_>>()
+                    .join(", "),
                 // `state_reference_checks` only adds entries `reference_checks` did not cover.
                 reference_checks: {
                     let mut checks =

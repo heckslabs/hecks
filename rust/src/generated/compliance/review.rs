@@ -423,10 +423,12 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Review {
-                        subject_kind: Some(args.subject_kind.clone()),
-                        subject_key: Some(args.subject_key.clone()),
-                        status: "open".to_string(),
+                    build: Box::new(|| {
+                        Ok(Review {
+                            subject_kind: Some(args.subject_kind.clone()),
+                            subject_key: Some(args.subject_key.clone()),
+                            status: "open".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -436,10 +438,12 @@ pub fn dispatch_open(
                     format!("{}:{}", args.subject_kind.value, args.subject_key.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Review {
-                        subject_kind: Some(args.subject_kind.clone()),
-                        subject_key: Some(args.subject_key.clone()),
-                        status: "open".to_string(),
+                    build: Box::new(|| {
+                        Ok(Review {
+                            subject_kind: Some(args.subject_kind.clone()),
+                            subject_key: Some(args.subject_key.clone()),
+                            status: "open".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

@@ -1836,15 +1836,17 @@ pub fn dispatch_rent(
                     format!("{}:{}", args.branch_code.value, args.box_number.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| SafeDepositBox {
-                        customer: Some(args.customer.clone()),
-                        branch_code: Some(args.branch_code.clone()),
-                        box_number: Some(args.box_number.clone()),
-                        size: Some(args.size.clone()),
-                        visits: vec![],
-                        keys: vec![],
-                        customer_status: None,
-                        status: "vacant".to_string(),
+                    build: Box::new(|| {
+                        Ok(SafeDepositBox {
+                            customer: Some(args.customer.clone()),
+                            branch_code: Some(args.branch_code.clone()),
+                            box_number: Some(args.box_number.clone()),
+                            size: Some(args.size.clone()),
+                            visits: vec![],
+                            keys: vec![],
+                            customer_status: None,
+                            status: "vacant".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

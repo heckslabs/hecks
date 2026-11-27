@@ -71,7 +71,6 @@ RSpec.describe "the Rust parser's own coverage", :io do
     # `attribute`/`emits`/`answers`/`refuses` (all reported); the rest is a parser stage of its own.
     ["a sibling grammar (world, hecksagon ports, data translation, context map) hecks-parse does not build", [
       %w[aggregate Translation], %w[answers DomainPort], %w[answers Port],
-      %w[answers_query DomainPort],
       %w[backfill TranslationAggregate],
       %w[context ContextMap], %w[context_map File],
       %w[convert TranslationAggregate], %w[data_translation File],

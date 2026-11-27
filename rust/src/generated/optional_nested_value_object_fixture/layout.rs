@@ -1150,9 +1150,11 @@ pub fn dispatch_write(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Layout {
-                        key: Some(args.key.clone()),
-                        panels: args.panels.clone(),
+                    build: Box::new(|| {
+                        Ok(Layout {
+                            key: Some(args.key.clone()),
+                            panels: args.panels.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -1161,9 +1163,11 @@ pub fn dispatch_write(
                 let __hydrate_id: String = args.key.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Layout {
-                        key: Some(args.key.clone()),
-                        panels: args.panels.clone(),
+                    build: Box::new(|| {
+                        Ok(Layout {
+                            key: Some(args.key.clone()),
+                            panels: args.panels.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
