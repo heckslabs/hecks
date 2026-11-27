@@ -2048,6 +2048,13 @@ mod preview_tests {
     use rust_host_core::dispatch::*;
     use std::path::Path;
 
+    // The caller a preview states: the branch clerk Register and Close declare (ADR 0216), so a
+    // preview answers for the command and not for a caller who stated no role.
+    const CLERK: Caller<'static> = Caller {
+        role: Some("Branch clerk"),
+        actor_id: None,
+    };
+
     // The client envelope a preview of `verb` answers for `invocation`.
     async fn preview_of(
         client: &Store,
@@ -2057,9 +2064,7 @@ mod preview_tests {
         let config = memory_config("Banking");
         let wasm = wasm_path();
         let host = Host::new(client, &wasm, &config, &lambda_client::NeverInvoker);
-        let outcome = preview_as(host, verb, invocation, Caller::default())
-            .await
-            .unwrap();
+        let outcome = preview_as(host, verb, invocation, CLERK).await.unwrap();
         crate::validation::answer(&outcome.result)
     }
 
@@ -2149,7 +2154,7 @@ mod preview_tests {
         let host = Host::new(&client, &wasm, &config, &lambda_client::NeverInvoker);
         let body = serde_json::json!({
             "verb": "Banking::Customer.Register", "with": register("CUST-P5"),
-            "dry_run": true, "bare": true,
+            "role": "Branch clerk", "dry_run": true, "bare": true,
         });
         let answer = crate::server::dispatch_body(body, host).await.unwrap();
         assert_eq!(answer, serde_json::json!({ "ok": true, "refusals": [] }));
