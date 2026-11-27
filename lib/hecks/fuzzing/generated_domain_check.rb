@@ -8,8 +8,8 @@ require_relative "../text"
 
 module Hecks
   module Fuzzing
-    # The child-process half of the QualityControl check of generated domains (Switchyard): checks one
-    # generated domain.
+    # The child-process half of the QualityControl check of generated domains (Switchyard): checks
+    # one generated domain.
     #
     # One domain per process, since every generated domain is named `QaGenerated`.
     # A domain that fails to boot is `invalid` (a generator defect), not a finding.

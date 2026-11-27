@@ -156,8 +156,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
   end
 
-  # `model_check_run.model_check` as a command's help prints it: the aggregate as the bluebook spells it, then
-  # the command. A query's help keeps the snake-case name.
+  # `model_check_run.model_check` as a command's help prints it: the aggregate as the bluebook
+  # spells it, then the command. A query's help keeps the snake-case name.
   def verb_form(verb) = verb.sub(/\A[^.]+/) { |aggregate| aggregate.split("_").map(&:capitalize).join }
 
   describe "model_check" do

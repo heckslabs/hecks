@@ -9,12 +9,11 @@ module Hecks
     # branch that is on main.
     #
     # A work item's key is its branch's name. The candidates are the branch's tip, local or on
-    # `origin`, the merges on `main` whose subject names the branch (`Merge branch 'key'`,
-    # `Merge pull request #12 from owner/key`), and the commits on `main` that carry a
-    # `Work: key` trailer (a squash that brought the branch in); the first one `main` contains is
-    # the landing. A key written in prose names nothing. It states
-    # the fact and judges nothing: closing the item is the Tickets bluebook's. It reads git and never
-    # writes.
+    # `origin`, the merges on `main` whose subject names the branch (`Merge branch 'key'`, `Merge
+    # pull request #12 from owner/key`), and the commits on `main` that carry a `Work: key` trailer
+    # (a squash that brought the branch in); the first one `main` contains is the landing. A key
+    # written in prose names nothing. It states the fact and judges nothing: closing the item is the
+    # Tickets bluebook's. It reads git and never writes.
     class WorkLandings
       # @param registry [Runtime::Registry, nil] unused
       # @param aggregate [Object, nil] unused

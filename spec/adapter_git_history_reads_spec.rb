@@ -1,10 +1,10 @@
 require "spec_helper"
 
-# Adapters answer "did X land, when, in which batch" from the ledger and the event journal;
-# a raw read of git history is allowed only where the answer is a git fact (remote carriage, commit
+# Adapters answer "did X land, when, in which batch" from the ledger and the event journal; a raw
+# read of git history is allowed only where the answer is a git fact (remote carriage, commit
 # ancestry, ordering, counts), and each such file is listed here with the reason. The scan covers
-# `lib/hecks/hecks/adapters`; the vendored delivery adapters under `embryonaut_bluebooks` are outside
-# it on purpose.
+# `lib/hecks/hecks/adapters`; the vendored delivery adapters under `embryonaut_bluebooks` are
+# outside it on purpose.
 module GitHistoryReads
   ROOT = File.expand_path("..", __dir__)
   ROOTS = %w[lib/hecks/hecks/adapters].freeze

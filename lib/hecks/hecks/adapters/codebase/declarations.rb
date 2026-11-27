@@ -10,8 +10,9 @@ module Hecks
       # declaring file with the extent of each block, kept per checkout and rebuilt only when a
       # declaring file's size or modification time moves.
       #
-      # The scan reads the text alone, so it works on a file that does not parse. It also reads the definitions of a Ruby file and the headings of a
-      # Markdown file, for `Outline`, which are scanned on demand and never kept.
+      # The scan reads the text alone, so it works on a file that does not parse. It also reads the
+      # definitions of a Ruby file and the headings of a Markdown file, for `Outline`, which are
+      # scanned on demand and never kept.
       module Declarations
         # What a bluebook-family file declares: the domain's constructs, its read models and
         # lifecycles, and a hecksagon's ports and adapters.

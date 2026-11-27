@@ -59,7 +59,8 @@ module Hecks
       def red?(item) = item.key.start_with?(RED)
 
       # @param item [#key, #title, #priority] a work item
-      # @return [Boolean] whether it is expedited and not red: it takes the one place outside the cap
+      # @return [Boolean] whether it is expedited and not red: it takes the one place outside the
+      #   cap
       def expedited?(item) = !red?(item) && item.priority.to_s == EXPEDITE
 
       # @param item [#key, #title, #priority] a work item

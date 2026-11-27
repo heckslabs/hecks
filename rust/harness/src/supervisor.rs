@@ -13,10 +13,14 @@
 //! `noticed` tell records it. A sender relaying for someone else learns at once that the one it
 //! asked was not reached.
 //!
+//! The supervisor also keeps the run's clock: every tick it writes a `tick` tell, so a wait the
+//! bluebook times (a question nobody settled, say) is checked against the supervisor's own clock
+//! even when no session says anything.
+//!
 //! Ops: `open` (session, program, args, model, cwd, brief), `deliver` (session, message, from,
 //! text, about), `stop` (session) and `quit`. Tells: `ready`, `opened`, `started`, `sent`,
-//! `denied`, `turn_ended`, `queued`, `delivered`, `noticed`, `stopped`, `refused`, `fault` and
-//! `quit`.
+//! `denied`, `turn_ended`, `queued`, `delivered`, `noticed`, `stopped`, `refused`, `fault`,
+//! `tick` and `quit`.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::fs::{self, File};
@@ -38,6 +42,9 @@ pub const STOP_GRACE: Duration = Duration::from_secs(5);
 /// never an API key the shell happens to hold.
 pub const WITHHELD_ENV: &str = "ANTHROPIC_API_KEY";
 
+/// How often the supervisor writes a `tick` tell, unless `serve` is given another interval.
+pub const TICK: Duration = Duration::from_secs(60);
+
 /// What the supervisor's one loop hears, from any of its threads.
 #[derive(Debug)]
 enum Event {
@@ -51,6 +58,8 @@ enum Event {
     Closed(String),
     /// A stopped session's grace ran out.
     Deadline(String),
+    /// The clock's interval passed.
+    Tick,
 }
 
 /// The name a notice from the supervisor itself is written from.
@@ -90,12 +99,12 @@ pub struct Supervisor<W: Write> {
 ///
 /// `ops` is read on a thread of its own; tells go to `out`. With `record`, every line to and from
 /// each child is appended to `<record>/<session>.jsonl`, the raw recording `hecks-harness tape`
-/// turns into a replay tape.
+/// turns into a replay tape. A `tick` tell is written every `tick`.
 ///
 /// # Errors
 ///
 /// Returns a message when a tell cannot be written.
-pub fn serve<R, W>(ops: R, out: W, record: Option<PathBuf>) -> Result<(), String>
+pub fn serve<R, W>(ops: R, out: W, record: Option<PathBuf>, tick: Duration) -> Result<(), String>
 where
     R: BufRead + Send + 'static,
     W: Write,
@@ -110,6 +119,13 @@ where
             }
         }
         let _ = reader.send(Event::OpsClosed);
+    });
+    let clock = events.clone();
+    thread::spawn(move || loop {
+        thread::sleep(tick);
+        if clock.send(Event::Tick).is_err() {
+            return;
+        }
     });
     if let Some(dir) = &record {
         fs::create_dir_all(dir)
@@ -138,6 +154,7 @@ impl<W: Write> Supervisor<W> {
                 Event::Line(session, line) => self.line(&session, &line)?,
                 Event::Closed(session) => self.closed(&session)?,
                 Event::Deadline(session) => self.deadline(&session),
+                Event::Tick => self.tell("tick", vec![])?,
             }
             if self.quitting && self.sessions.is_empty() {
                 return self.tell("quit", vec![]);

@@ -58,9 +58,9 @@ module Hecks
         end
 
         # A launcher name in the bluebook's verb form: the aggregate as the bluebook spells it, then
-        # the rest of the name (`model_check_run.model_check` as `ModelCheckRun.model_check`). A name
-        # that does not start with its aggregate, such as a short name a bluebook gave a command, is
-        # left as it is.
+        # the rest of the name (`model_check_run.model_check` as `ModelCheckRun.model_check`). A
+        # name that does not start with its aggregate, such as a short name a bluebook gave a
+        # command, is left as it is.
         def verb_form(spec, name)
           group = spec[:group]
           return name unless group && name.start_with?("#{Naming.snake(group)}.")

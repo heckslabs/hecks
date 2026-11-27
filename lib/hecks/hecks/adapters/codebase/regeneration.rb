@@ -31,7 +31,7 @@ module Hecks
 
         # Carries out the regeneration.
         #
-        # @param operation [String] one of {OPERATIONS}
+        # @param operation [String] `regenerate_corpus`, `project_tools_doc` or `project_glossary`
         # @param held [Hash] the `RegenerationRun` record's fields: `check`, `confirm`
         # @param tree [Tree] the working tree, already known to be a hecks checkout
         # @param shell [#capture, nil] unused: the tool runs in this process

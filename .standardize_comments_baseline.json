@@ -90,7 +90,7 @@
     "The language: the tables the Bluebook bluebook declares and everything projected": 4
   },
   "lib/hecks/hecks/hecks.bluebook": {
-    "The aggregates the pipeline keeps across processes, declared once: the train's o": 9
+    "The aggregates kept across processes, declared once: a copy's overlay, the refus": 9
   },
   "lib/hecks/hecks/hecks.hecksagon": {
     "A coder's session closes with its report, and the adapter reads the branch, comm": 6,
@@ -108,7 +108,7 @@
   },
   "lib/hecks/hecks/migrate/migrate.bluebook": {
     "Ledger: a journal that proves it was not rewritten. A seal records the head a jo": 5,
-    "Mints the Hecks domain's next era when its shape moved, through the mint transac": 4,
+    "Mints the Hecks domain's next era when its shape moved, through the journal stor": 4,
     "Moves the history a domain held under its `formerly_known_as` name to its curren": 4,
     "Rehearsal: operating a domain, in the Operations module (ADR 0096). Whether a do": 13,
     "The boot status of each bluebook under a domain directory, resolved as its boot ": 4,

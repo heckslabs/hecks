@@ -62,9 +62,9 @@ module Hecks
 
           private
 
-          # `Hecks::ModelCheckRun.model_check` as `model_check_run.model_check`; a verb that names an
-          # entity's command, `Operation.DomainRuntime.Refresh`, also as `operation.refresh`, the way
-          # the projection exposes it.
+          # `Hecks::ModelCheckRun.model_check` as `model_check_run.model_check`; a verb that names
+          # an entity's command, `Operation.DomainRuntime.Refresh`, also as `operation.refresh`, the
+          # way the projection exposes it.
           def verb_form_names(typed)
             segments = snake_segments(typed)
             [segments.join("."), [segments.first, segments.last].join(".")].uniq

@@ -25,6 +25,11 @@ RSpec.describe Hecks::Harness::Tells do
                                   ["Message.RecordUndeliverable", { message: "reviewer-4" }]])
   end
 
+  it "records a tick of the supervisor's clock at its moment" do
+    expect(commands({ "tell" => "tick", "at_ms" => 60_000 }))
+      .to eq([["Clock.Tick", { reading: { value: "tick-60000" }, now: { value: 60_000 } }]])
+  end
+
   it "records a failed turn as an error" do
     expect(commands({ "tell" => "turn_ended", "session" => "coder", "is_error" => true, "text" => "" }).dig(0, 1, :outcome))
       .to eq({ value: "error" })

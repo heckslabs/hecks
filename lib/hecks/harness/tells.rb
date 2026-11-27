@@ -22,15 +22,30 @@ module Hecks
       # @param tell [Hash] one tell
       # @return [Array<Array(String, Hash)>] each command and its arguments
       def commands(tell)
+        case tell["tell"]
+        when "started", "turn_ended", "denied", "stopped" then session_commands(tell)
+        when "sent", "delivered", "tick" then mail_commands(tell)
+        else []
+        end
+      end
+
+      def session_commands(tell)
         name = tell["session"]
         case tell["tell"]
         when "started"    then [["Session.RecordStarted", { session: name, claude: plain(tell["claude_session"]) }]]
         when "turn_ended" then [["Session.RecordTurnEnded", turn(tell)]]
         when "denied"     then [["Session.RecordWithheld", { session: name, tool: plain(tell["tool"]) }]]
-        when "sent"       then [["Message.Post", post(tell)]]
-        when "delivered"  then [["Message.RecordDelivered", { message: tell["message"], delivered_at: moment(tell) }]]
-        when "stopped"    then stopped(tell)
-        else []
+        else stopped(tell)
+        end
+      end
+
+      # A sent message is posted, a delivery is timed, and a tick of the supervisor's clock is
+      # recorded, so a question left past its window is handed on.
+      def mail_commands(tell)
+        case tell["tell"]
+        when "sent"      then [["Message.Post", post(tell)]]
+        when "delivered" then [["Message.RecordDelivered", { message: tell["message"], delivered_at: moment(tell) }]]
+        else [["Clock.Tick", { reading: plain("tick-#{tell["at_ms"].to_i}"), now: moment(tell) }]]
         end
       end
 

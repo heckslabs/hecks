@@ -7,8 +7,9 @@ require_relative "github_checks/rate_limit"
 
 module Hecks
   module Adapters
-    # Where GitHub's check runs for a commit stand, read for a promotion's gate ({Codebase::Promotion::Gate}).
-    # Raises when no checks exist, any are still running, or any failed.
+    # Where GitHub's check runs for a commit stand, read for a promotion's gate
+    # ({Codebase::Promotion::Gate}). Raises when no checks exist, any are still running, or any
+    # failed.
     class GithubChecks
       # Raised when check runs cannot be read or have not settled.
       class Error < RuntimeError; end

@@ -73,8 +73,8 @@ module Hecks
         end
 
         # The 1-minute load average: `/proc/loadavg`'s first figure, else the first figure after
-        # `load average(s):` in `uptime` (macOS), else nil. The figure is a note on the record, never
-        # a reason to refuse a run.
+        # `load average(s):` in `uptime` (macOS), else nil. The figure is a note on the record,
+        # never a reason to refuse a run.
         def machine_load
           return Float(File.read("/proc/loadavg").split.first) if File.readable?("/proc/loadavg")
 

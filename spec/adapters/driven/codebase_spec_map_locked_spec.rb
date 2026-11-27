@@ -4,7 +4,8 @@ require "tmpdir"
 require "hecks/embryonaut_bluebook"
 require "hecks/hecks/adapters/codebase/spec_map"
 
-# A temporary tree holding a small vendored package, locked to its own digest, and the specs beside it.
+# A temporary tree holding a small vendored package, locked to its own digest, and the specs beside
+# it.
 class LockedPackageTree
   PACKAGE = "lib/hecks/vendor/acme_bluebooks/delivery".freeze
 

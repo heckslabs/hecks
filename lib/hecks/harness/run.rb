@@ -27,9 +27,10 @@ module Hecks
 
       # @param launch [#call] how each session's child starts (see {Launch})
       # @param dir [String] the Harness directory to boot
-      def initialize(launch:, dir: DIR)
+      # @param tick_ms [Integer, nil] how often the supervisor's clock ticks (see {Supervisor})
+      def initialize(launch:, dir: DIR, tick_ms: nil)
         @runtime = Hecks.boot(dir, install_driving: false, environment: "memory")
-        @supervisor = Supervisor.current = Supervisor.new(launch: launch)
+        @supervisor = Supervisor.current = Supervisor.new(launch: launch, tick_ms: tick_ms)
         @tells = []
       end
 

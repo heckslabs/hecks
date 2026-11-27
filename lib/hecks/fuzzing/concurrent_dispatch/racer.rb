@@ -13,7 +13,8 @@ module Hecks
       # It is spawned, not forked: the caller holds live `PostgresEra` connections, and fork
       # duplicates their file descriptors and SSL state, corrupting them when a child exits.
       #
-      #   ruby -Ilib -e '...Racer.call(ARGV, out: $stdout)' -- <domain-path> <database> <schema> <verb> <args-json>
+      #   ruby -Ilib -e '...Racer.call(ARGV, out: $stdout)' -- \
+      #     <domain-path> <database> <schema> <verb> <args-json>
       #
       # `Racing#racer_argv` builds that line.
       #
