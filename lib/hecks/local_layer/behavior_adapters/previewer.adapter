@@ -1,9 +1,8 @@
+# Required by name, not relative to this file: a fuzz or model check boots a copy of this directory,
+# and the implementation must load once, from `lib/`, not from the copy.
+require "hecks/local_layer/behavior_adapters/previewer"
+
 Hecks.adapter "Previewer" do
-  # A previewer declared in rows: every target diffs to cd34 and passes its checks, except the
-  # one that cannot be read and the one whose checks fail.
   port "Previewing"
-  refuses "Diff", where: { target: "lib/missing.bluebook" }, saying: "the target cannot be read"
-  replies "Diff", echoing: [:run, :target], with: { diff: { value: "cd34" } }
-  refuses "Check", where: { target: "lib/broken.bluebook" }, saying: "the target does not load with the edits"
-  replies "Check", echoing: [:run, :target], with: { outcome: { value: "passed" } }
+  stays_inside
 end
