@@ -860,6 +860,7 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Busiest"
+    answers_query "CpuByPurpose"
   end
 
   # The outside an agent run reaches: it finds the directory and the agents, starts the background
