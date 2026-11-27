@@ -17,7 +17,7 @@ person). What is left here is judgment.
 ## The tick — dispatch it, don't run it inline
 
 The former `qa_*` scripts are verbs on the launcher now: `exe/hecks quality_control <verb>`.
-A `--flag` a script took goes inside `arguments="--flag …"` on the `ask` verbs, and the
+A `--flag` a script took goes inside `arguments="--flag …"` on the query verbs, and the
 ledger-writing verbs (`bug.log!`, `patch.open!`, `improvement.open!`) take `name=value` words instead
 of flags (`exe/hecks quality_control <verb> --help` prints each one's words; the mapping is in
 `lib/hecks/three_zero/forms.yml`). Where a step below still shows the old flag spelling
@@ -167,7 +167,7 @@ subagent's judgments:
 2. **If genuine:** promote it, `exe/hecks quality_control target.check_generated_domains --promote
    <finding-dir> --name <stress_domain_name>` (the report's `promote:`
    line). That copies the minimal domain into `qa/stress_domains/`, renamed,
-   with a NOTES.md. Then follow the printed next steps, `exe/hecks quality_control ask target.seed`
+   with a NOTES.md. Then follow the printed next steps, `exe/hecks quality_control target.seed`
    last — it derives the rotation from the corpus
    (`Hecks::Corpus.rotation_targets`), so a promoted domain is a target by
    virtue of being on disk, and nobody has to remember an `identify` line.
