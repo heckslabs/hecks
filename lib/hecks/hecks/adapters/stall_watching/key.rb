@@ -21,6 +21,14 @@ module Hecks
 
           "#{full[0, LIMIT - 17]}-#{Digest::SHA256.hexdigest(full)[0, 16]}"
         end
+
+        # @param stall [String] a stall's key, which is also the key of the run that fixes it
+        # @return [String] the sentences that close a stall's detail: the exact command that reads
+        #   its row, and the rule that no move stops a session
+        def self.reading(stall)
+          "Read your row: exe/hecks StallWatch.impediments run=<your run key> stall=#{stall}. " \
+            "Never stop or kill a session."
+        end
       end
     end
   end
