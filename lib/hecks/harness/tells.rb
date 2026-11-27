@@ -41,7 +41,7 @@ module Hecks
 
       def post(tell)
         { key: plain(tell["message"]), sender: plain(tell["session"]), addressee: plain(tell["to"]),
-          text: plain(tell["text"]), sent_at: moment(tell) }
+          text: plain(tell["text"]), sent_at: moment(tell), about: tell["about"] && plain(tell["about"]) }
       end
 
       # The session's exit, then each message it still held, which will not be delivered now.

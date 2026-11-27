@@ -34,7 +34,14 @@ Hecks.behaviors "Harness" do
   test "a message posted with no supervisor running is undeliverable" do
     tests "Post", on: "Message"
     input key: { value: "reviewer-1" }, sender: { value: "reviewer" }, addressee: { value: "coder" },
-          text: { value: "Does post! refuse zero?" }, sent_at: { value: 100 }
+          text: { value: "Does post! refuse zero?" }, sent_at: { value: 100 }, about: nil
+    expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], status: "undeliverable"
+  end
+
+  test "a message about another, sent with no supervisor running, is undeliverable" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-1" }, sender: { value: "coder" }, addressee: { value: "reviewer" },
+          text: { value: "It refuses zero." }, sent_at: { value: 200 }, about: { value: "reviewer-1" }
     expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], status: "undeliverable"
   end
 

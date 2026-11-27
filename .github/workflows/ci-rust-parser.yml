@@ -132,9 +132,10 @@ jobs:
 
       # rust/harness ("hecks-harness") is another independent, std-only Cargo project. The spec
       # builds it itself (spec/support/hecks_harness_binary.rb) and the crate's tests reuse that
-      # build: a reviewer and a coder exchange messages through the Harness bluebook on replay tapes.
+      # build: a reviewer and a coder exchange messages through the Harness bluebook on replay tapes,
+      # and the staff engineer relays a question to Miette and her answer back.
       - name: "rspec: Harness sessions exchanging messages on replay tapes, and its Rust parse"
-        run: bundle exec rspec --tag io spec/harness_exchange_spec.rb spec/harness_parser_parity_spec.rb
+        run: bundle exec rspec --tag io spec/harness_exchange_spec.rb spec/harness_staff_engineer_spec.rb spec/harness_parser_parity_spec.rb
 
       - name: "cargo test: rust/harness (hecks-harness)"
         run: cd rust/harness && cargo test

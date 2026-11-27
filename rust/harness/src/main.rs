@@ -5,16 +5,17 @@
 //! - `hecks-harness measure TELLS`: the mail measured against the baseline, as JSON; exits 1 when
 //!   it is not within the baseline.
 //! - `hecks-harness tape RECORDING`: a recording `serve --record` wrote, turned into a tape.
+//! - `hecks-harness brief ROLE_FILE`: the brief a session opened for that role is given.
 
 use std::fs;
 use std::io::{self, BufReader};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use hecks_harness::{measure, replay, supervisor};
+use hecks_harness::{brief, measure, replay, supervisor};
 
 const USAGE: &str =
-    "usage: hecks-harness serve [--record DIR] | replay TAPE | measure TELLS | tape RECORDING";
+    "usage: hecks-harness serve [--record DIR] | replay TAPE | measure TELLS | tape RECORDING | brief ROLE_FILE";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -27,6 +28,7 @@ fn main() -> ExitCode {
         ["tape", recording] => read(recording)
             .and_then(|text| replay::tape_from_recording(&text))
             .map(|tape| print!("{tape}")),
+        ["brief", role_file] => read(role_file).map(|text| print!("{}", brief::of_role(&text))),
         _ => Err(USAGE.to_string()),
     };
     match outcome {
