@@ -1,0 +1,13 @@
+{
+  "audience": "Refusal",
+  "scopes": [
+    {
+      "scope": "refusal:command_refusal.record",
+      "verb": "Refusal::CommandRefusal.Record",
+      "role": "System"
+    }
+  ],
+  "roles": [
+    "System"
+  ]
+}
