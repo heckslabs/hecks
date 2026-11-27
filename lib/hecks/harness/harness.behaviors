@@ -45,6 +45,37 @@ Hecks.behaviors "Harness" do
     expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], status: "undeliverable"
   end
 
+  # With no supervisor nobody can be reached, so a coder's question goes on to the lead at once,
+  # and is undeliverable there too. The run with the scrum master open is the scrum master spec's.
+  test "a coder's question for the orchestrator is routed to the scrum master, and handed on when it is not reached" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-1" }, sender: { value: "coder" }, addressee: { value: "orchestrator" },
+          text: { value: "May I land before the freeze lifts?" }, sent_at: { value: 300 }, about: nil
+    expect emits: %w[MessagePosted MessageRouted RecordedDeliveryRefused MessageUndeliverable QuestionHandedOn],
+           hold: "handed-on", addressee: "orchestrator"
+  end
+
+  test "a coder's question for the scrum master is held, and handed on when it is not reached" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-1" }, sender: { value: "coder" }, addressee: { value: "scrum-master" },
+          text: { value: "May I land before the freeze lifts?" }, sent_at: { value: 300 }, about: nil
+    expect emits: %w[MessagePosted QuestionHeld DeliveryRefused MessageUndeliverable QuestionHandedOn RecordedDeliveryRefused],
+           hold: "handed-on"
+  end
+
+  test "a coder's answer to the orchestrator goes straight to it" do
+    tests "Post", on: "Message"
+    input key: { value: "coder-2" }, sender: { value: "coder" }, addressee: { value: "orchestrator" },
+          text: { value: "Done; the branch is green." }, sent_at: { value: 400 }, about: { value: "orchestrator-1" }
+    expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], hold: "none", addressee: "orchestrator"
+  end
+
+  test "a tick of the clock is recorded at its moment" do
+    tests "Tick", on: "Clock"
+    input reading: { value: "tick-60000" }, now: { value: 60_000 }
+    expect emits: %w[ClockTicked]
+  end
+
   test "a message with no text is not posted" do
     tests "Post", on: "Message"
     input key: { value: "reviewer-1" }, sender: { value: "reviewer" }, addressee: { value: "coder" },

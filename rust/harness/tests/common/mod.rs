@@ -37,8 +37,14 @@ pub struct Served {
 
 impl Served {
     pub fn start() -> Self {
+        Self::start_with(&[])
+    }
+
+    /// The supervisor, started with these flags after `serve`.
+    pub fn start_with(flags: &[&str]) -> Self {
         let mut child = Command::new(BIN)
             .arg("serve")
+            .args(flags)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()

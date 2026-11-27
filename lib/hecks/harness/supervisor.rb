@@ -25,9 +25,10 @@ module Hecks
       # @param launch [#call] the child for a session name, as the `open` op's `program`, `args`,
       #   `model` and `cwd` (see {Launch})
       # @param binary [String] the `hecks-harness` binary
-      def initialize(launch:, binary: BINARY)
+      # @param tick_ms [Integer, nil] how often the supervisor's clock ticks; a minute when nil
+      def initialize(launch:, binary: BINARY, tick_ms: nil)
         @launch = launch
-        @stdin, @stdout, @process = Open3.popen2(binary, "serve")
+        @stdin, @stdout, @process = Open3.popen2(binary, "serve", *(tick_ms ? ["--tick-ms", tick_ms.to_s] : []))
         @tells = Queue.new
         @waiters = {}
         @lock = Mutex.new
