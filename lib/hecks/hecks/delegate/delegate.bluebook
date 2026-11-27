@@ -2082,12 +2082,7 @@ Hecks.bluebook "Hecks" do
       trigger Machine::RiseAbove, with: { machine: :reading }
     end
 
-    # Where the owner stands, typing or away: one record per store, the way `LoadStanding` holds the
-    # load, never a reading's own memory of the reading before it. Every reading asks it to turn and it
-    # refuses a turn it already made, so typing is recorded once. The fill reads `owner` the way it
-    # reads `Overload`: while it says typing, nothing new starts. The Sampling port's adapter judges
-    # typing from the owner's idle time against `machine_marks`, which also holds the hysteresis, and
-    # reports it as `owner_state` on the reading it answers; a reading that carries none turns nothing.
+    # The owner's typing, recorded once like `LoadStanding`; the fill reads it as it reads `Overload`.
     aggregate "OwnerStanding" do
       description "Where the owner stands, typing or away: one record per store, never a reading's own memory of the reading before it. What holds the fill back reads it."
 
@@ -2105,7 +2100,7 @@ Hecks.bluebook "Hecks" do
         invariant("the owner types or is away") { value == "typing" || value == "away" }
       end
 
-      # The key of the Machine reading that turned the standing last.
+      # The key of the reading that turned the standing last.
       value_object "HeardBy", String
 
       command "Open" do
@@ -2175,8 +2170,7 @@ Hecks.bluebook "Hecks" do
       trigger Machine::OwnerLeaves, with: { machine: :reading }
     end
 
-    # The owner's return to the keyboard yields one item, as a load over the mark does; a first
-    # roll after the owner leaves is requested through the owner's switch, as the load's fall is.
+    # The owner at the keyboard yields one item, as a load over the mark does.
     policy "ShedWhenTheOwnerTypes" do
       on      "Machine.OwnerTyping"
       root
