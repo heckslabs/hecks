@@ -459,6 +459,7 @@ queries (nothing here changes anything):
     preview
   Machine:
     …
+    cpu_by_purpose
     busiest
   Overload:
     …
@@ -558,6 +559,7 @@ queries (nothing here changes anything):
   Pace:
     …
     read
+    count
   QaQuiesce:
     …
     status

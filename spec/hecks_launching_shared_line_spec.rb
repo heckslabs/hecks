@@ -7,7 +7,7 @@ class LaunchingLinesHost
 
   attr_reader :work_items
 
-  def initialize(started) = @work_items = Struct.new(:started).new(started)
+  def initialize(started) = @work_items = Struct.new(:started, :runs).new(started, {})
 
   def lines(plan, index) = holding(plan, index)
 end
