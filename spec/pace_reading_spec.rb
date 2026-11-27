@@ -51,4 +51,9 @@ RSpec.describe Hecks::Adapters::PaceReading do
   it "reads the noise from the bluebook" do
     expect(aggregate.value_objects.find { |o| o.hecks_name == "Noise" }.members.map { |m| m.to_h[:event] }).to include("JobRead")
   end
+
+  it "names the sources an edge sampler reads" do
+    object = aggregate.value_objects.find { |o| o.hecks_name == "EdgeSampler" }
+    expect(object.members.map { |m| m.to_h[:source] }).to include("os_load", "process_list", "board_view")
+  end
 end
