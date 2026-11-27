@@ -39,9 +39,12 @@ module Hecks
       def open(name, brief) = owner("Session.Open", name: { value: name }, brief: { value: brief })
 
       # Opens a session for one of the crew's roles, briefed from its role file (see {Roles}).
+      # The crew's role files live with the pipeline in Switchyard (ADR 0205), so its checkout
+      # names the root they are read from.
       #
+      # @param root [String] the checkout whose `.claude/agents` holds the role files
       # @return [void]
-      def open_role(role) = self.open(role, Roles.brief(role))
+      def open_role(role, root: Roles::ROOT) = self.open(role, Roles.brief(role, root: root))
 
       # Stops a running session, as the Owner.
       #
