@@ -29,13 +29,13 @@ module Hecks
         # nothing is planned, so an empty queue costs no read of the machine.
         def stall_plan
           items = beat_items
-          Plan.new(items, work_items.started, **limits) unless items.empty?
+          Plan.new(items, live_holders, **limits) unless items.empty?
         end
 
         # The owner's pause starts nothing, whatever the plan would choose.
         def stall_counts(plan)
           chosen = plan && machine.roll_forward? ? plan.chosen.size : 0
-          FillGauge.new(waiting: beat_items.size, started: work_items.started.size, cap: machine.cap, chosen: chosen)
+          FillGauge.new(waiting: beat_items.size, started: live_holders.size, cap: machine.cap, chosen: chosen)
         end
 
         def stall_reading(plan)

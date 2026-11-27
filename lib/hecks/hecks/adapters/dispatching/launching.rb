@@ -87,7 +87,7 @@ module Hecks
         # A line for each other work item, started or chosen before this one, that holds an area.
         def holding(plan, index)
           item = plan.chosen[index]
-          others = (work_items.started + plan.chosen.first(index)).reject { |other| other.area.empty? }
+          others = (live_holders + plan.chosen.first(index)).reject { |other| other.area.empty? }
           others.map { |other| held_line(item, other) }
         end
 

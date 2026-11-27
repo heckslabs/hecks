@@ -94,7 +94,7 @@ module Hecks
         def free_starts(held = [])
           return 0 if Filling.running? || (items = beat_items).empty?
 
-          started = work_items.started
+          started = live_holders
           return 0 if !admitting && started.size >= machine.cap
 
           QuietBeat.starts(Plan.new(items, started, **limits), held)
