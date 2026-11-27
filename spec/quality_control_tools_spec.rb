@@ -70,8 +70,8 @@ RSpec.describe "the QualityControl tool queries" do
     expect(out).to include("not shaped like a stress domain", "ended with status 2")
   end
 
-  it "answers help for the sweep by asking for it, qualified: `sweep.run`", :aggregate_failures do
-    out, status = launch("quality_control", "ask", "sweep.run", "--help")
+  it "answers help for the sweep's query by its bare, qualified name: `sweep.run`", :aggregate_failures do
+    out, status = launch("quality_control", "sweep.run", "--help")
 
     expect(status).to eq(0)
     expect(out).to include("reads QualityControl::Sweep.Run", "arguments.value")

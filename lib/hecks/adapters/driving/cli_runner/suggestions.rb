@@ -12,7 +12,7 @@ module Hecks
             lines = ["[unknown_#{asking ? "query" : "command"}] no such #{asking ? "query" : "command"}: #{name}"]
             shown = near.first(5).map { |candidate| "  #{shown_name(cli, candidate, asking)}" }
             lines += ["", "did you mean:", *shown] unless near.empty?
-            lines += ["", "  #{program}#{" query" if asking}   for the full list"]
+            lines += ["", "  #{program}   for the full list"]
             lines.join("\n")
           end
 

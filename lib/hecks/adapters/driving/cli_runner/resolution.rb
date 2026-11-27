@@ -62,17 +62,17 @@ module Hecks
           # line that names nothing, or something the bluebook does not declare, could not be read.
           def command_plan(scope, argv)
             cli = scope[:cli]
-            word = typed_word(argv)
-            asking, name, argv = entry_word(cli, argv)
+            line = line_words(cli, argv)
+            asking, name = line.values_at(:asking, :name)
             return { answer: [cli[:usage], ExitStatus::USAGE] } if name.nil?
 
             spec = find_spec(cli, asking, name)
             return { answer: [unknown(cli, name, asking, scope[:program]), ExitStatus::USAGE], unknown: true } unless spec
 
-            answer = early_answer(scope, cli, { asking: asking, word: word, name: name, argv: argv })
+            answer = early_answer(scope, cli, line)
             return { answer: answer } if answer
 
-            { spec: spec, name: name, rest: argv[1..], asking: asking, program: scope[:program],
+            { spec: spec, name: name, rest: line[:argv][1..], asking: asking, program: scope[:program],
               bluebook: scope[:bluebook], launcher: scope[:launcher] }
           end
 
@@ -138,11 +138,11 @@ module Hecks
           # Reads the entry words of a line: whether it asks a query, the bare name, and the words
           # from the name on.
           #
-          # `query` gives queries their own namespace (`ask` is its older spelling); a bluebook may
-          # declare a command and a query of one name. A trailing `!` says the word is a command and
-          # is not part of the name. A query answers to its bare name too; `query` is needed only
-          # when a command shares it. The name may be written in the bluebook's verb form
-          # (`Hecks::SendTrain.board!`), which reaches the same command (see `VerbNames`).
+          # A trailing `!` says the word is a command and is not part of the name; a name without
+          # one reaches a query. `query` before a name reaches the query where a command shares the
+          # name, the one case a bare name cannot say (see `BangRule#query_word_refusal`). The name
+          # may be written in the bluebook's verb form (`Hecks::SendTrain.board!`), which reaches
+          # the same command (see `VerbNames`).
           #
           # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent),
           #   `argv`
@@ -152,9 +152,8 @@ module Hecks
             name   = argv.first
             return [asking, nil, argv] if name.nil?
 
-            bang  = name.end_with?("!")
-            typed = name.chomp("!")
-            name  = canonical_name(cli, typed)
+            bang = name.end_with?("!")
+            name = canonical_name(cli, name.chomp("!"))
             [asking || (!bang && query_only?(cli, name)), name, argv]
           end
 

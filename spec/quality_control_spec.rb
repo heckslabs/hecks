@@ -194,7 +194,7 @@ RSpec.describe "QualityControl" do
     def bugs_by(name) = report(name)[:bugs]
 
     def ask_cli(query)
-      Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ["ask", query], program: "qa/quality_control")
+      Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: [query], program: "qa/quality_control")
     end
 
     def a_logged_bug(reference, submitter: "agent-one")
