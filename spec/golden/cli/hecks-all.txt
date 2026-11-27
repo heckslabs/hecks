@@ -558,6 +558,7 @@ queries (nothing here changes anything):
   Pace:
     …
     read
+    count
   QaQuiesce:
     …
     status
