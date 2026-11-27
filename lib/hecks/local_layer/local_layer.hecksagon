@@ -14,10 +14,8 @@ Hecks.hecksagon "LocalLayer" do
     end
   end
 
-  # The outside a sealed batch reaches: the target's text and the journal. Diff applies the
-  # batch's gathered edits to a copy of the target and answers the digest of the diff; Check
-  # recomputes that diff, refuses when it is not the one shown, and loads the patched copy under
-  # the validators. Neither writes the target: applying is the pipeline's.
+  # Diff applies the batch's gathered edits to a copy of the target; Check holds that diff to the
+  # digest shown and loads the copy under the validators. Neither writes the target.
   LocalLayer::Batch.port "Previewing" do
     asks "Diff", to: Batch do
       attribute :run,    BatchRun
