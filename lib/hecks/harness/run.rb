@@ -47,6 +47,14 @@ module Hecks
       # @return [void]
       def open_role(role, root: Roles::ROOT) = self.open(role, Roles.brief(role, root: root))
 
+      # Starts a run of one role under its own key, opening its session on the brief, as the Owner.
+      # The run holds the session's last report and is finished only when the session ended.
+      #
+      # @return [void]
+      def start(key, session, brief)
+        owner("AgentRun.Start", run: { value: key }, session: { value: session }, brief: { value: brief })
+      end
+
       # Stops a running session, as the Owner.
       #
       # @return [void]

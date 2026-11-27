@@ -34,6 +34,9 @@ module Hecks
       # Seconds between looks at whether the directory the program runs in still exists.
       WATCH = 1
 
+      # Seconds a program whose directory is gone has to end by itself before it is ended.
+      ENDING = 2
+
       # How a bounded run ended.
       #
       # @!attribute [r] out
@@ -104,8 +107,17 @@ module Hecks
         loop do
           return ended(waiter, chdir) if waiter.join((deadline - now).clamp(0, WATCH))
           return :bound if now >= deadline
-          return :vanished unless File.directory?(chdir)
+          return gone(waiter, chdir) unless File.directory?(chdir)
         end
+      end
+
+      # A program that removes its own directory and then exits may still be ending when the look
+      # finds the directory gone, so it has `ENDING` seconds more to end by itself, and is judged
+      # as one that ended ({#ended}) if it does.
+      #
+      # @return [Symbol, nil] `:vanished`, or nil when it ended by itself with status 0
+      def gone(waiter, chdir)
+        waiter.join(ENDING) ? ended(waiter, chdir) : :vanished
       end
 
       # A program run with bundler preloaded dies of getcwd when its directory is removed, before
