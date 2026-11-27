@@ -1,0 +1,8 @@
+# Refused: runs a shell command in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      `id`.empty?
+    end
+  end
+end

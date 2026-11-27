@@ -1,0 +1,6 @@
+# Refused: expands a home path.
+Hecks.world "Probe" do
+  heki do
+    dir File.expand_path("~/.x")
+  end
+end

@@ -3,6 +3,7 @@
 
 mod build;
 mod canonical;
+mod closed;
 mod declared;
 mod diag;
 mod emit;
@@ -41,12 +42,15 @@ fn main() -> ExitCode {
             eprintln!("{diagnostic}");
             ExitCode::from(1)
         }
+        Err(RunError::Refused) => ExitCode::from(1),
     }
 }
 
 enum RunError {
     Usage(String),
     Parse(diag::Diagnostic),
+    /// A check that has already printed each refusal and its summary.
+    Refused,
 }
 
 impl From<diag::Diagnostic> for RunError {
@@ -66,16 +70,63 @@ fn run(args: &[String]) -> Result<(), RunError> {
         Some("adapter") => run_adapter(&args[1..]),
         Some("reply") => run_reply(&args[1..]),
         Some("world") => run_world(&args[1..]),
+        Some("closed") => run_closed(&args[1..]),
         Some("coverage") => {
             run_coverage();
             Ok(())
         }
         Some(other) => Err(RunError::Usage(format!(
-            "unknown subcommand '{other}' — expected 'bluebook', 'resolve', 'adapter', 'reply', 'world', or 'coverage'"
+            "unknown subcommand '{other}' — expected 'bluebook', 'closed', 'resolve', 'adapter', 'reply', 'world', or 'coverage'"
         ))),
         None => Err(RunError::Usage(
-            "hecks-parse <bluebook|resolve|adapter|reply|world|coverage> ...".to_string(),
+            "hecks-parse <bluebook|closed|resolve|adapter|reply|world|coverage> ...".to_string(),
         )),
+    }
+}
+
+/// `closed <file>` prints the checked text the gem loads in the file's place; `closed --stdin
+/// <label>` reads the text from stdin and names it `<label>` in a refusal; `closed --check
+/// <files…>` checks every file, prints one refusal per refused file and fails if any was.
+fn run_closed(args: &[String]) -> Result<(), RunError> {
+    match args {
+        [flag, files @ ..] if flag == "--check" && !files.is_empty() => check_closed(files),
+        [flag, label] if flag == "--stdin" => {
+            let mut source = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut source)
+                .map_err(|e| RunError::Usage(format!("cannot read stdin: {e}")))?;
+            print!("{}", closed::admit(label, &source)?);
+            Ok(())
+        }
+        [path] => {
+            let source = fs::read_to_string(path)
+                .map_err(|e| RunError::Usage(format!("cannot read {path}: {e}")))?;
+            print!("{}", closed::admit(path, &source)?);
+            Ok(())
+        }
+        _ => Err(RunError::Usage(
+            "hecks-parse closed <file> | --stdin <label> | --check <files…>".to_string(),
+        )),
+    }
+}
+
+fn check_closed(files: &[String]) -> Result<(), RunError> {
+    let mut count = 0usize;
+    for path in files {
+        let source = fs::read_to_string(path)
+            .map_err(|e| RunError::Usage(format!("cannot read {path}: {e}")))?;
+        if let Err(diagnostic) = closed::admit(path, &source) {
+            count += 1;
+            eprintln!("{diagnostic}");
+        }
+    }
+    println!(
+        "{} file(s) checked, {count} outside the closed vocabulary",
+        files.len()
+    );
+    if count == 0 {
+        Ok(())
+    } else {
+        Err(RunError::Refused)
     }
 }
 

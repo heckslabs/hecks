@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/closed_form"
 
 # Four edges a person wiring a domain meets first: a reaction that did not take is said aloud, a
 # bulk form called without a query says what it is, an adapter can be told its context, and a
@@ -106,20 +107,20 @@ RSpec.describe "friction at the edges" do
     end
 
     it "is loaded by the same door as a Ruby one" do
-      allow(Kernel).to receive(:load)
+      allow(Hecks::ClosedForm).to receive(:load)
 
       load_through_door("Hecks.bluebook \"Shop\" do\nend") do |path|
         Hecks::SentenceForm.load_file(path)
-        expect(Kernel).to have_received(:load).with(path)
+        expect(Hecks::ClosedForm).to have_received(:load).with(path)
       end
     end
 
-    it "goes through the parser when its first line is a Domain line" do
-      allow(Hecks::SentenceForm).to receive(:load)
+    it "goes through the same door when its first line is a Domain line" do
+      allow(Hecks::ClosedForm).to receive(:load)
 
       load_through_door("Domain: Shop") do |path|
         Hecks::SentenceForm.load_file(path)
-        expect(Hecks::SentenceForm).to have_received(:load).with(path)
+        expect(Hecks::ClosedForm).to have_received(:load).with(path)
       end
     end
   end

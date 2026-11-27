@@ -12,13 +12,13 @@ module Hecks
                 "SAM build output — a vendored copy of real sources, never committed"),
       Route.new(%r{/data/eras/}, :gitignored, ".gitignore", "**/data/eras/",
                 "era snapshots a file adapter writes at runtime, never committed"),
+      Route.new(%r{\Arust/parser/tests/fixtures/closed/}, :named_in, "rust/parser/tests/closed.rs", :each_file,
+                "the closed form's escape and admitted fixtures, each checked by its guard test"),
       Route.new(%r{\Arust/}, :named_in, "rust/parser/tests/gates.rs", :each_file,
                 "the Rust parser's own fixtures, each loaded by its gate tests"),
       Route.new(%r{/translations/}, :named_in, "spec/translation/committed_edges_spec.rb", "bluebook/translations",
                 "translation edges, not bluebooks; each must load, chain era to era, and end at the storage " \
                 "shape its bluebook declares today"),
-      Route.new(%r{\Alib/hecks/forms/examples/}, :named_in, "spec/forms/app_spec.rb", :each_file,
-                "a Forms presentation config wearing the .bluebook extension"),
       Route.new(%r{\Aspec/fixtures/eras/}, :named_in, "spec/runtime/storage_shape_spec.rb", "fixtures/eras",
                 "deliberately conflicting versions of one domain; each must classify as the verdict " \
                 "its filename declares (bump_* / same_*)"),

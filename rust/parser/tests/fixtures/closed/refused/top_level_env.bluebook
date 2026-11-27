@@ -1,0 +1,7 @@
+# Refused: writes the environment before the declaration.
+ENV["X"] = "1"
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :total, Integer
+  end
+end

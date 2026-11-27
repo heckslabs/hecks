@@ -2,6 +2,7 @@ require "json"
 require_relative "../corpus"
 require_relative "form_census/bluebook_forms"
 require_relative "form_census/reference_forms"
+require_relative "../closed_form"
 
 module Hecks
   module Fuzzing
@@ -103,8 +104,8 @@ module Hecks
 
         registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain_path))
         Hecks.with_registry(registry) do
-          support_files.each { |file| Kernel.load(file) }
-          files.each { |file| Kernel.load(file) }
+          support_files.each { |file| Hecks::ClosedForm.load_file(file) }
+          files.each { |file| Hecks::ClosedForm.load_file(file) }
         end
 
         aggregates_in(exported_bluebook(registry))

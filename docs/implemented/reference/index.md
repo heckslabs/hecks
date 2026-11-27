@@ -23,7 +23,7 @@ survives regeneration.
 - [World](world.md) — 4 words
 - [Clock](clock.md) — 4 words
 - [DomainPort](domain_port.md) — 7 words
-- [Hecksagon](hecksagon.md) — 9 words
+- [Hecksagon](hecksagon.md) — 10 words
 - [PortOperation](port_operation.md) — 6 words
 - [Port](port.md) — 3 words
 - [Adapter](adapter.md) — 10 words

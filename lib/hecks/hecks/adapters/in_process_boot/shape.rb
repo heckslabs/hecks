@@ -3,6 +3,7 @@
 require "json"
 require "hecks"
 require "hecks/module_folders"
+require "hecks/closed_form"
 # The `:shape` projection reads `Runtime::StorageShape`, which lives in the era persistence plugin
 # core does not load by default (ADR 0033).
 require "hecks/ports/persistence/plugins/era"
@@ -41,7 +42,7 @@ module Hecks
           loading  = Ports::Loading.bootstrap
           Hecks.with_registry(registry) do
             loading.load_library
-            files.each { |file| Kernel.eval(File.read(file), TOPLEVEL_BINDING, File.expand_path(file), 1) }
+            files.each { |file| Hecks::ClosedForm.load(File.expand_path(file)) }
           end
           registry
         end

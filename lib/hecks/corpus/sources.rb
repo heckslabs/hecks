@@ -2,8 +2,9 @@ require_relative "../module_folders"
 module Hecks
   module Corpus
     # How a domain's hecksagon names a bluebook the gem carries and loads by name, as the QA
-    # ledger's does (`Hecks::FrameworkBluebooks.load!("QualityControl")`).
-    ATTACHED_BLUEBOOK = /FrameworkBluebooks\.load!\(\s*"([^"]+)"\s*\)/
+    # ledger's does: a `Hecks.hecksagon "QualityControl"` block whose first line is
+    # `bluebook_from :gem`. Captures the bluebook's name.
+    ATTACHED_BLUEBOOK = /Hecks\.hecksagon\s*\(?\s*"([^"]+)"\s*\)?\s*(?:do|\{)\s*\n\s*bluebook_from\s*:gem\b/
 
     # Where a domain path keeps its bluebooks, and what a member boots. Extended onto `Corpus`.
     module Sources

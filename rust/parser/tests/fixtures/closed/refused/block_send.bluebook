@@ -1,0 +1,6 @@
+# Refused: reaches a method by name with send.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    send :attribute, :x, String
+  end
+end

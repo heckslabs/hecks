@@ -1,0 +1,4 @@
+# Refused: reads the environment for its database.
+Hecks.world "Probe" do
+  default_database ENV.fetch("DATABASE_URL")
+end

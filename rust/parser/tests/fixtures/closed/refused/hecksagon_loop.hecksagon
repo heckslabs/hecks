@@ -1,0 +1,4 @@
+# Refused: builds attachments in a %w loop.
+Hecks.hecksagon "Probe" do
+  %w[A B].each { |name| attaches name }
+end

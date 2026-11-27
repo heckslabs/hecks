@@ -145,7 +145,7 @@ Outside a real, rooted project (the doctest registry above, say) there is nowher
 Hecks.hecksagon("Widgets") { attaches "payments", from: :vendor }  # ~> WiringError: needs a registry with a root to vendor from
 ```
 
-The Hecks domain (ADR 0080) is the main user of the gem form, attaching the language, Tenancy, Deploy, Site and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) loads QualityControl by name with `Hecks::FrameworkBluebooks.load!("QualityControl")` and binds it to its own PostgresEra database.
+The Hecks domain (ADR 0080) is the main user of the gem form, attaching the language, Tenancy, Deploy, Site and QualityControl so one `hecks` launcher reaches all of their verbs. The QA ledger (`qa/bluebook/`) holds only wiring: its `Hecks.hecksagon "QualityControl"` block opens with `bluebook_from :gem`, which loads the bluebook the gem carries under the hecksagon's own name, and binds it to its own PostgresEra database. Unlike `attaches`, `bluebook_from` records its source on the hecksagon, attaches nothing and marks nothing bounded; it comes first in the block so the binds after it can name the bluebook's aggregates, and `:gem` is the only source it takes.
 
 ### Vendoring a package
 
@@ -484,5 +484,21 @@ end
 runtime.registry.hecksagon("BoundedEcho").bounded?    # => true
 runtime.registry.hecksagon("BoundedEcho").translates  # => ["EchoOnThingFired"]
 runtime.registry.bounded?("BoundedEcho")              # => true
+```
+
+## bluebook_from
+
+<!-- generated:begin word=bluebook_from -->
+`bluebook_from bluebook_from` — fills `bluebook_from`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | bluebook_from |
+<!-- generated:end -->
+
+A hecksagon for a directory that holds only wiring names where its bluebook comes from. `bluebook_from :gem` loads the bluebook the gem carries under the hecksagon's own name, so the QA ledger's `qa/bluebook/` keeps its hecksagon and world while `quality_control.bluebook` ships in the gem. It records that source on the hecksagon, attaches nothing and marks nothing bounded, and it comes first in the block so the binds after it can name the bluebook's aggregates. `:gem` is the only source it takes:
+
+```ruby
+Hecks.hecksagon("Widgets") { bluebook_from :vendor }  # ~> WiringError: bluebook_from :vendor — it takes only :gem
 ```
 

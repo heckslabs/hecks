@@ -2306,6 +2306,16 @@
           "pattern": null,
           "relationship": null,
           "type": "InlineReactionsFlag"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "bluebook_from",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "BluebookSource"
         }
       ],
       "commands": [
@@ -2665,6 +2675,52 @@
 
           ],
           "name": "InlineReactionsFlag"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "to_s",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "value"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "gem"
+                }
+              },
+              "canonical": "value.to_s == \"gem\"",
+              "description": "a hecksagon's own bluebook comes from the gem"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "BluebookSource"
         },
         {
           "attributes": [
@@ -3290,6 +3346,32 @@
                 "fills",
                 ""
               ]
+            ],
+            [
+              [
+                "word",
+                "bluebook_from"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "bluebook_from"
+              ]
             ]
           ],
           "name": "KeywordSeed"
@@ -3690,6 +3772,36 @@
               [
                 "fills",
                 "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "bluebook_from"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "bluebook_from"
               ]
             ]
           ],

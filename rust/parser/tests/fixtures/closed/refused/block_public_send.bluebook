@@ -1,0 +1,6 @@
+# Refused: reaches a method by name with public_send.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    public_send :system, "id"
+  end
+end

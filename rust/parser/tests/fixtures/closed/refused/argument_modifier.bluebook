@@ -1,0 +1,6 @@
+# Refused: guards a word with a Ruby condition.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description "a" if system("id")
+  end
+end

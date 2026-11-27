@@ -28,7 +28,7 @@ RSpec.describe "hecks deploy project world lookup", :io do
   end
 
   it "picks the world named after the bluebook the hecksagon attaches among several" do
-    loading = %(Hecks::FrameworkBluebooks.load!("QualityControl")\n)
+    loading = %(Hecks.hecksagon "QualityControl" do\n  bluebook_from :gem\nend\n)
 
     with_domain(worlds: %w[governance quality_control], hecksagon: loading) do |domain|
       expect(recipe.world_file_for(domain)).to eq(File.join(domain, "bluebook", "quality_control.world"))

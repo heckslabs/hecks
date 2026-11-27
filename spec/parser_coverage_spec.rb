@@ -87,10 +87,11 @@ RSpec.describe "the Rust parser's own coverage", :io do
       %w[verb Port]
     ]],
     # `revisions` and `inline_reactions` (ADR 0182) and `clock` with its words (ADR 0184)
-    # are read by the Ruby grammar; hecks-parse does not build them yet.
+    # are read by the Ruby grammar; hecks-parse does not build them yet. `bluebook_from` loads
+    # the bluebook the gem carries, which the parser reads as a bluebook of its own.
     ["a hecksagon word hecks-parse does not build yet", [
-      %w[at Clock], %w[clock Hecksagon], %w[cron Clock], %w[dispatch Clock], %w[every Clock],
-      %w[inline_reactions Hecksagon], %w[revisions Hecksagon]
+      %w[at Clock], %w[bluebook_from Hecksagon], %w[clock Hecksagon], %w[cron Clock],
+      %w[dispatch Clock], %w[every Clock], %w[inline_reactions Hecksagon], %w[revisions Hecksagon]
     ]],
     # Declared query/read-model options no tracked corpus member happens to
     # use — `limit`/`where`/`order_by` are, and are reported.

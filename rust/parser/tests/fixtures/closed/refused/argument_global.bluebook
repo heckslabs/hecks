@@ -1,0 +1,6 @@
+# Refused: reads a global.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description $PROGRAM_NAME
+  end
+end

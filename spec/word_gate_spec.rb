@@ -75,6 +75,12 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
     end
   end
 
+  # A declaration file never reaches the builder with a word outside the grammar: the closed form
+  # refuses it first. The gate itself is for Ruby code that builds a bluebook in a block.
+  def build_in_process(source)
+    Hecks.with_registry(Hecks::Runtime::Registry.new) { eval(source, TOPLEVEL_BINDING, "smoke.rb", 1) }
+  end
+
   it "leaves every currently-valid word untouched — Ruby's own method lookup finds " \
      "an existing builder method first, this module never even sees the call" do
     registry = load(WORD_GATE_UNTOUCHED)
@@ -85,14 +91,22 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
   it "refuses a word admitted SOMEWHERE, just not in this context, naming the " \
      "legal words this context actually admits — read live off the grammar table, " \
      "not a hand-copied list" do
-    expect { load(WORD_GATE_WRONG_CONTEXT) }
+    expect { build_in_process(WORD_GATE_WRONG_CONTEXT) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed,
                       /'median' is not a word Aggregate admits — legal words here: .*identified_by/)
   end
 
   it "falls through to Ruby's own NoMethodError for a word the grammar knows " \
      "nothing about anywhere — an unrelated typo stays an ordinary, unconfusing error" do
-    expect { load(WORD_GATE_TYPO) }.to raise_error(NoMethodError, /giv3n/)
+    expect { build_in_process(WORD_GATE_TYPO) }.to raise_error(NoMethodError, /giv3n/)
+  end
+
+  it "refuses both words in a declaration file before any builder runs, naming the word and " \
+     "the words the context admits" do
+    [["median", WORD_GATE_WRONG_CONTEXT], ["giv3n", WORD_GATE_TYPO]].each do |word, source|
+      expect { load(source) }
+        .to raise_error(Hecks::ClosedForm::Refused, /'#{word}' is not a word Aggregate admits.*identified_by/)
+    end
   end
 
   it "does not shadow public_instance_methods with method_missing/respond_to_missing? — " \

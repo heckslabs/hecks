@@ -1,0 +1,6 @@
+# Refused: reads a pipe in an argument.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description IO.popen("id").read
+  end
+end

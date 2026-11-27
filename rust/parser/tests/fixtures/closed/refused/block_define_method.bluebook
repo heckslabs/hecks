@@ -1,0 +1,6 @@
+# Refused: defines a method on the builder.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    define_method(:x) { 1 }
+  end
+end

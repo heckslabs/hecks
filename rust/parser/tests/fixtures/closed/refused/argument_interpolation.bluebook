@@ -1,0 +1,6 @@
+# Refused: interpolates Ruby into a string.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description "built #{Time.now}"
+  end
+end

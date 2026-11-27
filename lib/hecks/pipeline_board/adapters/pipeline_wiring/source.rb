@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../boot_lock"
+require_relative "../../../closed_form"
 
 module Hecks
   module Adapters
@@ -36,7 +37,7 @@ module Hecks
         def read
           fresh = Runtime::Registry.new(root: @registry.root)
           PipelineBoard::BootLock.exclusive(wait: PipelineBoard::BootLock::WAIT_SECONDS) do
-            Hecks.with_registry(fresh) { paths.select { |path| File.file?(path) }.each { |path| Kernel.load(path) } }
+            Hecks.with_registry(fresh) { paths.select { |path| File.file?(path) }.each { |path| Hecks::ClosedForm.load_file(path) } }
           end
           Reading.new(fresh.bluebooks, @registry.ports, @registry.adapters)
         end

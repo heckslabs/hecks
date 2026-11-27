@@ -15,12 +15,28 @@ Hecks.hecksagon "Tickets" do
       refuses "GitHubRefused"
     end
 
-    %w[LabelIssue CommentOnIssue CloseIssue ReopenIssue].each do |ask|
-      asks ask, to: Finding do
-        attribute :finding, FindingKey
-        answers "GitHubAnswered"
-        refuses "GitHubRefused"
-      end
+    asks "LabelIssue", to: Finding do
+      attribute :finding, FindingKey
+      answers "GitHubAnswered"
+      refuses "GitHubRefused"
+    end
+
+    asks "CommentOnIssue", to: Finding do
+      attribute :finding, FindingKey
+      answers "GitHubAnswered"
+      refuses "GitHubRefused"
+    end
+
+    asks "CloseIssue", to: Finding do
+      attribute :finding, FindingKey
+      answers "GitHubAnswered"
+      refuses "GitHubRefused"
+    end
+
+    asks "ReopenIssue", to: Finding do
+      attribute :finding, FindingKey
+      answers "GitHubAnswered"
+      refuses "GitHubRefused"
     end
   end
   Tickets::Work.port "WorkAreas" do
