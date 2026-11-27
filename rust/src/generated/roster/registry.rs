@@ -891,6 +891,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("to", ":number")],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "OnSeatMarkedNotice",
@@ -902,6 +903,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "OnSeatAssignedHonorFront",
@@ -913,6 +915,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("rank", "\"officer\"")],
         where_expr: Some(where_on_seat_assigned_honor_front),
+        acts_as: None,
     },
 ];
 

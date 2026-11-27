@@ -4274,6 +4274,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: Some("System"),
     },
     crate::kernel::PolicyRule {
         policy_name: "RetireCardsOnAccountClosure",
@@ -4285,6 +4286,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("atm_card", ":atm_card")],
         where_expr: None,
+        acts_as: Some("Back office"),
     },
     crate::kernel::PolicyRule {
         policy_name: "FreezeAccountsOnSuspension",
@@ -4296,6 +4298,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("account", ":account")],
         where_expr: None,
+        acts_as: Some("Compliance officer"),
     },
 ];
 

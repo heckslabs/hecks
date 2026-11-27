@@ -109,12 +109,13 @@ why this needs no new keyword at all.
 ## attaches
 
 <!-- generated:begin word=attaches -->
-`attaches attachments, from:` — fills `attachments`
+`attaches attachments, from:, acts_as:` — fills `attachments`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | attachments |
 | `from:` | symbol | false | source |
+| `acts_as:` | text | false | acts_as |
 <!-- generated:end -->
 
 Attaches a bluebook to this domain by name, from one of two places. It marks the bluebook a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that bluebook, and persistence is bound there as for any other bluebook. It records the name and its source on the hecksagon that asked for it. Persistence is never part of what it loads: a bluebook's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever attaches it, the same as any other binding decision.

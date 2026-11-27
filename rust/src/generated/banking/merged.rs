@@ -5047,6 +5047,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: Some("System"),
     },
     crate::kernel::PolicyRule {
         policy_name: "RetireCardsOnAccountClosure",
@@ -5058,6 +5059,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("atm_card", ":atm_card")],
         where_expr: None,
+        acts_as: Some("Back office"),
     },
     crate::kernel::PolicyRule {
         policy_name: "FreezeAccountsOnSuspension",
@@ -5069,6 +5071,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("account", ":account")],
         where_expr: None,
+        acts_as: Some("Compliance officer"),
     },
     crate::kernel::PolicyRule {
         policy_name: "SweepWhenRequested",
@@ -5080,6 +5083,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("run", ":run")],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "RecordTheSweep",
@@ -5091,6 +5095,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("results", ":results")],
         where_expr: None,
+        acts_as: Some("System"),
     },
     crate::kernel::PolicyRule {
         policy_name: "RecordTheRefusal",
@@ -5102,6 +5107,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("refusal", ":refusal")],
         where_expr: None,
+        acts_as: Some("System"),
     },
 ];
 

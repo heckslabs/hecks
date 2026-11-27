@@ -882,6 +882,7 @@
   "namespace": null,
   "policies": [
     {
+      "acts_as": "Customer",
       "expect_undelivered": false,
       "for_each": null,
       "name": "OnPizzaPaymentReceived",

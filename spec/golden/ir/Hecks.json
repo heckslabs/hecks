@@ -1216,6 +1216,7 @@
       ]
     },
     {
+      "acts_as": "System",
       "expect_undelivered": false,
       "for_each": null,
       "name": "RecordTheOverlay",
@@ -1233,6 +1234,7 @@
       ]
     },
     {
+      "acts_as": "System",
       "expect_undelivered": false,
       "for_each": null,
       "name": "RecordTheRefusedOverlay",

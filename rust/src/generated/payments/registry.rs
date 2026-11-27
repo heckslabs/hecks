@@ -387,6 +387,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "OnPaymentDeclinedByProcessor",
@@ -398,6 +399,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
 ];
 
