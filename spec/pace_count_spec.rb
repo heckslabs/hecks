@@ -6,7 +6,7 @@ require "hecks/hecks/adapters/pace_reading"
 
 # A count of named events inside a window of the event tap: the figure a poll's firings an hour are
 # measured by, before and after its driving event replaces it.
-RSpec.describe Hecks::Adapters::PaceReading, "counting named events" do
+RSpec.describe Hecks::Adapters::PaceReading, "#count" do
   let(:aggregate) { boot_hecks_in_memory.registry.bluebook("Hecks").aggregate("Pace") }
   let(:dir)       { Dir.mktmpdir }
   let(:tap)       { File.join(dir, "events.jsonl") }
@@ -36,9 +36,13 @@ RSpec.describe Hecks::Adapters::PaceReading, "counting named events" do
     write([line(1, "MessageSent", age: 600), line(2, "MessageSent", age: 10)])
     expect(text("MessageSent", "5m")).to include("MessageSent: 1", "window: 5m")
   end
+end
 
-  it "names the edge samplers the bluebook keeps" do
-    rows = aggregate.value_objects.find { |o| o.hecks_name == "EdgeSampler" }.members.map { |m| m.to_h[:source] }
-    expect(rows).to include("os_load", "process_list")
+# The polls that stay are named in the bluebook, each with the reason the world cannot push it.
+RSpec.describe "Pace edge samplers" do
+  it "names the sources a sampler reads" do
+    pace = boot_hecks_in_memory.registry.bluebook("Hecks").aggregate("Pace")
+    rows = pace.value_objects.find { |o| o.hecks_name == "EdgeSampler" }.members.map { |m| m.to_h[:source] }
+    expect(rows).to include("os_load", "process_list", "board_view")
   end
 end
