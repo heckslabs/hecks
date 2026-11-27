@@ -69,6 +69,19 @@ Hecks.behaviors "Harness" do
     expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], hold: "none", addressee: "orchestrator"
   end
 
+  test "a run whose session is refused its child is refused, and never started" do
+    tests "Start", on: "AgentRun"
+    input run: { value: "work-1" }, session: { value: "coder" }, brief: { value: "You are the coder." }
+    expect emits: %w[RunRequested SessionOpenRequested SessionNotSpawned SessionNotOpened RunRefused],
+           status: "refused", condition: ""
+  end
+
+  test "a run with no brief is not started" do
+    tests "Start", on: "AgentRun"
+    input run: { value: "work-1" }, session: { value: "coder" }, brief: { value: "" }
+    expect refused: "Brief.value must match"
+  end
+
   test "a tick of the clock is recorded at its moment" do
     tests "Tick", on: "Clock"
     input reading: { value: "tick-60000" }, now: { value: 60_000 }

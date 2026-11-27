@@ -89,6 +89,16 @@ Hecks.bluebook "Hecks" do
                context: "Hecks / Delegate", says: "The load the machine counts as loaded above, which asks a session to yield"
         member world: "Tickets", setting: "machine_marks.load_low", kind: "number", least: "1", most: "40",
                context: "Hecks / Delegate", says: "The load the machine counts as recovered under, which runs the fill again"
+        member world: "Tickets", setting: "machine_marks.swap_used_mb", kind: "number", least: "1024", most: "65536",
+               context: "Hecks / Delegate", says: "The swap in use, in MB, over which the machine counts memory as low (MemoryLow)"
+        member world: "Tickets", setting: "machine_marks.swap_recovered_mb", kind: "number", least: "512", most: "65535",
+               context: "Hecks / Delegate", says: "The swap in use, in MB, under which memory recovers; keep it under swap_used_mb"
+        member world: "Tickets", setting: "machine_marks.compressor_gb", kind: "number", least: "1", most: "64",
+               context: "Hecks / Delegate", says: "The compressor size, in GB, over which the machine counts memory as low"
+        member world: "Tickets", setting: "machine_marks.free_gb_low", kind: "number", least: "0.5", most: "32",
+               context: "Hecks / Delegate", says: "The free memory, in GB, under which the machine counts memory as low"
+        member world: "Tickets", setting: "machine_marks.free_gb_recovered", kind: "number", least: "1", most: "32",
+               context: "Hecks / Delegate", says: "The free memory, in GB, over which memory recovers; keep it over free_gb_low"
         member world: "Tickets", setting: "load_shed.at_once", kind: "integer", least: "1", most: "5",
                context: "Hecks / Delegate", says: "Started items asked to yield at once when the load rises"
         member world: "Tickets", setting: "load_shed.min_coders", kind: "integer", least: "1", most: "10",
