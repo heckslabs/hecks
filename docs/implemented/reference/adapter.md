@@ -233,7 +233,37 @@ runtime.registry.adapters["reference_mailer"].granted_hosts    # => ["api.mailer
 | `echoing:` | literal | false | echoing |
 <!-- generated:end -->
 
-<!-- TODO: document this word -->
+Answers one ask of the adapter's port, or one query the port answers, from data instead of code.
+`where:` names the asked values the row matches, each compared with the scalar inside an asked value
+object (`destination: "Lisbon"` matches `destination: { value: "Lisbon" }`); a row with no `where:`
+matches every asking. `with:` is the answer: a hash for an ask, or a list of hashes for a query that
+`returns list_of(...)`. `echoing:` copies asked fields into the answer unchanged. Rows are tried in file
+order and the first whose `where:` holds answers. An asking no row matches is refused, naming the
+adapter, the ask and the values its rows look at.
+
+A row holds only data: strings, integers, `true`, `false`, `nil`, hashes and lists. The Rust parser is
+its one reader, and refuses a float, a symbol in an answer, a constant or a call by name;
+`hecks-parse reply` answers an asking from the rows, so no Ruby matches them. An adapter with rows names
+its port, runs nothing and stays inside without saying so, so a behaviors suite may boot it. Two such
+stand-ins for one port in `behavior_adapters/` make the suite run once per adapter (ADR 0238).
+
+```ruby boot
+Hecks.adapter("reference_carrier") do
+  port "reference_carrier"
+  replies "Collect", where: { destination: "Lisbon" }, with: { tracking: { value: "PT-0001" } }
+  refuses "Collect", where: { destination: "Atlantis" }, saying: "no road reaches Atlantis"
+  replies "Collect", echoing: [:destination], with: { tracking: { value: "held" } }
+end
+```
+
+```ruby
+carrier = runtime.registry.adapters["reference_carrier"]
+carrier.replied_asks   # => ["Collect"]
+carrier.stays_inside?  # => true
+answer = Hecks::Runtime::DeclaredAdapter.class_for(carrier).new
+answer.collect(destination: { value: "Lisbon" })  # => { tracking: { value: "PT-0001" } }
+answer.collect(destination: { value: "Lima" })    # => { tracking: { value: "held" }, destination: { value: "Lima" } }
+```
 
 ## refuses
 
@@ -247,5 +277,12 @@ runtime.registry.adapters["reference_mailer"].granted_hosts    # => ["api.mailer
 | `saying:` | text | true | saying |
 <!-- generated:end -->
 
-<!-- TODO: document this word -->
+Refuses one ask or query of the adapter's port, for the asked values its `where:` matches, with the
+reason `saying:` words. It is tried in file order with the `replies` rows, so a refusal written first
+wins over a reply that would also match. An ask announces the port's `refuses` event with the reason, as
+for any adapter's refusal; a query refuses with it as a `RemoteRefusal`.
+
+```ruby
+answer.collect(destination: { value: "Atlantis" })  # ~> Refused: no road reaches Atlantis
+```
 

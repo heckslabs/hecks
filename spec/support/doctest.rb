@@ -196,15 +196,18 @@ module Doctest
     end
 
     def declare(block)
-      return Kernel.eval(block.code, TOPLEVEL_BINDING, @guide.path, block.line) unless block.kind == :bluebook
+      return Kernel.eval(block.code, TOPLEVEL_BINDING, @guide.path, block.line) unless on_disk?(block)
 
-      # Prism memoises extraction per path, so each block needs a fresh file.
-      file = Tempfile.new(["doctest-", ".bluebook"])
+      file = Tempfile.new(["doctest-", block.kind == :bluebook ? ".bluebook" : ".adapter"])
       file.write(block.code)
       file.flush
       @tempfiles << file
       Kernel.eval(block.code, TOPLEVEL_BINDING, file.path, 1)
     end
+
+    # A bluebook needs a fresh file because Prism memoises extraction per path; a declared adapter
+    # needs one because the Rust parser reads its rows from its file.
+    def on_disk?(block) = block.kind == :bluebook || block.code.match?(/^\s*(replies|refuses) "/)
 
     # One line stays one line, so backtraces name the guide's true line.
     def transform(block)
