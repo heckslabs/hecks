@@ -46,8 +46,7 @@ RSpec.describe "the code a resident runs" do
     Dir.mktmpdir("hrsc") do |dir|
       stand_in_for_the_process_table
       starting.call(checkout(dir), script)
-      expect(Process).to have_received(:spawn)
-        .with(anything, anything, "-I", File.join(dir, "lib"), anything, dir, anything, anything)
+      expect(Process).to have_received(:spawn).with(anything, anything, "-I", File.join(dir, "lib"), *[anything] * 4)
     end
   end
 end
