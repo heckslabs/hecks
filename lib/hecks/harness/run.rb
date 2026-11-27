@@ -52,6 +52,14 @@ module Hecks
         owner("AgentRun.Start", run: { value: key }, session: { value: session }, brief: { value: brief })
       end
 
+      # Starts a run in a standing seat whose session stopped, as the Owner: the session is reopened
+      # on the brief, and its new child starts from the handover the seat's last session left.
+      #
+      # @return [void]
+      def take_seat(key, session, brief)
+        owner("AgentRun.TakeSeat", run: { value: key }, session: { value: session }, brief: { value: brief })
+      end
+
       # Stops a running session, as the Owner.
       #
       # @return [void]

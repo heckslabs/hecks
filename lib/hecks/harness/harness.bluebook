@@ -7,15 +7,18 @@ Hecks.bluebook "Harness" do
 
   supporting
 
-  # One session: a Claude Code child the supervisor holds, from its opening to its exit.
+  # One session: a Claude Code child the supervisor holds, from its opening to its exit. A session
+  # that stopped can be reopened, so a standing seat keeps its name across the sessions that fill it,
+  # and each one starts from the handover the last one left.
   aggregate "Session" do
-    description "One agent session: its name, its brief, the Claude session it became, and where it stands from opening to stopped."
+    description "One agent session: its name, its brief, the Claude session it became, the handover it leaves its seat, and where it stands from opening to stopped."
 
     identified_by :name
 
-    attribute :name,   SessionName
-    attribute :brief,  Brief
-    attribute :claude, ClaudeSession, optional: true
+    attribute :name,     SessionName
+    attribute :brief,    Brief
+    attribute :claude,   ClaudeSession, optional: true
+    attribute :handover, Handover, optional: true
 
     value_object "SessionName" do
       attribute :value, String, matches: :present
@@ -39,6 +42,12 @@ Hecks.bluebook "Harness" do
       attribute :value, String, default: ""
     end
 
+    # What the session said at the end of its last turn that said something: where it stopped, which
+    # the next session opened in its seat is told after its brief.
+    value_object "Handover" do
+      attribute :value, String, matches: :present
+    end
+
     value_object "Outcome" do
       attribute :value, String, one_of: ["success", "error"]
     end
@@ -53,10 +62,12 @@ Hecks.bluebook "Harness" do
       transition "RecordNotOpened" => "refused",  from: "opening"
       transition "Stop"            => "stopping", from: "running"
       transition "RecordStopped"   => "stopped",  from: ["running", "stopping"]
+      transition "Reopen"          => "opening",  from: "stopped"
       # A session runs until it is stopped, and a stopping child is killed by the supervisor once
-      # its grace runs out, so neither state is a wait the bluebook times.
-      mark :rests, "running", "stopping"
-      mark :terminal, "stopped", "refused"
+      # its grace runs out, so neither state is a wait the bluebook times. A stopped session waits
+      # for its seat to be filled again, which no clock decides.
+      mark :rests, "running", "stopping", "stopped"
+      mark :terminal, "refused"
     end
 
     command "Open" do
@@ -114,6 +125,21 @@ Hecks.bluebook "Harness" do
       emits "TurnEnded"
     end
 
+    # A turn that said something leaves the session's handover: the last words its seat's next
+    # session starts from.
+    command "RecordHandover" do
+      role "System"
+      policy_only
+      goal "Record what the session said at the end of a turn as the handover it leaves its seat"
+
+      reference_to Session
+      attribute :handover, Handover, sets: true
+
+      given("a session leaves a handover only while it runs or is stopping") { status == "running" || status == "stopping" }
+
+      emits "HandoverLeft"
+    end
+
     # The session asked for a tool the harness withholds; the model was told and went on.
     command "RecordWithheld" do
       role "System"
@@ -143,6 +169,18 @@ Hecks.bluebook "Harness" do
 
       emits "SessionStopped"
     end
+
+    # The next session in a standing seat: the seat's name and its handover stay, and the new child
+    # is told its brief and then the handover the last session left.
+    command "Reopen" do
+      role "Owner"
+      goal "Reopen a stopped session on a brief, and ask the supervisor for a child that starts from its handover"
+
+      reference_to Session
+      attribute :brief, Brief, sets: true
+
+      emits "SessionReopenRequested"
+    end
   end
 
   policy "OpenTheSessionsChild" do
@@ -163,6 +201,19 @@ Hecks.bluebook "Harness" do
   policy "CloseTheSessionsChild" do
     on  "Session.SessionStopRequested"
     ask :stop_session, with: { name: :session }
+  end
+
+  # The supervisor is handed the session as the ledger holds it, its handover with it.
+  policy "ReopenTheSessionsChild" do
+    on  "Session.SessionReopenRequested"
+    ask :reopen_session, with: { name: :name }
+  end
+
+  # A turn that said nothing leaves the last handover as it was.
+  policy "LeaveTheSessionsHandover" do
+    on      "Session.TurnEnded"
+    where   { said.value != "" }
+    trigger Session::RecordHandover, with: { session: :session, handover: :said }
   end
 
   # One role's work in a session. A turn that ends with the role's closing words is a report, not
@@ -230,6 +281,19 @@ Hecks.bluebook "Harness" do
       emits "RunRequested"
     end
 
+    # A standing seat's next run: its session stopped and is reopened, starting from the handover
+    # its last run left. A seat whose session still runs refuses the reopening, and the run waits.
+    command "TakeSeat" do
+      role "Owner"
+      goal "Start a run in a standing seat whose session stopped, reopening it on the brief to start from its handover"
+
+      attribute :run,     RunKey
+      attribute :session, Seat
+      attribute :brief,   Brief
+
+      emits "SeatRunRequested"
+    end
+
     command "Begin" do
       role "System"
       policy_only
@@ -294,6 +358,11 @@ Hecks.bluebook "Harness" do
   policy "OpenTheRunsSession" do
     on      "AgentRun.RunRequested"
     trigger Session::Open, with: { name: :session, brief: :brief }
+  end
+
+  policy "ReopenTheRunsSeat" do
+    on      "AgentRun.SeatRunRequested"
+    trigger Session::Reopen, with: { session: :session, brief: :brief }
   end
 
   policy "BeginTheRunOfTheRunningSession" do
