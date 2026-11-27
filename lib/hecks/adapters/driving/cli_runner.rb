@@ -25,7 +25,6 @@ require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
 require_relative "cli_runner/verb_names"
-require_relative "cli_runner/renamed_names"
 require_relative "cli_runner/verbosity"
 require_relative "cli_runner/since"
 require_relative "cli_runner/name_index"
@@ -57,7 +56,6 @@ module Hecks
         extend Suggestions
         extend NameIndex
         extend VerbNames
-        extend RenamedNames
         extend Answers
         extend Settling
         extend Streaming
