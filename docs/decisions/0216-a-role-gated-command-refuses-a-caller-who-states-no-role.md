@@ -79,6 +79,11 @@ decision 4 are not built. Where the build differs from the text above or adds to
   acts_as: "System"`, for a package whose files its lock pins. Every policy under `lib/`, `examples/` and `qa/`
   whose command declares a role declares one or takes its attachment's; spec fixtures keep undeclared ones on
   purpose, to exercise the rule.
+- **The language's own load states the language's role.** Every role-gated command of bluebook.bluebook declares
+  `Language`, and every one of the world, port, adapter and translation languages declares `Deployment`. The judge
+  that offers a loaded file to its language dispatches as that role (`MetaValidator::JudgingCaller`), so a load is
+  never refused for the caller around it; dispatched as a caller who states no role, the same load is refused
+  ("Declare refused — role: Language, and the caller stated no role").
 - **`policy_only` refuses any caller that is not a reaction** ("Water refused — only a policy reaction may dispatch
   it, and a caller did", `Unauthorized`/`policy_only`); a dispatch with no caller runs it.
 - **The record stays where 7.x kept it**: the registry's `unstated_caller_log` and the `would_refuse_role` line under
