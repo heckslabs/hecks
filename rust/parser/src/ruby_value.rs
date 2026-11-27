@@ -147,7 +147,7 @@ pub fn read(text: &str) -> Value {
 
 /// `raw` with each underscore that sits between two digits removed, or `None` when `raw` has
 /// an underscore anywhere else, which Ruby would not read as a number.
-fn without_digit_separators(raw: &str) -> Option<String> {
+pub(crate) fn without_digit_separators(raw: &str) -> Option<String> {
     if !raw.contains('_') {
         return None;
     }

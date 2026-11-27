@@ -19,11 +19,13 @@ module Hecks
         # A receiver followed by `.length`, capturing the receiver.
         LENGTH_CALL = /\A(.+)\.length\z/
 
-        # An optionally negative whole-number literal.
-        INTEGER_LITERAL = /\A-?\d+\z/
+        # An optionally negative whole-number literal; an underscore may sit between two digits,
+        # as in Ruby's `900_000`.
+        INTEGER_LITERAL = /\A-?\d+(?:_\d+)*\z/
 
-        # An optionally negative decimal literal; the digits before the point may be left out.
-        FLOAT_LITERAL = /\A-?\d*\.\d+\z/
+        # An optionally negative decimal literal; the digits before the point may be left out, and
+        # an underscore may sit between two digits.
+        FLOAT_LITERAL = /\A-?(?:\d+(?:_\d+)*)?\.\d+(?:_\d+)*\z/
 
         # A `receiver.match?(/pattern/flags)` call, capturing the receiver, pattern and flags.
         MATCHES_REGEX_CALL = %r{\A(.+)\.match\?\(/(.*)/([a-z]*)\)\z}m

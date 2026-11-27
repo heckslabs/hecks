@@ -120,18 +120,21 @@ pub fn parse(expr: &str) -> Resolver {
         return Resolver::Size(Box::new(parse(inner)));
     }
 
-    if is_integer_literal(expr) {
+    // Ruby reads `900_000` as `900000`, an underscore between two digits, as a value does.
+    let separated = crate::ruby_value::without_digit_separators(expr);
+    let number = separated.as_deref().unwrap_or(expr);
+    if is_integer_literal(number) {
         // reason: `parse` has no error channel; a digits-only literal fails only on i64 overflow.
         #[allow(clippy::panic)]
-        let value = expr
+        let value = number
             .parse::<i64>()
             .unwrap_or_else(|_| panic!("bad integer literal {expr:?}"));
         return Resolver::IntegerLiteral(value);
     }
-    if is_float_literal(expr) {
+    if is_float_literal(number) {
         // reason: `parse` has no error channel; `is_float_literal` vetted the text above.
         #[allow(clippy::panic)]
-        let value = expr
+        let value = number
             .parse::<f64>()
             .unwrap_or_else(|_| panic!("bad float literal {expr:?}"));
         return Resolver::FloatLiteral(value);
@@ -883,6 +886,34 @@ mod tests {
             matches!(parse("a - -5"), Resolver::Subtraction(_, right) if matches!(*right, Resolver::IntegerLiteral(-5)))
         );
         assert!(matches!(parse("-5"), Resolver::IntegerLiteral(-5)));
+    }
+
+    #[test]
+    fn a_number_reads_its_digit_separators_as_ruby_does() {
+        assert!(matches!(
+            parse("900_000"),
+            Resolver::IntegerLiteral(900_000)
+        ));
+        assert!(matches!(
+            parse("-1_209_600"),
+            Resolver::IntegerLiteral(-1_209_600)
+        ));
+        assert!(
+            matches!(parse("1_000.25"), Resolver::FloatLiteral(f) if (f - 1_000.25).abs() < f64::EPSILON)
+        );
+        assert!(
+            matches!(parse("at + 900_000"), Resolver::Addition(_, right) if matches!(*right, Resolver::IntegerLiteral(900_000)))
+        );
+    }
+
+    #[test]
+    fn an_underscore_that_is_not_between_two_digits_leaves_a_name() {
+        for name in ["window_ms", "x1_2", "_100", "100_", "1__0"] {
+            assert!(
+                matches!(parse(name), Resolver::Lookup(ref path) if path == name),
+                "{name}"
+            );
+        }
     }
 
     #[test]
