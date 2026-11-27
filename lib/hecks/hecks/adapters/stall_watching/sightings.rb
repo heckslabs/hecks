@@ -152,7 +152,8 @@ module Hecks
           stall = key(kind, subject)
           { id: run, stall: stall, stall_kind: kind[:kind], subject: subject, opened_at: at.to_s, waited: waited,
             minutes: kind[:minutes], forgets: kind[:forgets], fixer: kind[:fixer], title: title(kind, subject),
-            detail: detail(kind, subject, at, waited, stall), filed: "", count: 1, impediment: stall, cleared_by: Clearing.of(kind) }
+            detail: detail(kind, subject, at, waited, stall), filed: "", count: 1, impediment: stall,
+            cleared_by: Clearing.of(kind) }
         end
 
         def title(kind, subject) = "#{kind[:kind]} stalled: #{kind[:aggregate]} #{subject}"
