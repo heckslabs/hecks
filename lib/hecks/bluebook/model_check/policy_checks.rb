@@ -38,22 +38,27 @@ module Hecks
                                "this domain declares")
         end
 
-        # `attaches` is a Shared Kernel relationship (X merges in, no boundary);
-        # `across` is Customer/Supplier (real cross-Lambda RPC). This checks the choice
-        # between them instead of leaving it as an unenforced comment. (ADR 0025)
+        # `across` names the context a trigger reaches into, and the hecksagon has to say how it
+        # reaches it: it attaches the context (in-process, the attaching context conforms to it and
+        # may call its commands, ADR 0155) or subscribes to its events.
         def cross_domain_policy_findings(policy, hecksagon, known_domains)
           return expected_undelivered_findings(policy, hecksagon, known_domains) if policy.expect_undelivered
           # No sibling hecksagon loaded — nothing to check a relationship against.
           return [] unless hecksagon
+          # An attached target is acknowledged, and loaded wherever this context is.
+          return [] if hecksagon.attaches?(policy.target_domain)
 
           [relationship_finding(policy, hecksagon), unknown_target_finding(policy, known_domains)].compact
         end
 
-        # @return [Finding, nil] the finding for an `across` target that is both attached and
-        #   dispatched to, or for one the hecksagon never acknowledges; `nil` when neither
+        # A target the hecksagon attaches never reaches here: a context that attaches another
+        # depends on it, and calling its commands from its own events keeps that one direction,
+        # which is how two contexts stop depending on each other (ADR 0207).
+        #
+        # @return [Finding, nil] the finding for an `across` target the hecksagon does not subscribe
+        #   to; `nil` when it does
         def relationship_finding(policy, hecksagon)
           target = policy.target_domain
-          return contradictory_relationship_finding(policy, target) if hecksagon.attaches?(target)
           return unless hecksagon.subscriptions.none? { |subscribed| Naming.qualifier(subscribed) == target }
 
           # Checked here at model-check time; subscribe itself is never routed at
@@ -64,18 +69,6 @@ module Hecks
                                "expectation — add subscribe \"#{target}.SomeEvent\" for what " \
                                "you expect back from it, or attaches #{target.inspect} to " \
                                "attach it in-process instead")
-        end
-
-        # Shared Kernel and Customer/Supplier are mutually exclusive claims about
-        # the same target — declaring both means either a pointless RPC to a
-        # domain already local, or an attaches that isn't doing its job.
-        def contradictory_relationship_finding(policy, target)
-          Finding.new(kind: :contradictory_relationship, severity: :error, subject: policy.name,
-                      message: "across #{target.inspect} dispatches over RPC (Customer/Supplier), " \
-                               "but this hecksagon also attaches #{target.inspect} (Shared " \
-                               "Kernel) — #{target} is already loaded in-process here, so the two " \
-                               "relationship declarations contradict each other for the same " \
-                               "target domain")
         end
 
         # A heuristic, not proof: an external hecks consumer's own domain lives in a
