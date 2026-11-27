@@ -13,6 +13,36 @@ Hecks.hecksagon "LocalLayer" do
       refuses "EditJournalRefused"
     end
   end
+
+  # Diff applies the batch's gathered edits to a copy of the target; Check holds that diff to the
+  # digest shown and loads the copy under the validators. Neither writes the target.
+  LocalLayer::Batch.port "Previewing" do
+    asks "Diff", to: Batch do
+      attribute :run,    BatchRun
+      attribute :target, Target
+      answers "DiffComputed"
+      refuses "DiffRefused"
+    end
+
+    asks "Check", to: Batch do
+      attribute :run,    BatchRun
+      attribute :target, Target
+      attribute :diff,   Digest
+      answers "ChecksPassed"
+      refuses "ChecksFailed"
+    end
+  end
+
+  # Write holds the batch's patched copy to the digest shown, then replaces the target with it.
+  LocalLayer::Batch.port "Applying" do
+    asks "Write", to: Batch do
+      attribute :run,    BatchRun
+      attribute :target, Target
+      attribute :diff,   Digest
+      answers "TargetWritten"
+      refuses "TargetWriteRefused"
+    end
+  end
 end
 
 Hecks.hecksagon "Governance" do

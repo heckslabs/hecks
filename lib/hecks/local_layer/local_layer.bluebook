@@ -169,8 +169,8 @@ Hecks.bluebook "LocalLayer" do
       transition "ShowDiff"     => "diffed",  from: "sealed"
       transition "RecordChecks" => "checked", from: "diffed"
       transition "Apply"        => "applied", from: "checked"
-      transition "Refuse"       => "refused", from: %w[open sealed diffed checked]
-      mark :terminal, "applied", "refused"
+      transition "Refuse"       => "refused", from: %w[open sealed diffed checked applied]
+      mark :terminal, "refused"
     end
 
     command "Open" do
@@ -190,8 +190,9 @@ Hecks.bluebook "LocalLayer" do
       goal "Close the batch to new edits, with the count of edits it holds"
 
       reference_to Batch
-      attribute :run,   BatchRun
-      attribute :edits, Count, sets: true
+      attribute :run,    BatchRun
+      attribute :target, Target
+      attribute :edits,  Count, sets: true
 
       given("a batch holds at least one edit") { edits.value.positive? }
 
@@ -203,8 +204,9 @@ Hecks.bluebook "LocalLayer" do
       goal "Record the digest of the diff shown for the sealed batch"
 
       reference_to Batch
-      attribute :run,  BatchRun
-      attribute :diff, Digest, sets: true
+      attribute :run,    BatchRun
+      attribute :target, Target
+      attribute :diff,   Digest, sets: true
 
       emits DiffShown
     end
@@ -228,6 +230,7 @@ Hecks.bluebook "LocalLayer" do
 
       reference_to Batch
       attribute :run,       BatchRun
+      attribute :target,    Target
       attribute :confirmed, Digest
       attribute :current,   Digest
 
@@ -257,6 +260,54 @@ Hecks.bluebook "LocalLayer" do
   policy "JournalWhenWithdrawn" do
     on      "Edit.EditWithdrawn"
     ask     :append, with: { run: :run }
+  end
+
+  # A gathering is journaled too, so the journal says which edits one batch holds.
+  policy "JournalWhenGathered" do
+    on      "Edit.EditGathered"
+    ask     :append, with: { run: :run }
+  end
+
+  # A sealed batch is shown as a diff of its gathered edits against the target, then checked.
+  policy "ShowDiffWhenSealed" do
+    on      "Batch.BatchSealed"
+    ask     :diff, with: { run: :run, target: :target }
+  end
+
+  policy "NoteDiffWhenComputed" do
+    on      "Batch.DiffComputed"
+    trigger Batch::ShowDiff, with: { run: :run, target: :target, diff: :diff }
+  end
+
+  policy "RefuseWhenDiffFails" do
+    on      "Batch.DiffRefused"
+    trigger Batch::Refuse, with: { run: :run }
+  end
+
+  policy "CheckWhenDiffShown" do
+    on      "Batch.DiffShown"
+    ask     :check, with: { run: :run, target: :target, diff: :diff }
+  end
+
+  policy "RecordWhenChecksPass" do
+    on      "Batch.ChecksPassed"
+    trigger Batch::RecordChecks, with: { run: :run, outcome: :outcome }
+  end
+
+  policy "RefuseWhenChecksFail" do
+    on      "Batch.ChecksFailed"
+    trigger Batch::Refuse, with: { run: :run }
+  end
+
+  # An applied batch is written to its target, against the digest of the diff that was shown.
+  policy "WriteWhenApplied" do
+    on      "Batch.BatchApplied"
+    ask     :write, with: { run: :run, target: :target, diff: :confirmed }
+  end
+
+  policy "RefuseWhenWriteFails" do
+    on      "Batch.TargetWriteRefused"
+    trigger Batch::Refuse, with: { run: :run }
   end
 
   policy "NoteWhenJournaled" do
