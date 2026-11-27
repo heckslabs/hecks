@@ -57,18 +57,18 @@ What Hecks already has for the move:
 
 ## Decision
 
-1. **One host runs the whole pipeline: the beat, dispatch, coders, gates, the train, the board and its
-   watchers.** It is the pipeline's own host, not a slot on a host that serves clients, so a coder that fills
-   memory or disk cannot stop a client's service. It is projected from a world of the pipeline's own, as client
-   services are, and no infrastructure is written by hand. The first size is 8 GB on arm64, with 2 or 4 vCPU as the
-   provider offers at that price, and about 100 GB of disk, enough for two or three coders and a
-   quick gate at once, which is the pace the model credit allows; the fill's headroom readings decide when it
-   grows. Two providers fit, compared under Consequences: Hetzner Cloud (`CAX21`, Arm, in Germany or Finland)
-   and AWS (`t4g.large`, in the account and region the owner's services already use). The owner picks. The host
-   runs Switchyard on a pinned Hecks, not Hecks itself: the owner decided on 2026-11-27 that the whole pipeline
-   leaves Hecks for Switchyard ("We can move off the whole pipeline to switch yard"), so the cloud work is built
-   with Switchyard as its home. Hecks keeps what any project uses (the box projections and the Postgres
-   adapter), and Switchyard uses them as a client does.
+1. **One host runs the whole pipeline: the beat, dispatch, coders, gates, the train, the board and its watchers.**
+   It is the pipeline's own host, not a slot on a host that serves clients, so a coder that fills memory or disk
+   cannot stop a client's service. It is projected from a world of the pipeline's own with `deployed_to("AwsBox")`,
+   as client services are, and no infrastructure is written by hand. It runs on AWS, the owner's choice on
+   2026-11-27 ("Aws is fine") after the comparison under Consequences: a `t4g.large` (2 Arm vCPU, 8 GB) with a 100
+   GB gp3 volume in us-east-1, the region the owner's services already use. That holds two or three coders and a
+   quick gate at once, which is the pace the model credit allows; the fill's headroom readings decide when it grows,
+   and it is reserved for a year once a month of readings shows the size holds. The host runs Switchyard on a pinned
+   Hecks, not Hecks itself: the owner decided on 2026-11-27 that the whole pipeline leaves Hecks for Switchyard ("We
+   can move off the whole pipeline to switch yard"), so the cloud work is built with Switchyard as its home. Hecks
+   keeps what any project uses (the `AwsBox` projection and the Postgres adapter), and Switchyard uses them as a
+   client does.
 2. **The ledger moves to Postgres, running on the pipeline's own host.** Not a tenant in a shared database: the
    owner is retiring the shared, multi-tenant database ("Multi tenancy will go away later"), so the pipeline keeps
    its data beside it, as each deployment will. Postgres runs as one more container on the host, reached from the
@@ -136,9 +136,8 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 4. **Liveness from the ledger** (decision 4). *`a-second-machine-pulls-from-the-shared-queue`.*
 5. **CI judges the landing** (decision 6). *`quick-gate-runs-on-ci`.*
 6. **The host's world and its projection, with Postgres beside the pipeline, the secret names, the tailnet join
-   and the board's fetch beat** (decisions 1, 2, 5 and 7). Projected and checked, not deployed. On AWS this is the
-   existing `AwsBox` kind. On Hetzner it needs a box kind Hecks does not have yet (decision 1); that kind is
-   framework work, so it lands in Hecks. *New item.*
+   and the board's fetch beat** (decisions 1, 2, 5 and 7). Projected and checked, not deployed. This is the existing
+   `AwsBox` kind, with Postgres added to the box beside the pipeline. *New item.*
 7. **The door** (decision 8). *New item.*
 8. **Deploy and cut over** (decisions 9 and 10), on the owner's yes, since it creates an account's resources,
    spends money and changes the tailnet.
@@ -192,8 +191,9 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 - **Move only the board and copy the laptop's ledger to it.** The owner chose the whole pipeline. A copied
   board is only as current as the laptop that feeds it, and it gives no other caller a way to act.
-- **A rented server set up by hand.** Hetzner is only taken with a projection of its own, since a server set up
-  by hand drifts from what the bluebooks say.
+- **Hetzner Cloud.** A `CAX21` (4 Arm vCPU, 8 GB) is about $15 a month against about $43 to $62 here, but every plan
+  in that line showed sold out on 2026-11-27 and Hecks has no Hetzner box kind, so a deploy would wait on both. The
+  owner chose AWS.
 - **Containers without a persistent disk (Fargate, Lambda).** Worktrees, the train's copy and long Claude Code
   sessions need a disk that outlives one request.
 - **Coders as hosted agent sessions in place of Claude Code on the box.** It would change the loop the
@@ -203,7 +203,6 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 - Switchyard's remote. It is a local repository on the laptop today (0205), so the box cannot clone it; a
   private repository on GitHub, made by the owner, is what the box and other sessions pull from.
-- The provider: Hetzner (cheapest, needs a new box kind and orderable stock) or AWS (works with what Hecks
-  projects today), and the region.
+- The AWS account the box goes into (us-east-1, beside the owner's services).
 - API credits or a subscription token for the coders, and the day's spend bound.
 - A Tailscale Funnel or a public address for the door.
