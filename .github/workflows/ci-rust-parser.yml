@@ -56,8 +56,8 @@ jobs:
         run: cd rust/parser && cargo test --locked --test closed -- --nocapture
 
   # rust/parser/ ("hecks-parse") is an independent Cargo project that never touches
-  # the main crate's tree, so this job can run beside rspec_rust_io. The specs
-  # build it themselves via `build_parser!`, so no separate build step is needed.
+  # the main crate's tree, so this job can run beside rspec_rust_io. The parity specs
+  # build it themselves via `build_parser!`; the build step below is for the rest.
   rspec_rust_parser:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -95,9 +95,16 @@ jobs:
           crate-root: rust/parser
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Built before the specs, not by them: the reference page that declares adapter rows does
+      # not build it, and specs run in random order.
+      - name: "cargo build: rust/parser (hecks-parse)"
+        run: cd rust/parser && cargo build
+
       - name: "rspec: Rust parser parity + coverage + grammar corpus + the Composer's check"
         run: |
           bundle exec rspec --tag io \
+            spec/declared_adapter_spec.rb \
+            spec/reference_doctest_spec.rb \
             spec/parser_parity_spec.rb \
             spec/parser_adapter_parity_spec.rb \
             spec/parser_world_parity_spec.rb \
@@ -122,6 +129,15 @@ jobs:
 
       - name: "cargo test: rust/lsp (hecks_lsp)"
         run: cd rust/lsp && cargo test
+
+      # rust/harness ("hecks-harness") is another independent, std-only Cargo project. The spec
+      # builds it itself (spec/support/hecks_harness_binary.rb) and the crate's tests reuse that
+      # build: a reviewer and a coder exchange messages through the Harness bluebook on replay tapes.
+      - name: "rspec: Harness sessions exchanging messages on replay tapes, and its Rust parse"
+        run: bundle exec rspec --tag io spec/harness_exchange_spec.rb spec/harness_parser_parity_spec.rb
+
+      - name: "cargo test: rust/harness (hecks-harness)"
+        run: cd rust/harness && cargo test
 
       # Push only on a miss; re-pushing a hit wastes upload bandwidth.
       - uses: ./.github/actions/ghcr-binary-cache-save

@@ -3872,6 +3872,31 @@ Hecks.bluebook "Hecks" do
       trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :run, spacing: 0, lease: 900 }
     end
 
+    # A session started by hand has no AgentRun, so its end is the HandRun's, ended or lost.
+    # Either asks for the turn at once, like a run's end, and the reap keeps what its windows
+    # and holds keep.
+    policy "OpenTheReapTurnWhenAHandRunEnds" do
+      on      "HandRun.HandRunEnded"
+      trigger ReapTurn::Open, with: { turn: "sessions" }
+    end
+
+    policy "ReapWhenAHandRunEnds" do
+      on      "HandRun.HandRunEnded"
+      root
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :run, spacing: 0, lease: 900 }
+    end
+
+    policy "OpenTheReapTurnWhenAHandRunIsLost" do
+      on      "HandRun.HandRunLost"
+      trigger ReapTurn::Open, with: { turn: "sessions" }
+    end
+
+    policy "ReapWhenAHandRunIsLost" do
+      on      "HandRun.HandRunLost"
+      root
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :run, spacing: 0, lease: 900 }
+    end
+
     # The backstop: a kept run whose wait passed, a session a person left, a cause refused while
     # a reap ran. The beat asks every minute and the turn answers once in half an hour.
     policy "OpenTheReapTurnOnHeartbeat" do

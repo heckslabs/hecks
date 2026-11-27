@@ -22,16 +22,17 @@ module Hecks
         # Boots (or reuses the cached boot of) the runtime a suite's `loads` names. A boot that
         # failed is cached too, so a kernel that cannot be built is tried once, not once a test.
         #
-        # @param suite [Behaviors::BehaviorsSuite] the suite whose `loads` files boot
-        #   the runtime
+        # @param suite [Behaviors::BehaviorsSuite] the suite whose `loads` files boot the runtime
         # @param engine [Symbol] `:ruby` or `:kernel`; `HECKS_ENGINE` when left out
+        # @param adapters [Array<String>, nil] one variant's `.adapter` files; nil lets
+        #   `AdapterSelection` choose
         # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher,
         #   Runtime::KernelDispatcher] the cached or freshly booted, Memory-only-guarded runtime
-        # @raise [Malformed] if any aggregate the suite boots is not bound to the
-        #   default (Memory) adapter
+        # @raise [Malformed] if any aggregate the suite boots is not bound to Memory
         # @raise [RustBuild::KernelEngine::BinaryUnavailable] when the kernel cannot be built
-        def runtime_for(suite, engine: Hecks::Assembly.selected_engine(Hecks::Assembly::FROM_ENV))
-          files, adapters = suite_files(suite)
+        def runtime_for(suite, engine: Hecks::Assembly.selected_engine(Hecks::Assembly::FROM_ENV), adapters: nil)
+          files, chosen = suite_files(suite)
+          adapters ||= chosen
           key    = [engine] + boot_key(files + Array(adapters))
           booted = RUNTIMES_LOCK.synchronize { RUNTIMES[key] ||= boot_or_failure(engine, files, adapters) }
           raise booted if booted.is_a?(StandardError)

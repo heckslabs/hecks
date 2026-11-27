@@ -297,7 +297,7 @@ jobs:
       - name: "rust codegen: specs that read the whole generated tree"
         run: bundle exec exe/hecks gate_run.gate! stage=ci only=generated_tree --wait
 
-  # rustfmt and clippy over the seven Rust crates, each its own workspace. The main crate's
+  # rustfmt and clippy over the eight Rust crates, each its own workspace. The main crate's
   # generated modules are not committed, so they are restored or regenerated first; the checks
   # themselves live in the `ci` stage of the Vocabulary gate rows. Not attested: lint is cheap
   # beside the corpus regeneration, and its answer depends on the toolchain pin as well as the tree.

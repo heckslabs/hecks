@@ -1,5 +1,6 @@
 require_relative "errors"
 require_relative "adapter_namespace"
+require_relative "declared_adapter"
 
 module Hecks
   module Runtime
@@ -84,12 +85,23 @@ module Hecks
         implementations = registry.adapters.values.select { |adapter| adapter.port == port_name }
 
         case implementations.size
-        when 1 then AdapterNamespace.resolve(implementations.first.name)
+        when 1 then implementation_class(implementations.first)
         when 0 then raise WiringError, "no adapter implements the #{port_name} port — nothing can answer #{asked}"
         else raise WiringError,
                    "#{implementations.size} adapters implement the #{port_name} port " \
                    "(#{implementations.map(&:name).sort.join(", ")}) — the runtime will not choose for you"
         end
+      end
+
+      # The class behind one adapter: a declared adapter's own {DeclaredAdapter} class, else the
+      # Ruby class its name resolves to.
+      #
+      # @param adapter [Bluebook::Adapter] the loaded adapter
+      # @return [Class] the class that answers for it
+      def implementation_class(adapter)
+        return DeclaredAdapter.class_for(adapter) if adapter.respond_to?(:declared?) && adapter.declared?
+
+        AdapterNamespace.resolve(adapter.name)
       end
 
       # Checks that an adapter class can be built with a bare `.new` and answers a query: it

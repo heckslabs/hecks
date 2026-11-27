@@ -34,6 +34,9 @@ module Hecks
       Route.new(%r{\Aspec/corpus/asks/}, :named_in, "spec/policy_ask_spec.rb", "spec/corpus/asks",
                 "a corpus-owned domain whose ports have no adapter, so an ask is refused; its frozen " \
                 "targets are held to the Ruby runtime there and to the Rust policy table in rust/codegen"),
+      Route.new(%r{\Aspec/corpus/declared/}, :named_in, "spec/declared_adapter_spec.rb", "spec/corpus/declared",
+                "a corpus-owned domain whose one port is answered only by the declared adapters beside its " \
+                "suite; the suite runs once per adapter there, so it boots with no adapter of the project's"),
       Route.new(%r{\Aspec/fixtures/sentence/cms_page/sentence_form\.bluebook\z}, :named_in, "spec/sentence_form_spec.rb",
                 :each_file,
                 "a bluebook written as sentences, which only a built hecks-parse can read; the sweep boots its " \

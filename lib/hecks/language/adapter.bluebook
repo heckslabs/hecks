@@ -22,6 +22,10 @@ Hecks.bluebook "Adapter" do
     # outbound requests to the hosts it names. Absent on every adapter that runs no component.
     attribute :imports, list_of(AdapterImport)
     attribute :hosts,   list_of(AdapterHost)
+    # How a declared adapter answers, in file order: each row names an ask of its port (or a
+    # query the port answers), the asked values it matches, and the answer it gives or the
+    # refusal it words. An adapter with replies is answered from them and needs no code.
+    attribute :replies, list_of(AdapterReply)
 
     # **A plugin answers named queries** — one that `runs` a wasm module says which queries it
     # answers, each qualified by bluebook and aggregate, and the runtime binds them to it.
@@ -37,6 +41,12 @@ Hecks.bluebook "Adapter" do
 
     invariant("only a component reaches a host") do
       hosts.unset? || hosts.size == 0 || (!runs.unset? && !port.unset?)
+    end
+
+    # **A declared adapter answers its port from its replies** — it runs no module, so it needs
+    # a port to answer and nothing to execute.
+    invariant("a declared adapter names its port and runs nothing") do
+      replies.unset? || replies.size == 0 || (runs.unset? && !port.unset?)
     end
 
     value_object "AdapterName" do
@@ -85,6 +95,19 @@ Hecks.bluebook "Adapter" do
     # A host name a component's `http_out` import may reach: `api.resend.com`.
     value_object "AdapterHost" do
       attribute :value, String, pattern: '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'
+    end
+
+    # One row of a declared adapter: the ask it answers, the asked values it matches (`where:`),
+    # and the answer it gives (`with:`, kept as `answer`, echoing asked fields) or its `saying`.
+    # No `where:` matches every asking; `where`, `answer` and `echoing` are kept as JSON text.
+    value_object "AdapterReply" do
+      attribute :ask,    String
+      attribute :where,  String, optional: true
+      attribute :answer,  String, optional: true
+      attribute :echoing, String, optional: true
+      attribute :saying,  String, optional: true
+      invariant("a reply names what it answers") { !ask.to_s.empty? }
+      invariant("a refusal says why") { saying.unset? || !saying.to_s.empty? }
     end
 
     # The text of a field's declared default, such as `"data"` or `true`. A `{name}` in a string
@@ -187,6 +210,35 @@ Hecks.bluebook "Adapter" do
       emits "AdapterHostReached"
     end
 
+    command "Reply" do
+      role "Deployment"
+      goal "Declare the answer this adapter gives an ask of its port, for the asked values it matches"
+
+      reference_to Adapter
+      attribute :ask,     String
+      attribute :where,   String, optional: true
+      attribute :answer,  String, optional: true
+      attribute :echoing, String, optional: true
+
+      sets :replies, append: { ask: :ask, where: :where, answer: :answer, echoing: :echoing }
+
+      emits "AdapterReplied"
+    end
+
+    command "Refuse" do
+      role "Deployment"
+      goal "Declare the refusal this adapter words for an ask of its port, for the asked values it matches"
+
+      reference_to Adapter
+      attribute :ask,    String
+      attribute :where,  String, optional: true
+      attribute :saying, String
+
+      sets :replies, append: { ask: :ask, where: :where, saying: :saying }
+
+      emits "AdapterRefused"
+    end
+
     # Grammar rows for the `adapter` keyword; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do
       attribute :word,          String
@@ -211,6 +263,8 @@ Hecks.bluebook "Adapter" do
       member word: "provides", context: "Adapter", body: "none", inner: "", opens: "", fills: "provides"
       member word: "stays_inside", context: "Adapter", body: "none", inner: "", opens: "", fills: "stays_inside"
       member word: "imports", context: "Adapter", body: "none", inner: "", opens: "", fills: "imports"
+      member word: "replies", context: "Adapter", body: "none", inner: "", opens: "", fills: "replies"
+      member word: "refuses", context: "Adapter", body: "none", inner: "", opens: "", fills: "replies"
     end
 
     value_object "ArgumentSeed" do
@@ -242,6 +296,13 @@ Hecks.bluebook "Adapter" do
       member keyword: "provides", context: "Adapter", at: "1", named: "", kind: "text", required: "true", fills: "provides"
       member keyword: "imports", context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "imports", variadic: "true"
       member keyword: "imports", context: "Adapter", at: "", named: "hosts", kind: "list", required: "false", fills: "hosts"
+      member keyword: "replies", context: "Adapter", at: "1", named: "", kind: "text", required: "true", fills: "ask"
+      member keyword: "replies", context: "Adapter", at: "", named: "where", kind: "literal", required: "false", fills: "where"
+      member keyword: "replies", context: "Adapter", at: "", named: "with", kind: "literal", required: "false", fills: "answer"
+      member keyword: "replies", context: "Adapter", at: "", named: "echoing", kind: "literal", required: "false", fills: "echoing"
+      member keyword: "refuses", context: "Adapter", at: "1", named: "", kind: "text", required: "true", fills: "ask"
+      member keyword: "refuses", context: "Adapter", at: "", named: "where", kind: "literal", required: "false", fills: "where"
+      member keyword: "refuses", context: "Adapter", at: "", named: "saying", kind: "text", required: "true", fills: "saying"
     end
   end
 end

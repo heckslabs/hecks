@@ -26,8 +26,9 @@ module Hecks
       TESTED_REFUSALS = (REFUSAL_CLASSES + [Hecks::Runtime::KernelDispatcher::Refused]).freeze
       SPECIAL_KEYS = %i[ok refused emits count].freeze
 
-      # The outcome of one test case.
-      Result = Struct.new(:description, :status, :message, keyword_init: true)
+      # The outcome of one test case. `adapter` names the stand-ins its variant picked, when the
+      # suite runs once per adapter; nil otherwise.
+      Result = Struct.new(:description, :status, :message, :adapter, keyword_init: true)
 
       extend Boot
       extend Qualify
@@ -44,9 +45,11 @@ module Hecks
       # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher,
       #   Runtime::KernelDispatcher, nil] an already-booted runtime to reuse and reset; nil boots
       #   (or reuses the cached boot of) `suite.loads` via `runtime_for`, on `HECKS_ENGINE`
+      # @param adapters [Array<String>, nil] the `.adapter` files of the variant to boot; nil
+      #   lets `AdapterSelection` choose
       # @return [Result] the test's pass, fail, or error outcome
-      def run_one(test, suite, runtime: nil)
-        runtime ||= runtime_for(suite)
+      def run_one(test, suite, runtime: nil, adapters: nil)
+        runtime ||= runtime_for(suite, adapters: adapters)
         reset(runtime)
         registry = runtime.registry
         bluebooks = registry.bluebooks.values
