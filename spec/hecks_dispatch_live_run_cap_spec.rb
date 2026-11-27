@@ -22,14 +22,14 @@ RSpec.describe "the cap counts live runs, not work items" do
     text = preview("p-1" => { status: "started", session: "abc" })
 
     expect(text).to include("started 3 of cap 3")
-    expect(text).not_to include("would start p-1")
+    expect(text).not_to include("would start")
   end
 
   it "gives the seat back when the run has ended", :aggregate_failures do
     text = preview("p-1" => { status: "finished", session: "abc" })
 
     expect(text).to include("started 2 of cap 3")
-    expect(text).to include("would start p-2")
+    expect(text).to include("would start p-1")
   end
 
   it "reads a turned dial at the next beat" do
