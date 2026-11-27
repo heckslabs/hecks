@@ -205,6 +205,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Fixed
 
+- **The resident specs no longer retire each other's resident when CI runs them in parallel.** The lock that keeps an example that changes the checkout (`:changes_checkout`, which makes `Gemfile.lock` look newer) apart from the examples that need a resident standing was a file in each spec process's own temporary directory, so it held one worker alone and every other worker's resident retired in the middle of its example. It is now one file in `/tmp` for every worker of the checkout (`spec/support/resident_launch.rb`), checked by `spec/resident_checkout_lock_spec.rb`.
+- **A bounded program that removes its own directory and then exits is no longer called stopped.** `BoundedCapture` ended a program as vanished the moment it found its directory gone, even when the program was already on its way out; it now gives such a program 2 seconds (`ENDING`) to end by itself and judges it by how it ended.
 - **The verdict file was never written for a domain with a `created_by`.** A verdict holding a typed value (an aggregate's `created_by`) could not be encoded, so the whole write was dropped without a word and every launch after an edit judged every bluebook afresh. The verdicts that can be encoded are now stored and the rest are judged each time, as a miss always was.
 
 ### Added

@@ -30,8 +30,10 @@ module ResidentLaunch
   # sandbox puts its own temporary directory too deep for one, so a launcher is refused on `path`.
   SHORT_TMP = File.directory?("/tmp") ? "/tmp" : Dir.tmpdir
   # The file every spec process of this checkout locks around an example of these groups. It
-  # sits outside the checkout, since a new entry at the checkout's root retires a resident too.
-  CHECKOUT_LOCK = File.join(Dir.tmpdir, "hecks-spec-checkout-#{Digest::SHA256.hexdigest(ROOT)[0, 12]}.lock")
+  # sits outside the checkout, since a new entry at the checkout's root retires a resident too,
+  # and outside the process's own sandbox (`RunSandbox`), whose temporary directory is no other
+  # parallel worker's: a lock there would hold that one process alone.
+  CHECKOUT_LOCK = File.join(SHORT_TMP, "hecks-spec-checkout-#{Process.uid}-#{Digest::SHA256.hexdigest(ROOT)[0, 12]}.lock")
 
   # What a launcher line answered: standard output, standard error and the exit status.
   Answer = Struct.new(:out, :err, :status)
