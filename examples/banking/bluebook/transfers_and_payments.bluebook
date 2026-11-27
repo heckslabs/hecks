@@ -385,6 +385,7 @@ Hecks.bluebook "Banking" do
 
     policy "RetryOnPaymentFailure" do
       on      ScheduledPayment::ScheduledPaymentFailed
+      acts_as "System"
       trigger ScheduledPayment::Retry
     end
   end

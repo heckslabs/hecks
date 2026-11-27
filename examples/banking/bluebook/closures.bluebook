@@ -5,6 +5,7 @@ Hecks.bluebook "Banking" do
   # A closed account's cards are retired, so none outlives the balance it drew on.
   policy "RetireCardsOnAccountClosure" do
     on       Account::AccountClosed
+    acts_as "Back office"
     for_each "ATMCard.LiveForAccount"
     # `atm_card` is the key the fan-out merges per row, the one Retire is addressed by.
     trigger  ATMCard::Retire, with: { atm_card: :atm_card }

@@ -104,11 +104,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheQuiet" do
       on      "QaQuiesce.QuiesceAnswered"
+      acts_as "System"
       trigger QaQuiesce::Settle, with: { output: :output }
     end
 
     policy "RecordTheRefusedQuiet" do
       on      "QaQuiesce.QuiesceRefused"
+      acts_as "System"
       trigger QaQuiesce::Decline, with: { refusal: :refusal }
     end
   end

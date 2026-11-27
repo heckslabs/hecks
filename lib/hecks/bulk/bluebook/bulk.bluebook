@@ -116,11 +116,13 @@ Hecks.bluebook "Bulk" do
 
   policy "RecordTheSweep" do
     on      "BulkRun.BulkRunSwept"
+    acts_as "System"
     trigger BulkRun::Record, with: { results: :results }
   end
 
   policy "RecordTheRefusal" do
     on      "BulkRun.BulkRunRefused"
+    acts_as "System"
     trigger BulkRun::Decline, with: { refusal: :refusal }
   end
 end

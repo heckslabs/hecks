@@ -152,11 +152,13 @@ Hecks.bluebook "Harness" do
 
   policy "RecordTheSessionRunning" do
     on      "Session.SessionSpawned"
+    acts_as "System"
     trigger Session::RecordRunning, with: { session: :name }
   end
 
   policy "RecordTheSessionNotOpened" do
     on      "Session.SessionNotSpawned"
+    acts_as "System"
     trigger Session::RecordNotOpened, with: { session: :name }
   end
 
@@ -248,6 +250,7 @@ Hecks.bluebook "Harness" do
 
   policy "RecordTheUndeliverable" do
     on      "Message.DeliveryRefused"
+    acts_as "System"
     trigger Message::RecordUndeliverable, with: { message: :key }
   end
 end

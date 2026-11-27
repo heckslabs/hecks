@@ -29,8 +29,9 @@ Hecks.hecksagon "Hecks" do
   # and the settled pressure is posted as the machine's one signal. It persists in Memory, as the
   # overlay's default; its beats are each one launcher call's own.
   attaches "Signalbox"
-  # The repository verbs, vendored from Switchyard (ADR 0205).
-  attaches "delivery", from: :vendor
+  # The repository verbs, vendored from Switchyard (ADR 0205). Its lock pins its files, so the
+  # reactions of its policies that declare no role run as the system by this attachment (ADR 0216).
+  attaches "delivery", from: :vendor, acts_as: "System"
   # An architect review asked for by event starts a session through AgentRun, keyed by the review
   # (see StartTheRoleOnReviewRequest in the delegate bluebook).
   subscribe "Agents.PlanReviewRequested"
@@ -1699,6 +1700,7 @@ Hecks.hecksagon "QualityControl" do
 
   translates "RecordVerdictWhenNothingWouldStopTheMint" do
     on RehearsalRun::RehearsalAudited
+    acts_as "QA engineer"
     where do
       (minting.value != "next" || edge_present.value) && refusal_total.value == 0
     end
@@ -1723,6 +1725,7 @@ Hecks.hecksagon "Agents" do
   # it changed and asks the architect when a bluebook, hecksagon or decision file is among them.
   translates "ConsiderTheChangeWhenWorkIsSubmitted" do
     on Submission::WorkSubmitted
+    acts_as "System"
     trigger ChangeReview::Consider, with: { review: :sha, work: :branch, checkout: :checkout }
   end
 
@@ -1730,16 +1733,19 @@ Hecks.hecksagon "Agents" do
   # reviewed once, keyed by its number: a later event on a reviewed decision is refused by name.
   translates "AskTheArchitectWhenADecisionIsDrafted" do
     on Adr::AdrDrafted
+    acts_as "System"
     trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
   end
 
   translates "AskTheArchitectWhenADecisionIsAccepted" do
     on Adr::AdrAccepted
+    acts_as "System"
     trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
   end
 
   translates "AskTheArchitectWhenADecisionIsSuperseded" do
     on Adr::AdrSuperseded
+    acts_as "System"
     trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
   end
 
@@ -1747,6 +1753,7 @@ Hecks.hecksagon "Agents" do
   # the review is keyed by the commit, and the session works in the coder's checkout, which the event names.
   translates "AskTheReviewerWhenWorkIsSubmitted" do
     on Submission::WorkSubmitted
+    acts_as "System"
     trigger SubmissionReview::Request, with: { submission: :sha, work: :branch, brief: :branch, hops: 1,
                                                role: "reviewer", repo: :checkout }
   end
@@ -1756,6 +1763,7 @@ Hecks.hecksagon "Agents" do
   # so it names the review.
   translates "RecordTheReviewersJudgment" do
     on AgentRun::JobRead
+    acts_as "System"
     where { judgment != "" && previous != state }
     trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment, findings: :findings }
   end
@@ -1765,6 +1773,7 @@ Hecks.hecksagon "Agents" do
   # (`ForwardTheAnsweredReview`); one no request made is recorded by `RecordTheVerdictWhenNoReviewWasAsked`.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
+    acts_as "System"
     where { work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
     trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
   end
@@ -1772,6 +1781,7 @@ Hecks.hecksagon "Agents" do
   # The coder's session was resumed with the verdict.
   translates "RecordTheVerdictDelivered" do
     on AgentRun::AgentRunAnswered
+    acts_as "System"
     where { verdict != "" }
     trigger Verdict::Deliver, with: { run: :verdict }
   end
@@ -1780,12 +1790,14 @@ Hecks.hecksagon "Agents" do
   # (Agents `RedeliverTheUnresumedVerdict`), with the reason, not settled as undeliverable.
   translates "RecordTheVerdictUnresumed" do
     on AgentRun::AgentRunUnresumed
+    acts_as "System"
     trigger Verdict::Unresume, with: { run: :verdict, reason: :refusal }
   end
 
   # The verdict came after the coder's run had finished: the reason is the same kind of finding.
   translates "RecordTheVerdictOfAFinishedRun" do
     on AgentRun::AgentRunUnreached
+    acts_as "System"
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
 
@@ -1793,6 +1805,7 @@ Hecks.hecksagon "Agents" do
   # undeliverable with the refusal, so the sweep does not send it again.
   translates "RecordTheVerdictOfAnEndedRun" do
     on AgentRun::AnswerRefused
+    acts_as "System"
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
 end
@@ -1808,6 +1821,7 @@ Hecks.hecksagon "Coder" do
 
   translates "SubmitWhenTheCoderSaysSubmitted" do
     on AgentRun::JobRead
+    acts_as "Coder"
     root
     where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
     trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
@@ -1872,6 +1886,7 @@ Hecks.hecksagon "Delivery" do
   # A root: the job's start sits past the reaction depth limit, counted from the job's read.
   translates "LandWhenWorkIsSubmitted" do
     on      Submission::WorkSubmitted
+    acts_as "Operator"
     root
     trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
   end
@@ -1880,12 +1895,14 @@ Hecks.hecksagon "Delivery" do
   # main is pulled once per landed commit. Each pull is a root: the Observe chain is already at the bound.
   translates "PullMainWhenMerged" do
     on      Integration::TrainMergeSeen
+    acts_as "Operator"
     root
     trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
   end
 
   translates "PullMainWhenCiPasses" do
     on      Integration::ObserveAnswered
+    acts_as "Operator"
     root
     where   { outcome.value == "passed" && pulled.value == false }
     trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
@@ -1893,6 +1910,7 @@ Hecks.hecksagon "Delivery" do
 
   translates "PullMainWhenCiFails" do
     on      Integration::ObserveAnswered
+    acts_as "Operator"
     root
     where   { outcome.value == "failed" && pulled.value == false }
     trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }

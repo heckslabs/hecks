@@ -352,11 +352,13 @@ Hecks.bluebook "EventDelivery" do
 
   policy "CompleteOnPumpCarried" do
     on      "Pump.PumpCarried"
+    acts_as "System"
     trigger Pump::Complete, with: { run: :run, report: :text }
   end
 
   policy "FaultOnPumpRefused" do
     on      "Pump.PumpCarryRefused"
+    acts_as "System"
     trigger Pump::Fault, with: { run: :run, report: :refusal }
   end
 end

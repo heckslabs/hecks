@@ -1329,16 +1329,19 @@ Hecks.bluebook "PipelineBoard" do
   # so the page this runs shows them all; the Serve command above then does the rest.
   policy "ServeWhenBoardRequested" do
     on      "Board.BoardServeRequested"
+    acts_as "Maintainer"
     trigger PipelineBoard::Serve, with: { run: :run, port: :port }
   end
 
   policy "RecordWhenBoardRestarted" do
     on      "BoardWatch.BoardRestarted"
+    acts_as "System"
     trigger BoardWatch::RecordRestart, with: { port: :port }
   end
 
   policy "RecordWhenRestartRefused" do
     on      "BoardWatch.BoardRestartRefused"
+    acts_as "System"
     trigger BoardWatch::RecordRestartRefusal, with: { last: :refusal }
   end
 
@@ -1354,11 +1357,13 @@ Hecks.bluebook "PipelineBoard" do
 
   policy "CloseWhenEnded" do
     on      "PipelineBoard.ServerEnded"
+    acts_as "System"
     trigger PipelineBoard::Close, with: { last: :last }
   end
 
   policy "RefuseWhenRefused" do
     on      "PipelineBoard.ServerRefused"
+    acts_as "System"
     trigger PipelineBoard::Refuse, with: { last: :refusal }
   end
 end

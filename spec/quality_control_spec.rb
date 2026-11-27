@@ -145,7 +145,10 @@ RSpec.describe "QualityControl" do
   end
 
   describe "the clock" do
-    def cli(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv, program: "bin/qc")
+    # A claimer states the role `Target.Claim` declares.
+    def cli(*argv)
+      Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: [*argv, "--as", "QA engineer"], program: "bin/qc")
+    end
 
     def target = @target ||= a_target("banking")
 
@@ -622,7 +625,7 @@ RSpec.describe "QualityControl" do
       runtime
       Hecks::Adapters::Driving::CliRunner.call(
         runtime: runtime, program: "bin/qc",
-        argv: ["angle.propose!", "reference.value=ANGLE-1", "premise.value=#{"a" * 60}",
+        argv: ["angle.propose!", "--as", "QA engineer", "reference.value=ANGLE-1", "premise.value=#{"a" * 60}",
                "citation.value=BUG#1", "proposer.value=Claude QA"]
       )
     end

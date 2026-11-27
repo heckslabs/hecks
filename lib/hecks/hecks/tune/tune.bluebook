@@ -167,11 +167,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheTurn" do
       on      "Dial.DialSet"
+      acts_as "System"
       trigger Dial::Settle, with: { output: :output, before: :before, after: :after }
     end
 
     policy "RecordTheRefusedTurn" do
       on      "Dial.DialRefused"
+      acts_as "System"
       trigger Dial::Decline, with: { refusal: :refusal }
     end
 
@@ -387,6 +389,7 @@ Hecks.bluebook "Hecks" do
 
     policy "WatchTheSettledTurn" do
       on       "Dial.DialSettled"
+      acts_as "System"
       for_each "Dial.OfRun"
       trigger  Probe::Open, with: { dial: :dial, run: :run, setting: :setting, before: :before, after: :after, probe: :probe }
     end
@@ -398,6 +401,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheBaseline" do
       on      "Probe.ProbeMeasured"
+      acts_as "System"
       trigger Probe::Record, with: { base_starts: :starts, base_landings: :landings, base_yields: :yields, base_block: :block }
     end
 
@@ -405,6 +409,7 @@ Hecks.bluebook "Hecks" do
     # the restore after it are four steps long.
     policy "LookOnTheBeat" do
       on       "Machine.MachineSampled"
+      acts_as "System"
       root
       for_each "Probe.Watching"
       trigger  Probe::Look, with: { probe: :probe }
@@ -417,11 +422,13 @@ Hecks.bluebook "Hecks" do
 
     policy "KeepTheHeldTurn" do
       on      "Probe.ProbeRead"
+      acts_as "System"
       trigger Probe::Keep, with: { starts: :starts, landings: :landings, yields: :yields, block: :block, standing: :standing }
     end
 
     policy "RevertTheHurtTurn" do
       on      "Probe.ProbeRead"
+      acts_as "System"
       trigger Probe::Revert, with: { starts: :starts, landings: :landings, yields: :yields, block: :block, standing: :standing }
     end
 
@@ -432,11 +439,13 @@ Hecks.bluebook "Hecks" do
 
     policy "CloseTheRestore" do
       on      "Probe.ProbeRestored"
+      acts_as "System"
       trigger Probe::Close, with: { output: :output }
     end
 
     policy "StrandTheRefusedRestore" do
       on      "Probe.ProbeRestoreRefused"
+      acts_as "System"
       trigger Probe::Strand, with: { refusal: :refusal }
     end
 
@@ -636,65 +645,77 @@ Hecks.bluebook "Hecks" do
 
     policy "OpenTheWorkCapWhenTheMachineIsRead" do
       on      "Machine.MachineSampled"
+      acts_as "System"
       trigger WorkCap::Open, with: { cap: "pipeline" }
     end
 
     policy "CountTheCalmReading" do
       on      "Machine.MachineSampled"
+      acts_as "System"
       where   { memory_state == "ok" && load_state == "below" }
       trigger WorkCap::CountCalm, with: { work_cap: "pipeline", least: :cap_least, most: :cap_most }
     end
 
     policy "CountThePressedReading" do
       on      "Machine.MachineSampled"
+      acts_as "System"
       where   { memory_state == "low" }
       trigger WorkCap::CountPressed, with: { work_cap: "pipeline", least: :cap_least, most: :cap_most }
     end
 
     policy "CountTheStrainedReading" do
       on      "Machine.MachineSampled"
+      acts_as "System"
       where   { memory_state == "ok" && load_state == "above" }
       trigger WorkCap::CountStrained, with: { work_cap: "pipeline", least: :cap_least, most: :cap_most }
     end
 
     policy "CountTheGreenTrain" do
       on      "Integration.TrainMergeSeen"
+      acts_as "System"
       trigger WorkCap::CountGreenTrain, with: { work_cap: "pipeline" }
     end
 
     policy "CountTheRedTrain" do
       on      "TrainPr.TrainPrFailed"
+      acts_as "System"
       where   { attempt == 1 }
       trigger WorkCap::CountRedTrain, with: { work_cap: "pipeline" }
     end
 
     policy "WidenAfterCalm" do
       on      "WorkCap.CalmReadingCounted"
+      acts_as "System"
       trigger WorkCap::Widen, with: { work_cap: "pipeline" }
     end
 
     policy "HalveWhenPressed" do
       on      "WorkCap.PressedReadingCounted"
+      acts_as "System"
       trigger WorkCap::HalveForMemory, with: { work_cap: "pipeline" }
     end
 
     policy "HalveWhenStrained" do
       on      "WorkCap.StrainedReadingCounted"
+      acts_as "System"
       trigger WorkCap::HalveForLoad, with: { work_cap: "pipeline" }
     end
 
     policy "FloorAfterTheCut" do
       on      "WorkCap.WorkCapNarrowed"
+      acts_as "System"
       trigger WorkCap::Floor, with: { work_cap: "pipeline" }
     end
 
     policy "FloorOnTheBounds" do
       on      "WorkCap.CalmReadingCounted"
+      acts_as "System"
       trigger WorkCap::Floor, with: { work_cap: "pipeline" }
     end
 
     policy "CeilOnTheBounds" do
       on      "WorkCap.CalmReadingCounted"
+      acts_as "System"
       trigger WorkCap::Ceil, with: { work_cap: "pipeline" }
     end
   end

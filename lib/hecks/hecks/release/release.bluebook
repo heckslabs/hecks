@@ -323,6 +323,7 @@ Hecks.bluebook "Hecks" do
 
     policy "AcceptTheReleaseWhenExamined" do
       on      "PublishingRun.PublishingExamined"
+      acts_as "System"
       where   { operation.value == "publish" }
       trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, release_lane: :release_lane,
                                              on_origin: :on_origin, clean: :clean, version: :version,
@@ -333,6 +334,7 @@ Hecks.bluebook "Hecks" do
 
     policy "AcceptTheGemWhenExamined" do
       on      "PublishingRun.PublishingExamined"
+      acts_as "System"
       where   { operation.value == "publish_gem" }
       trigger PublishingRun::AcceptGem, with: { checkout: :checkout, version: :version,
                                                 client_version: :client_version, ir_version: :ir_version,
@@ -341,6 +343,7 @@ Hecks.bluebook "Hecks" do
 
     policy "FaultTheReleaseWhenNotAccepted" do
       on      "PublishingRun.PublishingExamined"
+      acts_as "System"
       where do
         operation.value == "publish" &&
           (!checkout.value || branch.value != release_lane.value || !on_origin.value || !clean.value ||
@@ -353,12 +356,14 @@ Hecks.bluebook "Hecks" do
     # already stands on the release commit. An accepted release without it waits in `accepted`.
     policy "ApproveWhenOwnerApproved" do
       on      "PublishingRun.PublishingAccepted"
+      acts_as "System"
       where   { approved.value || tag_state.value == "at_release_commit" }
       trigger PublishingRun::Approve, with: { approved: :approved }
     end
 
     policy "FaultTheGemWhenNotAccepted" do
       on      "PublishingRun.PublishingExamined"
+      acts_as "System"
       where do
         operation.value == "publish_gem" && (!checkout.value || client_version.value != version.value)
       end
@@ -379,18 +384,21 @@ Hecks.bluebook "Hecks" do
     # took the gem, verified when every registry in scope lists the version.
     policy "RecordTheTagWhenPublished" do
       on      "PublishingRun.PublishingAnswered"
+      acts_as "Maintainer"
       where   { tagged.value }
       trigger Release::Tag, with: { version: :version, ir_version: :ir_version, ships_from: :ships_from }
     end
 
     policy "RecordThePublishingWhenPublished" do
       on      "PublishingRun.PublishingAnswered"
+      acts_as "Maintainer"
       where   { published.value }
       trigger Release::MarkPublished, with: { version: :version }
     end
 
     policy "RecordTheVerificationWhenPublished" do
       on      "PublishingRun.PublishingAnswered"
+      acts_as "Maintainer"
       where   { verified.value }
       trigger Release::Verify, with: { version: :version }
     end
@@ -399,6 +407,7 @@ Hecks.bluebook "Hecks" do
     # steps it took on the root Release, then ends as a fault carrying what the release said.
     policy "RecordPublishingOutcome" do
       on      "PublishingRun.PublishingAnswered"
+      acts_as "System"
       where   { succeeded.value }
       trigger PublishingRun::Complete, with: { report: :report, tagged: :tagged, published: :published,
                                                verified: :verified }
@@ -406,12 +415,14 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordPublishingShortfall" do
       on      "PublishingRun.PublishingAnswered"
+      acts_as "System"
       where   { succeeded.value == false }
       trigger PublishingRun::Fault, with: { refusal: :report }
     end
 
     policy "RecordPublishingFault" do
       on      "PublishingRun.PublishingRefused"
+      acts_as "System"
       trigger PublishingRun::Fault, with: { refusal: :refusal }
     end
 
@@ -648,6 +659,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ObserveWhenWatchExamined" do
       on      "PromotionRun.PromotionExamined"
+      acts_as "System"
       where   { operation.value == "watch" && !rate_limited.value }
       trigger PromotionRun::Observe, with: { checkout: :checkout, lane_known: :lane_known, behind_hours: :behind_hours,
                                              limit_hours: :limit_hours, promoted: :promoted,
@@ -656,30 +668,35 @@ Hecks.bluebook "Hecks" do
 
     policy "FaultWhenWatchCannotBeJudged" do
       on      "PromotionRun.PromotionExamined"
+      acts_as "System"
       where   { operation.value == "watch" && !rate_limited.value && (!checkout.value || !lane_known.value) }
       trigger PromotionRun::Fault, with: { refusal: :reason }
     end
 
     policy "LagWhenLaneLate" do
       on      "PromotionRun.LaneObserved"
+      acts_as "System"
       where   { behind_hours.value > limit_hours.value }
       trigger PromotionRun::Lag, with: { refusal: :reason }
     end
 
     policy "CompleteWhenLaneOnTime" do
       on      "PromotionRun.LaneObserved"
+      acts_as "System"
       where   { behind_hours.value <= limit_hours.value }
       trigger PromotionRun::Complete, with: { report: :reason, promoted: :promoted }
     end
 
     policy "DeferWhenRateLimited" do
       on      "PromotionRun.PromotionExamined"
+      acts_as "System"
       where   { rate_limited.value }
       trigger PromotionRun::Defer, with: { refusal: :reason }
     end
 
     policy "AcceptPromotionWhenExamined" do
       on      "PromotionRun.PromotionExamined"
+      acts_as "System"
       where   { operation.value == "promote" && !rate_limited.value }
       trigger PromotionRun::Accept, with: { checkout: :checkout, lane_known: :lane_known, green: :green,
                                             descends: :descends, commit: :commit, head: :head }
@@ -687,6 +704,7 @@ Hecks.bluebook "Hecks" do
 
     policy "FaultPromotionWhenNotAccepted" do
       on      "PromotionRun.PromotionExamined"
+      acts_as "System"
       where   { operation.value == "promote" && !rate_limited.value && (!checkout.value || !lane_known.value || !green.value || !descends.value) }
       trigger PromotionRun::Fault, with: { refusal: :reason }
     end
@@ -698,11 +716,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordPromotionOutcome" do
       on      "PromotionRun.PromotionAnswered"
+      acts_as "System"
       trigger PromotionRun::Complete, with: { report: :report, promoted: :promoted }
     end
 
     policy "RecordPromotionFault" do
       on      "PromotionRun.PromotionRefused"
+      acts_as "System"
       trigger PromotionRun::Fault, with: { refusal: :refusal }
     end
 
@@ -825,11 +845,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheTag" do
       on      "Registry.ReleaseTagged"
+      acts_as "System"
       trigger Registry::Complete, with: { report: :report }
     end
 
     policy "RecordTheRefusedTag" do
       on      "Registry.ReleaseRefused"
+      acts_as "System"
       trigger Registry::Abandon, with: { refusal: :refusal }
     end
 
@@ -955,11 +977,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordThePinning" do
       on      "Package.PackagePinned"
+      acts_as "System"
       trigger Package::Complete, with: { report: :report }
     end
 
     policy "RecordTheRefusedPin" do
       on      "Package.PinRefused"
+      acts_as "System"
       trigger Package::Abandon, with: { refusal: :refusal }
     end
 

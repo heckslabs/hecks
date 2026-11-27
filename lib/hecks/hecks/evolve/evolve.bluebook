@@ -698,11 +698,13 @@ Hecks.bluebook "Hecks" do
 
     policy "AcceptScriptWhenExamined" do
       on      "ScriptRun.ScriptExamined"
+      acts_as "System"
       trigger ScriptRun::Accept, with: { checkout: :checkout }
     end
 
     policy "FaultScriptWhenNotAccepted" do
       on      "ScriptRun.ScriptExamined"
+      acts_as "System"
       where   { !checkout.value }
       trigger ScriptRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
     end
@@ -714,11 +716,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordScriptOutcome" do
       on      "ScriptRun.ScriptAnswered"
+      acts_as "System"
       trigger ScriptRun::Complete, with: { report: :report }
     end
 
     policy "RecordScriptFault" do
       on      "ScriptRun.ScriptRefused"
+      acts_as "System"
       trigger ScriptRun::Fault, with: { refusal: :refusal }
     end
 
@@ -764,11 +768,13 @@ Hecks.bluebook "Hecks" do
 
     policy "AcceptStyleWhenExamined" do
       on      "StyleRun.StyleExamined"
+      acts_as "System"
       trigger StyleRun::Accept, with: { checkout: :checkout }
     end
 
     policy "FaultStyleWhenNotAccepted" do
       on      "StyleRun.StyleExamined"
+      acts_as "System"
       where   { !checkout.value }
       trigger StyleRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
     end
@@ -780,11 +786,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordStyleOutcome" do
       on      "StyleRun.StyleAnswered"
+      acts_as "System"
       trigger StyleRun::Complete, with: { run: :run, report: :report }
     end
 
     policy "RecordStyleFault" do
       on      "StyleRun.StyleRefused"
+      acts_as "System"
       trigger StyleRun::Fault, with: { refusal: :refusal }
     end
   end

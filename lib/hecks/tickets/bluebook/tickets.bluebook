@@ -1721,6 +1721,7 @@ Hecks.bluebook "Tickets" do
   # member stays planned. A member's close finds no batch of its own key, and is a root.
   policy "CloseMembersWhenBatchFinished" do
     on       "Work.WorkFinished"
+    acts_as "System"
     root
     for_each "Work.InBatch"
     trigger  Work::Close, with: { work: :work, landing: :landing, no_change: :no_change }
@@ -1731,17 +1732,20 @@ Hecks.bluebook "Tickets" do
   # starts by, so it reaches a coder by events alone. It claims the paths its members name.
   policy "EnlistWhenSweepBatchComposed" do
     on       "SweepBatch.SweepBatchComposed"
+    acts_as "System"
     for_each "Work.SweepWaiting"
     trigger  Work::Enlist, with: { work: :work, batch: :batch }
   end
 
   policy "PlanTheBatchWhenSweepBatchComposed" do
     on      "SweepBatch.SweepBatchComposed"
+    acts_as "Maintainer"
     trigger Work::Plan, with: { work: :batch, title: :title, detail: :brief, area: :area }
   end
 
   policy "PrioritizeTheBatchWhenSweepBatchComposed" do
     on      "SweepBatch.SweepBatchComposed"
+    acts_as "Maintainer"
     trigger Work::Prioritize, with: { work: :batch, priority: "next" }
   end
 
@@ -1769,6 +1773,7 @@ Hecks.bluebook "Tickets" do
 
   policy "RecordSpendWhenSpendRead" do
     on      "Work.SpendRead"
+    acts_as "System"
     trigger Work::RecordSpend, with: { work: :work, pomodoros_spent: :pomodoros_spent }
   end
 
@@ -1815,6 +1820,7 @@ Hecks.bluebook "Tickets" do
   # epic that was complete returns to open (an open one refuses the reopen and stays open).
   policy "PlanEvidenceWhenOutcomeMissed" do
     on      "Epic.EpicOutcomeMissed"
+    acts_as "Maintainer"
     trigger Work::Plan, with: { work: :finding, title: "An epic's outcome was measured and not met",
                                 detail: :evidence, epic: :epic }
   end
@@ -1860,6 +1866,7 @@ Hecks.bluebook "Tickets" do
   # is planned twice; a finished cause that fails again is reopened by ReopenWorkWhenGateFaultedAgain.
   policy "PlanWorkWhenRunFindingReported" do
     on      "Finding.RunFindingReported"
+    acts_as "Maintainer"
     trigger Work::Plan, with: { work: :finding, title: :title, detail: :body }
   end
 
@@ -1972,6 +1979,7 @@ Hecks.bluebook "Tickets" do
 
   policy "UnexpediteWhenExpediteRead" do
     on      "Work.ExpediteRead"
+    acts_as "System"
     trigger Work::Unexpedite, with: { work: :work, holders: :holders, held: :held, limit: 2,
       expedite_refusal: :holders }
   end
@@ -1987,12 +1995,14 @@ Hecks.bluebook "Tickets" do
   # member stays in the batch, whose branch holds its commit, so a restart never builds it twice.
   policy "ReleaseBatchWhenLeadYielded" do
     on       "Work.WorkYielded"
+    acts_as "Maintainer"
     for_each "Work.UncommittedIn"
     trigger  Work::Return, with: { work: :work, reason: "its batch yielded" }
   end
 
   policy "ReleaseBatchWhenLeadRefused" do
     on       "Work.WorkRefused"
+    acts_as "Maintainer"
     for_each "Work.UncommittedIn"
     trigger  Work::Return, with: { work: :work, reason: "its batch's landing was refused" }
   end
@@ -2000,6 +2010,7 @@ Hecks.bluebook "Tickets" do
   # A batch set aside takes its branch with it, so every member goes back to the plan.
   policy "ReleaseBatchWhenLeadDropped" do
     on       "Work.WorkDropped"
+    acts_as "Maintainer"
     for_each "Work.InBatch"
     trigger  Work::Return, with: { work: :work, reason: "its batch was dropped" }
   end
@@ -2009,6 +2020,7 @@ Hecks.bluebook "Tickets" do
   # leading `qa/`); a branch with no open work item is refused there and never reaches here.
   policy "CloseWorkWhenBranchLanded" do
     on      "Landing.LandedWorkFound"
+    acts_as "System"
     trigger Work::Close, with: { work: :branch, landing: :landed }
   end
 
@@ -2017,6 +2029,7 @@ Hecks.bluebook "Tickets" do
   # a close starts counts from the close, as it does from a landing, not from the hand finish.
   policy "CloseWorkWhenFinishedWithNoChange" do
     on      "Work.FinishRequested"
+    acts_as "System"
     root
     where   { no_change.value != nil && !no_change.value.to_s.empty? }
     trigger Work::Close, with: { work: :work, no_change: :no_change }
@@ -2029,6 +2042,7 @@ Hecks.bluebook "Tickets" do
 
   policy "AnnotateWorkWhenNoteComposed" do
     on      "Work.NoteComposed"
+    acts_as "System"
     trigger Work::Annotate, with: { work: :work, detail: :detail }
   end
 
@@ -2040,11 +2054,13 @@ Hecks.bluebook "Tickets" do
 
   policy "KeepWorkOpenWhenNoLandingOnMain" do
     on      "Work.NoLandingOnMain"
+    acts_as "System"
     trigger Work::KeepOpen, with: { refusal: :refusal }
   end
 
   policy "CloseWorkWhenLandingOnMain" do
     on      "Work.LandingOnMain"
+    acts_as "System"
     root
     trigger Work::Close, with: { work: :work, landing: :landing }
   end
@@ -2069,6 +2085,7 @@ Hecks.bluebook "Tickets" do
   # a person sees it on the pipeline board.
   policy "DropWorkWhenLandingRefusedThrice" do
     on      "Landing.RefusedWorkFound"
+    acts_as "Maintainer"
     where   { refusals.value >= 2 }
     trigger Work::Drop, with: { work: :work, reason: :detail }
   end
@@ -2095,6 +2112,7 @@ Hecks.bluebook "Tickets" do
   # merge. It names no author.
   policy "FileTheRelandOfAnUnplannedRevert" do
     on      "RedEpisode.EpisodeRevertMade"
+    acts_as "Maintainer"
     root
     where   { work.value.to_s == "" && branch.value.to_s != "" }
     trigger Work::Plan, with: { work: :branch, title: "A red main reverted this branch's merge: land it again", detail: :report, category: "bug" }
@@ -2102,6 +2120,7 @@ Hecks.bluebook "Tickets" do
 
   policy "PrioritizeTheRelandOfAnUnplannedRevert" do
     on      "RedEpisode.EpisodeRevertMade"
+    acts_as "Maintainer"
     root
     where   { work.value.to_s == "" && branch.value.to_s != "" }
     trigger Work::Prioritize, with: { work: :branch, priority: "now" }
@@ -2109,6 +2128,7 @@ Hecks.bluebook "Tickets" do
 
   policy "PrioritizeTheWorkAnEpisodeReverted" do
     on      "RedEpisode.EpisodeRevertMade"
+    acts_as "Maintainer"
     root
     where   { work.value.to_s != "" }
     trigger Work::Prioritize, with: { work: :work, priority: "now" }
@@ -2192,6 +2212,7 @@ Hecks.bluebook "Tickets" do
   # the work item's key, so a second red run, which only updates the spec, plans nothing twice.
   policy "PlanWorkWhenSpecWentRed" do
     on      "RedSpec.SpecWentRed"
+    acts_as "Maintainer"
     trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail, category: "bug" }
   end
 
@@ -2204,6 +2225,7 @@ Hecks.bluebook "Tickets" do
   # The run that no longer fails the file closes its work item.
   policy "CloseWorkWhenSpecWentGreen" do
     on      "RedSpec.SpecWentGreen"
+    acts_as "System"
     trigger Work::Close, with: { work: :spec, no_change: "a spec run no longer fails the file" }
   end
 
@@ -2212,6 +2234,7 @@ Hecks.bluebook "Tickets" do
   # the same pull request plans nothing twice.
   policy "PlanWorkWhenTrainPrExhausted" do
     on      "TrainPr.TrainPrExhausted"
+    acts_as "Maintainer"
     where   { cause.value == "spec" }
     trigger Work::Plan, with: { work: :work, title: :title, detail: :detail, category: "bug" }
   end
@@ -2227,6 +2250,7 @@ Hecks.bluebook "Tickets" do
   # The item is red by its key (`red-*`, which the fill starts first and over budget) and wanted now.
   policy "PrioritizeTheRedTrainWork" do
     on      "Work.WorkPlanned"
+    acts_as "Maintainer"
     where   { work.value.start_with?("red-train-") }
     trigger Work::Prioritize, with: { work: :work, priority: "now" }
   end
@@ -2235,6 +2259,7 @@ Hecks.bluebook "Tickets" do
   # that finds it already open revises its detail; a look that finds it no longer due finishes it.
   policy "PlanWorkWhenPushDue" do
     on      "PushNudge.PushDueRead"
+    acts_as "Maintainer"
     where   { due.value == "yes" && raised.value == "no" }
     trigger Work::Plan, with: { work: :work, title: :title, detail: :detail }
   end
@@ -2247,6 +2272,7 @@ Hecks.bluebook "Tickets" do
 
   policy "CloseWorkWhenPushSettled" do
     on      "PushNudge.PushDueRead"
+    acts_as "System"
     where   { due.value == "no" && raised.value == "yes" }
     trigger Work::Close, with: { work: :work, no_change: "the push is no longer due" }
   end
@@ -2399,6 +2425,7 @@ Hecks.bluebook "Tickets" do
   # caller sets.
   policy "RecordSightingWhenLessonSighted" do
     on      "Lesson.LessonSighted"
+    acts_as "Maintainer"
     trigger Sighting::Record, with: { sighting: :sighting, kind: :kind, run: :run, commit: :commit }
   end
 
@@ -2704,40 +2731,47 @@ Hecks.bluebook "Tickets" do
 
   policy "OweReviewWhenRetroOpened" do
     on       "Retro.RetroOpened"
+    acts_as "System"
     for_each "WorkingAgreement.InForce"
     trigger  WorkingAgreement::Present, with: { agreement: :agreement, retro: :retro }
   end
 
   policy "OweReviewWhenAgreementPresented" do
     on      "WorkingAgreement.AgreementPresented"
+    acts_as "System"
     trigger Retro::Owe, with: { retro: :retro }
   end
 
   policy "AnswerAgreementWhenMarkedFolded" do
     on      "AgreementReview.AgreementReviewed"
+    acts_as "System"
     where   { mark.value == "folded" }
     trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark, principle: :principle }
   end
 
   policy "AnswerAgreementWhenMarkedKeptOrDropped" do
     on      "AgreementReview.AgreementReviewed"
+    acts_as "System"
     where   { mark.value != "folded" }
     trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark }
   end
 
   policy "CountReviewWhenAgreementAnswered" do
     on      "WorkingAgreement.AgreementAnswered"
+    acts_as "System"
     trigger Retro::CountReview, with: { retro: :retro }
   end
 
   policy "FoldAgreementWhenReviewedFolded" do
     on      "WorkingAgreement.AgreementAnswered"
+    acts_as "Maintainer"
     where   { mark.value == "folded" }
     trigger WorkingAgreement::Fold, with: { agreement: :agreement, principle: :principle }
   end
 
   policy "DropAgreementWhenReviewedDropped" do
     on      "WorkingAgreement.AgreementAnswered"
+    acts_as "Maintainer"
     where   { mark.value == "dropped" }
     trigger WorkingAgreement::Drop, with: { agreement: :agreement }
   end

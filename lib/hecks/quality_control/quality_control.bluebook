@@ -2786,23 +2786,27 @@ Hecks.bluebook "QualityControl" do
   # it records.
   policy "RecordClaimOnAttemptClaimed" do
     on      "Attempt.AttemptClaimed"
+    acts_as "QA engineer"
     trigger Bug::Claim, with: { bug: :reference, held_by: :held_by, now: :now }
   end
 
   policy "RecordInvestigationOnAttemptInvestigated" do
     on      "Attempt.AttemptInvestigated"
+    acts_as "QA engineer"
     trigger Bug::Investigate, with: { bug: :reference, site: :site, cause: :cause }
   end
 
   # The fix commit is recorded as the bug's fixed state; `BugCiWatch` starts on the `BugFixed` it emits.
   policy "RecordFixOnFixReady" do
     on      "Attempt.FixReady"
+    acts_as "QA engineer"
     trigger Bug::Fix, with: { reference: :reference, commit: :commit }
   end
 
   # A verified fix is the ledger's verified state, recorded with the evidence the fixer names.
   policy "RecordVerifyOnFixVerified" do
     on      "Attempt.FixVerified"
+    acts_as "QA engineer"
     trigger Bug::Verify, with: { bug: :reference, evidence: :evidence }
   end
 
@@ -2810,6 +2814,7 @@ Hecks.bluebook "QualityControl" do
   # happened, so the fact arrives by whichever route reaches us first.
   policy "CloseWhenClosedUpstream" do
     on      "Ticket.IssueClosedUpstream"
+    acts_as "QA engineer"
     trigger Ticket::Close
   end
 
@@ -2822,11 +2827,13 @@ Hecks.bluebook "QualityControl" do
   # A refusal event also carries `kind`, which `Failed` does not take, so the fields are named.
   policy "ClearOnPass" do
     on      "Clearance.SuitePassed"
+    acts_as "System"
     trigger Clearance::Passed
   end
 
   policy "RefuseOnFail" do
     on      "Clearance.SuiteFailed"
+    acts_as "System"
     trigger Clearance::Failed, with: { clearance: :id, refusal: :refusal }
   end
 
@@ -2838,17 +2845,20 @@ Hecks.bluebook "QualityControl" do
 
   policy "RecordTheIssue" do
     on      "Ticket.IssueFiled"
+    acts_as "System"
     trigger Ticket::Filed
   end
 
   policy "RecordTheRefusal" do
     on      "Ticket.IssueFilingRefused"
+    acts_as "System"
     trigger Ticket::Refused, with: { ticket: :id, refusal: :refusal }
   end
 
   # The cap is the `given` on `Retry`, not here: a policy holds no state and would ask forever.
   policy "AskAgain" do
     on      "Ticket.TicketFilingRefused"
+    acts_as "System"
     trigger Ticket::Retry
   end
 
@@ -2865,6 +2875,7 @@ Hecks.bluebook "QualityControl" do
   # its parent aggregate. `Check.Surprised` restates `target` so the id rides in.
   policy "SuspendOnSurprise" do
     on      Sweep::CheckSurprised
+    acts_as "System"
     trigger Target::Suspend, with: {
       target: :target,
       reason: { value: "a check surprised — a person releases with hecks quality_control sweep.run <target> --release --notes" }
@@ -2879,12 +2890,14 @@ Hecks.bluebook "QualityControl" do
 
   policy "GreenOnHeadChecked" do
     on      "Head.HeadChecked"
+    acts_as "System"
     where   { color.value == "green" }
     trigger Head::Green, with: { commit: :commit, branch: :branch, repo: :repo, color: :color }
   end
 
   policy "RedOnHeadChecked" do
     on      "Head.HeadChecked"
+    acts_as "System"
     where   { color.value == "red" }
     trigger Head::Red, with: { commit: :commit, repo: :repo, color: :color, failing_jobs: :failing_jobs }
   end
@@ -2898,12 +2911,14 @@ Hecks.bluebook "QualityControl" do
 
   policy "RecordTheRunRead" do
     on      "MainRun.MainRunRead"
+    acts_as "System"
     trigger MainRun::Record, with: { commit: :commit, settled: :settled }
   end
 
   # A settled run clears every red spec it did not see fail; `Clear` refuses one it did, which stays open.
   policy "ClearSpecsOnSettledRun" do
     on       "MainRun.MainRunRead"
+    acts_as "System"
     where    { settled.value == "yes" }
     for_each "RedSpec.OnMain"
     trigger  RedSpec::Clear, with: { spec: :spec, run: :run, seen_in: :last_run }
@@ -2915,6 +2930,7 @@ Hecks.bluebook "QualityControl" do
   # needs a green quick gate on record.
   policy "RollImages" do
     on      "Head.CiGreen"
+    acts_as "System"
     where   { repo.value == "heckslabs/embryonaut_platform" }
     trigger ImageRoll::Consider, with: { commit: :commit, branch: :branch, repo: :repo }
   end
@@ -2926,12 +2942,14 @@ Hecks.bluebook "QualityControl" do
 
   policy "RollWhenImageOnly" do
     on      "ImageRoll.ImageClassified"
+    acts_as "System"
     where   { kind.value == "image" }
     trigger ImageRoll::Request, with: { commit: :commit, app: :app }
   end
 
   policy "HoldWhenInfra" do
     on      "ImageRoll.ImageClassified"
+    acts_as "System"
     where   { kind.value == "infra" }
     trigger ImageRoll::NeedsApproval, with: { commit: :commit, paths: :paths }
   end
@@ -2943,11 +2961,13 @@ Hecks.bluebook "QualityControl" do
 
   policy "FinishOnRollAnswered" do
     on      "ImageRoll.RollAnswered"
+    acts_as "System"
     trigger ImageRoll::Finish, with: { commit: :commit, app: :app, status: :status }
   end
 
   policy "FinishOnRollRefused" do
     on      "ImageRoll.RollRefused"
+    acts_as "System"
     trigger ImageRoll::Finish, with: { commit: :commit, app: :app, status: { value: "failed" } }
   end
 
@@ -2958,6 +2978,7 @@ Hecks.bluebook "QualityControl" do
   # `ReconcileRefused`, `PushRefused`.
   policy "StartOnSubmission" do
     on      "Submission.WorkSubmitted"
+    acts_as "QA engineer"
     trigger Maintenance::Start, with: { run: :branch, sha: :sha }
   end
 
@@ -2968,12 +2989,14 @@ Hecks.bluebook "QualityControl" do
 
   policy "RefuseOnRedGate" do
     on      "Maintenance.GateVerdict"
+    acts_as "QA engineer"
     where   { color.value == "red" }
     trigger Maintenance::RefuseGate, with: { run: :run, color: :color }
   end
 
   policy "ReconcileOnGreenGate" do
     on      "Maintenance.GateVerdict"
+    acts_as "QA engineer"
     where   { color.value == "green" }
     trigger Maintenance::RequestReconcile, with: { run: :run, sha: :sha, color: :color }
   end
@@ -2985,6 +3008,7 @@ Hecks.bluebook "QualityControl" do
 
   policy "PushOnReconciled" do
     on      "Maintenance.ReconcileDone"
+    acts_as "QA engineer"
     where   { verdict.value != "refused" && color.value == "green" }
     trigger Maintenance::RequestPush, with: { run: :run, sha: :sha, color: :color, verdict: :verdict }
   end
@@ -3000,6 +3024,7 @@ Hecks.bluebook "QualityControl" do
   # `Land` ask names.
   policy "RefuseMintWithoutVerdict" do
     on      "Maintenance.MintRequested"
+    acts_as "QA engineer"
     where   { rehearsal_verdict.value != "would_mint" }
     trigger Maintenance::RefuseMint, with: { run: :run, domain: :domain, era: :era, rehearsal_verdict: :rehearsal_verdict }
   end
@@ -3047,6 +3072,7 @@ Hecks.bluebook "QualityControl" do
 
   policy "ApproveOnConditionsMet" do
     on      "ReleasePR.ReleaseChecked"
+    acts_as "Release owner"
     where   { condition.value == "met" }
     trigger ReleasePR::Approve, with: { release: :release, sha: :sha, condition: :condition,
                                         approver: :approver, trailer: :trailer }
@@ -3054,6 +3080,7 @@ Hecks.bluebook "QualityControl" do
 
   policy "RefuseOnFailedCondition" do
     on      "ReleasePR.ReleaseChecked"
+    acts_as "Release owner"
     where   { condition.value != "met" }
     trigger ReleasePR::Refuse, with: { release: :release, condition: :condition }
   end
@@ -3123,6 +3150,7 @@ Hecks.bluebook "QualityControl" do
 
   policy "RecordThePushDueRead" do
     on      "PushNudge.PushDueRead"
+    acts_as "System"
     trigger PushNudge::Record, with: { due: :due, raised: :raised, detail: :detail }
   end
 end

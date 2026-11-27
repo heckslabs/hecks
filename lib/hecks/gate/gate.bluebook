@@ -86,6 +86,7 @@ Hecks.bluebook "Gate" do
     # A non-zero exit code turns the run red, naming that check.
     policy "RedWhenACheckFails" do
       on      "Run.CheckRecorded"
+      acts_as "System"
       where   { exit_code.value != "0" }
       trigger Run::Redden, with: { first_failure: :check }
     end

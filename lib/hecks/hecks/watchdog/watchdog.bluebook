@@ -148,21 +148,25 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheWatchdogGuard" do
       on      "Watchdog.GuardAnswered"
+      acts_as "System"
       trigger Watchdog::RecordGuard, with: { report: :report }
     end
 
     policy "RecordTheWatchdogRelease" do
       on      "Watchdog.ReleaseAnswered"
+      acts_as "System"
       trigger Watchdog::RecordRelease, with: { report: :report }
     end
 
     policy "RecordWhyTheWatchdogWasNotArmed" do
       on      "Watchdog.GuardRefused"
+      acts_as "System"
       trigger Watchdog::Decline, with: { refusal: :refusal }
     end
 
     policy "RecordWhyTheWatchdogWasNotDisarmed" do
       on      "Watchdog.ReleaseRefused"
+      acts_as "System"
       trigger Watchdog::Decline, with: { refusal: :refusal }
     end
   end

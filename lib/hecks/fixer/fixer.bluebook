@@ -223,18 +223,21 @@ Hecks.bluebook "Fixer" do
   # The ledger logged a bug: the attempt at it is opened, ready to be claimed.
   policy "OpenOnBugLogged" do
     on      "Bug.BugLogged"
+    acts_as "Fixer"
     trigger Attempt::Open, with: { reference: :reference }
   end
 
   # A merged patch is the commit that makes a bug's fix true, so the attempt at it records the fix.
   policy "FixOnPatchMerged" do
     on      "Patch.PatchMerged"
+    acts_as "Fixer"
     trigger Attempt::Fix, with: { reference: :bug, commit: :commit }
   end
 
   # Declared after the fix: an attempt that could not record it keeps the commit and says so.
   policy "NoteMergeWhenPatchMerged" do
     on      "Patch.PatchMerged"
+    acts_as "Fixer"
     trigger Attempt::NoteMerge, with: { reference: :bug, commit: :commit }
   end
 end

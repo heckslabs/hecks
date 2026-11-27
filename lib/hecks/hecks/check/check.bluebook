@@ -154,11 +154,13 @@ Hecks.bluebook "Hecks" do
 
     policy "AcceptGateWhenExamined" do
       on      "GateRun.GateExamined"
+      acts_as "System"
       trigger GateRun::Accept, with: { checkout: :checkout, linked: :linked, on_branch: :on_branch, check_name: :check_name }
     end
 
     policy "FaultGateWhenNotAccepted" do
       on      "GateRun.GateExamined"
+      acts_as "System"
       where   { !checkout.value }
       trigger GateRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/",
                                       linked: :linked, on_branch: :on_branch, check_name: :check_name }
@@ -171,11 +173,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordGateOutcome" do
       on      "GateRun.GateAnswered"
+      acts_as "System"
       trigger GateRun::Complete, with: { report: :report, expected: :expected, recorded: :recorded }
     end
 
     policy "RecordGateFault" do
       on      "GateRun.GateRefused"
+      acts_as "System"
       trigger GateRun::Fault, with: { refusal: :refusal, cause: :kind, linked: :linked, on_branch: :on_branch, check_name: :check_name }
     end
 
@@ -295,11 +299,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheClean" do
       on      "ModelCheckRun.ModelCheckAnswered"
+      acts_as "System"
       trigger ModelCheckRun::Pass, with: { report: :report, checked: :checked }
     end
 
     policy "RecordTheFlag" do
       on      "ModelCheckRun.ModelCheckRefused"
+      acts_as "System"
       trigger ModelCheckRun::Flag, with: { refusal: :refusal }
     end
 
@@ -378,11 +384,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheCoverage" do
       on      "BehaviorsCoverage.CoverageCounted"
+      acts_as "System"
       trigger BehaviorsCoverage::Record, with: { report: :report, missing: :missing, total: :total }
     end
 
     policy "RecordTheCoverageRefusal" do
       on      "BehaviorsCoverage.CoverageUncounted"
+      acts_as "System"
       trigger BehaviorsCoverage::Record, with: { report: :refusal }
     end
 
@@ -970,11 +978,13 @@ Hecks.bluebook "Hecks" do
 
     policy "AcceptInspectionWhenExamined" do
       on      "InspectionRun.InspectionExamined"
+      acts_as "System"
       trigger InspectionRun::Accept, with: { checkout: :checkout }
     end
 
     policy "FaultInspectionWhenNotAccepted" do
       on      "InspectionRun.InspectionExamined"
+      acts_as "System"
       where   { !checkout.value }
       trigger InspectionRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
     end
@@ -986,11 +996,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordInspectionOutcome" do
       on      "InspectionRun.InspectionAnswered"
+      acts_as "System"
       trigger InspectionRun::Complete, with: { report: :report }
     end
 
     policy "RecordInspectionFault" do
       on      "InspectionRun.InspectionRefused"
+      acts_as "System"
       trigger InspectionRun::Fault, with: { refusal: :refusal }
     end
 
@@ -1089,6 +1101,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheSeal" do
       on      "SchemaRevision.HeadCaptured"
+      acts_as "System"
       trigger Seal::Record, with: { run: :run, domain: :domain, through: :through, head: :head, previous: :previous }
     end
 
@@ -1099,6 +1112,7 @@ Hecks.bluebook "Hecks" do
 
     policy "AbandonWhenNotSealed" do
       on      "SchemaRevision.CaptureRefused"
+      acts_as "System"
       trigger SchemaRevision::Abandon, with: { refusal: :refusal }
     end
 
@@ -1109,11 +1123,13 @@ Hecks.bluebook "Hecks" do
 
     policy "ConfirmWhenChainWalked" do
       on      "Audit.ChainWalked"
+      acts_as "System"
       trigger Audit::Confirm, with: { checked: :checked, report: :report }
     end
 
     policy "FailWhenWalkRefused" do
       on      "Audit.WalkRefused"
+      acts_as "System"
       trigger Audit::Fail, with: { report: :refusal }
     end
   end

@@ -189,12 +189,14 @@ Hecks.bluebook "Hecks" do
     # nothing and no judge records a refused line.
     policy "RiseWhenJudgedHigh" do
       on      "Level.LevelJudged"
+      acts_as "System"
       where   { state == "high" && previous != "high" }
       trigger Volume::Rise, with: { volume: :volume }
     end
 
     policy "EaseWhenJudgedBelowHigh" do
       on      "Level.LevelJudged"
+      acts_as "System"
       where   { previous == "high" && state != "high" }
       trigger Volume::Ease, with: { volume: :volume }
     end
