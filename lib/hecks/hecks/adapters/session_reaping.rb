@@ -64,6 +64,7 @@ module Hecks
         require_relative "delivery_library"
         Hecks::Adapters::DeliveryLibrary.require("git_landing")
         require_relative "landing/retired_caches"
+        require_relative "landing/own_stores"
         branch = @shell.capture("git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD").out.strip
         said = GitLanding.new(registry: @registry).remove(checkout: path, branch: branch, onto: "main")
         { note: "worktree retired: #{said.dig(:report, :value)}" }
