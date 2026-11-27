@@ -51,6 +51,7 @@ queries (nothing here changes anything):
     preview
   Machine:
     …
+    cpu_by_purpose
     busiest
   Overload:
     …

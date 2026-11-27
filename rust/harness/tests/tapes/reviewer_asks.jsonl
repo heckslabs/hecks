@@ -1,0 +1,7 @@
+{"note":"A reviewer with one question for the staff engineer; it hears back either way."}
+{"expect":"user","contains":"You are the reviewer"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-reviewer-asks","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"r-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"staff-engineer","text":"Is a told fact ever written?"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to staff-engineer"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Asked the staff engineer."}}
+{"expect":"user","contains":"from staff-engineer, about reviewer-1"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Heard back from the staff engineer."}}

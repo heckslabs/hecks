@@ -177,6 +177,12 @@ Hecks.bluebook "Harness" do
     attribute :text,         MessageText
     attribute :sent_at,      Moment
     attribute :delivered_at, Moment, optional: true
+    # The message this one answers or relays, when its sender named one.
+    attribute :about,        MessageKey, optional: true
+    # Whether the scrum master holds it as a coder's question, and how that ended.
+    attribute :hold,         Hold
+    # The scrum master's message on the question, when it handed the question on.
+    attribute :findings,     MessageKey, optional: true
 
     # The supervisor's id for the message: the sender's name and a count.
     value_object "MessageKey" do
@@ -197,9 +203,17 @@ Hecks.bluebook "Harness" do
       attribute :value, Integer, default: 0
     end
 
+    # A coder's question is held by the scrum master until it answers the coder (settled) or the
+    # question goes on to the lead (handed-on); any other message is held by nobody.
+    value_object "Hold" do
+      attribute :value, String, default: "none", one_of: ["none", "held", "settled", "handed-on"]
+    end
+
     lifecycle :status, default: "posted" do
       transition "RecordDelivered"     => "delivered",     from: "posted"
       transition "RecordUndeliverable" => "undeliverable", from: "posted"
+      # Handing a question on posts it again, to the lead, whether or not the scrum master had it.
+      transition "HandOn"              => "posted",        from: ["posted", "delivered", "undeliverable"]
       # A posted message waits for its addressee's turn to end; an addressee that exits first
       # leaves it undeliverable, so the wait ends with the session.
       mark :rests, "posted"
@@ -215,6 +229,9 @@ Hecks.bluebook "Harness" do
       attribute :addressee, Party
       attribute :text,      MessageText
       attribute :sent_at,   Moment
+      # Given on every post, nil when the message answers nothing: DeliverEachMessage reads it,
+      # and a policy's with: refuses a field the event does not carry.
+      attribute :about,     MessageKey, optional: true
 
       emits "MessagePosted"
     end
@@ -239,15 +256,220 @@ Hecks.bluebook "Harness" do
 
       emits "MessageUndeliverable"
     end
+
+    # The scrum master settles what written rules or code answer, citing file:line; the rest is the
+    # lead's. A coder's question reaches it first, sent to it or routed from the orchestrator.
+    command "Hold" do
+      role "System"
+      policy_only
+      goal "Hold a coder's question sent to the scrum master until it is answered or handed on"
+
+      reference_to Message
+      attribute :held, Hold, default: { value: "held" }
+
+      given("a coder asks") { sender.value.start_with?("coder") }
+      given("it is for the scrum master") { addressee.value == "scrum-master" }
+      given("it answers nothing") { about.unset? }
+
+      sets :hold, to: :held
+
+      emits "QuestionHeld"
+    end
+
+    command "Route" do
+      role "System"
+      policy_only
+      goal "Address a coder's question for the orchestrator to the scrum master first, and hold it there"
+
+      reference_to Message
+      attribute :seat, Party, default: { value: "scrum-master" }
+      attribute :held, Hold,  default: { value: "held" }
+
+      given("a coder asks") { sender.value.start_with?("coder") }
+      given("it is for the orchestrator") { addressee.value == "orchestrator" }
+      given("it answers nothing") { about.unset? }
+
+      sets :addressee, to: :seat
+      sets :hold, to: :held
+
+      emits "MessageRouted"
+    end
+
+    # The scrum master's answer to the coder who asked settles the question, so it never reaches the lead.
+    command "Settle" do
+      role "System"
+      policy_only
+      goal "Record that the scrum master answered a question it held"
+
+      reference_to Message
+      attribute :asker,   Party
+      attribute :settled, Hold, default: { value: "settled" }
+
+      given("the scrum master holds the question") { hold.value == "held" }
+      given("the answer goes to the coder who asked") { asker.value == sender.value }
+
+      sets :hold, to: :settled
+
+      emits "QuestionSettled"
+    end
+
+    # The question goes on to the lead when the scrum master sends it what it found, when the scrum
+    # master could not be reached, or when it has waited fifteen minutes unanswered.
+    command "HandOn" do
+      role "System"
+      policy_only
+      goal "Hand a question the scrum master did not settle to the orchestrator"
+
+      reference_to Message
+      attribute :findings, MessageKey, optional: true, sets: true
+      attribute :now,      Moment, optional: true
+      attribute :window,   Moment, default: { value: 900000 }
+      attribute :lead,     Party,  default: { value: "orchestrator" }
+      attribute :handed,   Hold,   default: { value: "handed-on" }
+
+      given("the scrum master holds the question") { hold.value == "held" }
+      given("the scrum master sent what it found, was not reached, or let fifteen minutes pass") do
+        findings.set? || status == "undeliverable" || (now.set? && sent_at.value + window.value <= now.value)
+      end
+
+      sets :addressee, to: :lead
+      sets :hold, to: :handed
+
+      emits "QuestionHandedOn"
+    end
+
+    query "Unsettled" do
+      description "The coders' questions the scrum master holds and has neither answered nor handed on: what each tick of the clock checks against its window."
+      where(hold: "held")
+      order_by :key
+    end
+  end
+
+  # The supervisor's clock: a tick it writes every interval, read here so a wait is timed even
+  # when no session says anything.
+  aggregate "Clock" do
+    description "The supervisor's clock: each tick, at its moment on the supervisor's clock."
+
+    identified_by :reading
+
+    attribute :reading, Reading
+    attribute :now,     Instant
+
+    value_object "Reading" do
+      attribute :value, String, matches: :present
+    end
+
+    # Milliseconds on the supervisor's clock, from its start, as a Message's moments are.
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+    end
+
+    command "Tick" do
+      role "System"
+      goal "Record one tick of the supervisor's clock"
+
+      attribute :reading, Reading
+      attribute :now,     Instant
+
+      emits "ClockTicked"
+    end
+  end
+
+  # The scrum master's policies come before the delivery: a question is held before it is
+  # delivered, and a question handed on reaches the lead before the findings sent with it.
+  policy "HoldACoderQuestionForTheScrumMaster" do
+    on      "Message.MessagePosted"
+    where   { sender.value.start_with?("coder") && addressee.value == "scrum-master" && about.unset? }
+    trigger Message::Hold, with: { message: :key }
+  end
+
+  # One stated here and negated in DeliverEachMessage; a spec covers both sides.
+  policy "RouteACoderQuestionToTheScrumMaster" do
+    on      "Message.MessagePosted"
+    where   { sender.value.start_with?("coder") && addressee.value == "orchestrator" && about.unset? }
+    trigger Message::Route, with: { message: :key }
+  end
+
+  policy "SettleWhatTheScrumMasterAnswered" do
+    on      "Message.MessagePosted"
+    where   { sender.value == "scrum-master" && addressee.value != "orchestrator" && about.set? }
+    trigger Message::Settle, with: { message: :about, asker: :addressee }
+  end
+
+  policy "HandOnWhatTheScrumMasterNoted" do
+    on      "Message.MessagePosted"
+    where   { sender.value == "scrum-master" && addressee.value == "orchestrator" && about.set? }
+    trigger Message::HandOn, with: { message: :about, findings: :key, now: :sent_at }
   end
 
   policy "DeliverEachMessage" do
-    on  "Message.MessagePosted"
-    ask :deliver, with: { key: :key, sender: :sender, addressee: :addressee, text: :text }
+    on    "Message.MessagePosted"
+    where { !(sender.value.start_with?("coder") && addressee.value == "orchestrator" && about.unset?) }
+    ask   :deliver, with: { key: :key, sender: :sender, addressee: :addressee, text: :text, about: :about }
+  end
+
+  # A routed or handed-on question is delivered as the ledger holds it, to its new addressee.
+  policy "DeliverWhatWasRouted" do
+    on  "Message.MessageRouted"
+    ask :deliver_recorded, with: { key: :key }
+  end
+
+  policy "DeliverWhatWasHandedOn" do
+    on  "Message.QuestionHandedOn"
+    ask :deliver_recorded, with: { key: :key }
+  end
+
+  # A question the scrum master cannot be handed goes on to the lead at once.
+  policy "HandOnWhatTheScrumMasterCannotTake" do
+    on      "Message.MessageUndeliverable"
+    trigger Message::HandOn, with: { message: :key }
+  end
+
+  # Each tick hands on every question held past its window; one inside it refuses by its given.
+  policy "HandOnWhatTheScrumMasterLeft" do
+    on       "Clock.ClockTicked"
+    for_each "Message.Unsettled"
+    trigger  Message::HandOn, with: { message: :message, now: :now }
   end
 
   policy "RecordTheUndeliverable" do
     on      "Message.DeliveryRefused"
     trigger Message::RecordUndeliverable, with: { message: :key }
+  end
+
+  policy "RecordTheRecordedUndeliverable" do
+    on      "Message.RecordedDeliveryRefused"
+    trigger Message::RecordUndeliverable, with: { message: :key }
+  end
+
+  # The staff engineer's relays, recorded in StaffEngineer as the mail passes: a question opens one,
+  # Miette's answer about it is received, the send on to the asker is forwarded only in her words,
+  # and a send to her that is refused declines it, so nothing is said in her place.
+  policy "AskMietteThroughTheStaffEngineer" do
+    on      "Message.MessagePosted"
+    where   { addressee.value == "staff-engineer" && sender.value != "miette" }
+    across  "StaffEngineer"
+    trigger Relay::Ask, with: { relay: :key, question: :text, run: :sender }
+  end
+
+  policy "ReceiveMiettesAnswer" do
+    on      "Message.MessagePosted"
+    where   { sender.value == "miette" && addressee.value == "staff-engineer" }
+    across  "StaffEngineer"
+    trigger Relay::Receive, with: { relay: :about, received: :text }
+  end
+
+  policy "ForwardMiettesAnswer" do
+    on      "Message.MessagePosted"
+    where   { sender.value == "staff-engineer" && addressee.value != "miette" }
+    across  "StaffEngineer"
+    trigger Relay::Forward, with: { relay: :about, words: :text, author: "miette" }
+  end
+
+  policy "DeclineWhenMietteIsNotReached" do
+    on      "Message.DeliveryRefused"
+    where   { sender.value == "staff-engineer" && addressee.value == "miette" }
+    across  "StaffEngineer"
+    trigger Relay::Decline, with: { relay: :about }
   end
 end

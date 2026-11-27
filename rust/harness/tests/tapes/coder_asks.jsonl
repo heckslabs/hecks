@@ -1,0 +1,7 @@
+{"note":"A coder with one question for the staff engineer; it goes on once the answer is relayed."}
+{"expect":"user","contains":"You are the coder"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-coder-asks","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"c-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"staff-engineer","text":"Should a relay keep the asker's run when the question came through the scrum master?"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to staff-engineer"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Asked the staff engineer."}}
+{"expect":"user","contains":"from staff-engineer, about coder-1"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Got Miette's answer; keeping the run."}}

@@ -25,9 +25,10 @@ module Hecks
       # @param launch [#call] the child for a session name, as the `open` op's `program`, `args`,
       #   `model` and `cwd` (see {Launch})
       # @param binary [String] the `hecks-harness` binary
-      def initialize(launch:, binary: BINARY)
+      # @param tick_ms [Integer, nil] how often the supervisor's clock ticks; a minute when nil
+      def initialize(launch:, binary: BINARY, tick_ms: nil)
         @launch = launch
-        @stdin, @stdout, @process = Open3.popen2(binary, "serve")
+        @stdin, @stdout, @process = Open3.popen2(binary, "serve", *(tick_ms ? ["--tick-ms", tick_ms.to_s] : []))
         @tells = Queue.new
         @waiters = {}
         @lock = Mutex.new
@@ -47,8 +48,8 @@ module Hecks
       #
       # @return [Hash] the `delivered` or `queued` tell
       # @raise [Refused] when the supervisor refuses or does not answer
-      def deliver(key:, sender:, addressee:, text:)
-        op = { op: "deliver", session: addressee, message: key, from: sender, text: text }
+      def deliver(key:, sender:, addressee:, text:, about: nil)
+        op = { op: "deliver", session: addressee, message: key, from: sender, text: text, about: about }.compact
         answered(request(op) { |tell| tell["message"] == key && %w[queued delivered refused].include?(tell["tell"]) })
       end
 
