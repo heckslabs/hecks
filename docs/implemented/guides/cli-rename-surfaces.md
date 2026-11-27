@@ -43,7 +43,7 @@ Each surface is one of two kinds:
 | Fixtures and goldens | projected or pinned | `bundle exec exe/hecks model_check --wait` in the IR golden | `spec/golden/ir/Bluebook.json`, `spec/corpus/semantics/README.md` |
 | Glossary projection | projected by `Introspection.glossary` | `hecks run` in a query's description | the Introspection output, and `~/Projects/hecks-glossary` which builds a site from it |
 
-Three of these need a decision beyond a rewrite:
+Two of these need a decision beyond a rewrite:
 
 - `.mcp.json` loads two `Hecks::CLI` classes directly. Retiring `Hecks::CLI` (ADR 0163 decision
   9) removes both MCP servers unless the registration is moved to the launcher (`hecks mcp!` and
@@ -52,6 +52,15 @@ Three of these need a decision beyond a rewrite:
   project's launcher. Emptying the world's `legacy` list is not enough: each client must run
   `project_cli` again after upgrading, or its launcher keeps handing the retired forms to a class
   that no longer exists.
+
+The hand-written surfaces a rename touches by hand all live in this checkout; each path this page
+names for them is a file here:
+
+```ruby
+page = File.read("docs/implemented/guides/cli-rename-surfaces.md")
+paths = %w[.mcp.json .githooks/pre-push Guardfile exe/hecks .github/workflows/ci-rspec.yml]
+paths.reject { |path| page.include?("`#{path}`") && File.file?(path) }   # => []
+```
 
 ## Consumers outside the searched repositories
 

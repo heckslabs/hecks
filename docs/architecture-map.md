@@ -95,6 +95,7 @@ directories its files sit in, and the vision it declares, written from the files
 - **Questions** (`lib/hecks/questions/`): What a blocked session asks of the operator, tagged by kind, and which kinds the board may answer without a person.
 - **RailsApp** (`lib/hecks/rails_app/bluebook/`): Name a Rails app and shape its lists; every page else is derived from the domain.
 - **Site** (`lib/hecks/site/bluebook/`): Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS read.
+- **StaffEngineer** (`lib/hecks/staff_engineer/`): Miette coaches the crew from evidence: what she saw comes before what she advises, her words are relayed as hers, and what touches one of her vows is the owner's to decide.
 - **Tenancy** (`lib/hecks/tenancy/bluebook/`): Which tenants exist, which realm and storage each one owns, and whether each is currently allowed to run, is one queryable, historical fact — not scattered across a world-file overlay and a validation-only command.
 - **Tickets** (`lib/hecks/tickets/bluebook/`): Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
 <!-- generated:end -->
