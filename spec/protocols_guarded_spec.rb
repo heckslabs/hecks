@@ -6,7 +6,8 @@ require_relative "support/protocols_kept_store"
 # bluebook: a policy that reacts, or a command with a precondition. A rule with no guard is a
 # declared gap, never labelled guarded.
 RSpec.describe "the crew's working agreements and the guards that hold them" do
-  # Each rule, the guard named for it, and what that guard does (a hold, a priority, an advisory limit).
+  # Each rule, its guard, and what that guard does:
+  # a hold, a priority, an advisory limit.
   RULES = {
     "a red main holds the train"    => { guard: "Pipeline:HoldEveryPushedWhenMainRed", triggers: "Passage.Hold" },
     "a red-train item goes first"   => { guard: "Tickets:PrioritizeTheRedTrainWork", triggers: "Work.Prioritize" },
