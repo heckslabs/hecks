@@ -1,0 +1,47 @@
+Hecks.behaviors "Harness" do
+  vision "A session opens on a brief and runs until it is stopped; a message one session sends another is posted here, delivered by policy and timed from sent to delivered."
+
+  # No supervisor runs in a behaviors boot, so every ask is refused: a session is not opened and a
+  # message is not delivered. The run with a supervisor is the Harness spec's, over replay tapes.
+  loads "harness.hecksagon", "harness.bluebook"
+
+  test "a session opened with no supervisor running is refused its child" do
+    tests "Open", on: "Session"
+    input name: { value: "reviewer" }, brief: { value: "You are the reviewer." }
+    expect emits: %w[SessionOpenRequested SessionNotSpawned SessionNotOpened], status: "refused"
+  end
+
+  test "a session with no brief is not opened" do
+    tests "Open", on: "Session"
+    input name: { value: "reviewer" }, brief: { value: "" }
+    expect refused: "Brief.value must match"
+  end
+
+  test "a session that never ran is not stopped" do
+    tests "Stop", on: "Session"
+    setup "Harness::Session.Open", name: { value: "reviewer" }, brief: { value: "You are the reviewer." }
+    input session: "reviewer"
+    expect refused: "Stop moves it only from"
+  end
+
+  test "a turn is not recorded for a session that never ran" do
+    tests "RecordTurnEnded", on: "Session"
+    setup "Harness::Session.Open", name: { value: "reviewer" }, brief: { value: "You are the reviewer." }
+    input session: "reviewer", said: { value: "done" }, outcome: { value: "success" }
+    expect refused: "a turn ends only in a session that runs or is stopping"
+  end
+
+  test "a message posted with no supervisor running is undeliverable" do
+    tests "Post", on: "Message"
+    input key: { value: "reviewer-1" }, sender: { value: "reviewer" }, addressee: { value: "coder" },
+          text: { value: "Does post! refuse zero?" }, sent_at: { value: 100 }
+    expect emits: %w[MessagePosted DeliveryRefused MessageUndeliverable], status: "undeliverable"
+  end
+
+  test "a message with no text is not posted" do
+    tests "Post", on: "Message"
+    input key: { value: "reviewer-1" }, sender: { value: "reviewer" }, addressee: { value: "coder" },
+          text: { value: "" }, sent_at: { value: 100 }
+    expect refused: "MessageText.value must match"
+  end
+end
