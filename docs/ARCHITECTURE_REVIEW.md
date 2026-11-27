@@ -50,19 +50,18 @@ Read the bluebook of the plan's area first and cite its nearest example.
 - **M1. Sagas.** Test: a flow spans aggregates or waits on an outside event. Smell: policies chained by
   hand, a script, or a loop that carries the flow; a saga whose state is not persisted (no `save_saga`
   on its hecksagon, the `saga_durability` boot notice). Use a `process_manager` (ADR 0180), as
-  `GateAndBoard` and `MainIntegration` in `lib/hecks/hecks/deliver/deliver.bluebook`, and bind a
-  persistence adapter for it.
+  `ReleaseCut` in `lib/hecks/hecks/release/release.bluebook`, and bind a persistence adapter for it.
 - **M2. Rich value objects.** Test: a primitive carries rules (an id, money, a duration, a mark, a pair).
   Smell: a bare `String` or `Integer` attribute, or the same validation repeated in adapters or
   commands. Use a `value_object` with `matches:` and `invariant` (ADR 0067), as `FindingKey` in
   `lib/hecks/tickets/bluebook/tickets.bluebook`.
 - **M3. Queries.** Test: the plan reads state. Smell: a read hidden in a command, in adapter code or in
-  ad hoc SQL. Use a declared `query` and a port that `answers_query` (ADRs 0040, 0061), as `ServerEnv`
-  in `lib/hecks/agents/agents.bluebook`.
+  ad hoc SQL. Use a declared `query` and a port that `answers_query` (ADRs 0040, 0061), as `Velocity`
+  in `lib/hecks/tickets/bluebook/tickets.bluebook`.
 - **M4. Read models.** Test: a view answers a question across aggregates or over many rows. Smell: a
   polling watcher, or a script that boots the domain to compute a view. Use a declared `read_model`
-  with `group_by` and a reduction (ADRs 0050, 0052, 0055, 0078, 0079), as `CiRunPassedByStatus` in
-  `lib/hecks/ci_pipeline/ci_pipeline.bluebook`.
+  with `group_by` and a reduction (ADRs 0050, 0052, 0055, 0078, 0079), as `WorkByStatus` in
+  `lib/hecks/tickets/bluebook/tickets.bluebook`.
 
 ## C. Hecks craft
 
@@ -88,8 +87,8 @@ the older number wins on a tie.
 - **C8. Thin adapters (X3).** Test: does the adapter only translate facts in and out? Smell: a
   conditional on domain meaning, a validation, or a default the domain should own.
 - **C9. Asks match a port.** Test: every question the domain puts to the outside is declared by
-  one port's `asks`, as the `Machine` port's `asks "Sweep"` in `lib/hecks/agents/agents.ports.hecksagon`.
-  Smell: an ask the plan makes with no port `asks` declaration to match it.
+  one port's `asks`, as the `Capture` port's `asks "CaptureStart"` in
+  `lib/hecks/live_discovery/live_discovery.hecksagon`. Smell: an ask the plan makes with no port `asks` declaration to match it.
 - **C10. Behaviors first.** Test: the `.behaviors` file changes before the bluebook. Smell: a plan
   that adds a command or policy with no scenario.
 - **C11. Read the best example.** Test: the review names the best existing bluebook and adapter of the

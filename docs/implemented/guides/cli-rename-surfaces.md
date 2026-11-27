@@ -19,9 +19,6 @@ Each surface is one of two kinds:
 
 | Surface | Kind | Names it carries | Paths |
 |---|---|---|---|
-| Composer command palette | hand-written | `SAFE_COMMANDS`: `model_check_run.model_check!`, `operation.run!`, `operation.run_behaviors!`, `operation.smoke_test!`, `operation.refresh_projections!`, `fuzz_run.fuzz!`, `fuzz_run.bench!`, `build.check_conformance!`, `build.fuzz_conformance!`, `conformance_run.check_engine_agreement!`, `conformance_run.measure_doc_coverage!`, `kernel_run.measure_kernel_coverage!`, `style_run.check_comments!`, `style_run.check_rust_comments!`, `style_run.check_comments_unchanged!`; `ERA_QUERIES`: `introspection.shape`, `era.scaffold_translation`, `era.audit_translation`, `era.compaction` | `lib/hecks/composer/toolbox.rb` |
-| Composer page | hand-written | `fuzz_run.fuzz!`, `build.fuzz_conformance!` in `startJob` calls | `lib/hecks/composer/page.html` |
-| Composer catalog | projected at boot | every command and query of the Hecks bluebook, read from the runtime | `lib/hecks/composer/toolbox.rb` (`catalog`) |
 | Generated project launcher | projected by `Launch.project_cli!` | the `LEGACY` list (`run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp`) handed to `Hecks::CLI`; the `names` short spellings | `lib/hecks/hecks/adapters/local_files/project_cli/templates.rb` (`LEGACY_HANDOFF`), `lib/hecks/hecks/adapters/local_files/project_cli/launcher_source.rb`, world `launcher` setting in `lib/hecks/hecks/hecks.world` |
 | Gem executable | projected by `Launch.project_cli!` | the same `LEGACY` list | `exe/hecks` |
 | MCP server registration | hand-written | loads `Hecks::Adapters::Driving::Mcp.serve_stdio` and `Hecks::QueryIrMcp.serve_stdio` by file, not by launcher name | `.mcp.json` |
@@ -42,8 +39,8 @@ Each surface is one of two kinds:
 | Repository guide | hand-written | `style_run.check_comments!`, `test_suite_run.run_spec_example!`, `gate_run.gate!`, `send_train.board!`, `landing.land!`, `conformance_run.check_shape_ledger!`, `regeneration_run.regenerate_corpus!`, `promotion_run.promote!`, `regeneration_run.project_lanes!`, `test_suite_run.refresh_runtime_baseline!`, `hecks config` | `CLAUDE.md` |
 | Contributor and reader docs | hand-written | positional forms (`hecks run`, `hecks model_check`), `push_train.board`, `publishing_run.publish!`, `regeneration_run.regenerate_corpus!`, and others | `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/running-a-rules-service.md`, `docs/future-features.md`, `docs/benchmarks.md`, `docs/site-routes.md`, `docs/migrating-2-to-3.md`, `docs/implemented/guides/*.md`, `docs/plans/3.0/*.md` |
 | Decision records | hand-written, historical | names as they stood when each record was written | `docs/decisions/*.md`, the heaviest being 0080, 0088, 0087, 0141 |
-| Specs | hand-written | launcher lines and name lists pinned by the suite | `(removed with `Hecks::CLI`)`, `spec/exe_hecks_spec.rb`, `spec/exe_hecks_help_spec.rb`, `spec/hecks_command_table_spec.rb`, `spec/hecks_custodian_table_spec.rb`, `spec/hecks_launcher_defaults_spec.rb`, `spec/hecks_launcher_memory_commands_spec.rb`, `spec/hecks_tools_doc_spec.rb`, `spec/mcp_servers_spec.rb`, `spec/mcp_read_path_policy_spec.rb`, `spec/composer_panels_spec.rb`, `spec/tools_ci_gates_spec.rb`, `spec/tools_lanes_spec.rb`, `spec/gate_ci_stage_spec.rb`, `spec/ci_fuzz_shards_spec.rb`, `spec/hecks_lane_watch_spec.rb`, `spec/launcher_pinned_gems_spec.rb`, `spec/docs_references_spec.rb`, and the rest of the files a search for `exe/hecks` or a quoted `aggregate.verb` finds under `spec/` |
-| Fixtures and goldens | projected or pinned | `bundle exec exe/hecks model_check --wait` in the IR golden; a copy of `ci-rspec.yml` | `spec/golden/ir/Bluebook.json`, `spec/fixtures/ci_pipeline/ci-rspec.original.yml`, `spec/corpus/semantics/README.md` |
+| Specs | hand-written | launcher lines and name lists pinned by the suite | `(removed with `Hecks::CLI`)`, `spec/exe_hecks_spec.rb`, `spec/exe_hecks_help_spec.rb`, `spec/hecks_command_table_spec.rb`, `spec/hecks_custodian_table_spec.rb`, `spec/hecks_launcher_defaults_spec.rb`, `spec/hecks_launcher_memory_commands_spec.rb`, `spec/hecks_tools_doc_spec.rb`, `spec/mcp_servers_spec.rb`, `spec/mcp_read_path_policy_spec.rb`, `spec/gate_ci_stage_spec.rb`, `spec/ci_fuzz_shards_spec.rb`, `spec/hecks_lane_watch_spec.rb`, `spec/launcher_pinned_gems_spec.rb`, `spec/docs_references_spec.rb`, and the rest of the files a search for `exe/hecks` or a quoted `aggregate.verb` finds under `spec/` |
+| Fixtures and goldens | projected or pinned | `bundle exec exe/hecks model_check --wait` in the IR golden | `spec/golden/ir/Bluebook.json`, `spec/corpus/semantics/README.md` |
 | Glossary projection | projected by `Introspection.glossary` | `hecks run` in a query's description | the Introspection output, and `~/Projects/hecks-glossary` which builds a site from it |
 
 Three of these need a decision beyond a rewrite:
@@ -55,17 +52,6 @@ Three of these need a decision beyond a rewrite:
   project's launcher. Emptying the world's `legacy` list is not enough: each client must run
   `project_cli` again after upgrading, or its launcher keeps handing the retired forms to a class
   that no longer exists.
-- The Composer's `SAFE_COMMANDS` is an allowlist. After the renames, a stale entry silently stops
-  matching, so the palette offers fewer tools and refuses nothing. A spec that checks every entry
-  resolves would catch it, the same shape as the everyday-list check (ADR 0163 plan step 49).
-
-The Composer allowlist is the one list here a spec can check against this page. Every entry of
-`SAFE_COMMANDS` is named in the Composer row above:
-
-```ruby
-page = File.read("docs/implemented/guides/cli-rename-surfaces.md")
-Hecks::Composer::Toolbox::SAFE_COMMANDS.reject { |verb| page.include?(verb) }   # => []
-```
 
 ## Consumers outside the searched repositories
 

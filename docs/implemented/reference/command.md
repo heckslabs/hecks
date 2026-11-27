@@ -323,9 +323,9 @@ This is a storage concern, so it is moving out of the bluebook to the world that
 persistence. A world's `persisted_by("PostgresEra")` block names the commands instead:
 
 ```text
-Hecks.world "QualityControl" do
+Hecks.world "Ledger" do
   persisted_by("PostgresEra") do
-    database "postgres://hecks_qa@localhost/hecks_quality_control"
+    database "postgres://hecks@localhost/ledger"
     mints_era "Maintenance.MintEra"   # one `Aggregate.Command` name, or a list
   end
 end
