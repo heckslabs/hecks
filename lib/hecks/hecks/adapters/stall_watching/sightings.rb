@@ -177,7 +177,8 @@ module Hecks
           line ? "#{line}. " : ""
         end
 
-        # The kind's move, the command that reads the stall's row, and the rule that no move stops a session.
+        # The kind's move, then the command that reads the stall's row and the rule that no move
+        # stops a session ({Key.reading}).
         def move(kind, stall) = "Move: #{kind[:move]} #{Key.reading(stall)}"
       end
     end
