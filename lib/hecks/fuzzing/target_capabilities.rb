@@ -8,12 +8,15 @@ module Hecks
       # Matches the `[features]` table only, so `[package] name = "rust"` never reads as a feature.
       FEATURES_TABLE = /^\[features\](?:\n(?!\[).*)*$/
 
-      # Both spellings: aggregate-scoped `.persisted_by("PostgresEra")` and the bare
-      # domain-level `persisted_by "PostgresEra"`.
-      POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
+      # Both spellings: aggregate-scoped `.persisted_by("Postgres")` and the bare
+      # domain-level `persisted_by "Postgres"`.
+      POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"Postgres"/
 
       # A local assigned the bare literal on its own line; any other right-hand side is not one.
-      POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"PostgresEra"\s*(?:#.*)?$/
+      POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"Postgres"\s*(?:#.*)?$/
+
+      # The hecksagon word that picks Postgres's revision layout, on a line of its own.
+      REVISIONS_ON = /^\s*revisions\s*\(?\s*true\b/
 
       # Captures the member a hecksagon attaches; authorization is read off its declaration.
       FRAMEWORK_ATTACHED = /attaches\s*\(?\s*"([^"]+)"/
@@ -117,19 +120,21 @@ module Hecks
         features.match?(/^#{Regexp.escape(feature)}\s*=\s*\[\]/)
       end
 
-      # Answers whether any `.hecksagon` under `domain_path` binds PostgresEra,
-      # by literal name or through a local variable assigned `"PostgresEra"`.
+      # Answers whether any `.hecksagon` under `domain_path` binds Postgres in its revision layout:
+      # `revisions true` beside a `persisted_by` naming Postgres, by literal name or through a
+      # local variable assigned `"Postgres"`.
+      #
+      # The capability label stays "postgres_era" because it is the value stored in the ledger.
       #
       # @param domain_path [String] filesystem path to the target domain's directory
-      # @return [Boolean] whether a PostgresEra `persisted_by` binding is found
+      # @return [Boolean] whether such a binding is found
       def postgres_era_bound?(domain_path)
-        Dir.glob(File.join(domain_path, "**", "*.hecksagon")).any? do |path|
-          text = File.read(path)
-          text.match?(POSTGRES_ERA_BINDING) || postgres_era_variable_bound?(text)
-        end
+        texts = Dir.glob(File.join(domain_path, "**", "*.hecksagon")).map { |path| File.read(path) }
+        texts.any? { |text| text.match?(REVISIONS_ON) } &&
+          texts.any? { |text| text.match?(POSTGRES_ERA_BINDING) || postgres_era_variable_bound?(text) }
       end
 
-      # Answers whether `text` passes a variable assigned `"PostgresEra"` to `persisted_by`.
+      # Answers whether `text` passes a variable assigned `"Postgres"` to `persisted_by`.
       #
       # @param text [String] the contents of one `.hecksagon` file
       # @return [Boolean] whether some `persisted_by` call names such a variable

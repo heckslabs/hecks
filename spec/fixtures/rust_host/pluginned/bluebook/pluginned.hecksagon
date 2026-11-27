@@ -1,3 +1,4 @@
 Hecks.hecksagon "Pluginned" do
-  Pluginned::Ledger.persisted_by("PostgresEra")
+  Pluginned::Ledger.persisted_by("Postgres")
+  revisions true
 end

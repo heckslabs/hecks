@@ -90,7 +90,8 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
   # The same target bound to PostgresEra, which makes it eligible for `persistence_parity`.
   FIXTURE_PG_TARGET_HECKSAGON = <<~RUBY.freeze unless defined?(FIXTURE_PG_TARGET_HECKSAGON)
     Hecks.hecksagon "QaSweepAllFixtureTarget" do
-      QaSweepAllFixtureTarget::Widget.persisted_by("PostgresEra")
+      QaSweepAllFixtureTarget::Widget.persisted_by("Postgres")
+      revisions true
     end
   RUBY
 

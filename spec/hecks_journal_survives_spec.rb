@@ -80,7 +80,8 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   def write_local_hecksagon(directory)
     File.write(File.join(directory, "hecks.local.hecksagon"), <<~HECKSAGON)
       Hecks.hecksagon "Hecks" do
-        persisted_by "PostgresEra"
+        persisted_by "Postgres"
+        revisions true
       end
     HECKSAGON
   end

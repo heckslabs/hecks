@@ -10,6 +10,10 @@ require_relative "../../support/concurrency_gap_domain"
 RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :io do
   ERA_CONCURRENCY_DATABASE = "hecks_postgres_era_concurrency_spec".freeze
   ERA_GAP_VISION = "The smallest domain that exercises PostgresEra's cross-process write lock.".freeze
+  ERA_GAP_WIRING = proc do
+    EraConcurrencyGap::Account.persisted_by("Postgres")
+    revisions true
+  end
 
   # The four pipes the racers and the example talk over, as read and write ends: callbacks
   # are relayed over pipes, since an in-process Queue does not cross a fork.
@@ -31,15 +35,15 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     hold_declared_era!(registry.bluebook("EraConcurrencyGap"), url: ERA_CONCURRENCY_DATABASE)
   end
 
-  # Same Account fixture as postgres_concurrent_dispatch_spec.rb, bound to PostgresEra.
+  # Same Account fixture as postgres_concurrent_dispatch_spec.rb, in Postgres's revision layout.
   def boot
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
       load_ports
       ConcurrencyGapDomain.declare("EraConcurrencyGap", vision: ERA_GAP_VISION)
-      Hecks.hecksagon("EraConcurrencyGap") { EraConcurrencyGap::Account.persisted_by("PostgresEra") }
-      Hecks.world("EraConcurrencyGap") { persisted_by("PostgresEra") { database(ERA_CONCURRENCY_DATABASE) } }
+      Hecks.hecksagon("EraConcurrencyGap", &ERA_GAP_WIRING)
+      Hecks.world("EraConcurrencyGap") { persisted_by("Postgres") { database(ERA_CONCURRENCY_DATABASE) } }
     end
 
     registry.verify!
@@ -48,7 +52,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
 
   def load_ports
     MemoryPorts.load!
-    Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
+    Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
   end
 
   def account_repository(dispatcher)

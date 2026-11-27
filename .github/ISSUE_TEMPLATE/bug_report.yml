@@ -77,7 +77,7 @@ body:
         - Not applicable / Memory
         - Sqlite
         - Postgres
-        - PostgresEra
+        - Postgres with revisions true
         - Heki
         - Folder
         - Other / not sure

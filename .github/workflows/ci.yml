@@ -14,7 +14,7 @@ name: CI
 # `rspec_postgres_io` is the default lane for `io: true` specs: a spec added to an
 # `rspec_rust_*` list must also be excluded there, or it runs twice.
 #
-# `rspec` keeps a Postgres service: specs that boot examples/pizzas wire PostgresEra
+# `rspec` keeps a Postgres service: specs that boot examples/pizzas wire Postgres
 # without being tagged `io: true`.
 
 # Every PR and every push to main runs the full job set; no job skips on a push, because a

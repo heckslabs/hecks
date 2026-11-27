@@ -50,14 +50,14 @@ RSpec.describe "Hecks::Adapters::Terminal::Console" do
 
     expect(status).to be_success, stderr
     expect(stdout).to include("RESULT=sold/PizzaPurchased")
-    expect(stderr).not_to include("PostgresEra")
+    expect(stderr).not_to include("cannot bind Postgres")
   end
 
   it "still boots an explicit domain directory as that directory is wired", :aggregate_failures, :process do
     _stdout, stderr, status = run_console("examples/directory", stdin: "exit\n")
 
     expect(status).not_to be_success
-    expect(stderr).to include("cannot bind PostgresEra")
+    expect(stderr).to include("cannot bind Postgres")
   end
 
   describe ".overview" do

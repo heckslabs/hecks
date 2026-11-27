@@ -15,10 +15,10 @@ module Hecks
         include Children
         include Report
 
-        # Said when no clean wave-1 target binds PostgresEra, so there is nothing to compare Memory
-        # to.
-        PARITY_WAVE_SKIPPED = "parity wave: no clean target binds PostgresEra — nothing to compare Memory " \
-                              "against. Skipped."
+        # Said when no clean wave-1 target keeps Postgres's revision layout, so there is nothing to
+        # compare Memory to.
+        PARITY_WAVE_SKIPPED = "parity wave: no clean target binds Postgres with `revisions true` — nothing to " \
+                              "compare Memory against. Skipped."
 
         private
 

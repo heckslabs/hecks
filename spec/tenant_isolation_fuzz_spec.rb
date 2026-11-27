@@ -44,6 +44,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     Hecks.hecksagon "Fuzzed" do
       attaches "Governance"
       Fuzzed::Widget.persisted_by("%<adapter>s")
+      revisions %<revisions>s
     end
   HECKSAGON
 
@@ -73,9 +74,9 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     write(dir, "environments/#{slug}.world", format(TENANT_FUZZ_OVERLAY, realm: slug.capitalize, adapter: adapter, body: body))
   end
 
-  def write_domain(dir, adapter:, tenant_settings:)
+  def write_domain(dir, adapter:, tenant_settings:, revisions: false)
     write(dir, "fuzzed.bluebook", TENANT_FUZZ_BLUEBOOK)
-    write(dir, "fuzzed.hecksagon", format(TENANT_FUZZ_HECKSAGON, adapter: adapter))
+    write(dir, "fuzzed.hecksagon", format(TENANT_FUZZ_HECKSAGON, adapter: adapter, revisions: revisions))
     write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     write(dir, "fuzzed.world", TENANT_FUZZ_WORLD)
     tenant_settings.each { |slug, settings| write_overlay(dir, slug, adapter, settings) }
@@ -113,10 +114,10 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   end
 
   # One line for each tenant whose rows after the interleaved writes are not exactly its own.
-  def partition_mismatches(seed:, steps:, adapter:, tenant_settings:)
+  def partition_mismatches(seed:, steps:, adapter:, tenant_settings:, revisions: false)
     Dir.mktmpdir do |dir|
-      write_domain(dir, adapter: adapter, tenant_settings: tenant_settings)
-      hold_postgres_tenant_eras!(dir, tenant_settings) if adapter == "PostgresEra"
+      write_domain(dir, adapter: adapter, tenant_settings: tenant_settings, revisions: revisions)
+      hold_postgres_tenant_eras!(dir, tenant_settings) if revisions
       dispatchers = boot_tenants(dir)
       interleave(dispatchers, seed: seed, steps: steps).filter_map do |slug, refs|
         actual = actual_refs(dispatchers.fetch(slug)).sort
@@ -135,7 +136,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   end
 
   # One scratch Postgres database for all seeds; per-seed create/drop would cost more than it buys.
-  context "when bound to real PostgresEra", :io do
+  context "when bound to real Postgres with revisions true", :io do
     around do |example|
       next example.run unless PostgresProbe.available?
 
@@ -153,9 +154,10 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
         "bloom" => { database: url, schema: "fuzz_bloom_#{seed}" } }
     end
 
-    it "keeps two real PostgresEra tenants' interleaved writes exactly partitioned, across several seeds" do
+    it "keeps two real revision-layout tenants' interleaved writes exactly partitioned, across several seeds" do
       (1..4).each do |seed|
-        mismatches = partition_mismatches(seed: seed, steps: 25, adapter: "PostgresEra", tenant_settings: postgres_tenants(seed))
+        mismatches = partition_mismatches(seed: seed, steps: 25, adapter: "Postgres", tenant_settings: postgres_tenants(seed),
+                                          revisions: true)
 
         expect(mismatches).to be_empty
       end

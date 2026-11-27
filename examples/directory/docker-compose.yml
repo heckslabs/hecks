@@ -1,4 +1,4 @@
-# A throwaway Postgres for the one example bound to PostgresEra, so trying the adapter needs no
+# A throwaway Postgres for the one example in the revision layout, so trying the adapter needs no
 # local install. `trust` auth and a superuser are fine for a laptop container; directory.world sets
 # `allow_superuser true` for exactly this. Set HECKS_PG_PORT when 5432 is already taken.
 #

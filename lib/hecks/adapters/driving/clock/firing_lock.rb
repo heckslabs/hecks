@@ -45,7 +45,7 @@ module Hecks
           end
 
           # Adapters whose stores live in a shared Postgres database.
-          POSTGRES = %w[Postgres PostgresEra].freeze
+          POSTGRES = %w[Postgres].freeze
 
           module_function
 

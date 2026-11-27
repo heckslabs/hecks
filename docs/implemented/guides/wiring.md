@@ -143,11 +143,13 @@ order.toppings.map(&:to_h)   # => [{ name: "Basil", amount: 3 }]
 This page binds `Order` to Memory above because that is what it needs
 to run without a database behind it. The exact same shape, unchanged,
 already ships against a real one: `examples/directory/bluebook/directory.hecksagon`
-binds `Member` with `Directory::Member.persisted_by("PostgresEra")`, one line,
-quoted here, not run, since this page does not require a database:
+binds `Member` with `Directory::Member.persisted_by("Postgres")` and picks
+Postgres's revision layout with `revisions true`, two lines, quoted here,
+not run, since this page does not require a database:
 
 ```ruby skip
-Directory::Member.persisted_by("PostgresEra")
+Directory::Member.persisted_by("Postgres")
+revisions true
 ```
 
 That is what "decided outside the domain" means in practice, not in
@@ -255,7 +257,7 @@ doctest boot path, only through a real `Hecks.boot`):
 ```ruby skip
 Hecks.world "Directory" do
   realm "Examples"
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://localhost/hecks_directory"
     allow_superuser true
   end
@@ -263,9 +265,9 @@ end
 ```
 
 That `allow_superuser true` is the one line a real deployment never
-writes. `PostgresEra`'s era write-fence is Postgres row-level security,
+writes. The revision layout's era write-fence is Postgres row-level security,
 and a superuser (or any role granted BYPASSRLS) walks straight through
-every policy, `FORCE ROW LEVEL SECURITY` included — so `PostgresEra`
+every policy, `FORCE ROW LEVEL SECURITY` included — so the revision layout
 refuses to boot over such a connection by default, naming the role and
 the two ways out: an ordinary role in the URL
 (`postgres://<role>@<host>/<db>` — an ordinary *owner* still provisions
@@ -836,7 +838,7 @@ deploy kind, owns the data (Postgres by URL), so the move is a deploy choice.
 A project that attaches many bluebooks does not have to repeat that
 `persisted_by ... database` block in a world per bluebook, nor a
 `persisted_by` line per aggregate in a hecksagon per bluebook. The
-project's own world can say both once — `default_adapter "PostgresEra"`
+project's own world can say both once — `default_adapter "Postgres"`
 binds every aggregate no hecksagon binds, and `default_database "..."`
 supplies the `database` of every bound adapter that takes one — and a
 bluebook's own bind or settings still win. `examples/compliance` does

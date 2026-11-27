@@ -150,14 +150,14 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     expect(stderr).to include("needs an explicit target-reference")
   end
 
-  it "refuses a target with no persisted_by(\"PostgresEra\") binding at all — an operational error, not a finding",
+  it "refuses a target with no persisted_by(\"Postgres\") binding with revisions at all — an operational error, not a finding",
      :aggregate_failures do
     identify_target!("ineligible", @ineligible_relpath)
 
     _stdout, stderr, status = run_qa_sweep("ineligible", "--persistence-parity")
 
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("declares no persisted_by(\"PostgresEra\") binding")
+    expect(stderr).to include("declares no persisted_by(\"Postgres\") binding with `revisions true`")
   end
 
   it "leaves an ineligible target as found, not held by a sweep that was going to abort" do

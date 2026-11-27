@@ -57,7 +57,7 @@ than in an example further down:
 ```ruby boot
 # A persistence adapter that takes a `database`, declared only so
 # `default_database` below has one to reach — a real project names
-# Postgres, PostgresEra or SqlitePersistence.
+# Postgres or SqlitePersistence.
 Hecks.adapter("ReferenceStore") do
   port  "persistence"
   field :database
@@ -214,7 +214,7 @@ Hecks.world "Hecks" do
   # commands whose own record an unminted boot may write, for a binding kept in local files
   minting commands: ["SchemaRevision.MintHeld"]
 
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     formerly "Old"                        # the name this domain's history is held under
     mints_era "Maintenance.MintEra"       # the same list, said on the binding
   end
