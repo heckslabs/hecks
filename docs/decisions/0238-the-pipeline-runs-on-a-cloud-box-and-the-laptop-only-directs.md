@@ -69,9 +69,15 @@ What Hecks already has for the move:
    leaves Hecks for Switchyard ("We can move off the whole pipeline to switch yard"), so the cloud work is built
    with Switchyard as its home. Hecks keeps what any project uses (the `AwsBox` projection and the Postgres
    adapter), and Switchyard uses them as a client does.
-2. **The ledger moves to Postgres, as a database of its own on the RDS instance the owner's services already
-   use.** No new instance is made while the existing one has room; the projection makes one only for an account
-   that has none. This is the shared ledger
+2. **The ledger moves to Postgres as one more tenant of the owner's shared, multi-tenant database.** The owner's
+   services already run that way ("Multitennent with a shared database"), so Switchyard is provisioned like any
+   tenant, with `hecks deploy tenant.provision` (slug, realm and a schema of its own, `switchyard` unless the owner
+   names another), and no new database instance is made. A schema alone only separates names, since the Postgres
+   adapter sets `search_path` on its connection. So the tenant also gets a login role of its own whose grants
+   reach only its schema, a connection limit and a statement timeout on that role, so the pipeline's beat can
+   neither read another tenant's tables nor take the connections or time the other tenants need. Making that
+   role changes the shared database's access, so it waits on the owner, and its credentials go into the box's
+   secret store from the owner's hands. This is the shared ledger
    every machine reads and claims from. It revisits 0213, which kept SQLite because one machine and one lock
    line did not pay for the move. A second machine is what pays for it, because SQLite cannot be shared over a
    network. 0213 §4 to §7 list what the move needs first: Postgres twins of `LedgerKeeping`, the outbox purge,
@@ -143,8 +149,12 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 - **Running cost, before model use.** About $57 a month on demand: the box at about $49 (`t4g.large` at
   about $0.067 an hour in us-east-1) and its 100 GB volume at about $8 ($0.08 a GB-month). A one-year
-  reservation lowers the box to about $31, so about $39 a month. The ledger adds storage to the existing
-  database (a few GB, under $1 a month) and no instance. Third-party price lists, read 2026-11-27; the owner's
+  reservation lowers the box to about $31, so about $39 a month. The ledger adds a tenant's storage to the
+  shared database (a few GB, under $1 a month) and no instance. The plan first written here, a `t4g.xlarge` and
+  a database instance of its own, was about $130 to $140 a month.
+- **The pipeline's load lands on the shared database.** The beat and the journal write often, and the 1.33 GB
+  ledger arrives in one replay. The role's connection limit caps what it can take; the replay runs in the quiet
+  window and outside the other tenants' busy hours. Third-party price lists, read 2026-11-27; the owner's
   AWS bill is the measure.
 - **Model cost.** The compute meter will measure it. As a working estimate, a landed item costs a few dollars
   of model use, so $200 of credit covers on the order of 50 to 150 items, against the 75 a day the board showed
@@ -161,8 +171,10 @@ projection) lands in Hecks, and the rest waits for Switchyard.
   for room the credit's pace does not use. It is where the box goes if the headroom readings call for it.
 - **Running on an existing client service's box.** It adds almost nothing to the bill, but coders and gates
   would share memory and disk with a client's service, and a runaway run would take it down.
-- **Postgres on the pipeline box instead of the existing RDS instance.** The same cost as sharing the instance,
-  without its backups and restore point.
+- **Postgres on the pipeline box instead of the shared database.** The same cost as a tenant, without the shared
+  database's backups and restore point.
+- **A `t4g.medium` (2 vCPU, 4 GB), about half the box's cost.** A quick gate runs the spec suite beside the
+  coders, and 4 GB does not hold both.
 
 - **Move only the board and copy the laptop's ledger to it.** The owner chose the whole pipeline. A copied
   board is only as current as the laptop that feeds it, and it gives no other caller a way to act.
@@ -175,7 +187,9 @@ projection) lands in Hecks, and the rest waits for Switchyard.
 
 ## Open for the owner
 
-- Which of the owner's existing AWS services the box sits beside: the account, the region and the RDS
-  instance whose room the ledger uses.
+- Where the box sits: the AWS account and region the owner's services run in.
+- The tenant: its name (`switchyard` unless the owner names another), the shared database's address, and a role
+  for it that the owner makes, or lets the projection make, and whose credentials the owner puts into the box's
+  secret store.
 - API credits or a subscription token for the coders, and the day's spend bound.
 - A Tailscale Funnel or a public address for the door.
