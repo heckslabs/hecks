@@ -52,6 +52,11 @@ RSpec.describe Hecks::Adapters::Landing::OwnStores do
 
   def retire = Hecks::Adapters::GitLanding.new.remove(checkout: tree, branch: "work/a", onto: "main")
 
+  it "is in force on the vendored tidy" do
+    tidy = Hecks::Adapters::GitLanding::Tidy
+    expect(tidy.ancestors.take_while { |mod| mod != tidy }).to include(described_class)
+  end
+
   it "retires a landed worktree whose only ignored files are its own stores", :aggregate_failures do
     build(*stores)
     expect(retire.dig(:report, :value)).to include("and deleted work/a")
