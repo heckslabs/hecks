@@ -58,8 +58,19 @@ module Hecks
         parsed = parse(path)
         return FileResult.new(path: parsed.path, parse_error: parsed.parse_error, runs: []) if parsed.parse_error
 
-        runs = parsed.tests.map { |test| Expectations.run_one(test, parsed.suite) }
+        runs = variants(parsed.suite).flat_map { |label, adapters| run_variant(parsed, label, adapters) }
         FileResult.new(path: parsed.path, parse_error: nil, runs: runs)
+      end
+
+      # The ways a suite boots: once per adapter when stand-ins beside it rival for a port,
+      # otherwise once, as `AdapterSelection` chooses.
+      #
+      # @param suite [Behaviors::BehaviorsSuite] the parsed suite
+      # @return [Array<Array(String, Array<String>)>] each variant's label and `.adapter` files
+      def variants(suite)
+        return [[nil, nil]] unless suite.path
+
+        Expectations::AdapterSelection.variants(suite.path, Expectations.suite_files(suite).first)
       end
 
       # Sweeps every `.behaviors` file under `dir`, reporting the file count so a green sweep
@@ -105,6 +116,15 @@ module Hecks
         SentenceForm.examples?(path) ? SentenceForm.write_behaviors(path) : path
       rescue SentenceForm::Refused, SentenceForm::ParserMissing => e
         { error: "#{refusal_name(e)}: #{e.message}" }
+      end
+
+      # Runs every test of the suite against one variant's adapters, each result labelled with it.
+      #
+      # @return [Array<Expectations::Result>] one result per test
+      def run_variant(parsed, label, adapters)
+        parsed.tests.map do |test|
+          Expectations.run_one(test, parsed.suite, adapters: adapters).tap { |result| result.adapter = label }
+        end
       end
 
       # @param error [Exception] a refusal raised while compiling examples

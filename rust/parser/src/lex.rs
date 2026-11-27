@@ -401,9 +401,13 @@ fn find_top_level_brace(text: &str) -> Option<usize> {
     None
 }
 
-/// A `{` after `:`, `,` or `>` opens a hash literal; `>` covers a parenless `:k => { ... }`.
+/// A `{` after `:`, `,`, `>` or `[` opens a hash literal; `>` covers a parenless
+/// `:k => { ... }`, and `[` a list of hashes (`with: [{ ... }, { ... }]`), where no block can open.
 fn is_hash_literal_brace(before: &str) -> bool {
-    matches!(before.trim_end().chars().last(), Some(':' | ',' | '>'))
+    matches!(
+        before.trim_end().chars().last(),
+        Some(':' | ',' | '>' | '[')
+    )
 }
 
 fn matching_brace_body(text: &str) -> Option<(String, &str)> {

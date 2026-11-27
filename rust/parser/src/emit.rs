@@ -7,7 +7,7 @@ use crate::ir;
 use crate::ruby_value;
 
 /// A minimal hand-rolled JSON value (no serde: the crate is std-only).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JsonValue {
     Null,
     Bool(bool),
@@ -1078,7 +1078,49 @@ pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
     if !adapter.hosts.is_empty() {
         keys.push(("hosts".to_string(), JsonValue::strings(&adapter.hosts)));
     }
+    if !adapter.replies.is_empty() {
+        keys.push((
+            "replies".to_string(),
+            JsonValue::Array(adapter.replies.iter().map(reply_json).collect()),
+        ));
+    }
     JsonValue::Object(keys)
+}
+
+/// One `replies` or `refuses` row: `ask` and `where` always, then `with` and `echoing` for an
+/// answer or `saying` for a refusal.
+pub fn reply_json(reply: &ir::Reply) -> JsonValue {
+    let mut keys = vec![
+        ("ask".to_string(), JsonValue::str(reply.ask.clone())),
+        (
+            "where".to_string(),
+            JsonValue::Object(
+                reply
+                    .matches
+                    .iter()
+                    .map(|(k, v)| (k.clone(), ruby_value_json(v)))
+                    .collect(),
+            ),
+        ),
+    ];
+    match &reply.outcome {
+        ir::ReplyOutcome::Answer { with, echoing } => {
+            keys.push((
+                "with".to_string(),
+                with.as_ref().map_or(JsonValue::Null, ruby_value_json),
+            ));
+            keys.push(("echoing".to_string(), JsonValue::strings(echoing)));
+        }
+        ir::ReplyOutcome::Refuse { saying } => {
+            keys.push(("saying".to_string(), JsonValue::str(saying.clone())));
+        }
+    }
+    JsonValue::Object(keys)
+}
+
+/// A captured Ruby value as JSON, for the declared adapter's answers.
+pub fn data_json(value: &ruby_value::Value) -> JsonValue {
+    ruby_value_json(value)
 }
 
 fn declared_adapter_json(adapter: &ir::Adapter) -> JsonValue {

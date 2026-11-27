@@ -190,6 +190,13 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "a real declaration would invent a second operation for a command that needs " \
                                            "none. The word is exercised by docs/implemented/reference/port_operation.md.",
     "backfill (TranslationAggregate)"   => TRANSLATION_RULE_GAP,
+    # ADR 0238: a declared adapter answers a port from rows. Its real use is the two carriers of
+    # the corpus-owned Courier domain in spec/corpus/declared, each held to one suite; the
+    # examples replay on the Rust kernel, which answers no port, so none of them can carry one.
+    "replies (Adapter)"                 =>
+                                           "answers a port from rows; its corpus use is spec/corpus/declared's carriers, " \
+                                           "a corpus-owned domain like spec/corpus/asks, because the examples replay on " \
+                                           "the Rust kernel, which answers no port (ADR 0238).",
     # ADR 0171's addendum: an adapter saying `stays_inside` opts its whole project into the
     # behaviors adapter selection, and this repository's own suites boot through more than a
     # hundred adapters no one has judged yet, so none of lib/hecks/adapters/driven may say it

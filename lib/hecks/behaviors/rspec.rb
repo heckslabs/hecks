@@ -23,19 +23,29 @@ module Hecks
       end
 
       # @param parsed [Behaviors::ParseResult] the parsed `.behaviors` file
-      # @return [Proc] the body of the example group: one `it` per test, or the parse failure
+      # @return [Proc] the body of the example group: one `it` per test and adapter variant, or the
+      #   parse failure
       def examples_for(parsed)
         return proc { it("loads without a parse error") { raise parsed.parse_error } } if parsed.parse_error
 
+        cases = Behaviors.variants(parsed.suite).product(parsed.tests)
         proc do
-          parsed.tests.each do |test|
-            it(test.description) do
-              run = Expectations.run_one(test, parsed.suite)
-              raise run.message if run.status != :pass
-            end
+          cases.each do |(label, adapters), test|
+            it(RSpec.title(test, label)) { RSpec.pass!(test, parsed.suite, adapters) }
           end
         end
       end
+
+      # Runs one test against one variant's adapters.
+      #
+      # @raise [RuntimeError] with the test's message when it does not pass
+      def pass!(test, suite, adapters)
+        run = Expectations.run_one(test, suite, adapters: adapters)
+        raise run.message if run.status != :pass
+      end
+
+      # @return [String] the test's description, naming the adapters its variant picked
+      def title(test, label) = label ? "#{test.description} (with #{label})" : test.description
     end
   end
 end
