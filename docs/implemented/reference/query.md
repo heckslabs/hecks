@@ -556,11 +556,12 @@ run's filter alone, and the query log echoes the arguments the caller offered. T
 ## limit
 
 <!-- generated:begin word=limit -->
-`limit limit` — fills `limit`
+`limit limit, limit` — fills `limit`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | number | true | limit |
+| positional 1 | symbol | true | limit |
 <!-- generated:end -->
 
 Caps how many rows survive after ordering runs. Declare `order_by`
