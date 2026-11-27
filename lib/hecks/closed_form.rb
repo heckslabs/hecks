@@ -52,6 +52,7 @@ module Hecks
     # @return [void]
     # @raise [Refused] if it reaches outside the closed vocabulary
     # @raise [Parser::Missing] if no parser can be found or built
+    # @raise [LoadError] if there is no such file
     def load(path) = load_text(source_of(path.to_s), path.to_s)
 
     # Declares what `source` holds as though it were the file at `path`: text held from an earlier
@@ -72,7 +73,12 @@ module Hecks
     #
     # @param path [String] the file
     # @return [String] its source
-    def source_of(path) = File.read(path, encoding: Encoding::UTF_8)
+    # @raise [LoadError] when there is no such file, as `Kernel.load` raises
+    def source_of(path)
+      File.read(path, encoding: Encoding::UTF_8)
+    rescue Errno::ENOENT
+      raise LoadError, "cannot load such file -- #{path}"
+    end
 
     # The text the parser admits for `source`, read from the cache when this parser has admitted
     # the same text under the same name before.

@@ -92,8 +92,10 @@ RSpec.describe Hecks::Router do
     aggregate "Book" do
       identified_by :id
       description "A book"
-      command "Add" do; end
-      query "Available" do; end
+      command "Add" do
+      end
+      query "Available" do
+      end
     end
   RUBY
 

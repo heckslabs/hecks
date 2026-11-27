@@ -9,8 +9,9 @@ module Hecks
     # when there is none for them yet.
     #
     # The gem carries the parser's sources (`rust/parser/`), so the binary is built for exactly
-    # those sources, once, with cargo, under the cache directory, and found there by their digest
-    # afterwards. `HECKS_PARSE_BIN` names a binary to use instead, for a machine with no cargo.
+    # those sources, once, with cargo, and found by their digest afterwards: beside the crate in a
+    # checkout, where a cache that is emptied cannot take it, and under the cache directory in an
+    # installed gem, which is read-only. `HECKS_PARSE_BIN` names a binary to use instead.
     module Parser
       # The parser crate's root, inside the checkout or the installed gem.
       CRATE = File.expand_path("../../../rust/parser", __dir__).freeze
@@ -23,7 +24,9 @@ module Hecks
       # @return [String] the binary's path: `HECKS_PARSE_BIN`, or the build for these sources
       # @raise [Missing] when neither can be had
       def binary
-        @binary ||= named || built
+        return @binary if @binary && File.executable?(@binary)
+
+        @binary = named || built
       end
 
       # @return [String] what a cached admitted text is keyed on: the named binary's path, size and
@@ -48,10 +51,16 @@ module Hecks
       # @return [String] the build of the parser for its current sources, made once
       # @raise [Missing] when there is no build and cargo cannot make one
       def built
-        target = File.join(CacheDir.path("hecks-parse"), sources_digest[0, 16])
+        target = File.join(builds, sources_digest[0, 16])
         executable = File.join(target, "release", "hecks-parse")
         build(target) unless File.executable?(executable)
         executable
+      end
+
+      # @return [String] where builds live: the crate's own `target/` when the crate is writable
+      def builds
+        crate_target = File.join(CRATE, "target", "closed-form")
+        File.writable?(CRATE) ? crate_target : CacheDir.path("hecks-parse")
       end
 
       # @return [String] the digest of everything the build reads

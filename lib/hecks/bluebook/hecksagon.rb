@@ -100,10 +100,12 @@ module Hecks
         bounded:          :bounded?,
         translates:       -> { translates.map(&:to_s) },
         revisions:        :revisions?,
-        inline_reactions: :inline_reactions?
+        inline_reactions: :inline_reactions?,
+        bluebook_from:    :bluebook_from
       )
 
-      attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving, :clocks
+      attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving, :clocks,
+                  :bluebook_from
 
       # The driving adapters `driven_by` can name.
       DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp Web Clock].freeze
@@ -111,13 +113,12 @@ module Hecks
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         binds: [], subscriptions: [], attachments: [], bounded: false, translates: [], driving: [],
-        clocks: [], revisions: false, inline_reactions: false
+        clocks: [], revisions: false, inline_reactions: false, bluebook_from: nil
       }.freeze
 
       # @param domain [String, Symbol] the domain this hecksagon wires
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
-      # @param subscriptions [Array<String, Symbol>] the external events this domain
-      #   subscribes to
+      # @param subscriptions [Array<String, Symbol>] the external events this domain subscribes to
       # @param attachments [Array<Bluebook::Attachment>] every bluebook this hecksagon attaches,
       #   each with its source (`:gem` or `:vendor`)
       # @param bounded [Boolean] whether this bluebook is an explicit bounded context
@@ -126,6 +127,7 @@ module Hecks
       # @param driving [Array<String>] the driving adapters `driven_by` admits; empty admits all
       # @param clocks [Array<Bluebook::Clock>] the clocks declared, each dispatching one command
       # @param revisions [Boolean] whether the Postgres adapter keeps the revision layout
+      # @param bluebook_from [String, nil] `"gem"` when the gem carries its own bluebook
       def initialize(domain:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @domain             = domain.to_s
@@ -135,6 +137,7 @@ module Hecks
         @clocks             = Array(@clocks)
         @revisions          = @revisions ? true : false
         @inline_reactions   = @inline_reactions ? true : false
+        @bluebook_from      = @bluebook_from&.to_s
       end
 
       # Says whether this hecksagon accepts in-process reactions on an adapter with no outbox.

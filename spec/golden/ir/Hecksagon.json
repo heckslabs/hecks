@@ -2306,6 +2306,16 @@
           "pattern": null,
           "relationship": null,
           "type": "InlineReactionsFlag"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "bluebook_from",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "BluebookSource"
         }
       ],
       "commands": [
@@ -2665,6 +2675,52 @@
 
           ],
           "name": "InlineReactionsFlag"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "to_s",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "value"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "gem"
+                }
+              },
+              "canonical": "value.to_s == \"gem\"",
+              "description": "a hecksagon's own bluebook comes from the gem"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "BluebookSource"
         },
         {
           "attributes": [
@@ -3314,7 +3370,7 @@
               ],
               [
                 "fills",
-                ""
+                "bluebook_from"
               ]
             ]
           ],
@@ -3745,7 +3801,7 @@
               ],
               [
                 "fills",
-                ""
+                "bluebook_from"
               ]
             ]
           ],

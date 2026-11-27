@@ -17,6 +17,7 @@ module Hecks
           def bluebook_from(source)
             raise Runtime::WiringError, "bluebook_from #{source.inspect} — it takes only :gem" unless source == :gem
 
+            @bluebook_from = "gem"
             require_relative "../../../framework_bluebooks"
             self.class.with_real_modules { Hecks::FrameworkBluebooks.load!(@domain.to_s) }
           end

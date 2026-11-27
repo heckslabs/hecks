@@ -155,7 +155,8 @@ module Hecks
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
                         attachments: @attachments, bounded: @bounded, translates: @translates,
-                        driving: @driving, clocks: @clocks, revisions: @revisions, inline_reactions: @inline_reactions)
+                        driving: @driving, clocks: @clocks, revisions: @revisions, inline_reactions: @inline_reactions,
+                        bluebook_from: @bluebook_from)
         end
 
         # Loads a bluebook the gem carries and records it as attached from the gem.

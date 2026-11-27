@@ -272,12 +272,13 @@ RSpec.describe "the stdio MCP servers" do
       expect(payload(results[1])["error"]).to include("Pizzas is not driven by Mcp", "admits only Ruby, Cli, Json")
     end
 
-    it "loads that same domain on an unrestricted server, which is what the refusal above prevents", :process do
+    it "never runs that same domain's Ruby on an unrestricted server either: the hecksagon is parsed, not run",
+       :process do
       other = unnamed_domain
       run_over_pipes(server, [tool_call(1, "catalog", { domain: other })],
                      env: { "HECKS_STOREHOUSE_ROOT" => sandbox_root })
 
-      expect(File).to exist(marker)
+      expect(File).not_to exist(marker)
     end
 
     {

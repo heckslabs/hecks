@@ -182,7 +182,7 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
 
     it "names the world it could not read and why" do
       described_class.environment(root: root, base: no_target)
-      expect(described_class.unreadable_world(root)).to include("tickets.world: SyntaxError")
+      expect(described_class.unreadable_world(root)).to include("tickets.world: Hecks::ClosedForm::Refused")
     end
 
     it "warns that the settings are left at their defaults" do

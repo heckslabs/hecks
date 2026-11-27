@@ -39,9 +39,10 @@ RSpec.describe Hecks::Adapters::Codebase::BluebookExtraction do
   describe "a changed bluebook holding a rule the IR cannot carry" do
     before { write("lib/a/a.bluebook", bad) }
 
+    # The closed form refuses the Ruby-built rule before the IR is ever asked to carry it.
     it "is refused, naming the file and the refusal" do
       expect { described_class.call(tree, base: "HEAD") }
-        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, %r{lib/a/a\.bluebook.*did not survive extraction}m)
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, %r{lib/a/a\.bluebook.*'given' takes literals only}m)
     end
   end
 

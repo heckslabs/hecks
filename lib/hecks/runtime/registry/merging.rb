@@ -21,11 +21,19 @@ module Hecks
             [facet, (base.public_send(facet) + overlay.public_send(facet)).uniq]
           end
           Bluebook::Hecksagon.new(domain: base.domain, binds: base.binds + overlay.binds,
-                                  bounded: base.bounded? || overlay.bounded?,
-                                  revisions: base.revisions? || overlay.revisions?,
-                                  inline_reactions: base.inline_reactions? || overlay.inline_reactions?,
-                                  **lists)
+                                  bluebook_from: base.bluebook_from || overlay.bluebook_from,
+                                  **merged_flags(base, overlay), **lists)
         end
+
+        # @param base [Bluebook::Hecksagon] the domain's already-registered wiring
+        # @param overlay [Bluebook::Hecksagon] the newly loaded block's own wiring
+        # @return [Hash{Symbol => Boolean}] each flag, set when either side sets it
+        def merged_flags(base, overlay)
+          %i[bounded revisions inline_reactions].to_h do |flag|
+            [flag, base.public_send(:"#{flag}?") || overlay.public_send(:"#{flag}?")]
+          end
+        end
+        private :merged_flags
 
         # Scalars (`realm`, `latest`, `default_database`, `default_adapter`): the overlay's
         # value wins when present, else the base's survives. `settings` is a shallow merge

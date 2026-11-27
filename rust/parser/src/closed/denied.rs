@@ -26,6 +26,7 @@ pub const RUBY_METHODS: &[&str] = &[
     "Integer",
     "JSON",
     "Pathname",
+    "Rainbow",
     "Rational",
     "String",
     "URI",

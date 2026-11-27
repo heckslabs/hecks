@@ -378,7 +378,8 @@ fn trailing_do(rest: &str) -> Option<(&str, Option<String>)> {
     None
 }
 
-/// A `{` inside parens or written as a hash literal argument is not a source-body opener.
+/// A `{` inside parens or brackets (`x [{ a: 1 }]`), or written as a hash literal argument, is
+/// not a source-body opener.
 fn find_top_level_brace(text: &str) -> Option<usize> {
     let mut quotes = Quotes::default();
     let mut paren_depth: i32 = 0;
@@ -387,8 +388,8 @@ fn find_top_level_brace(text: &str) -> Option<usize> {
             continue;
         }
         match ch {
-            '(' => paren_depth += 1,
-            ')' => paren_depth -= 1,
+            '(' | '[' => paren_depth += 1,
+            ')' | ']' => paren_depth -= 1,
             '{' if paren_depth == 0 => {
                 if is_hash_literal_brace(&text[..idx]) {
                     continue;
