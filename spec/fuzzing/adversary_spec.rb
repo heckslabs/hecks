@@ -148,7 +148,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
 
     # Lower fraction on purpose: this needs an earlier append to have succeeded under the
     # same parent, and at 1.0 nearly every append is mutated and refused first. 0.3 is the
-    # `hecks quality_control ask run` dial; the seed walk stops at the first sequence that
+    # `hecks quality_control Sweep.run` dial; the seed walk stops at the first sequence that
     # carries one.
     def duplicate_identity_pairs
       (1..40).lazy.map { |seed| mutations_over(LEDGER_ORDERING, seeds: seed, fraction: 0.3)["duplicate_entity_identity"] }

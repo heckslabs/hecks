@@ -107,14 +107,14 @@ RSpec.describe Hecks::Fuzzing::CoverageCampaign, :aggregate_failures do
     expect(campaign.summary).to start_with("coverage: 1 distinct").and include("1 seed(s) reached something new")
   end
 
-  # Persistence is what lets `hecks quality_control ask run` carry a campaign's corpus and
+  # Persistence is what lets `hecks quality_control Sweep.run` carry a campaign's corpus and
   # coverage knowledge across separate process invocations (one per tick), rather than
   # rebuilding it from scratch every time.
   describe "#to_h / .load / #restore!" do
     it "round-trips the corpus, seen tuples, verb hits and declared verbs through a JSON-safe hash" do
       original = two_seed_campaign
 
-      # JSON.parse(JSON.generate(...)) is exactly what a real hecks quality_control ask run round
+      # JSON.parse(JSON.generate(...)) is exactly what a real hecks quality_control Sweep.run round
       # trip does: every key becomes a string, same as reading the saved file back on the next
       # process's boot.
       state = JSON.parse(JSON.generate(original.to_h))

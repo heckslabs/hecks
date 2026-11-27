@@ -127,7 +127,7 @@ module Hecks
       def finding_steps
         [
           guarded("check_pull_requests") { run_pr_check },
-          guarded("ask run --all") { run_sweep },
+          guarded("Sweep.run --all") { run_sweep },
           guarded("check_generated_domains --from-dials") { run_generated_domains },
           guarded("mutate --from-dials") { run_mutation },
           (guarded("check_main") { run_main_check } if dial(:RED_MAIN_CHECK, false))
@@ -142,7 +142,7 @@ module Hecks
       end
 
       def run_sweep
-        banner "hecks quality_control ask run --all"
+        banner "hecks quality_control Sweep.run --all"
         output, exit_code = run_step(->(argv) { QaSweep.call(argv, root: @root) }, "--all")
         puts condense_sweep_output(output)
         [output, exit_code]

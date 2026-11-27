@@ -78,7 +78,7 @@ module Hecks
 
       def find_sweep(id)
         ::QualityControl::Sweep.find(id) ||
-          abort("no such sweep: #{id.inspect} — the sweep id is on hecks quality_control ask run's own " \
+          abort("no such sweep: #{id.inspect} — the sweep id is on hecks quality_control Sweep.run's own " \
                 "FOUND SOMETHING report")
       end
 
