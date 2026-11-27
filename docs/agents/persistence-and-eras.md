@@ -1,5 +1,9 @@
 # Persistence, eras and the push train
 
+<!-- dead-name-check: skip-file -->
+
+> This guide describes the development pipeline, which moved to Switchyard (ADR 0205). Its commands run from a Switchyard checkout, not from Hecks.
+
 Read this before you touch a hecksagon's persistence, a local overlay, the shape ledger, an era
 or a mint. `CLAUDE.md` holds the rules every session needs; this holds the detail.
 

@@ -1,5 +1,9 @@
 # The watchdog
 
+<!-- dead-name-check: skip-file -->
+
+> This guide describes the development pipeline, which moved to Switchyard (ADR 0205). Its commands run from a Switchyard checkout, not from Hecks.
+
 A launchd job (`dev.hecks.watchdog`, KeepAlive, normal priority) keeps the pinned sessions working. It runs
 apart from Hecks and Claude and boots no domain.
 

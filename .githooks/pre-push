@@ -17,8 +17,9 @@
 # The suite is opt-in. By default a push runs only the `quick` stage (seconds: shape ledger, rubocop,
 # the comment-style checks, secret output, adapter words); CI and the nightly run hold everything slower
 # and gate `stable`, not `main`. `hecks.fullGate` (git config) runs the whole `pre_push` stage,
-# suite included. A hook takes no arguments, so `hecks send_train.board! --confirm full_gate.value=true` is how a
-# person asks for it: the train pushes with `git -c hecks.fullGate=true` for that push only. A repository
+# suite included. A hook takes no arguments, so the push train, which runs from Switchyard (ADR 0205), is how a
+# dead-name-check: skip
+# person asks for it, with `send_train.board! --confirm full_gate.value=true` in a Switchyard checkout: the train pushes with `git -c hecks.fullGate=true` for that push only. A repository
 # can also keep it on with `git config hecks.fullGate true`. The commit-msg hook only strips attribution trailers; checks run at push.
 
 ROOT=$(git rev-parse --show-toplevel)

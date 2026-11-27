@@ -36459,7 +36459,7 @@
               ],
               [
                 "meaning",
-                "Most PRs (Patch plus Improvement) `hecks quality_control Patch.open!` opens per calendar day; 0 is uncapped."
+                "Most PRs (Patch plus Improvement) Quality control's `Patch.open!` (in Switchyard) opens per calendar day; 0 is uncapped."
               ]
             ],
             [
@@ -36487,7 +36487,7 @@
               ],
               [
                 "meaning",
-                "How many `hecks quality_control sweep.run <target>` children `--all` keeps running at once."
+                "How many Quality control `sweep.run <target>` (in Switchyard) children `--all` keeps running at once."
               ]
             ],
             [
@@ -36515,7 +36515,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control Patch.open!` opens its PR as a draft; false opens it ready for review."
+                "Whether Quality control's `Patch.open!` (in Switchyard) opens its PR as a draft; false opens it ready for review."
               ]
             ],
             [
@@ -36529,7 +36529,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control Patch.open!` queues the PR for auto-merge once it is open."
+                "Whether Quality control's `Patch.open!` (in Switchyard) queues the PR for auto-merge once it is open."
               ]
             ],
             [
@@ -36613,7 +36613,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
+                "Whether Quality control's `sweep.run` (in Switchyard) also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
               ]
             ],
             [
@@ -36627,7 +36627,7 @@
               ],
               [
                 "meaning",
-                "Candidate replays `hecks quality_control sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
+                "Candidate replays Quality control's `sweep.run` (in Switchyard) may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
               ]
             ],
             [
@@ -36683,7 +36683,7 @@
               ],
               [
                 "meaning",
-                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control sweep.run` clamps down, never up, and prints a note."
+                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. Quality control's `sweep.run` (in Switchyard) clamps down, never up, and prints a note."
               ]
             ],
             [
@@ -36725,7 +36725,7 @@
               ],
               [
                 "meaning",
-                "Which comparison modes `hecks quality_control sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
+                "Which comparison modes Quality control's `sweep.run` (in Switchyard) may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. Quality control's `sweep.run` (in Switchyard) refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
               ]
             ],
             [
@@ -36767,7 +36767,7 @@
               ],
               [
                 "meaning",
-                "How many generated domains one `hecks quality_control sweep.tick` checks after the rotation sweep; 0 skips the step."
+                "How many generated domains one Quality control `sweep.tick` (in Switchyard) checks after the rotation sweep; 0 skips the step."
               ]
             ],
             [
@@ -36809,7 +36809,7 @@
               ],
               [
                 "meaning",
-                "Rust files `hecks quality_control target.mutate --from-dials` mutates, and so the files one `hecks quality_control sweep.tick` mutation-tests after the generated domains; empty skips the step."
+                "Rust files Quality control's `target.mutate --from-dials` (in Switchyard) mutates, and so the files one Quality control `sweep.tick` (in Switchyard) mutation-tests after the generated domains; empty skips the step."
               ]
             ],
             [
@@ -36851,7 +36851,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
+                "Whether each Quality control `sweep.tick` (in Switchyard) runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
               ]
             ],
             [
@@ -36865,7 +36865,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; an EventDelivery `Pump.Run` on the ledger runs it regardless."
+                "Whether each Quality control `sweep.tick` (in Switchyard) runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; an EventDelivery `Pump.Run` on the ledger runs it regardless."
               ]
             ],
             [
@@ -36879,7 +36879,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work item; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+                "Whether each Quality control `sweep.tick` (in Switchyard) checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work item; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
               ]
             ],
             [
@@ -36893,7 +36893,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step."
+                "Whether each Quality control `sweep.tick` (in Switchyard) runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; Quality control's `qa_quiesce.hold!` (in Switchyard) writes a marker file every step checks as well, which a tick already running notices before its next step."
               ]
             ],
             [
@@ -36907,7 +36907,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
+                "Whether each Quality control `sweep.tick` (in Switchyard) runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
               ]
             ],
             [
