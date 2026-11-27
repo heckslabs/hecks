@@ -1,0 +1,6 @@
+# Refused: requires a library inside a block.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    require "open3"
+  end
+end

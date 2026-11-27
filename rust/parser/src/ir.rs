@@ -514,4 +514,29 @@ pub struct Adapter {
     pub imports: Vec<String>,
     // The hosts a component's `http_out` requests may reach, in declaration order.
     pub hosts: Vec<String>,
+    // A declared adapter's `replies` and `refuses` rows, in file order (first match answers).
+    pub replies: Vec<Reply>,
+}
+
+/// One `replies` or `refuses` row of a declared adapter: the ask (or port-answered query) it
+/// answers, the asked values it matches, and what it does when they match.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Reply {
+    pub ask: String,
+    // Asked field name to the scalar it must equal, in declaration order; empty matches every asking.
+    pub matches: Vec<(String, crate::ruby_value::Value)>,
+    pub outcome: ReplyOutcome,
+}
+
+/// What a matching row does: answer with declared data (plus fields copied from the asking), or
+/// refuse with declared words.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReplyOutcome {
+    Answer {
+        with: Option<crate::ruby_value::Value>,
+        echoing: Vec<String>,
+    },
+    Refuse {
+        saying: String,
+    },
 }

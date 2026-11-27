@@ -20,7 +20,8 @@ decisions behind it are [ADR 0180](decisions/0180-a-process-manager-has-one-name
 3. Search your hecksagons, worlds, context maps, scripts, CI jobs, hooks, Makefiles and docs for the
    names in sections 2 to 9 and change them.
 4. Regenerate any `ir.json` you keep (section 7).
-5. Run `hecks ModelCheckRun.model_check! --wait` and your own specs.
+5. Run `hecks-parse closed --check` over your declaration files and fix what section 10 lists.
+6. Run `hecks ModelCheckRun.model_check! --wait` and your own specs.
 
 ## 1. Reactions on an adapter with no outbox
 
@@ -180,6 +181,40 @@ its name.
   others still resolve, and help prints them as `hecks delivery Landing.finish!`. Code that names
   them by qualified name or by domain must use `Delivery::Landing` and the others (was
   `Hecks::Landing`).
+
+## 10. Declaration files are parsed, not run
+
+The gem no longer runs a `.bluebook`, `.hecksagon`, `.world` or `.contextmap` file as Ruby.
+The Rust parser (`hecks-parse`, in `rust/parser`) checks each file against the closed
+vocabulary: declaration words with literal arguments, rule expressions in `given`,
+`invariant`, `ensures` and `where`, operand arithmetic in `sets`, and the bind and setting verbs
+of a hecksagon and a world. The gem builds only from the text the parser admits. A file that
+holds anything else is refused before any of it runs, with the file, the line and the reason.
+
+These are refused:
+
+- `require`, `load`, `eval`, `send`, `system`, backticks and any other Ruby method.
+- `ENV`, `File`, `Dir` and any other constant at the start of a line or in an argument.
+- String interpolation, lambdas, blocks on arguments and `.each` or `.times` loops.
+- Method calls inside a rule body, other than the rule words themselves.
+
+What to change:
+
+- **Loops:** write each declaration out. `%w[A B].each { |n| separate_ways n, "C" }` becomes
+  one `separate_ways` line per name.
+- **Settings read from the environment or a file:** move them behind an adapter, and have the
+  world name the adapter.
+- **A hecksagon that loaded its own bluebook with `load` or `require`:** write
+  `bluebook_from :gem` as the first line of its `Hecks.hecksagon` block.
+- **A path built with `File.expand_path` or `__dir__`:** write the path as a literal. A world
+  may write `~/` and the adapter expands it.
+
+**The parser binary.** The gem runs `hecks-parse`. Set `HECKS_PARSE_BIN` to a built binary, or
+have `cargo` (Rust 1.98.0) on the `PATH`, in which case the gem builds it once into its cache
+directory for each version of the parser sources. With neither, loading a declaration file
+raises `Hecks::ClosedForm::Parser::Missing`, which names both.
+
+Run `hecks-parse closed --check <files>` to list every file of yours that the parser refuses.
 
 ## Not in 8.0
 

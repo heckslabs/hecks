@@ -56,7 +56,8 @@ RSpec.describe Hecks::Adapters::Landing::RetiredCaches do
   def standing(root = tree) = caches_of(root).map { |cache| File.exist?(cache) }
 
   it "is in force on the vendored tidy" do
-    expect(Hecks::Adapters::GitLanding::Tidy.ancestors.first).to eq(described_class)
+    tidy = Hecks::Adapters::GitLanding::Tidy
+    expect(tidy.ancestors.take_while { |mod| mod != tidy }).to include(described_class)
   end
 
   it "removes the Cargo slot and compiled-Ruby cache of a worktree it retires", :aggregate_failures do

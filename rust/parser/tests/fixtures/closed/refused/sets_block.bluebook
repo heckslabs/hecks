@@ -1,0 +1,8 @@
+# Refused: passes a block in a computed value.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    command "Total" do
+      sets total: items.map { |i| i }
+    end
+  end
+end

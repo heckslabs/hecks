@@ -1,0 +1,7 @@
+# Refused: runs a shell command before the declaration.
+system("id")
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :total, Integer
+  end
+end

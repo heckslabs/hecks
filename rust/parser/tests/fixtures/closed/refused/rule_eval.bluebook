@@ -1,0 +1,8 @@
+# Refused: evaluates a string in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    invariant "r" do
+      eval("1") == 1
+    end
+  end
+end

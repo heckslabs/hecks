@@ -1,0 +1,13 @@
+{"note":"The reviewer: briefed to review the coder's change to the ledger, it reads the diff (the harness withholds the shell), asks the coder one question, and approves once the answer arrives."}
+{"expect":"user","contains":"You are the reviewer"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-reviewer","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"r-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-code","version":"replay"}}}}},"answered":"success","reply_contains":"\"name\":\"hecks\""}
+{"emit":{"type":"control_request","request_id":"r-mcp-2","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","method":"notifications/initialized"}}},"answered":"success"}
+{"emit":{"type":"control_request","request_id":"r-mcp-3","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":1,"method":"tools/list"}}},"answered":"success","reply_contains":"\"name\":\"send_message\""}
+{"emit":{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Reading the ledger change first."}]}},"after_ms":20}
+{"emit":{"type":"control_request","request_id":"r-perm-1","request":{"subtype":"can_use_tool","tool_name":"Bash","input":{"command":"git diff main -- ledger.rb"}}},"after_ms":10,"answered":"success","reply_contains":"\"behavior\":\"deny\""}
+{"emit":{"type":"control_request","request_id":"r-mcp-4","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"coder","text":"Does post! refuse an amount of zero?"}}}}},"after_ms":30,"answered":"success","reply_contains":"Sent to coder"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Asked the coder whether post! refuses zero."}}
+{"expect":"user","contains":"from coder"}
+{"emit":{"type":"control_request","request_id":"r-mcp-5","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"coder","text":"Approved. Thanks."}}}}},"after_ms":25,"answered":"success","reply_contains":"Sent to coder"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Approved the ledger change."}}

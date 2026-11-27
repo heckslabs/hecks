@@ -1,0 +1,4 @@
+# Refused: exits the process.
+Hecks.world "Probe" do
+  exit
+end

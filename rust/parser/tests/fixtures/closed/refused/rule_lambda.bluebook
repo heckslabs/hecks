@@ -1,0 +1,8 @@
+# Refused: builds a lambda in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      ->(x) { x }.call(1)
+    end
+  end
+end

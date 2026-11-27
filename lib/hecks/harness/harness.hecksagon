@@ -1,0 +1,40 @@
+# The Harness bluebook, bound so it boots standing alone: sessions and messages are held in Memory,
+# so a run's ledger is thrown away with its process. The two ports are answered by the supervisor
+# (rust/harness), through the adapters beside this file.
+Hecks.hecksagon "Harness" do
+  attaches "Governance"
+  persisted_by "Memory"
+
+  # The supervisor's sessions: a child started on a brief, and closed.
+  Harness::Session.port "Sessions" do
+    asks "OpenSession", to: Session do
+      attribute :name,  SessionName
+      attribute :brief, Brief
+      answers "SessionSpawned"
+      refuses "SessionNotSpawned"
+    end
+
+    asks "StopSession", to: Session do
+      attribute :name, SessionName
+      answers "SessionClosing"
+      refuses "SessionCloseRefused"
+    end
+  end
+
+  # The supervisor's mail: a message written to its addressee, at once or when its turn ends.
+  Harness::Message.port "Mail" do
+    asks "Deliver", to: Message do
+      attribute :key,       MessageKey
+      attribute :sender,    Party
+      attribute :addressee, Party
+      attribute :text,      MessageText
+      answers "DeliveryHanded"
+      refuses "DeliveryRefused"
+    end
+  end
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

@@ -37,6 +37,7 @@ require_relative "landing/settled_rebase"
 require_relative "landing/reporting_job"
 require_relative "landing/trailer_refusal"
 require_relative "landing/retired_caches"
+require_relative "landing/own_stores"
 require_relative "dispatching/package_roots"
 
 module Hecks

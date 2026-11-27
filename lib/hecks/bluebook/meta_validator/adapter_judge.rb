@@ -43,6 +43,23 @@ module Hecks
           add_all("Provide", @adapter.capabilities)
           add_all("Import", @adapter.granted_imports)
           add_all("Reach", @adapter.granted_hosts)
+          add_replies
+        end
+
+        # Offers one `Reply` or `Refuse` per declared row, its data kept as the JSON text the
+        # parser read.
+        def add_replies
+          @adapter.declared_replies.each do |row|
+            verb = row.key?("saying") ? "Refuse" : "Reply"
+            send_to("Adapter::Adapter.#{verb}", @adapter.name, name: @adapter.name, **reply_payload(row))
+          end
+        end
+
+        def reply_payload(row)
+          { ask: row["ask"], where: JSON.generate(row.fetch("where", {})),
+            answer: row["with"].nil? ? nil : JSON.generate(row["with"]),
+            echoing: row.fetch("echoing", []).empty? ? nil : JSON.generate(row["echoing"]),
+            saying: row["saying"] }
         end
 
         # Offers the `Declare` that names the adapter, its port, its plugin module and its reach.
@@ -51,7 +68,7 @@ module Hecks
                                                              runs: v(@adapter.runs), stays_inside: v(containment))
         end
 
-        def containment = ("inside" if @adapter.stays_inside?)
+        def containment = ("inside" if @adapter.stays_inside == true)
 
         # Offers one `AddField` per field, each with its declared default when it has one.
         def add_fields

@@ -1,0 +1,4 @@
+# Refused: runs a Ruby method as a bind verb.
+Hecks.hecksagon "Probe" do
+  system "id"
+end

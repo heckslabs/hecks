@@ -1,0 +1,8 @@
+# Refused: reads a file in a rule.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    given "r" do
+      File.exist?("/etc/passwd")
+    end
+  end
+end

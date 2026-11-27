@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "keep_window"
+require_relative "worktree_check"
 
 module Hecks
   module Adapters
@@ -9,11 +10,13 @@ module Hecks
       # Removes the sessions no run holds: the owner's own conversations, started by hand.
       #
       # A session is removed when it is done or stopped, its transcript was last written more than
-      # `keep` hours ago and it holds no worktree. One that is working or blocked on the owner, one
-      # whose worktree still stands, and a pinned role's are kept and named; a session that is
-      # merely recent is kept without a name. It uses `claude rm` only: never `claude stop`, never a
-      # kill. Removal drops the session from the list; its transcript stays under
-      # `~/.claude/projects`.
+      # `keep` hours ago and its worktree, when one still stands, holds nothing to lose: no file
+      # that is not committed and not ignored, and no commit that no branch on `origin` holds. The
+      # worktree itself stays for the retirement of landed worktrees. One that is working or
+      # blocked on the owner, one whose worktree holds unsaved work, and a pinned role's are kept
+      # and named; a session that is merely recent is kept without a name. It uses `claude rm`
+      # only: never `claude stop`, never a kill. Removal drops the session from the list; its
+      # transcript stays under `~/.claude/projects`.
       class PlainSweep
         # The listing states that mean the session has ended.
         ENDED = %w[done stopped].freeze
@@ -36,6 +39,7 @@ module Hecks
         # @param hold [HandRunHold, nil] names the hand run that holds a session, which is kept
         def initialize(window:, now:, transcript:, remove:, hold: nil)
           @hold = hold
+          @check = WorktreeCheck.new
           @window = window
           @now = now
           @transcript = transcript
@@ -76,13 +80,13 @@ module Hecks
 
         def held(entry)
           full = entry["sessionId"].to_s
-          path = @transcript.worktree(full).to_s
-          return "worktree #{path} still stands" if !path.empty? && File.directory?(path)
-
-          old?(full, @window.seconds(entry)) ? nil : RECENT
+          unsaved(@transcript.worktree(full).to_s) || (old?(full, @window.seconds(entry)) ? nil : RECENT)
         rescue SystemCallError, JSON::ParserError
           "transcript cannot be read"
         end
+
+        # @return [String, nil] what the session's standing worktree would lose, nil when nothing
+        def unsaved(path) = path.empty? || !File.directory?(path) ? nil : @check.reason(path)
 
         def old?(full, keep) = @now.call - @transcript.modified_at(full) > keep
       end

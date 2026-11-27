@@ -45,6 +45,9 @@ module Hecks
       end
 
       # @api private
+      def titled(run) = run.adapter ? "#{run.description} (with #{run.adapter})" : run.description
+
+      # @api private
       def report_file(result)
         puts result.path
         if result.parse_error
@@ -54,7 +57,7 @@ module Hecks
 
         result.runs.each do |run|
           marker = { pass: "ok", fail: "FAIL", error: "ERROR" }.fetch(run.status)
-          puts "  #{marker.ljust(5)} #{run.description}"
+          puts "  #{marker.ljust(5)} #{titled(run)}"
           puts "        #{run.message}" if run.message
         end
       end

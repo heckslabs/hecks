@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/closed_form"
 require "hecks/framework_bluebooks"
 
 # `FrameworkBluebooks.load!` brings a gem bluebook into the open registry whole or not at all.
@@ -15,7 +16,7 @@ RSpec.describe Hecks::FrameworkBluebooks, ".load!" do
 
   # Loads every file of the bluebook, then raises after the last one.
   def fail_after_last_file
-    allow(Kernel).to receive(:load).and_wrap_original do |original, path, *rest|
+    allow(Hecks::ClosedForm).to receive(:load_file).and_wrap_original do |original, path, *rest|
       original.call(path, *rest)
       raise "boom after #{File.basename(path)}" if path == paths.last
     end
@@ -33,7 +34,7 @@ RSpec.describe Hecks::FrameworkBluebooks, ".load!" do
   it "loads the bluebook on a retry after a file raised", :aggregate_failures do
     fail_after_last_file
     expect { described_class.load!("Deploy") }.to raise_error(/boom after/)
-    RSpec::Mocks.space.proxy_for(Kernel).reset
+    RSpec::Mocks.space.proxy_for(Hecks::ClosedForm).reset
 
     expect(described_class.load!("Deploy")).to be true
     expect(registry.bluebook("Deploy")).not_to be_nil

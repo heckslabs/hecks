@@ -6,6 +6,7 @@ require "fileutils"
 require_relative "../cli/qa_main_gate"
 require_relative "qa_era_mint"
 require_relative "qa_auto_mint"
+require_relative "qa_dials"
 
 module Hecks
   module Adapters

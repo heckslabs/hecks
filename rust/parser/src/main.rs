@@ -3,9 +3,12 @@
 
 mod build;
 mod canonical;
+mod closed;
+mod declared;
 mod diag;
 mod emit;
 mod expr;
+mod json_read;
 // The one `Hecks::Naming` port, compiled from `hecks-codegen`'s source: neither crate depends on
 // the other. This crate reads only part of it.
 #[allow(dead_code)]
@@ -39,12 +42,15 @@ fn main() -> ExitCode {
             eprintln!("{diagnostic}");
             ExitCode::from(1)
         }
+        Err(RunError::Refused) => ExitCode::from(1),
     }
 }
 
 enum RunError {
     Usage(String),
     Parse(diag::Diagnostic),
+    /// A check that has already printed each refusal and its summary.
+    Refused,
 }
 
 impl From<diag::Diagnostic> for RunError {
@@ -62,17 +68,65 @@ fn run(args: &[String]) -> Result<(), RunError> {
         Some("examples") => run_examples(&args[1..]),
         Some("resolve") => run_resolve(&args[1..]),
         Some("adapter") => run_adapter(&args[1..]),
+        Some("reply") => run_reply(&args[1..]),
         Some("world") => run_world(&args[1..]),
+        Some("closed") => run_closed(&args[1..]),
         Some("coverage") => {
             run_coverage();
             Ok(())
         }
         Some(other) => Err(RunError::Usage(format!(
-            "unknown subcommand '{other}' — expected 'bluebook', 'resolve', 'adapter', 'world', or 'coverage'"
+            "unknown subcommand '{other}' — expected 'bluebook', 'closed', 'resolve', 'adapter', 'reply', 'world', or 'coverage'"
         ))),
         None => Err(RunError::Usage(
-            "hecks-parse <bluebook|resolve|adapter|world|coverage> ...".to_string(),
+            "hecks-parse <bluebook|closed|resolve|adapter|reply|world|coverage> ...".to_string(),
         )),
+    }
+}
+
+/// `closed <file>` prints the checked text the gem loads in the file's place; `closed --stdin
+/// <label>` reads the text from stdin and names it `<label>` in a refusal; `closed --check
+/// <files…>` checks every file, prints one refusal per refused file and fails if any was.
+fn run_closed(args: &[String]) -> Result<(), RunError> {
+    match args {
+        [flag, files @ ..] if flag == "--check" && !files.is_empty() => check_closed(files),
+        [flag, label] if flag == "--stdin" => {
+            let mut source = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut source)
+                .map_err(|e| RunError::Usage(format!("cannot read stdin: {e}")))?;
+            print!("{}", closed::admit(label, &source)?);
+            Ok(())
+        }
+        [path] => {
+            let source = fs::read_to_string(path)
+                .map_err(|e| RunError::Usage(format!("cannot read {path}: {e}")))?;
+            print!("{}", closed::admit(path, &source)?);
+            Ok(())
+        }
+        _ => Err(RunError::Usage(
+            "hecks-parse closed <file> | --stdin <label> | --check <files…>".to_string(),
+        )),
+    }
+}
+
+fn check_closed(files: &[String]) -> Result<(), RunError> {
+    let mut count = 0usize;
+    for path in files {
+        let source = fs::read_to_string(path)
+            .map_err(|e| RunError::Usage(format!("cannot read {path}: {e}")))?;
+        if let Err(diagnostic) = closed::admit(path, &source) {
+            count += 1;
+            eprintln!("{diagnostic}");
+        }
+    }
+    println!(
+        "{} file(s) checked, {count} outside the closed vocabulary",
+        files.len()
+    );
+    if count == 0 {
+        Ok(())
+    } else {
+        Err(RunError::Refused)
     }
 }
 
@@ -312,6 +366,44 @@ fn run_adapter(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
+/// `hecks-parse reply <file.adapter> <Adapter> <Ask>`: answers one asking, read as JSON on
+/// stdin, from the declared adapter's `replies` and `refuses` rows, printing
+/// `{"answer": ...}` or `{"refused": "..."}`. A refusal is an answer, so it exits 0; a file that
+/// does not parse, or names no such adapter, is an error.
+fn run_reply(args: &[String]) -> Result<(), RunError> {
+    let [path, name, ask] = args else {
+        return Err(RunError::Usage(
+            "hecks-parse reply <file.adapter> <Adapter> <Ask> < asking.json".to_string(),
+        ));
+    };
+    let source = fs::read_to_string(path)
+        .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
+    let adapters = parse::adapter::parse_file(path, &source)?;
+    let adapter = adapters
+        .iter()
+        .find(|adapter| &adapter.name == name)
+        .ok_or_else(|| RunError::Usage(format!("{path} declares no adapter named {name}")))?;
+    if adapter.replies.is_empty() {
+        return Err(RunError::Usage(format!(
+            "{name} declares no replies, so it is not a declared adapter"
+        )));
+    }
+    let mut asking = String::new();
+    std::io::Read::read_to_string(&mut std::io::stdin(), &mut asking)
+        .map_err(|e| RunError::Usage(format!("could not read the asking on stdin: {e}")))?;
+    let asked = json_read::read(if asking.trim().is_empty() {
+        "{}"
+    } else {
+        &asking
+    })
+    .map_err(|e| RunError::Usage(format!("the asking is not JSON: {e}")))?;
+    println!(
+        "{}",
+        emit::write(&declared::answer(adapter, ask, &asked).json())
+    );
+    Ok(())
+}
+
 /// `hecks-parse world <file.world>...`: prints one world per distinct domain, in order of first
 /// appearance across the files, later blocks of a domain merged into the first.
 fn run_world(args: &[String]) -> Result<(), RunError> {
@@ -346,6 +438,8 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("provides", "Adapter"),
     ("stays_inside", "Adapter"),
     ("imports", "Adapter"),
+    ("replies", "Adapter"),
+    ("refuses", "Adapter"),
     ("world", "File"),
     ("realm", "World"),
     ("latest", "World"),

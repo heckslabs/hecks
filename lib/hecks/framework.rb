@@ -1,5 +1,6 @@
 require_relative "runtime/registry"
 require_relative "sentence_form"
+require_relative "closed_form"
 
 module Hecks
   # Registry of framework bluebooks (Governance, Identity, ...) in `lib/hecks/framework/bluebook/`.
@@ -50,10 +51,10 @@ module Hecks
       registry = Runtime::Registry.new
       Hecks.with_registry(registry) do
         # A bluebook needs these four to build (predicate source is recovered via extraction).
-        Kernel.load(File.join(lib, "hecks/ports/persistence.port"))
-        Kernel.load(File.join(lib, "hecks/ports/extraction.port"))
-        Kernel.load(File.join(lib, "hecks/adapters/driven/memory.adapter"))
-        Kernel.load(File.join(lib, "hecks/adapters/driven/prism.adapter"))
+        Hecks::ClosedForm.load_file(File.join(lib, "hecks/ports/persistence.port"))
+        Hecks::ClosedForm.load_file(File.join(lib, "hecks/ports/extraction.port"))
+        Hecks::ClosedForm.load_file(File.join(lib, "hecks/adapters/driven/memory.adapter"))
+        Hecks::ClosedForm.load_file(File.join(lib, "hecks/adapters/driven/prism.adapter"))
         SentenceForm.load_file(path)
       end
       registry
@@ -90,8 +91,8 @@ module Hecks
     def self.load_wiring(path)
       stem = File.join(File.dirname(path), File.basename(path, ".bluebook"))
       ports = "#{stem}.ports.hecksagon"
-      Kernel.load(ports) if File.file?(ports)
-      Dir.glob("#{stem}.*.adapter").each { |adapter| Kernel.load(adapter) }
+      Hecks::ClosedForm.load_file(ports) if File.file?(ports)
+      Dir.glob("#{stem}.*.adapter").each { |adapter| Hecks::ClosedForm.load_file(adapter) }
     end
     private_class_method :load_wiring
   end

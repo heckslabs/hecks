@@ -1,0 +1,253 @@
+# The Harness: agent sessions run inside Hecks. Each session is a Claude Code child the harness
+# supervisor (rust/harness) holds. What one session sends another is posted here as a Message, and
+# the bluebook's policy delivers it, so every message, its sender and its delivery are on record.
+
+Hecks.bluebook "Harness" do
+  vision "A session opens on a brief and runs until it is stopped; a message one session sends another is posted here, delivered by policy and timed from sent to delivered."
+
+  supporting
+
+  # One session: a Claude Code child the supervisor holds, from its opening to its exit.
+  aggregate "Session" do
+    description "One agent session: its name, its brief, the Claude session it became, and where it stands from opening to stopped."
+
+    identified_by :name
+
+    attribute :name,   SessionName
+    attribute :brief,  Brief
+    attribute :claude, ClaudeSession, optional: true
+
+    value_object "SessionName" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Brief" do
+      attribute :value, String, matches: :present
+    end
+
+    # The id Claude Code gave the session, so a transcript can be found again.
+    value_object "ClaudeSession" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "ToolName" do
+      attribute :value, String, matches: :present
+    end
+
+    # What the model said last in a turn; an empty turn says nothing.
+    value_object "TurnText" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "Outcome" do
+      attribute :value, String, one_of: ["success", "error"]
+    end
+
+    # The child's exit code as text; empty when the child was killed.
+    value_object "ExitCode" do
+      attribute :value, String, default: ""
+    end
+
+    lifecycle :status, default: "opening" do
+      transition "RecordRunning"   => "running",  from: "opening"
+      transition "RecordNotOpened" => "refused",  from: "opening"
+      transition "Stop"            => "stopping", from: "running"
+      transition "RecordStopped"   => "stopped",  from: ["running", "stopping"]
+      # A session runs until it is stopped, and a stopping child is killed by the supervisor once
+      # its grace runs out, so neither state is a wait the bluebook times.
+      mark :rests, "running", "stopping"
+      mark :terminal, "stopped", "refused"
+    end
+
+    command "Open" do
+      role "Owner"
+      goal "Open a session on a brief, and ask the supervisor for its child"
+
+      attribute :name,  SessionName
+      attribute :brief, Brief
+
+      emits "SessionOpenRequested"
+    end
+
+    command "RecordRunning" do
+      role "System"
+      policy_only
+      goal "Record the session running, once the supervisor started its child"
+
+      reference_to Session
+
+      emits "SessionRunning"
+    end
+
+    command "RecordNotOpened" do
+      role "System"
+      policy_only
+      goal "Record that the supervisor did not start the session's child"
+
+      reference_to Session
+
+      emits "SessionNotOpened"
+    end
+
+    command "RecordStarted" do
+      role "System"
+      goal "Record the Claude session id the child reported"
+
+      reference_to Session
+      attribute :claude, ClaudeSession, sets: true
+
+      given("a session reports its Claude session only while it runs") { status == "running" }
+
+      emits "SessionStarted"
+    end
+
+    command "RecordTurnEnded" do
+      role "System"
+      goal "Record that one of the session's turns ended, with its last words"
+
+      reference_to Session
+      attribute :said,    TurnText
+      attribute :outcome, Outcome
+
+      given("a turn ends only in a session that runs or is stopping") { status == "running" || status == "stopping" }
+
+      emits "TurnEnded"
+    end
+
+    # The session asked for a tool the harness withholds; the model was told and went on.
+    command "RecordWithheld" do
+      role "System"
+      goal "Record a tool the session asked for and was refused"
+
+      reference_to Session
+      attribute :tool, ToolName
+
+      emits "ToolWithheld"
+    end
+
+    command "Stop" do
+      role "Owner"
+      goal "Stop a running session, and ask the supervisor to close its child"
+
+      reference_to Session
+
+      emits "SessionStopRequested"
+    end
+
+    command "RecordStopped" do
+      role "System"
+      goal "Record that the session's child exited"
+
+      reference_to Session
+      attribute :code, ExitCode
+
+      emits "SessionStopped"
+    end
+  end
+
+  policy "OpenTheSessionsChild" do
+    on  "Session.SessionOpenRequested"
+    ask :open_session, with: { name: :name, brief: :brief }
+  end
+
+  policy "RecordTheSessionRunning" do
+    on      "Session.SessionSpawned"
+    trigger Session::RecordRunning, with: { session: :name }
+  end
+
+  policy "RecordTheSessionNotOpened" do
+    on      "Session.SessionNotSpawned"
+    trigger Session::RecordNotOpened, with: { session: :name }
+  end
+
+  policy "CloseTheSessionsChild" do
+    on  "Session.SessionStopRequested"
+    ask :stop_session, with: { name: :session }
+  end
+
+  # One message, from the moment its sender's send_message reached the supervisor.
+  aggregate "Message" do
+    description "One message a session sent another: who sent it, to whom, what it says, and when it was sent and delivered."
+
+    identified_by :key
+
+    attribute :key,          MessageKey
+    attribute :sender,       Party
+    attribute :addressee,    Party
+    attribute :text,         MessageText
+    attribute :sent_at,      Moment
+    attribute :delivered_at, Moment, optional: true
+
+    # The supervisor's id for the message: the sender's name and a count.
+    value_object "MessageKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A session, by name.
+    value_object "Party" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "MessageText" do
+      attribute :value, String, matches: :present
+    end
+
+    # Milliseconds on the supervisor's clock, from its start.
+    value_object "Moment" do
+      attribute :value, Integer, default: 0
+    end
+
+    lifecycle :status, default: "posted" do
+      transition "RecordDelivered"     => "delivered",     from: "posted"
+      transition "RecordUndeliverable" => "undeliverable", from: "posted"
+      # A posted message waits for its addressee's turn to end; an addressee that exits first
+      # leaves it undeliverable, so the wait ends with the session.
+      mark :rests, "posted"
+      mark :terminal, "delivered", "undeliverable"
+    end
+
+    command "Post" do
+      role "System"
+      goal "Post a message a session sent, to be delivered by policy"
+
+      attribute :key,       MessageKey
+      attribute :sender,    Party
+      attribute :addressee, Party
+      attribute :text,      MessageText
+      attribute :sent_at,   Moment
+
+      emits "MessagePosted"
+    end
+
+    # The addressee started on the message: written as its next turn, at once or once its turn ended.
+    command "RecordDelivered" do
+      role "System"
+      goal "Record when the addressee started on the message"
+
+      reference_to Message
+      attribute :delivered_at, Moment, sets: true
+
+      emits "MessageDelivered"
+    end
+
+    # The supervisor refused the delivery, or the addressee exited with the message still held.
+    command "RecordUndeliverable" do
+      role "System"
+      goal "Record that the message will not reach its addressee"
+
+      reference_to Message
+
+      emits "MessageUndeliverable"
+    end
+  end
+
+  policy "DeliverEachMessage" do
+    on  "Message.MessagePosted"
+    ask :deliver, with: { key: :key, sender: :sender, addressee: :addressee, text: :text }
+  end
+
+  policy "RecordTheUndeliverable" do
+    on      "Message.DeliveryRefused"
+    trigger Message::RecordUndeliverable, with: { message: :key }
+  end
+end

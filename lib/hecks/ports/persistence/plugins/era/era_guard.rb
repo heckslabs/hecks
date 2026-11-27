@@ -1,6 +1,7 @@
 require_relative "era_guard/shape_diff"
 require_relative "../../../../bluebook/dsl/malformed"
 require_relative "../../../../bluebook/meta_validator"
+require_relative "../../../../closed_form"
 require_relative "../../../../ports/loading"
 require_relative "../../../../runtime/registry"
 
@@ -146,7 +147,7 @@ module Hecks
       # Evaluates bluebook text once, in a throwaway registry, under one chosen grammar.
       #
       # @param source [String] the bluebook text to evaluate
-      # @param path [String] the file path reported to `Kernel.eval` as the text's origin
+      # @param path [String] the file the text stands for, named by a refusal and a source location
       # @param shadow [Boolean] true evaluates inside `MetaValidator.while_shadow_parsing`
       #   (the shadow grammar); false evaluates under the live grammar
       # @return [Bluebook::Declaration, nil] the first bluebook the text registered in the scratch
@@ -166,14 +167,14 @@ module Hecks
       # @param scratch [Registry] the throwaway registry the text registers into
       # @param loading [Object] the bootstrap loader whose `load_library` runs first
       # @param source [String] the bluebook text to evaluate
-      # @param path [String] the file path reported to `Kernel.eval` as the text's origin
+      # @param path [String] the file the text stands for, named by a refusal and a source location
       # @return [void]
       def evaluate_into(scratch, loading, source, path)
         Hecks.with_registry(scratch) do
           loading.load_library
           # Held text of a bluebook spread over files is several blocks in one string, each
           # opening the same bluebook: judge once after all of them, as a directory load does.
-          Hecks::Bluebook::MetaValidator.defer { Kernel.eval(source, TOPLEVEL_BINDING, path, 1) }
+          Hecks::Bluebook::MetaValidator.defer { Hecks::ClosedForm.load_text(source, path) }
           Hecks::Bluebook::MetaValidator.judge_deferred!(scratch)
         end
       end

@@ -4,6 +4,7 @@ require_relative "../../sentence_form"
 require_relative "folder_overlay"
 require_relative "worktree_overlay"
 require_relative "../../module_folders"
+require_relative "../../closed_form"
 
 module Hecks
   module Adapters
@@ -96,7 +97,7 @@ module Hecks
         bluebooks, rest = files.partition { |f| f.end_with?(".bluebook") }
         load_selected_bluebooks(bluebooks)
         %w[.hecksagon .world .contextmap .adapter].each do |ext|
-          rest.select { |f| f.end_with?(ext) }.sort.each { |f| Kernel.load(f) }
+          rest.select { |f| f.end_with?(ext) }.sort.each { |f| Hecks::ClosedForm.load_file(f) }
         end
         load_overlay(File.dirname(files.first), environment) if environment
       end
@@ -112,12 +113,13 @@ module Hecks
         Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
       end
 
-      # Loads one file in whichever form it is written (see {SentenceForm.load_file}).
+      # Loads one file through the closed form, in whichever form it is written (see
+      # {ClosedForm.load_file}).
       #
       # @param file [String] the file to load
       # @return [void]
       def load_file(file)
-        SentenceForm.load_file(file)
+        Hecks::ClosedForm.load_file(file)
       end
 
       # Loads every file under `directory` matching any of `patterns`, in pattern order.
@@ -126,7 +128,7 @@ module Hecks
       #
       # @param directory [String] the directory to search
       # @param patterns [Array<String>] glob patterns, relative to `directory`, of files to
-      #   load with `Kernel.load`
+      #   load through the closed form
       # @return [void]
       def load_each(directory, patterns)
         return unless File.directory?(directory)

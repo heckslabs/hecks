@@ -8,6 +8,9 @@ use crate::ir;
 use crate::lex::{self, SourceLine};
 use crate::ruby_value::{self, Value};
 
+#[path = "adapter_reply.rs"]
+mod reply;
+
 /// Parses every top-level `adapter` block of one `.adapter` file, in file order.
 ///
 /// A top-level line that is exactly `require "path"`, or `require File.expand_path("path", __dir__)`,
@@ -153,6 +156,11 @@ fn parse_body(
                 if let Some(raw) = super::named_raw(&gated.args, "hosts") {
                     adapter.hosts.extend(hosts(file, number, raw)?);
                 }
+            }
+            "replies" | "refuses" => {
+                let ask = super::positional_text(file, number, gated.row.word, &gated.args, 1)?;
+                let reply = reply::read(file, number, gated.row.word, ask, &gated.args)?;
+                adapter.replies.push(reply);
             }
             _ => {
                 return Err(super::not_built_yet(

@@ -18,6 +18,7 @@ require_relative "site_routes/cli"
 require_relative "site_routes/templates"
 require_relative "site_routes/root_files"
 require_relative "site_routes/editor_files"
+require_relative "../closed_form"
 
 module Hecks
   module Tools
@@ -188,9 +189,9 @@ module Hecks
       # Loads the attached ports and adapters, then the project's bluebooks and hecksagons.
       def load_project(dir)
         %w[ports/persistence.port ports/extraction.port adapters/driven/memory.adapter
-           adapters/driven/prism.adapter].each { |file| Kernel.load(File.join(LIB_HECKS, file)) }
-        Dir.glob(File.join(dir, "*.bluebook")).each { |file| Kernel.load(file) }
-        Dir.glob(File.join(dir, "*.hecksagon")).each { |file| Kernel.load(file) }
+           adapters/driven/prism.adapter].each { |file| Hecks::ClosedForm.load_file(File.join(LIB_HECKS, file)) }
+        Dir.glob(File.join(dir, "*.bluebook")).each { |file| Hecks::ClosedForm.load_file(file) }
+        Dir.glob(File.join(dir, "*.hecksagon")).each { |file| Hecks::ClosedForm.load_file(file) }
       end
     end
   end

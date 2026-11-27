@@ -1,0 +1,11 @@
+Hecks.adapter "RecordedCarrier" do
+  # A carrier replayed from what one real carrier answered, place by place: the same contract as
+  # the echoing carrier, held to the same suite.
+  port "Carrier"
+  replies "Collect", where: { destination: "Lisbon" }, with: { tracking: { value: "PT-0001" } }
+  replies "Collect", where: { destination: "Oslo" },   with: { tracking: { value: "NO-0001" } }
+  refuses "Collect", where: { destination: "Atlantis" }, saying: "no road reaches Atlantis"
+  replies "Rates", where: { destination: "Lisbon" }, with: [{ service: "standard", cents: 700 }]
+  replies "Rates", where: { destination: "Oslo" },   with: [{ service: "standard", cents: 900 }]
+  refuses "Rates", where: { destination: "Atlantis" }, saying: "no road reaches Atlantis"
+end

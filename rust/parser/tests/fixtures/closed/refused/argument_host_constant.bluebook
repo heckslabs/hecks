@@ -1,0 +1,6 @@
+# Refused: names a host constant as a type.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :x, File
+  end
+end

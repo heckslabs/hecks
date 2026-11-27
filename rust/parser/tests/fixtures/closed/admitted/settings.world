@@ -1,0 +1,8 @@
+# Admitted: open setting names with literal values, nested as a world is written.
+Hecks.world "Probe" do
+  realm "local"
+  default_database "~/.hecks/probe.db"
+  heki do
+    dir "tmp/heki"
+  end
+end

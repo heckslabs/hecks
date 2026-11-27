@@ -1,0 +1,6 @@
+# Refused: calls a constant in an argument.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    attribute :x, String, default: Time.now
+  end
+end

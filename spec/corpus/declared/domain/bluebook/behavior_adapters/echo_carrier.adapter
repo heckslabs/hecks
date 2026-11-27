@@ -1,0 +1,9 @@
+Hecks.adapter "EchoCarrier" do
+  # A carrier declared in rows: it tracks a parcel under its own ref, prices two services
+  # everywhere, and refuses the one place nobody delivers to.
+  port "Carrier"
+  refuses "Collect", where: { destination: "Atlantis" }, saying: "no road reaches Atlantis"
+  replies "Collect", echoing: [:ref], with: { tracking: { value: "echoed" } }
+  refuses "Rates", where: { destination: "Atlantis" }, saying: "no road reaches Atlantis"
+  replies "Rates", with: [{ service: "standard", cents: 500 }, { service: "express", cents: 1500 }]
+end

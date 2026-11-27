@@ -1,0 +1,25 @@
+# Admitted: the words, literals, rules and computed values a bluebook is written in.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    description "An order, with its rules."
+    attribute :total, Integer, default: 0
+    attribute :amount, Integer
+    attribute :open, String
+    attribute :load, String
+    attribute :tags, list_of(String)
+    attribute :kind, String, default: "plain"
+
+    given "positive" do
+      total >= 0 && (amount.nil? || amount > 0)
+    end
+
+    invariant "open is set" do
+      load.value != "above" && !open.to_s.empty?
+    end
+
+    command "Add" do
+      attribute :amount, Integer
+      sets :total, to: total + amount * 2
+    end
+  end
+end

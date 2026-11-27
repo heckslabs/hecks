@@ -9,6 +9,90 @@ end
 # The attached bluebooks (hecks.hecksagon `attaches`): each is a bounded context whose store is the
 # one the Hecks domain's own `persisted_by` gives it, so a copy that opts the Hecks bluebook in
 # opts them all in.
-%w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl Coder Fixer Pipeline Agents Triage Interviews Protocols Delivery Signalbox].each do |bluebook|
-  Hecks.hecksagon(bluebook) { attaches "Governance" }
+Hecks.hecksagon "Bluebook" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Hecksagon" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "World" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Adapter" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Port" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Translation" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Expression" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Tenancy" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Deploy" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Site" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Tickets" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Composer" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "QualityControl" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Coder" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Fixer" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Pipeline" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Agents" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Triage" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Interviews" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Protocols" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Delivery" do
+  attaches "Governance"
+end
+
+Hecks.hecksagon "Signalbox" do
+  attaches "Governance"
 end

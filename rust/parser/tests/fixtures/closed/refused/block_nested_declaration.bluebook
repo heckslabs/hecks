@@ -1,0 +1,6 @@
+# Refused: opens a second declaration inside the first.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    Hecks.bluebook "Inner" do end
+  end
+end

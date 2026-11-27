@@ -1,0 +1,6 @@
+# Refused: builds attributes in a times loop.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    3.times { attribute :x, String }
+  end
+end
