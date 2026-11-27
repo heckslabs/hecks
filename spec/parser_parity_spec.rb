@@ -86,13 +86,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     [["bluebook_language", PARITY_LANGUAGE_GRAMMAR_FILES]]
   ).compact.freeze
 
-  # The QualityControl bluebook opens with Ruby that is not the language (a `require` and the
-  # dials module it defines), which Ruby runs and hecks-parse refuses at its first line.
-  PARITY_OUTSIDE_THE_LANGUAGE = { "qa:quality_control" => "'require' is not a word File admits" }.freeze
-
   # Members not yet byte-matched; promote one to REAL_PARITY_MEMBERS once it round-trips.
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
-                     (PARITY_DOMAIN_MEMBERS.map(&:first) - PARITY_OUTSIDE_THE_LANGUAGE.keys) -
+                     PARITY_DOMAIN_MEMBERS.map(&:first) -
                      %w[pizzas identity governance console_settings expression translation banking compliance
                         compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo
                         privacy change event_delivery messaging order_deadline onboarding command_defaults multi_role
@@ -102,7 +98,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
   # Expected stderr for a pending member.
-  PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").merge(PARITY_OUTSIDE_THE_LANGUAGE).freeze
+  PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").freeze
 
   # stem -> [bluebook name, files...] in the order hecks project_rust loads them: the `.bluebook`,
   # then its `.hecksagon`. Derived from the corpus, not hand-listed.
@@ -143,7 +139,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       [stem, [declaration_name, [bluebook]]]
     end
   ).merge(
-    PARITY_DOMAIN_MEMBERS.to_h.except(*PARITY_OUTSIDE_THE_LANGUAGE.keys).to_h do |stem, member|
+    PARITY_DOMAIN_MEMBERS.to_h do |stem, member|
       [stem, domain_member_files(member)]
     end
   ).merge(

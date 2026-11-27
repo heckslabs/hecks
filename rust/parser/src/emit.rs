@@ -253,7 +253,7 @@ fn attribute_json(a: &ir::Attribute) -> JsonValue {
 }
 
 /// `IR::ValueObject#to_h` (lib/hecks/bluebook/ir/value_object.rb).
-fn value_object_json(v: &ir::ValueObject) -> JsonValue {
+pub(crate) fn value_object_json(v: &ir::ValueObject) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(v.name.clone())),
         (
