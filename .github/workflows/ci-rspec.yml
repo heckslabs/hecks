@@ -72,6 +72,7 @@ jobs:
       # `io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io.
       - name: Determine this shard's own file list
         run: |
+          mkdir -p tmp
           bundle exec exe/hecks test_suite_run.shard_specs group=${{ matrix.group }} groups=8 \
             > tmp/rspec_shard_files.txt
 
