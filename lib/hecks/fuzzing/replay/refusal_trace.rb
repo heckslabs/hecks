@@ -14,6 +14,10 @@ module Hecks
         # @return [Boolean] whether it is the `CommandRefused` fact the dispatcher records
         def recorded?(event) = event.name.to_s == "CommandRefused"
 
+        # @param domain [String, Symbol] a booted bluebook's name
+        # @return [Boolean] whether it is the member that holds the recorder's aggregate
+        def recorder?(domain) = domain.to_s == RECORDER.split("::").first
+
         # What a dispatch could change, read off the live runtime.
         #
         # @param runtime [Hecks::Runtime] the booted runtime a step dispatches against
@@ -40,7 +44,7 @@ module Hecks
           registry.bluebooks.each_with_object({}) do |(domain, bluebook), out|
             bluebook.aggregates.each do |aggregate|
               repository = registry.repository(domain, aggregate)
-              next if domain.to_s == RECORDER.split("::").first
+              next if recorder?(domain)
               next unless repository.is_a?(Ports::Persistence::AppendOnly)
 
               out["#{domain}::#{aggregate.name}"] = repository.entries.map { |e| [e.operation, e.id, e.state] }
