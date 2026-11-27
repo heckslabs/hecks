@@ -1,0 +1,34 @@
+{
+  "name": "generated_revalued_shape-differential-shrunk",
+  "note": "bin/qa_sweep SW-generated_revalued_shape-1789342555 seed 3, shrunk from 25 steps",
+  "steps": [
+    {
+      "verb": "GeneratedRevaluedShape::Venue.Open",
+      "args": {
+        "code": {
+          "value": "with, a comma"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedRevaluedShape::Hangar.Open",
+      "args": {
+        "venue": "with, a comma",
+        "code": {
+          "value": "with, a comma"
+        }
+      }
+    },
+    {
+      "dry_run": "GeneratedRevaluedShape::Hangar.Repoint",
+      "args": {
+        "venue": {
+          "value": "alpha"
+        },
+        "code": {
+          "value": "with, a comma"
+        }
+      }
+    }
+  ]
+}

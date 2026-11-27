@@ -1,0 +1,187 @@
+{
+  "aggregates": [
+    {
+      "name": "Crate",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "CrateCode": {
+          "kind": "string"
+        },
+        "CrateScore": {
+          "kind": "integer"
+        },
+        "CrateNote": {
+          "kind": "string"
+        },
+        "CratePriority": {
+          "kind": "closed",
+          "members": [
+            "low",
+            "high"
+          ]
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "CrateCode"
+        },
+        {
+          "name": "score",
+          "type": "CrateScore",
+          "default": 0
+        },
+        {
+          "name": "note",
+          "type": "CrateNote",
+          "optional": true
+        },
+        {
+          "name": "priority",
+          "type": "CratePriority",
+          "optional": true
+        }
+      ],
+      "references": [
+
+      ],
+      "lifecycle": null,
+      "invariants": [
+        {
+          "label": "a score is never negative",
+          "expr": "score.value >= 0",
+          "requires": [
+            "attribute:Crate.score"
+          ]
+        }
+      ],
+      "entities": [
+
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "CrateCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            }
+          ],
+          "emits": [
+            "CrateOpened"
+          ],
+          "role": "Manager"
+        },
+        {
+          "name": "Rescore",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "amount",
+              "type": "CrateScore"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "score",
+              "to": "amount",
+              "requires": [
+                "attribute:Crate.score"
+              ]
+            }
+          ],
+          "emits": [
+            "CrateRescored"
+          ]
+        },
+        {
+          "name": "Annotate",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "note",
+              "type": "CrateNote",
+              "optional": true
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "note",
+              "requires": [
+                "attribute:Crate.note"
+              ]
+            }
+          ],
+          "emits": [
+            "CrateAnnotated"
+          ]
+        },
+        {
+          "name": "Prioritize",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "priority",
+              "type": "CratePriority"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "priority",
+              "requires": [
+                "attribute:Crate.priority"
+              ]
+            }
+          ],
+          "emits": [
+            "CratePrioritized"
+          ],
+          "role": "Clerk"
+        }
+      ],
+      "queries": [
+
+      ]
+    }
+  ],
+  "policies": [
+
+  ],
+  "seed": 12,
+  "forms": [
+    "has_default",
+    "has_optional"
+  ]
+}

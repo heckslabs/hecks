@@ -343,8 +343,6 @@ Hecks.bluebook "Hecks" do
 
       attribute :confirm,   Switch, optional: true
       attribute :check,     Switch, optional: true
-      attribute :live,      Switch, optional: true
-      attribute :gate,      GateName, optional: true
       attribute :domains,   DomainList, optional: true
       attribute :workers,   Count, optional: true
       attribute :domain,    DomainPath, optional: true
@@ -358,11 +356,6 @@ Hecks.bluebook "Hecks" do
       # The bluebook under that directory whose glossary is projected, by name.
       value_object "BluebookName" do
         attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*$'
-      end
-
-      # A `CiGate` row of the Vocabulary bluebook, by name.
-      value_object "GateName" do
-        attribute :value, String, matches: :present
       end
 
       # The features of corpus domains, comma separated, such as `lease_clock,nested_pieces`.
@@ -390,62 +383,6 @@ Hecks.bluebook "Hecks" do
         sets :operation, to: "regenerate_corpus"
 
         emits RegenerateCorpusRequested
-      end
-
-      command "ProjectCiGates" do
-        role "Maintainer"
-        goal "Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them"
-
-        attribute :check,   Switch, optional: true, sets: true
-        attribute :run,     RunKey, sets: true
-        attribute :confirm, Switch, optional: true, sets: true
-
-        sets :operation, to: "project_ci_gates"
-
-        emits ProjectCiGatesRequested
-      end
-
-      command "ProjectCiPipeline" do
-        role "Maintainer"
-        goal "Project the CiWorkflows rows into their workflow files, or with check only compare them"
-
-        attribute :check,   Switch, optional: true
-        attribute :run,     RunKey
-        attribute :confirm, Switch, optional: true
-
-        sets :check
-        sets :run
-        sets :confirm
-        sets :operation, to: "project_ci_pipeline"
-
-        emits ProjectCiPipelineRequested
-      end
-
-      command "ProjectLanes" do
-        role "Maintainer"
-        goal "Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets"
-
-        attribute :check,   Switch, optional: true, sets: true
-        attribute :live,    Switch, optional: true, sets: true
-        attribute :run,     RunKey, sets: true
-        attribute :confirm, Switch, optional: true, sets: true
-
-        sets :operation, to: "project_lanes"
-
-        emits ProjectLanesRequested
-      end
-
-      command "ProjectAgentRoles" do
-        role "Maintainer"
-        goal "Write .claude/agents from the RoleFile rows of the Role aggregate, .claude/hooks/guarded_roles and .claude/hooks/guard_rules.json from its RoutingRule rows, or with check only compare them"
-
-        attribute :check,   Switch, optional: true, sets: true
-        attribute :run,     RunKey, sets: true
-        attribute :confirm, Switch, optional: true, sets: true
-
-        sets :operation, to: "project_agent_roles"
-
-        emits ProjectAgentRolesRequested
       end
 
       command "ProjectToolsDoc" do
@@ -478,42 +415,10 @@ Hecks.bluebook "Hecks" do
 
         emits ProjectGlossaryRequested
       end
-
-      command "DecideCiGate" do
-        role "Maintainer"
-        goal "Say whether this run's change touches what a CiGate row guards, as the gated job's detector"
-
-        attribute :gate, GateName, sets: true
-        attribute :run,  RunKey, sets: true
-
-        sets :operation, to: "decide_ci_gate"
-
-        emits DecideCiGateRequested
-      end
     end
 
     policy "ExamineWhenRegenerateCorpusRequested" do
       on      "RegenerationRun.RegenerateCorpusRequested"
-      ask     :examine, with: { run: :run }
-    end
-
-    policy "ExamineWhenProjectCiGatesRequested" do
-      on      "RegenerationRun.ProjectCiGatesRequested"
-      ask     :examine, with: { run: :run }
-    end
-
-    policy "ExamineWhenProjectCiPipelineRequested" do
-      on      "RegenerationRun.ProjectCiPipelineRequested"
-      ask     :examine, with: { run: :run }
-    end
-
-    policy "ExamineWhenProjectLanesRequested" do
-      on      "RegenerationRun.ProjectLanesRequested"
-      ask     :examine, with: { run: :run }
-    end
-
-    policy "ExamineWhenProjectAgentRolesRequested" do
-      on      "RegenerationRun.ProjectAgentRolesRequested"
       ask     :examine, with: { run: :run }
     end
 
@@ -524,11 +429,6 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenProjectGlossaryRequested" do
       on      "RegenerationRun.ProjectGlossaryRequested"
-      ask     :examine, with: { run: :run }
-    end
-
-    policy "ExamineWhenDecideCiGateRequested" do
-      on      "RegenerationRun.DecideCiGateRequested"
       ask     :examine, with: { run: :run }
     end
 

@@ -1,0 +1,22 @@
+{
+  "name": "generated_route_append-differential-shrunk",
+  "note": "bin/qa_sweep SW-generated_route_append-1789342558 seed 1, shrunk from 25 steps",
+  "steps": [
+    {
+      "dry_run": "GeneratedRouteAppend::Hangar.Open",
+      "args": {
+        "code": "india",
+        "with": null
+      },
+      "adversarial": [
+        {
+          "mutation": "routing_key",
+          "bug": "BUG#7/#16/#8",
+          "key": "with",
+          "shape": "null",
+          "declared": false
+        }
+      ]
+    }
+  ]
+}

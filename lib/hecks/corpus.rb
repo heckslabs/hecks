@@ -20,6 +20,9 @@ module Hecks
     # or directly in `<dir>` (see `bluebook_files`). Stemmed by directory.
     DIRECTORY_KINDS = {
       example:     "examples/*",
+      # The stress domains: hand-written and generated bluebooks that each hold one shape the
+      # generators once got wrong, kept as Rust conformance and model-check fixtures.
+      stress:      "qa/stress_domains/*",
       semantics:   "spec/corpus/semantics/domains/*",
       # The Hecks domain (ADR 0080): its bluebooks share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
@@ -101,7 +104,7 @@ module Hecks
 
     # Every kind hecks model_check walks: excludes language/deploy (checked
     # elsewhere) and anything a route already sends to its own destination.
-    MODEL_CHECK_KINDS = %i[example grammar framework vendored fixture hecks].freeze
+    MODEL_CHECK_KINDS = %i[example grammar framework vendored stress fixture hecks].freeze
 
     # Every corpus member `hecks model_check` and `spec/model_check_spec.rb` walk.
     #

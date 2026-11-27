@@ -703,44 +703,9 @@ Hecks.bluebook "Bluebook" do
       member name: "textarea", pattern: '\b(text|body|note|notes|description|message|comment)\b', resolves_to: "kind"
     end
 
-    # The path gates the workflows run before an expensive job: one detector job
-    # per row, answering `touched` from the diff of the change against its base.
-    # hecks project_ci_gates writes each row into the marked region of its
-    # `workflow` (.github/workflows/<workflow>), and the job it writes runs
-    # `hecks RegenerationRun.decide_ci_gate! gate=<name>`, which makes the decision from the row.
-    #
-    # `mode` is how `pattern` (an extended regex over changed paths) decides:
-    # `touches` runs the job when any changed path matches, `skips_unless` runs it
-    # when any changed path does NOT match (the pattern is the safe-to-skip list).
-    # `release_only` answers a different question and ignores `pattern`: `touched` is false only
-    # when the change edits nothing but the `ReleaseFile` rows' files and lines and the base it is
-    # measured against has every inheritable `RequiredCheck` green (ADR 0107), so the run may
-    # inherit that certification.
-    # `push` is what a push event does: `skip` leaves the gate out of push runs,
-    # `before_sha` diffs against the push's `before` commit.
-    value_object "CiGate" do
-      attribute :name,     String
-      attribute :workflow, String
-      attribute :mode,     String
-      attribute :pattern,  String
-      attribute :push,     String
-      attribute :label,    String
-
-      member name: "runtime_changed", workflow: "ci.yml", mode: "touches",
-             pattern: '^lib/hecks/runtime/', push: "before_sha",
-             label: "does this change touch lib/hecks/runtime/**?"
-      member name: "release_only", workflow: "ci.yml", mode: "release_only",
-             pattern: "", push: "before_sha",
-             label: "is this change only a release bump on a certified base?"
-      member name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless",
-             pattern: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)',
-             push: "skip",
-             label: "does this change touch anything rspec_postgres_io_parallel covers?"
-    end
-
     # The files a release bump edits, and the lines of each it may change. A commit whose whole
     # diff against a certified base falls inside these rows inherits the base's certification
-    # (`CiGate` `release_only`, ADR 0107): its checks report success without their jobs running,
+    # (`Hecks::Tools::ReleaseOnly`, ADR 0107): its checks report success without their jobs running,
     # and the `release_consistency` check still runs on it. `path` is the file, exact; `lines` is
     # an extended regex every added or removed line of that file must match, empty for any line.
     value_object "ReleaseFile" do
@@ -774,9 +739,8 @@ Hecks.bluebook "Bluebook" do
     #
     # `attests` is `yes` for a check a signed note may stand in for: the pre-push hook, after it ran
     # the `pre_push` stage green on the tree, writes a note naming these checks, and CI skips a check
-    # whose name the note holds. `hecks regeneration_run.project_ci_gates!` writes the names into
-    # the hook's `ATTEST_CHECKS` line and into both note writers of `ci.yml`, between
-    # `attested_checks` markers, so no file keeps a list of its own. A check not marked `yes` is
+    # whose name the note holds. The hook's `ATTEST_CHECKS` line and both note writers of `ci.yml`
+    # list the names between `attested_checks` markers, and must name exactly these rows. A check not marked `yes` is
     # never skipped on a note's word, and a marked one must be in the `pre_push` stage and not
     # `runs_in: "ci"`, since a note may only vouch for what the hook ran.
     value_object "GateCheck" do
@@ -875,16 +839,6 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec rspec spec/adapter_words_spec.rb",
              script: "",
              blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
-      member name: "role_files", id: "role_files",
-             title: "role files, every file under .claude/agents the RoleFile rows project, unedited by hand",
-             argv: "bundle exec exe/hecks regeneration_run.project_agent_roles! check.value=true --wait",
-             script: "",
-             blocked: "a file under .claude/agents differs from its RoleFile row, or is missing. Edit the row in lib/hecks/agents/agents.bluebook, never the file, and run `hecks regeneration_run.project_agent_roles! --confirm`."
-      member name: "role_world_list", id: "role_world_list",
-             title: "role world list, the agent_roles line of lib/hecks/hecks/hecks.world names the roles of the RoleFile rows",
-             argv: "bundle exec rspec spec/agents_role_rows_spec.rb --tag world_list",
-             script: "",
-             blocked: "the agent_roles line of lib/hecks/hecks/hecks.world and the RoleFile rows of lib/hecks/agents/agents.bluebook name different roles. Add or remove the role in both."
       member name: "io_spec_list", id: "io_spec_list",
              title: "io spec list, the committed Postgres io file list names every spec file a --tag io dry run selects",
              argv: "",
@@ -979,16 +933,6 @@ Hecks.bluebook "Bluebook" do
              argv: "",
              script: "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n",
              blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result."
-      member name: "ci_gates", id: "ci_gates",
-             title: "ci gates, the CiGate rows must match the marked regions of the workflows",
-             argv: "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait",
-             script: "",
-             blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`."
-      member name: "ci_pipeline", id: "ci_pipeline",
-             title: "ci pipeline, the workflow rows must match the files they project",
-             argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait",
-             script: "",
-             blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`."
       member name: "tools_doc", id: "tools_doc",
              title: "tools doc, docs/tools.md must match the RetiredScript rows",
              argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! check.value=true --wait",
@@ -1044,52 +988,24 @@ Hecks.bluebook "Bluebook" do
 
       member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
-      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,bluebook_extraction,command_names,remedy_names,workflow_pagination,role_files,role_world_list,tools_doc"
+      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,bluebook_extraction,command_names,remedy_names,workflow_pagination,tools_doc"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
-      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
-    end
-
-    # What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalStage` is one
-    # step: `kind` is `gate` (the `GateStage` named by `argument` runs) or `impacted` (the specs
-    # the push's changes touch, capped by the local spec limit). A `RehearsalScope` lists, in the order they run, the steps a rehearsal of
-    # that scope runs; `covers` names the `RequiredCheck` rows the scope runs at least in part (the
-    # report says which CI checks it did not run). `quick` is what a landing asks for and the train's push gate; `deep` adds the
-    # impacted specs and runs only when asked for (`scope.value=deep`). Owner decision: the full
-    # spec suite runs only in CI, so no scope runs it and only `deep` runs any impacted specs.
-    value_object "RehearsalStage" do
-      attribute :name, String
-      attribute :kind, String
-      attribute :argument, String
-
-      member name: "quick", kind: "gate", argument: "quick"
-      member name: "impacted", kind: "impacted", argument: ""
-    end
-
-    value_object "RehearsalScope" do
-      attribute :name, String
-      attribute :stages, String
-      attribute :covers, String
-
-      member name: "quick", stages: "quick",          covers: "checks"
-      member name: "deep",  stages: "quick,impacted", covers: "checks,rspec"
+      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
     # is the name of a job in .github/workflows that reports to a commit as a check run; a check
     # that a path gate skipped reports `skipped`, which counts as passed. `hecks PromotionRun.promote!` reads
-    # these rows, and hecks project_lanes writes them into the ruleset of any lane that requires
-    # them, so the list lives here and nowhere else.
+    # these rows, and the ruleset of any lane that requires them names the same checks.
     #
     # `runs` is `always` for a check a release bump still runs (it is not inherited from the base);
     # empty for a check a bump may inherit.
     #
     # `attests` is `yes` for a check a signed note may stand in for: CI's own note writer and a
-    # release bump's inherited note (`ci.yml`, between the `attested_checks` markers
-    # `hecks regeneration_run.project_ci_gates!` keeps) name these checks beside the `GateCheck` rows
-    # marked `attests`, and the check's detector skips its job when the note holds the name. A
-    # check stands in under its own name, except `checks`, which the note names by the jobs it
-    # sums (`Hecks::Tools::AttestedChecks::JOBS_UNDER`), since one passing leg must not vouch for
-    # the whole. Empty means no note stands in for the check: `release_consistency` reruns on every
+    # release bump's inherited note (`ci.yml`, between the `attested_checks` markers) name these
+    # checks beside the `GateCheck` rows marked `attests`, and the check's detector skips its job
+    # when the note holds the name. A check stands in under its own name, except `checks`, which the
+    # note names by the jobs it sums, since one passing leg must not vouch for the whole. Empty means no note stands in for the check: `release_consistency` reruns on every
     # commit.
     value_object "RequiredCheck" do
       attribute :name, String
@@ -1118,8 +1034,7 @@ Hecks.bluebook "Bluebook" do
     # the only conclusion that clears a red spec. `unfinished` says the job did not run to an end,
     # so it is no verdict on the specs. An empty name is a check that has not concluded yet.
     #
-    # The adapters that read these rows are the pipeline board, the CI speed reader, the candidate
-    # gating and red-flag surveys, the QualityControl run and check readers, and the release gate.
+    # `Hecks::CheckConclusion` reads these rows for the promotion gate and the release gate.
     value_object "CheckConclusion" do
       attribute :name,       String
       attribute :certifies,  String
@@ -1138,9 +1053,9 @@ Hecks.bluebook "Bluebook" do
 
     # The branches a change travels along. `main` takes only pull requests that GitHub's merge
     # queue has tested on top of it, so a red combination never lands; `stable` takes only what a
-    # `Promotion` moves onto it once every `CiGate` check is green on that commit.
-    # hecks project_lanes writes each row's ruleset into .github/rulesets/<name>.json, and
-    # `hecks PromotionRun.promote!` reads `follows` to know which lane a promotion fast-forwards.
+    # `Promotion` moves onto it once every `RequiredCheck` is green on that commit.
+    # .github/rulesets/<name>.json holds each row's ruleset, and `hecks PromotionRun.promote!`
+    # reads `follows` to know which lane a promotion fast-forwards.
     #
     # `guarded` says whether a ruleset restricts the branch. `pushers` says what it takes: `anyone`
     # (any commit), `green` (only a commit on which every `RequiredCheck` has already passed,
@@ -1169,9 +1084,8 @@ Hecks.bluebook "Bluebook" do
     end
 
     # A binary hecks builds once per change to its crate and publishes, so a client that needs the
-    # same binary downloads it instead of compiling it (ADR 0110). `hecks regeneration_run.project_lanes!`
-    # writes .github/workflows/publish-<name>.yml from each row; `Hecks::RustBuild::PrebuiltBinary`
-    # reads the same rows to name what to download.
+    # same binary downloads it instead of compiling it (ADR 0110). .github/workflows/publish-<name>.yml
+    # builds each row; `Hecks::RustBuild::PrebuiltBinary` reads the same rows to name what to download.
     #
     # `crate` is the directory under the checkout that is built and keyed: the key is a hash of every
     # file in it that goes into the build, so the same bytes in the crate are the same release.
@@ -1196,9 +1110,9 @@ Hecks.bluebook "Bluebook" do
 
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it
     # does. qa/settings.yml holds the values, which are edited and reviewed as a diff; this table
-    # holds the rest, so the loader (`Hecks::Fuzzing::QaSettings`) checks the file against it and
-    # the QualityControl bluebook reads each value as a constant (`QualityControlDials::PR_CAP_PER_DAY`
-    # for `pr_cap_per_day`) without a second list of the names or their types. `type` is Integer,
+    # holds the rest, so the loader (`Hecks::Fuzzing::QaSettings`) checks the file against it, and
+    # the QualityControl loop (Switchyard, ADR 0205) reads each value without a second list of the
+    # names or their types. `type` is Integer,
     # Numeric (an Integer or a Float), Boolean, String, Array or Hash. A dial's nested shape, where it
     # has one, is checked by the loader.
     value_object "QaDial" do
@@ -1284,11 +1198,10 @@ Hecks.bluebook "Bluebook" do
     # rendering each form from the command's own arguments, so a form can neither keep an argument
     # the command dropped nor miss one it gained; the table specs read the same rows.
     #
-    # `section` is the part of docs/tools.md the row is listed under (Custodian, Deploy, Site,
-    # Codebase or QualityControl); Custodian and Codebase commands live in the Hecks bluebook, the
-    # others in the bluebook of their own name. `script` is `(new)` for a command no `bin/` script
-    # preceded. `aggregate` and `verb` name the command (or, in QualityControl, the query) the way
-    # the launcher spells it, `aggregate.verb`.
+    # `section` is the part of docs/tools.md the row is listed under (Custodian, Deploy, Site or
+    # Codebase); Custodian and Codebase commands live in the Hecks bluebook, the others in the
+    # bluebook of their own name. `script` is `(new)` for a command no `bin/` script preceded.
+    # `aggregate` and `verb` name the command the way the launcher spells it, `aggregate.verb`.
     #
     # The rest is only what the arguments cannot say: `passes` documents the flags a command hands
     # through to the tool it wraps (its `arguments=` word), `note` is a sentence kept beside the
@@ -1409,25 +1322,6 @@ Hecks.bluebook "Bluebook" do
       member script: "release", section: "Codebase", aggregate: "PublishingRun", verb: "publish", note: "without --confirm, the old --dry-run"
       member script: "release_gem", section: "Codebase", aggregate: "PublishingRun", verb: "publish_gem"
       member script: "(new)", section: "Codebase", aggregate: "GateRun", verb: "gate"
-      member script: "qa_tick", section: "QualityControl", aggregate: "Sweep", verb: "tick"
-      member script: "qa_sweep", section: "QualityControl", aggregate: "Sweep", verb: "run", passes: "--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"
-      member script: "qa_sweep", section: "QualityControl", aggregate: "Target", verb: "release"
-      member script: "qa_pr_check", section: "QualityControl", aggregate: "Clearance", verb: "check_pull_requests"
-      member script: "qa_open_pr", section: "QualityControl", aggregate: "Patch", verb: "open"
-      member script: "qa_open_pr", section: "QualityControl", aggregate: "Improvement", verb: "open"
-      member script: "qa_log_bug", section: "QualityControl", aggregate: "Bug", verb: "log"
-      member script: "qa_seed_angles", section: "QualityControl", aggregate: "Angle", verb: "seed"
-      member script: "qa_seed_targets", section: "QualityControl", aggregate: "Target", verb: "seed"
-      member script: "qa_generated_domains", section: "QualityControl", aggregate: "Target", verb: "check_generated_domains", passes: "--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"
-      member script: "qa_mine_combinations", section: "QualityControl", aggregate: "Target", verb: "mine_combinations", passes: "--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"
-      member script: "(new)", section: "QualityControl", aggregate: "Target", verb: "mutate", passes: "--file rust/src/… --from-dials"
-      member script: "qa_domain_novelty", section: "QualityControl", aggregate: "Target", verb: "judge_novelty", passes: "--against PATH …"
-      member script: "qa_discover_external_domains", section: "QualityControl", aggregate: "Target", verb: "discover_external_domains", passes: "--projects-dir ~/Projects --max-depth 3 --known-path PATH …"
-      member script: "qa_postgres_migrate", section: "QualityControl", aggregate: "Sweep", verb: "migrate_ledger_from_heki", passes: "[aggregate …] --force", note: "a dry run without --force"
-      member script: "qa_postgres_role", section: "QualityControl", aggregate: "Sweep", verb: "create_ledger_role"
-      member script: "qa_main_gate", section: "QualityControl", aggregate: "MainCheck", verb: "check_main"
-      member script: "qa_fix_main_bug", section: "QualityControl", aggregate: "Bug", verb: "fix_and_land", passes: "--bug BUG#n"
-      member script: "qa_concurrency_racer", section: "QualityControl", aggregate: "Sweep", verb: "race", note: "not user-facing; ProcessPool starts it"
     end
 
     # The terms of the tooling's own ubiquitous language, declared once so the bluebooks, the

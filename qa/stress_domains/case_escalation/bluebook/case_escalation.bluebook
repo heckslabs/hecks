@@ -1,0 +1,92 @@
+# Stress domain: a `corrects` command that re-points a reference through a plain value object,
+# with an `across` policy that resolves in-process into review.bluebook's VendorCompliance.
+#
+# Both files load into one registry (Adapters::Folder#load_domain globs *.bluebook), so the
+# `across` dispatch is exercised under fuzzing instead of being refused as in examples/banking.
+# Only this file compiles to Rust (bin/project_rust); review.bluebook is Ruby-only.
+Hecks.bluebook "CaseEscalation" do
+  vision "An invoice's charge, amended after the fact by re-pointing it at a different vendor handle rather than a checked reference — corrects paired with a revalued reference for the first time — whose amendment fans out, in-process, into a second bluebook's own compliance review and the multi-head read model built over it."
+
+  core
+
+  aggregate "Vendor" do
+    description "A vendor an invoice's charge can be billed to."
+
+    identified_by :handle
+
+    attribute :handle, Handle
+
+    value_object "Handle" do
+      attribute :value, String, matches: :present
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    command "Enroll" do
+      goal "Enroll a vendor"
+
+      attribute :handle, Handle
+
+      emits "VendorEnrolled"
+    end
+  end
+
+  aggregate "Invoice" do
+    description "A billed charge against a vendor, correctable after the fact by re-pointing it at a different vendor handle."
+
+    identified_by :reference
+
+    attribute :reference, InvoiceReference
+    reference_to Vendor
+    attribute :amount, Amount
+
+    value_object "InvoiceReference" do
+      attribute :value, String, matches: :present
+      invariant("an invoice reference is not blank") { !value.to_s.empty? }
+    end
+
+    value_object "Amount" do
+      attribute :value, Integer
+      invariant("an amount is not negative") { !value.negative? }
+    end
+
+    # Redeclared locally: no value object is shared by name across aggregates.
+    value_object "Handle" do
+      attribute :value, String, matches: :present
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    command "RecordCharge" do
+      goal "Record a charge against a vendor"
+
+      attribute :reference, InvoiceReference, sets: true
+      reference_to Vendor
+      attribute :amount, Amount
+
+      sets :vendor
+      sets :amount
+
+      emits "ChargeRecorded"
+    end
+
+    # `vendor` is a plain Handle here, not Reference<Vendor>, so only Ruby's
+    # resolve_state_references (at step_save) can catch a dangling one.
+    command "AmendCharge" do
+      goal "Correct a previously recorded charge's own vendor, by handle"
+
+      reference_to Invoice
+      attribute :vendor, Handle
+      corrects "ChargeRecorded", reason: "the wrong vendor handle was recorded and needs correcting"
+
+      sets :vendor
+
+      emits "ChargeAmended"
+    end
+
+    # No with_spec: the event payload {vendor: ...} goes to Review.Open by key.
+    policy "FlagAmendment" do
+      on      Invoice::ChargeAmended
+      trigger Review::Open
+      across  "VendorCompliance"
+    end
+  end
+end

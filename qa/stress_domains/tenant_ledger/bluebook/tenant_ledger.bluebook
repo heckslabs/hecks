@@ -1,0 +1,165 @@
+# Stress domain: two tenant-scoped aggregates joined by a cross-tenant reference_to.
+# Feeds `commands_respect_tenant_scope` (lib/hecks/fuzzing/properties/guards.rb); see NOTES.md.
+Hecks.bluebook "TenantLedger" do
+  vision "Two tenant-scoped aggregates, a cross-tenant reference_to between them, an entity, and a saga that crosses tenants — enough surface to prove the write side has no TenantScope equivalent at all."
+
+  core
+
+  # `region` is the tenant field `commands_respect_tenant_scope` reads off any aggregate.
+  aggregate "Ledger" do
+    description "One region's ledger — the record a cross-tenant Transfer.Request can name without ever proving it belongs to the same region."
+
+    identified_by :code
+
+    attribute :code,          LedgerCode
+    attribute :region,        LedgerRegion
+    attribute :balance_cents, LedgerAmountCents, default: { value: 0 }
+    attribute :entries,       list_of(Entry)
+
+    value_object "LedgerCode" do
+      attribute :value, String, matches: :present
+      invariant("a ledger is coded") { !value.to_s.empty? }
+    end
+
+    value_object "LedgerRegion" do
+      attribute :value, String, matches: :present
+      invariant("a ledger names its region") { !value.to_s.empty? }
+    end
+
+    value_object "LedgerAmountCents" do
+      attribute :value, Integer
+      invariant("an amount is never negative") { value >= 0 }
+    end
+
+    value_object "EntrySequence" do
+      attribute :value, String, matches: :present
+      invariant("an entry is sequenced") { !value.to_s.empty? }
+    end
+
+    value_object "EntryNote" do
+      attribute :text, String
+    end
+
+    # Pass-through correlation field: never stored, but emitted in the event payload so the
+    # saga can correlate on it. Declared locally; value objects are not shared across aggregates.
+    value_object "LedgerCreditReference" do
+      attribute :value, String, matches: :present
+      invariant("a credit still names the transfer that asked for it") { !value.to_s.empty? }
+    end
+
+    entity "Entry" do
+      description "One posting into the ledger, in the order it landed."
+
+      identified_by :sequence
+
+      attribute :sequence, EntrySequence
+      attribute :amount_cents, LedgerAmountCents
+      attribute :note, EntryNote, optional: true
+
+      command "Annotate" do
+        role "Auditor"
+        goal "Note something about a posting after the fact"
+
+        attribute :note, EntryNote, sets: true
+
+        emits "EntryAnnotated"
+      end
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Start a ledger for one region"
+
+      attribute :code,   LedgerCode, sets: true
+      attribute :region, LedgerRegion, sets: true
+
+
+      emits "LedgerOpened"
+    end
+
+    # Saga target, dispatched against whichever ledger Transfer.Request named. Role System
+    # means no tenant check; nothing else in the dispatch closes that gap.
+    command "Credit" do
+      role "System"
+      goal "Credit funds into a ledger, settling a transfer that may or may not share this ledger's own region"
+
+      reference_to Ledger
+      attribute :amount_cents, LedgerAmountCents
+      attribute :sequence,     EntrySequence
+      attribute :reference,    LedgerCreditReference
+
+      sets :balance_cents, increment: :amount_cents
+      sets :entries, append: { sequence: :sequence, amount_cents: :amount_cents }
+
+      emits "LedgerCredited"
+    end
+
+    query "ByRegion" do
+      description "Ledgers open in one region, for a caller standing in that region."
+      order_by :code
+      authorize :ledger_access, tenant: :region
+    end
+  end
+
+  # `region` is a caller-supplied argument, never derived from the ledger named below.
+  aggregate "Transfer" do
+    description "A request to move funds into some ledger — the ledger a caller names is never proven to share this transfer's own declared region."
+
+    identified_by :reference
+
+    attribute :reference,     TransferReference
+    attribute :region,        TransferRegion
+    # Crosses to a different tenant-scoped aggregate.
+    reference_to Ledger
+    attribute :amount_cents,  TransferAmountCents
+
+    value_object "TransferReference" do
+      attribute :value, String, matches: :present
+      invariant("a transfer is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "TransferRegion" do
+      attribute :value, String, matches: :present
+      invariant("a transfer names its own region") { !value.to_s.empty? }
+    end
+
+    value_object "TransferAmountCents" do
+      attribute :value, Integer
+      invariant("an amount is never negative") { value >= 0 }
+    end
+
+    # `region` and `ledger` are passed independently; `enforce_tenant_boundary`
+    # (runtime/command_rules/references.rb) refuses a ledger from another region.
+    command "Request" do
+      role "Clerk"
+      goal "Ask that funds move into a ledger, in a region the caller declares independently of which ledger they name"
+
+      attribute :reference, TransferReference, sets: true
+
+      sets :region
+      sets :ledger
+      sets :amount_cents
+
+      emits "TransferRequested"
+    end
+
+    query "ByRegion" do
+      description "Transfers requested from one region, for a caller standing in that region."
+      order_by :reference
+      authorize :transfer_access, tenant: :region
+    end
+  end
+
+  # Starts on TransferRequested, so a refused cross-tenant Request never begins this saga.
+  # Sagas carry no tenant check of their own.
+  process_manager "SettleAcrossRegions" do
+    correlates_by :"reference.value"
+    starts_on Transfer::TransferRequested
+    ends_on   Ledger::LedgerCredited
+
+    transition Transfer::TransferRequested => "settling", from: "settling" do
+      dispatch Ledger::Credit, with: { code: :ledger, amount_cents: :amount_cents,
+                                       sequence: :reference, reference: :reference }
+    end
+  end
+end

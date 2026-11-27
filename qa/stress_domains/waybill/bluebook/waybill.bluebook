@@ -1,0 +1,185 @@
+# Stress domain: a process_manager whose dispatch leg targets a nested entity's command.
+# Pinned end to end by spec/waybill_spec.rb, including the entity-level compensation.
+Hecks.bluebook "Waybill" do
+  vision "A consignment saga that opens a manifest, reserves a slot on it, and tries to fill that slot through the saga's own dispatch — the first process manager anywhere in this corpus to target a nested entity's own command, rather than a plain aggregate's."
+
+  core
+
+  aggregate "Consignment" do
+    description "A request to pack and ship one item, driving the Packing saga end to end."
+
+    attribute :reference, ConsignmentReference
+    identified_by :reference
+
+    attribute :number, SlotNumber
+    attribute :item,   ItemLabel
+
+    value_object "ConsignmentReference" do
+      attribute :value, String, matches: :present
+      invariant("a consignment is referenced") { !value.to_s.empty? }
+    end
+
+    # Redeclared per aggregate: value objects are not shared across aggregates.
+    # Positive-only, so 0 survives routing but fails the invariant on a typed rebuild.
+    value_object "SlotNumber" do
+      attribute :value, Integer
+      invariant("a slot number is positive") { value.positive? }
+    end
+
+    value_object "ItemLabel" do
+      attribute :text, String, matches: :present
+      invariant("an item is labeled") { !text.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Ship"   => "shipped",   from: "requested"
+      transition "Cancel" => "cancelled", from: "requested"
+      mark :terminal, "cancelled", "shipped"
+    end
+
+    command "Request" do
+      role "Customer"
+      goal "Request one item be packed onto a numbered slot and shipped"
+
+      attribute :reference, ConsignmentReference
+      attribute :number,    SlotNumber
+      attribute :item,      ItemLabel
+
+      emits ConsignmentRequested
+    end
+
+    command "Ship", from: "requested" do
+      role "System"
+      goal "Mark the consignment shipped once its slot is filled"
+
+      reference_to Consignment
+
+      emits ConsignmentShipped
+    end
+
+    command "Cancel", from: "requested" do
+      role "System"
+      goal "Cancel a consignment whose slot could not be filled"
+
+      reference_to Consignment
+
+      emits ConsignmentCancelled
+    end
+
+    query "Requested" do
+      description "Consignments still awaiting a packed, shipped slot."
+      where(status: "requested")
+      order_by :reference
+    end
+  end
+
+  aggregate "Manifest" do
+    description "One manifest, holding numbered slots the Packing saga fills one at a time."
+
+    identified_by :reference
+
+    attribute :reference, ManifestReference
+    attribute :slots,     list_of(Slot)
+
+    value_object "ManifestReference" do
+      attribute :value, String, matches: :present
+      invariant("a manifest is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "SlotNumber" do
+      attribute :value, Integer
+      invariant("a slot number is positive") { value.positive? }
+    end
+
+    value_object "ItemLabel" do
+      attribute :text, String, matches: :present
+      invariant("an item is labeled") { !text.to_s.empty? }
+    end
+
+    command "Open" do
+      role "Loader"
+      goal "Open a manifest for a consignment"
+
+      attribute :reference, ManifestReference
+
+      emits ManifestOpened
+    end
+
+    command "AddSlot" do
+      role "Loader"
+      goal "Reserve a numbered slot on the manifest"
+
+      reference_to Manifest
+      attribute :number, SlotNumber
+
+      sets :slots, append: { number: :number }
+
+      emits SlotAdded
+    end
+
+    # `Fill` on this nested entity is the saga's entity-level dispatch target.
+    entity "Slot" do
+      description "One numbered slot on the manifest, filled with one item."
+
+      identified_by :number
+
+      attribute :number, SlotNumber
+      attribute :item,   ItemLabel, optional: true
+
+      command "Fill" do
+        role "Loader"
+        goal "Load an item into the slot"
+
+        attribute :item, ItemLabel, sets: true
+
+
+        emits SlotFilled
+      end
+
+      # Compensating half of `Fill`; runs when that saga leg refuses.
+      command "Clear" do
+        role "Loader"
+        goal "Clear a slot's item back out — the compensating half of Fill"
+
+        attribute :item, ItemLabel, sets: true
+
+
+        emits SlotCleared
+      end
+    end
+  end
+
+  # Correlates on the dotted scalar shared by every aggregate a leg touches.
+  process_manager "Packing" do
+    correlates_by :"reference.value"
+    starts_on Consignment::ConsignmentRequested
+    ends_on   Consignment::ConsignmentShipped
+
+    # Leg 1: aggregate-level dispatch on the starting event.
+    transition Consignment::ConsignmentRequested => "packing", from: "packing" do
+      dispatch Manifest::Open, with: { reference: :reference }
+    end
+
+    # Leg 2: aggregate-level dispatch.
+    transition Manifest::ManifestOpened => "packing", from: "packing" do
+      dispatch Manifest::AddSlot, with: { reference: :reference, number: :number }
+    end
+
+    # Leg 3: entity-level dispatch, with a compensating entity command.
+    transition Manifest::SlotAdded => "filling", from: "packing" do
+      dispatch Manifest::Slot::Fill, with: { number: :number, item: :item } do
+        compensates Manifest::Slot::Clear, with: { number: :number, item: :item }
+      end
+    end
+
+    # Happy path; ends the saga via ConsignmentShipped.
+    transition Manifest::SlotFilled => "filled", from: "filling" do
+      dispatch Consignment::Ship, with: { reference: :reference }
+    end
+
+    # Compensating leg: fires when leg 3 refuses.
+    transition :refused => "cancelled", from: "filling" do
+      dispatch Consignment::Cancel, with: { reference: :reference }
+    end
+  end
+end

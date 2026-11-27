@@ -4576,128 +4576,6 @@ impl FieldHint {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CiGate {
-    pub name: &'static str,
-    pub workflow: &'static str,
-    pub mode: &'static str,
-    pub pattern: &'static str,
-    pub push: &'static str,
-    pub label: &'static str,
-}
-
-pub const CI_GATE: &[CiGate] = &[
-    CiGate { name: "runtime_changed", workflow: "ci.yml", mode: "touches", pattern: "^lib/hecks/runtime/", push: "before_sha", label: "does this change touch lib/hecks/runtime/**?" },
-    CiGate { name: "release_only", workflow: "ci.yml", mode: "release_only", pattern: "", push: "before_sha", label: "is this change only a release bump on a certified base?" },
-    CiGate { name: "postgres_io_relevant_changed", workflow: "ci-postgres-io-parallel.yml", mode: "skips_unless", pattern: "^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", push: "skip", label: "does this change touch anything rspec_postgres_io_parallel covers?" },
-];
-
-impl CiGate {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "name".to_string(),
-                crate::kernel::Json::Str(self.name.to_string()),
-            ),
-            (
-                "workflow".to_string(),
-                crate::kernel::Json::Str(self.workflow.to_string()),
-            ),
-            (
-                "mode".to_string(),
-                crate::kernel::Json::Str(self.mode.to_string()),
-            ),
-            (
-                "pattern".to_string(),
-                crate::kernel::Json::Str(self.pattern.to_string()),
-            ),
-            (
-                "push".to_string(),
-                crate::kernel::Json::Str(self.push.to_string()),
-            ),
-            (
-                "label".to_string(),
-                crate::kernel::Json::Str(self.label.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "workflow", "mode", "pattern", "push", "label"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "CiGate",
-                    unknown: &unknown,
-                    declared: &["name", "workflow", "mode", "pattern", "push", "label"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "CiGate.name expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("workflow"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "CiGate.workflow expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("mode"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "CiGate.mode expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("pattern"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "CiGate.pattern expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("push"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "CiGate.push expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("label"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "CiGate.label expects String, got nil".to_string(),
-            ));
-        }
-        for row in CI_GATE {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
-                && v.get("workflow").and_then(crate::kernel::Json::as_str) == Some(row.workflow)
-                && v.get("mode").and_then(crate::kernel::Json::as_str) == Some(row.mode)
-                && v.get("pattern").and_then(crate::kernel::Json::as_str) == Some(row.pattern)
-                && v.get("push").and_then(crate::kernel::Json::as_str) == Some(row.push)
-                && v.get("label").and_then(crate::kernel::Json::as_str) == Some(row.label)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("name")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "CiGate",
-                admitted: &[
-                    "runtime_changed",
-                    "release_only",
-                    "postgres_io_relevant_changed",
-                ],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct ReleaseFile {
     pub path: &'static str,
     pub lines: &'static str,
@@ -4834,8 +4712,6 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "workflow_pagination", id: "workflow_pagination", title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone", argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", script: "", blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=.", runs_in: "", attests: "" },
     GateCheck { name: "secret_output", id: "secret_output", title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints", argv: "bundle exec rspec spec/secret_output_spec.rb", script: "", blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream.", runs_in: "", attests: "" },
     GateCheck { name: "adapter_words", id: "adapter_words", title: "adapter words, no domain name equal to a technology word the adapters are named for", argv: "bundle exec rspec spec/adapter_words_spec.rb", script: "", blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter.", runs_in: "", attests: "" },
-    GateCheck { name: "role_files", id: "role_files", title: "role files, every file under .claude/agents the RoleFile rows project, unedited by hand", argv: "bundle exec exe/hecks regeneration_run.project_agent_roles! check.value=true --wait", script: "", blocked: "a file under .claude/agents differs from its RoleFile row, or is missing. Edit the row in lib/hecks/agents/agents.bluebook, never the file, and run `hecks regeneration_run.project_agent_roles! --confirm`.", runs_in: "", attests: "" },
-    GateCheck { name: "role_world_list", id: "role_world_list", title: "role world list, the agent_roles line of lib/hecks/hecks/hecks.world names the roles of the RoleFile rows", argv: "bundle exec rspec spec/agents_role_rows_spec.rb --tag world_list", script: "", blocked: "the agent_roles line of lib/hecks/hecks/hecks.world and the RoleFile rows of lib/hecks/agents/agents.bluebook name different roles. Add or remove the role in both.", runs_in: "", attests: "" },
     GateCheck { name: "io_spec_list", id: "io_spec_list", title: "io spec list, the committed Postgres io file list names every spec file a --tag io dry run selects", argv: "", script: "# The exclude pattern is read from the workflow whose job checks the list, never copied here.\n# A tree whose spec files all match origin/main cannot have moved the list, so it is skipped.\nbase=\"$(git merge-base HEAD origin/main 2>/dev/null || true)\"\nif [ -n \"$base\" ] && [ -z \"$(git diff --name-only \"$base\" -- 'spec/*_spec.rb'; git ls-files --others --exclude-standard -- 'spec/*_spec.rb')\" ]; then\n  echo \"no spec file differs from origin/main: skipped\"\n  exit 0\nfi\npattern=\"$(sed -n \"s/^  IO_PARALLEL_EXCLUDE_PATTERN: '\\(.*\\)'\\$/\\1/p\" .github/workflows/ci-postgres-io-parallel.yml)\"\ntest -n \"$pattern\" || { echo \"IO_PARALLEL_EXCLUDE_PATTERN is not set in ci-postgres-io-parallel.yml\" >&2; exit 1; }\nbundle exec exe/hecks test_suite_run.list_io_parallel_specs exclude=\"$pattern\" check=.github/postgres_io_spec_files.txt --wait\n", blocked: "a spec file was added, removed or retagged io and .github/postgres_io_spec_files.txt is stale, so CI's postgres_io_file_list job would fail. Rewrite it with test_suite_run.write_io_parallel_spec_list! (exclude= the workflow's IO_PARALLEL_EXCLUDE_PATTERN, write=.github/postgres_io_spec_files.txt, --confirm) and commit the file.", runs_in: "", attests: "" },
     GateCheck { name: "rust_fmt", id: "rust_fmt", title: "rustfmt, every Rust crate laid out as `cargo fmt` would", argv: "", script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build harness; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", blocked: "a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output.", runs_in: "", attests: "" },
     GateCheck { name: "rust_io", id: "rust_io", title: "rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity", argv: "", script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb spec/fuzzing/engine_twin_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n", blocked: "a Rust io spec failed, or skipped; the crate it built is under rust/target.", runs_in: "", attests: "" },
@@ -4853,8 +4729,6 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2", title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "", attests: "" },
     GateCheck { name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2", title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "", attests: "" },
     GateCheck { name: "vocabulary_drift", id: "vocabulary_drift", title: "vocabulary, the reserved-name tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n", blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result.", runs_in: "", attests: "" },
-    GateCheck { name: "ci_gates", id: "ci_gates", title: "ci gates, the CiGate rows must match the marked regions of the workflows", argv: "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait", script: "", blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`.", runs_in: "", attests: "" },
-    GateCheck { name: "ci_pipeline", id: "ci_pipeline", title: "ci pipeline, the workflow rows must match the files they project", argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait", script: "", blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`.", runs_in: "", attests: "" },
     GateCheck { name: "tools_doc", id: "tools_doc", title: "tools doc, docs/tools.md must match the RetiredScript rows", argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! check.value=true --wait", script: "", blocked: "this change reaches docs/tools.md and the cli guides: a command's goal or arguments changed with no regenerated doc. Run `hecks regeneration_run.project_tools_doc! --confirm` and commit them.", runs_in: "", attests: "" },
     GateCheck { name: "rust_coverage", id: "rust_coverage", title: "rust coverage, every generated module", argv: "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait", script: "", blocked: "a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted.", runs_in: "", attests: "" },
     GateCheck { name: "rust_coverage_codegen", id: "rust_coverage_codegen", title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", argv: "", script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", blocked: "hecks-codegen generated nothing for a construct a domain declares.", runs_in: "", attests: "" },
@@ -4998,8 +4872,6 @@ impl GateCheck {
                     "workflow_pagination",
                     "secret_output",
                     "adapter_words",
-                    "role_files",
-                    "role_world_list",
                     "io_spec_list",
                     "rust_fmt",
                     "rust_io",
@@ -5017,8 +4889,6 @@ impl GateCheck {
                     "fuzz_postgres_1_of_2",
                     "fuzz_postgres_2_of_2",
                     "vocabulary_drift",
-                    "ci_gates",
-                    "ci_pipeline",
                     "tools_doc",
                     "rust_coverage",
                     "rust_coverage_codegen",
@@ -5042,9 +4912,9 @@ pub struct GateStage {
 pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt" },
     GateStage { name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec" },
-    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,bluebook_extraction,command_names,remedy_names,workflow_pagination,role_files,role_world_list,tools_doc" },
+    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,bluebook_extraction,command_names,remedy_names,workflow_pagination,tools_doc" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
-    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
+    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
 
 impl GateStage {
@@ -5112,190 +4982,6 @@ impl GateStage {
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "GateStage",
                 admitted: &["pre_push", "ci_suite", "quick", "rust_io", "ci"],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct RehearsalStage {
-    pub name: &'static str,
-    pub kind: &'static str,
-    pub argument: &'static str,
-}
-
-pub const REHEARSAL_STAGE: &[RehearsalStage] = &[
-    RehearsalStage {
-        name: "quick",
-        kind: "gate",
-        argument: "quick",
-    },
-    RehearsalStage {
-        name: "impacted",
-        kind: "impacted",
-        argument: "",
-    },
-];
-
-impl RehearsalStage {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "name".to_string(),
-                crate::kernel::Json::Str(self.name.to_string()),
-            ),
-            (
-                "kind".to_string(),
-                crate::kernel::Json::Str(self.kind.to_string()),
-            ),
-            (
-                "argument".to_string(),
-                crate::kernel::Json::Str(self.argument.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "kind", "argument"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "RehearsalStage",
-                    unknown: &unknown,
-                    declared: &["name", "kind", "argument"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "RehearsalStage.name expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("kind"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "RehearsalStage.kind expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("argument"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "RehearsalStage.argument expects String, got nil".to_string(),
-            ));
-        }
-        for row in REHEARSAL_STAGE {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
-                && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind)
-                && v.get("argument").and_then(crate::kernel::Json::as_str) == Some(row.argument)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("name")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "RehearsalStage",
-                admitted: &["quick", "impacted"],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct RehearsalScope {
-    pub name: &'static str,
-    pub stages: &'static str,
-    pub covers: &'static str,
-}
-
-pub const REHEARSAL_SCOPE: &[RehearsalScope] = &[
-    RehearsalScope {
-        name: "quick",
-        stages: "quick",
-        covers: "checks",
-    },
-    RehearsalScope {
-        name: "deep",
-        stages: "quick,impacted",
-        covers: "checks,rspec",
-    },
-];
-
-impl RehearsalScope {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "name".to_string(),
-                crate::kernel::Json::Str(self.name.to_string()),
-            ),
-            (
-                "stages".to_string(),
-                crate::kernel::Json::Str(self.stages.to_string()),
-            ),
-            (
-                "covers".to_string(),
-                crate::kernel::Json::Str(self.covers.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "stages", "covers"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "RehearsalScope",
-                    unknown: &unknown,
-                    declared: &["name", "stages", "covers"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "RehearsalScope.name expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("stages"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "RehearsalScope.stages expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("covers"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "RehearsalScope.covers expects String, got nil".to_string(),
-            ));
-        }
-        for row in REHEARSAL_SCOPE {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
-                && v.get("stages").and_then(crate::kernel::Json::as_str) == Some(row.stages)
-                && v.get("covers").and_then(crate::kernel::Json::as_str) == Some(row.covers)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("name")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "RehearsalScope",
-                admitted: &["quick", "deep"],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -6056,132 +5742,969 @@ pub struct RetiredScript {
 }
 
 pub const RETIRED_SCRIPT: &[RetiredScript] = &[
-    RetiredScript { script: "ir", section: "Custodian", aggregate: "Introspection", verb: "ir", passes: "", note: "", form: "" },
-    RetiredScript { script: "shape", section: "Custodian", aggregate: "Introspection", verb: "shape", passes: "", note: "", form: "" },
-    RetiredScript { script: "stores", section: "Custodian", aggregate: "Introspection", verb: "stores", passes: "", note: "", form: "" },
-    RetiredScript { script: "history", section: "Custodian", aggregate: "Introspection", verb: "history", passes: "", note: "", form: "" },
-    RetiredScript { script: "statements", section: "Custodian", aggregate: "Introspection", verb: "statements", passes: "", note: "", form: "" },
-    RetiredScript { script: "narrate", section: "Custodian", aggregate: "Introspection", verb: "narrate", passes: "", note: "", form: "" },
-    RetiredScript { script: "docs", section: "Custodian", aggregate: "Introspection", verb: "docs", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_diagrams", section: "Custodian", aggregate: "Introspection", verb: "project_diagrams", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_glossary", section: "Custodian", aggregate: "Introspection", verb: "glossary", passes: "", note: "", form: "" },
-    RetiredScript { script: "model_check", section: "Custodian", aggregate: "ModelCheckRun", verb: "model_check", passes: "", note: "", form: "" },
-    RetiredScript { script: "run", section: "Custodian", aggregate: "Operation", verb: "run", passes: "", note: "", form: "hecks run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>" },
-    RetiredScript { script: "project", section: "Custodian", aggregate: "Operation", verb: "refresh_projections", passes: "", note: "", form: "" },
-    RetiredScript { script: "behaviors", section: "Custodian", aggregate: "Operation", verb: "run_behaviors", passes: "", note: "", form: "" },
-    RetiredScript { script: "console", section: "Custodian", aggregate: "Operation", verb: "open_console", passes: "", note: "", form: "" },
-    RetiredScript { script: "follow", section: "Custodian", aggregate: "Operation", verb: "follow", passes: "", note: "", form: "" },
-    RetiredScript { script: "smoke_test", section: "Custodian", aggregate: "Operation", verb: "smoke_test", passes: "", note: "", form: "" },
-    RetiredScript { script: "smoke_http", section: "Custodian", aggregate: "Operation", verb: "smoke_http", passes: "", note: "", form: "" },
-    RetiredScript { script: "check_era", section: "Custodian", aggregate: "Host", verb: "check_era", passes: "", note: "", form: "" },
-    RetiredScript { script: "merge_tail", section: "Custodian", aggregate: "SchemaRevision", verb: "merge_tail", passes: "", note: "", form: "" },
-    RetiredScript { script: "reattest_era", section: "Custodian", aggregate: "SchemaRevision", verb: "reattest", passes: "", note: "", form: "" },
-    RetiredScript { script: "backfill_era_projections", section: "Custodian", aggregate: "SchemaRevision", verb: "backfill_projections", passes: "", note: "", form: "" },
-    RetiredScript { script: "scaffold_translation", section: "Custodian", aggregate: "SchemaRevision", verb: "scaffold_translation", passes: "", note: "", form: "" },
-    RetiredScript { script: "translation_audit", section: "Custodian", aggregate: "SchemaRevision", verb: "audit_translation", passes: "", note: "", form: "" },
-    RetiredScript { script: "compact", section: "Custodian", aggregate: "SchemaRevision", verb: "compact", passes: "", note: "", form: "" },
-    RetiredScript { script: "heki_compact", section: "Custodian", aggregate: "SchemaRevision", verb: "compact_heki", passes: "", note: "", form: "" },
-    RetiredScript { script: "compact_events", section: "Custodian", aggregate: "SchemaRevision", verb: "compact_events", passes: "", note: "", form: "" },
-    RetiredScript { script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", passes: "", note: "waits: a refusal exits 1 with its reason on stderr", form: "" },
-    RetiredScript { script: "project_cli", section: "Custodian", aggregate: "Launch", verb: "project_cli", passes: "", note: "", form: "" },
-    RetiredScript { script: "hecks_mcp_door", section: "Custodian", aggregate: "Server", verb: "serve_mcp", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_rust", section: "Custodian", aggregate: "Build", verb: "project_rust", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_wasm", section: "Custodian", aggregate: "Build", verb: "build_wasm", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_host", section: "Custodian", aggregate: "Build", verb: "build_host", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_wasm_browser", section: "Custodian", aggregate: "Build", verb: "build_browser_wasm", passes: "", note: "", form: "" },
-    RetiredScript { script: "rust_coverage", section: "Custodian", aggregate: "Build", verb: "rust_coverage", passes: "", note: "", form: "" },
-    RetiredScript { script: "rust_coverage", section: "Custodian", aggregate: "Build", verb: "check_coverage_allowlist", passes: "", note: "", form: "" },
-    RetiredScript { script: "rust_conformance", section: "Custodian", aggregate: "Build", verb: "check_conformance", passes: "", note: "", form: "" },
-    RetiredScript { script: "rust_conformance_fuzz", section: "Custodian", aggregate: "Build", verb: "fuzz_conformance", passes: "", note: "", form: "" },
-    RetiredScript { script: "fuzz", section: "Custodian", aggregate: "FuzzRun", verb: "fuzz", passes: "", note: "", form: "" },
-    RetiredScript { script: "generate", section: "Custodian", aggregate: "FuzzRun", verb: "generate_sequence", passes: "", note: "", form: "" },
-    RetiredScript { script: "bench", section: "Custodian", aggregate: "FuzzRun", verb: "bench", passes: "", note: "", form: "" },
-    RetiredScript { script: "(new)", section: "Custodian", aggregate: "FuzzRun", verb: "mutate", passes: "", note: "", form: "" },
-    RetiredScript { script: "(new)", section: "Custodian", aggregate: "SchemaRevision", verb: "hold_first", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_deploy", section: "Deploy", aggregate: "Recipe", verb: "project", passes: "", note: "", form: "" },
-    RetiredScript { script: "lint_deploy_recipes", section: "Deploy", aggregate: "MakefileCheck", verb: "lint", passes: "", note: "", form: "" },
-    RetiredScript { script: "deploy_template_diff", section: "Deploy", aggregate: "TemplateComparison", verb: "diff", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_oidc", section: "Deploy", aggregate: "OidcManifest", verb: "project_oidc", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_tenant", section: "Deploy", aggregate: "Tenant", verb: "provision", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_tenant", section: "Deploy", aggregate: "Tenant", verb: "reprovision", passes: "", note: "", form: "" },
-    RetiredScript { script: "(new)", section: "Site", aggregate: "SiteProjection", verb: "project_site", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_model", section: "Codebase", aggregate: "LanguageRun", verb: "project_model", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_vocabulary", section: "Codebase", aggregate: "LanguageRun", verb: "project_vocabulary", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_rust_vocabulary", section: "Codebase", aggregate: "LanguageRun", verb: "project_rust_vocabulary", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_refusal_wording", section: "Codebase", aggregate: "LanguageRun", verb: "project_refusal_wording", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_reserved_names", section: "Codebase", aggregate: "LanguageRun", verb: "project_reserved_names", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_parser_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_parser_table", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_phrase_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_phrase_table", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_bootstrap_table", section: "Codebase", aggregate: "LanguageRun", verb: "project_bootstrap_table", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_field_hints", section: "Codebase", aggregate: "LanguageRun", verb: "project_field_hints", passes: "", note: "", form: "" },
-    RetiredScript { script: "expression_projection", section: "Codebase", aggregate: "LanguageRun", verb: "project_expression_tables", passes: "", note: "", form: "" },
-    RetiredScript { script: "reference", section: "Codebase", aggregate: "LanguageRun", verb: "project_reference", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "word_status", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "propose", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "admit", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "deprecate", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "retire", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "rename", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "propose_argument", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "admit_argument", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "deprecate_argument", passes: "", note: "", form: "" },
-    RetiredScript { script: "evolve", section: "Codebase", aggregate: "LanguageRun", verb: "retire_argument", passes: "", note: "", form: "" },
-    RetiredScript { script: "project_kernel_capabilities", section: "Codebase", aggregate: "KernelRun", verb: "project_kernel_capabilities", passes: "", note: "", form: "" },
-    RetiredScript { script: "rust_kernel_coverage", section: "Codebase", aggregate: "KernelRun", verb: "measure_kernel_coverage", passes: "", note: "", form: "" },
-    RetiredScript { script: "check_engine_agreement", section: "Codebase", aggregate: "ConformanceRun", verb: "check_engine_agreement", passes: "", note: "", form: "" },
-    RetiredScript { script: "doc_coverage", section: "Codebase", aggregate: "ConformanceRun", verb: "measure_doc_coverage", passes: "", note: "", form: "" },
-    RetiredScript { script: "argument_gate_matrix", section: "Codebase", aggregate: "ConformanceRun", verb: "argument_gate_matrix", passes: "", note: "", form: "" },
-    RetiredScript { script: "regen_codegen_domains", section: "Codebase", aggregate: "RegenerationRun", verb: "regenerate_corpus", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "report_comments", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "check_comments", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "fix_comments", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "write_comment_baseline", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments", section: "Codebase", aggregate: "StyleRun", verb: "check_comments_unchanged", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments_rust", section: "Codebase", aggregate: "StyleRun", verb: "report_rust_comments", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments_rust", section: "Codebase", aggregate: "StyleRun", verb: "check_rust_comments", passes: "", note: "", form: "" },
-    RetiredScript { script: "standardize_comments_rust", section: "Codebase", aggregate: "StyleRun", verb: "fix_rust_comments", passes: "", note: "", form: "" },
-    RetiredScript { script: "canonicalise", section: "Codebase", aggregate: "StyleRun", verb: "canonicalise", passes: "", note: "", form: "" },
-    RetiredScript { script: "codemod_hoist_local_givens", section: "Codebase", aggregate: "CodemodRun", verb: "hoist_local_givens", passes: "", note: "", form: "" },
-    RetiredScript { script: "codemod_implicit_append_fields", section: "Codebase", aggregate: "CodemodRun", verb: "drop_implicit_append_fields", passes: "", note: "", form: "" },
-    RetiredScript { script: "codemod_move_former_name", section: "Codebase", aggregate: "CodemodRun", verb: "move_former_name", passes: "", note: "", form: "" },
-    RetiredScript { script: "rspec_shard_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "shard_specs", passes: "", note: "", form: "" },
-    RetiredScript { script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "list_io_parallel_specs", passes: "", note: "", form: "" },
-    RetiredScript { script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "write_io_parallel_spec_list", passes: "", note: "", form: "" },
-    RetiredScript { script: "spec_example", section: "Codebase", aggregate: "TestSuiteRun", verb: "run_spec_example", passes: "", note: "", form: "" },
-    RetiredScript { script: "stress_concurrency_specs", section: "Codebase", aggregate: "TestSuiteRun", verb: "stress_concurrency", passes: "", note: "", form: "" },
-    RetiredScript { script: "regenerate_persistence_legacy_fixtures", section: "Codebase", aggregate: "TestSuiteRun", verb: "regenerate_legacy_fixtures", passes: "", note: "", form: "" },
-    RetiredScript { script: "seed_semantics_corpus", section: "Codebase", aggregate: "TestSuiteRun", verb: "seed_semantics_corpus", passes: "", note: "", form: "" },
-    RetiredScript { script: "pattern-cases", section: "Codebase", aggregate: "TestSuiteRun", verb: "record_pattern_cases", passes: "", note: "", form: "" },
-    RetiredScript { script: "corpus", section: "Codebase", aggregate: "CorpusRun", verb: "rust_domains", passes: "", note: "", form: "" },
-    RetiredScript { script: "corpus", section: "Codebase", aggregate: "CorpusRun", verb: "regen_order", passes: "", note: "", form: "" },
-    RetiredScript { script: "corpus", section: "Codebase", aggregate: "CorpusRun", verb: "corpus_rust_coverage", passes: "", note: "", form: "" },
-    RetiredScript { script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_constructs", passes: "", note: "", form: "" },
-    RetiredScript { script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_duplicates", passes: "", note: "", form: "" },
-    RetiredScript { script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_impact", passes: "", note: "", form: "" },
-    RetiredScript { script: "hecks_query_ir_mcp", section: "Codebase", aggregate: "Server", verb: "serve_query_ir_mcp", passes: "", note: "", form: "" },
-    RetiredScript { script: "present", section: "Codebase", aggregate: "Server", verb: "present", passes: "", note: "", form: "" },
-    RetiredScript { script: "release", section: "Codebase", aggregate: "PublishingRun", verb: "publish", passes: "", note: "without --confirm, the old --dry-run", form: "" },
-    RetiredScript { script: "release_gem", section: "Codebase", aggregate: "PublishingRun", verb: "publish_gem", passes: "", note: "", form: "" },
-    RetiredScript { script: "(new)", section: "Codebase", aggregate: "GateRun", verb: "gate", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_tick", section: "QualityControl", aggregate: "Sweep", verb: "tick", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_sweep", section: "QualityControl", aggregate: "Sweep", verb: "run", passes: "--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity", note: "", form: "" },
-    RetiredScript { script: "qa_sweep", section: "QualityControl", aggregate: "Target", verb: "release", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_pr_check", section: "QualityControl", aggregate: "Clearance", verb: "check_pull_requests", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_open_pr", section: "QualityControl", aggregate: "Patch", verb: "open", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_open_pr", section: "QualityControl", aggregate: "Improvement", verb: "open", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_log_bug", section: "QualityControl", aggregate: "Bug", verb: "log", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_seed_angles", section: "QualityControl", aggregate: "Angle", verb: "seed", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_seed_targets", section: "QualityControl", aggregate: "Target", verb: "seed", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_generated_domains", section: "QualityControl", aggregate: "Target", verb: "check_generated_domains", passes: "--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F", note: "", form: "" },
-    RetiredScript { script: "qa_mine_combinations", section: "QualityControl", aggregate: "Target", verb: "mine_combinations", passes: "--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief", note: "", form: "" },
-    RetiredScript { script: "(new)", section: "QualityControl", aggregate: "Target", verb: "mutate", passes: "--file rust/src/… --from-dials", note: "", form: "" },
-    RetiredScript { script: "qa_domain_novelty", section: "QualityControl", aggregate: "Target", verb: "judge_novelty", passes: "--against PATH …", note: "", form: "" },
-    RetiredScript { script: "qa_discover_external_domains", section: "QualityControl", aggregate: "Target", verb: "discover_external_domains", passes: "--projects-dir ~/Projects --max-depth 3 --known-path PATH …", note: "", form: "" },
-    RetiredScript { script: "qa_postgres_migrate", section: "QualityControl", aggregate: "Sweep", verb: "migrate_ledger_from_heki", passes: "[aggregate …] --force", note: "a dry run without --force", form: "" },
-    RetiredScript { script: "qa_postgres_role", section: "QualityControl", aggregate: "Sweep", verb: "create_ledger_role", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_main_gate", section: "QualityControl", aggregate: "MainCheck", verb: "check_main", passes: "", note: "", form: "" },
-    RetiredScript { script: "qa_fix_main_bug", section: "QualityControl", aggregate: "Bug", verb: "fix_and_land", passes: "--bug BUG#n", note: "", form: "" },
-    RetiredScript { script: "qa_concurrency_racer", section: "QualityControl", aggregate: "Sweep", verb: "race", passes: "", note: "not user-facing; ProcessPool starts it", form: "" },
+    RetiredScript {
+        script: "ir",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "ir",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "shape",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "shape",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "stores",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "stores",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "history",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "history",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "statements",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "statements",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "narrate",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "narrate",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "docs",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "docs",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_diagrams",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "project_diagrams",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_glossary",
+        section: "Custodian",
+        aggregate: "Introspection",
+        verb: "glossary",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "model_check",
+        section: "Custodian",
+        aggregate: "ModelCheckRun",
+        verb: "model_check",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "run",
+        section: "Custodian",
+        aggregate: "Operation",
+        verb: "run",
+        passes: "",
+        note: "",
+        form: "hecks run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>",
+    },
+    RetiredScript {
+        script: "project",
+        section: "Custodian",
+        aggregate: "Operation",
+        verb: "refresh_projections",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "behaviors",
+        section: "Custodian",
+        aggregate: "Operation",
+        verb: "run_behaviors",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "console",
+        section: "Custodian",
+        aggregate: "Operation",
+        verb: "open_console",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "follow",
+        section: "Custodian",
+        aggregate: "Operation",
+        verb: "follow",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "smoke_test",
+        section: "Custodian",
+        aggregate: "Operation",
+        verb: "smoke_test",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "smoke_http",
+        section: "Custodian",
+        aggregate: "Operation",
+        verb: "smoke_http",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "check_era",
+        section: "Custodian",
+        aggregate: "Host",
+        verb: "check_era",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "merge_tail",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "merge_tail",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "reattest_era",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "reattest",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "backfill_era_projections",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "backfill_projections",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "scaffold_translation",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "scaffold_translation",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "translation_audit",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "audit_translation",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "compact",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "compact",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "heki_compact",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "compact_heki",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "compact_events",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "compact_events",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "vendor_bluebook",
+        section: "Custodian",
+        aggregate: "Package",
+        verb: "vendor",
+        passes: "",
+        note: "waits: a refusal exits 1 with its reason on stderr",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_cli",
+        section: "Custodian",
+        aggregate: "Launch",
+        verb: "project_cli",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "hecks_mcp_door",
+        section: "Custodian",
+        aggregate: "Server",
+        verb: "serve_mcp",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_rust",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "project_rust",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_wasm",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "build_wasm",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_host",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "build_host",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_wasm_browser",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "build_browser_wasm",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rust_coverage",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "rust_coverage",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rust_coverage",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "check_coverage_allowlist",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rust_conformance",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "check_conformance",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rust_conformance_fuzz",
+        section: "Custodian",
+        aggregate: "Build",
+        verb: "fuzz_conformance",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "fuzz",
+        section: "Custodian",
+        aggregate: "FuzzRun",
+        verb: "fuzz",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "generate",
+        section: "Custodian",
+        aggregate: "FuzzRun",
+        verb: "generate_sequence",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "bench",
+        section: "Custodian",
+        aggregate: "FuzzRun",
+        verb: "bench",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "(new)",
+        section: "Custodian",
+        aggregate: "FuzzRun",
+        verb: "mutate",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "(new)",
+        section: "Custodian",
+        aggregate: "SchemaRevision",
+        verb: "hold_first",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_deploy",
+        section: "Deploy",
+        aggregate: "Recipe",
+        verb: "project",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "lint_deploy_recipes",
+        section: "Deploy",
+        aggregate: "MakefileCheck",
+        verb: "lint",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "deploy_template_diff",
+        section: "Deploy",
+        aggregate: "TemplateComparison",
+        verb: "diff",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_oidc",
+        section: "Deploy",
+        aggregate: "OidcManifest",
+        verb: "project_oidc",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_tenant",
+        section: "Deploy",
+        aggregate: "Tenant",
+        verb: "provision",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_tenant",
+        section: "Deploy",
+        aggregate: "Tenant",
+        verb: "reprovision",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "(new)",
+        section: "Site",
+        aggregate: "SiteProjection",
+        verb: "project_site",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_model",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_model",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_vocabulary",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_vocabulary",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_rust_vocabulary",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_rust_vocabulary",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_refusal_wording",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_refusal_wording",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_reserved_names",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_reserved_names",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_parser_table",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_parser_table",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_phrase_table",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_phrase_table",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_bootstrap_table",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_bootstrap_table",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_field_hints",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_field_hints",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "expression_projection",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_expression_tables",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "reference",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "project_reference",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "word_status",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "propose",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "admit",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "deprecate",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "retire",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "rename",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "propose_argument",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "admit_argument",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "deprecate_argument",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "evolve",
+        section: "Codebase",
+        aggregate: "LanguageRun",
+        verb: "retire_argument",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "project_kernel_capabilities",
+        section: "Codebase",
+        aggregate: "KernelRun",
+        verb: "project_kernel_capabilities",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rust_kernel_coverage",
+        section: "Codebase",
+        aggregate: "KernelRun",
+        verb: "measure_kernel_coverage",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "check_engine_agreement",
+        section: "Codebase",
+        aggregate: "ConformanceRun",
+        verb: "check_engine_agreement",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "doc_coverage",
+        section: "Codebase",
+        aggregate: "ConformanceRun",
+        verb: "measure_doc_coverage",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "argument_gate_matrix",
+        section: "Codebase",
+        aggregate: "ConformanceRun",
+        verb: "argument_gate_matrix",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "regen_codegen_domains",
+        section: "Codebase",
+        aggregate: "RegenerationRun",
+        verb: "regenerate_corpus",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "report_comments",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "check_comments",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "fix_comments",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "write_comment_baseline",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "check_comments_unchanged",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments_rust",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "report_rust_comments",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments_rust",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "check_rust_comments",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "standardize_comments_rust",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "fix_rust_comments",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "canonicalise",
+        section: "Codebase",
+        aggregate: "StyleRun",
+        verb: "canonicalise",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "codemod_hoist_local_givens",
+        section: "Codebase",
+        aggregate: "CodemodRun",
+        verb: "hoist_local_givens",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "codemod_implicit_append_fields",
+        section: "Codebase",
+        aggregate: "CodemodRun",
+        verb: "drop_implicit_append_fields",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "codemod_move_former_name",
+        section: "Codebase",
+        aggregate: "CodemodRun",
+        verb: "move_former_name",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rspec_shard_files",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "shard_specs",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rspec_io_parallel_files",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "list_io_parallel_specs",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "rspec_io_parallel_files",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "write_io_parallel_spec_list",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "spec_example",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "run_spec_example",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "stress_concurrency_specs",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "stress_concurrency",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "regenerate_persistence_legacy_fixtures",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "regenerate_legacy_fixtures",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "seed_semantics_corpus",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "seed_semantics_corpus",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "pattern-cases",
+        section: "Codebase",
+        aggregate: "TestSuiteRun",
+        verb: "record_pattern_cases",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "corpus",
+        section: "Codebase",
+        aggregate: "CorpusRun",
+        verb: "rust_domains",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "corpus",
+        section: "Codebase",
+        aggregate: "CorpusRun",
+        verb: "regen_order",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "corpus",
+        section: "Codebase",
+        aggregate: "CorpusRun",
+        verb: "corpus_rust_coverage",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "query_ir",
+        section: "Codebase",
+        aggregate: "CorpusRun",
+        verb: "ir_constructs",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "query_ir",
+        section: "Codebase",
+        aggregate: "CorpusRun",
+        verb: "ir_duplicates",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "query_ir",
+        section: "Codebase",
+        aggregate: "CorpusRun",
+        verb: "ir_impact",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "hecks_query_ir_mcp",
+        section: "Codebase",
+        aggregate: "Server",
+        verb: "serve_query_ir_mcp",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "present",
+        section: "Codebase",
+        aggregate: "Server",
+        verb: "present",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "release",
+        section: "Codebase",
+        aggregate: "PublishingRun",
+        verb: "publish",
+        passes: "",
+        note: "without --confirm, the old --dry-run",
+        form: "",
+    },
+    RetiredScript {
+        script: "release_gem",
+        section: "Codebase",
+        aggregate: "PublishingRun",
+        verb: "publish_gem",
+        passes: "",
+        note: "",
+        form: "",
+    },
+    RetiredScript {
+        script: "(new)",
+        section: "Codebase",
+        aggregate: "GateRun",
+        verb: "gate",
+        passes: "",
+        note: "",
+        form: "",
+    },
 ];
 
 impl RetiredScript {
@@ -6412,25 +6935,6 @@ impl RetiredScript {
                     "release",
                     "release_gem",
                     "(new)",
-                    "qa_tick",
-                    "qa_sweep",
-                    "qa_sweep",
-                    "qa_pr_check",
-                    "qa_open_pr",
-                    "qa_open_pr",
-                    "qa_log_bug",
-                    "qa_seed_angles",
-                    "qa_seed_targets",
-                    "qa_generated_domains",
-                    "qa_mine_combinations",
-                    "(new)",
-                    "qa_domain_novelty",
-                    "qa_discover_external_domains",
-                    "qa_postgres_migrate",
-                    "qa_postgres_role",
-                    "qa_main_gate",
-                    "qa_fix_main_bug",
-                    "qa_concurrency_racer",
                 ],
                 offered: offered.as_str(),
             }

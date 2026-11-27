@@ -8,7 +8,7 @@ module Hecks
   module Adapters
     module Codebase
       # What Codebase's `RegenerationRun` asks of the working tree: regenerating every corpus
-      # domain's committed Rust output, and projecting the CI path gates into the workflows.
+      # domain's committed Rust output, and projecting the tools doc and the glossaries.
       #
       # It runs `Hecks::Tools::RegenerationRun` in this process: the run forks once for each
       # domain, a few at a time (`workers`, one per core unless told), and prints their output in
@@ -19,9 +19,7 @@ module Hecks
       # writes only when it is confirmed.
       module Regeneration
         # Every operation this family carries out.
-        OPERATIONS = %w[regenerate_corpus project_ci_gates project_ci_pipeline project_lanes project_agent_roles
-                        project_tools_doc
-                        project_glossary decide_ci_gate].freeze
+        OPERATIONS = %w[regenerate_corpus project_tools_doc project_glossary].freeze
 
         # How many lines of a script's output a refusal keeps.
         KEPT_LINES = 60
@@ -33,7 +31,7 @@ module Hecks
 
         # Carries out the regeneration.
         #
-        # @param operation [String] `regenerate_corpus` or `project_ci_gates`
+        # @param operation [String] one of {OPERATIONS}
         # @param held [Hash] the `RegenerationRun` record's fields: `check`, `confirm`
         # @param tree [Tree] the working tree, already known to be a hecks checkout
         # @param shell [#capture, nil] unused: the tool runs in this process
@@ -49,12 +47,8 @@ module Hecks
         # @return [String] what the operation's tool printed, or the corpus verdict
         def project(operation, held, tree, child, check)
           case operation
-          when "project_ci_gates" then project_ci_gates(child, check)
-          when "project_ci_pipeline" then project_ci_pipeline(child, check)
-          when "project_lanes" then project_lanes(child, check, set?(held, :live), set?(held, :confirm))
-          when "project_tools_doc", "project_agent_roles" then project_written_files(operation, child, check)
+          when "project_tools_doc" then project_written_files(operation, child, check)
           when "project_glossary" then project_glossary(child, held, check)
-          when "decide_ci_gate" then decide_ci_gate(child, held)
           else regenerate_remembered(child, tree, held, check)
           end
         end
@@ -113,42 +107,10 @@ module Hecks
           summary(result.out, check)
         end
 
-        # @param child [RubyChild] the checkout's tool runner
-        # @param check [Boolean] whether to only compare
-        # @return [String] what the tool printed
-        # @raise [ConsoleCapture::Failure] with the stale workflows, when a check finds drift
-        def project_ci_gates(child, check)
-          child.answer("project_ci_gates", *("--check" if check))
-        end
-
-        # @param child [RubyChild] the checkout's tool runner
-        # @param check [Boolean] whether to only compare
-        # @return [String] what the tool printed
-        # @raise [ConsoleCapture::Failure] with the stale workflows, when a check finds drift
-        def project_ci_pipeline(child, check)
-          child.answer("project_ci_pipeline", *("--check" if check))
-        end
-
-        # Projects the `Lane` rows, or with `live` compares GitHub's rulesets with them. Only a live
-        # run that is confirmed changes GitHub, so without `confirm` a live run is a comparison.
-        #
-        # @param child [RubyChild] the checkout's tool runner
-        # @param check [Boolean] whether to only compare the files
-        # @param live [Boolean] whether to compare, or with `confirm` update, GitHub's rulesets
-        # @param confirm [Boolean] whether a live run may change GitHub
-        # @return [String] what the tool printed
-        # @raise [ConsoleCapture::Failure] with the stale files or differing rulesets
-        def project_lanes(child, check, live, confirm)
-          return child.answer("project_lanes", "--live", *("--confirm" if confirm)) if live
-
-          child.answer("project_lanes", *("--check" if check))
-        end
-
         # Projects the `RetiredScript` rows into docs/tools.md and the module layout into the CLI
-        # guides' command sections, or the `RoleFile` rows into `.claude/agents`: tools that write
-        # files and with `check` only compare them.
+        # guides' command sections: a tool that writes files and with `check` only compares them.
         #
-        # @param operation [String] `project_tools_doc` or `project_agent_roles`
+        # @param operation [String] `project_tools_doc`
         # @param child [RubyChild] the checkout's tool runner
         # @param check [Boolean] whether to only compare
         # @return [String] what the tool printed
@@ -169,15 +131,6 @@ module Hecks
         # @param argument [Hash, Object] a record field, wrapped as `value:` or bare
         # @return [Object] the bare value
         def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
-
-        # @param child [RubyChild] the checkout's tool runner
-        # @param held [Hash] the record's fields: `gate`, a `CiGate` row's name
-        # @return [String] `touched=true` or `touched=false`
-        # @raise [ConsoleCapture::Failure] when no row has that name
-        def decide_ci_gate(child, held)
-          gate = held[:gate].is_a?(Hash) ? held[:gate][:value] : held[:gate]
-          child.answer("decide_ci_gate", "gate=#{gate}")
-        end
 
         # @param output [String] what the script printed
         # @param check [Boolean] whether it only compared

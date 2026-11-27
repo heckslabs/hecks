@@ -2,22 +2,8 @@
 # a start that would make one more is sent back to the plan, naming the cap, the count and the
 # holders. Without this line the cap is `Hecks::Adapters::WorkLimits::DEFAULT_CAP`, 8.
 #
-# `frozen_shapes` (not `freeze`, which every Ruby object already answers) names the areas and aggregates whose persisted shape may not move: a brief tells its session
-# to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
-# The Machine's load marks and `dispatch_max_load` are one number, below the CPU count (12 on the owner's
-# machine; 10.0 since 2026-11-11, which leaves about two cores for the desktop), so the Machine pausing the plan and the plan's own load check agree.
-# `cpu_budget` is the hours of launcher boots in a rolling 24 hours (the usage record's `boot_ms`,
-# from each run's start time; a run with no boot time adds nothing). It is a reading on the board and
-# holds nothing: a loop that boots the launcher over and over is stopped by `boot_storm` and `boot_share`.
-# `dispatch_max_load` is the load (the `load_average` average, 5 minutes) above which `Dispatch.Fill` starts no session (the CPU count
-# when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
-# policies run `Dispatch.Fill` on events that free capacity, and false pauses them and the beat; `Fill only=<key>` still starts one. `session_environment` is what every dispatched session starts with: a shared cargo
-# target directory and a `nice` increment. `session_grace` is how many seconds a started session is
-# given to appear in `claude agents` before a run whose session is not listed is retired as gone.
-#
-# `epic_wip_limit` is the most work items of one epic the dispatcher has started at once (2 when absent):
-# the next one waits, naming the epic, until one finishes. It is the dispatcher's own limit; a work item
-# started by hand is not held. Work items are picked from the epic with the lowest tier first.
+# `session_environment` is what every Rust build child starts with: a shared cargo target directory
+# and a `nice` increment (`Hecks::RustBuild::SessionBuild`).
 #
 # `rust_build` is how hard any Rust build hecks starts may work, in every checkout, the owner's too: `jobs` caps the
 # Cargo jobs at once (a third of the cores when absent) and `nice` is the increment. Builds also queue behind one
@@ -25,120 +11,23 @@
 #
 # `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
 # off: a run finding stays a work item and no GitHub call is made. `enabled: true` turns it back on.
-#
-# `machine_marks` also carries `nice_high` and `priority_low`: a Claude process niced to `nice_high` or more, or at priority
-# `priority_low` or less (4 is macOS's Background clamp, the efficiency cores only), is heard as niced.
-#
-# `machine_marks` are the marks the Machine's readings are judged against (Delegate `Machine`, read through
-# the `Sampling` port). Each state has two marks with a gap between them, so a gauge near one does not flap:
-# the load has risen at CPU idle `cpu_idle_low` percent or under (or at a load average over `load_high` with
-# the CPU under `cpu_idle_high` idle) and fallen at `cpu_idle_high` idle or over (or under `load_low` with the
-# CPU over `cpu_idle_low`); memory is low over `swap_used_mb` of swap or a compressor over `compressor_gb` while
-# free plus inactive memory is under `free_gb_low`, and recovered at `free_gb_recovered` or swap under `swap_recovered_mb`; the test lane is busy at
-# `lane_busy` waiting and idle at `lane_idle` or fewer; a reading is taken at most every `interval` seconds.
-# `load_low` and `load_high` are `dispatch_max_load` (10.0), so the load rises when the fill starts refusing
-# and falls when it would start again; `LoadFellBelow` is what runs the fill. The CPU idle marks are
-# deliberately neutralised (0 and 100) so the load average alone decides the load; only an idle reading
-# of exactly 0 or exactly 100 still overrides it. Keep the three numbers equal.
 Hecks.world "Tickets" do
-  machine_marks "Machine", load_low: 10.0, load_high: 10.0, cpu_idle_low: 0.0, cpu_idle_high: 100.0,
-                           swap_used_mb: 4096.0, swap_recovered_mb: 2048.0, compressor_gb: 12.0,
-                           free_gb_low: 3.0, free_gb_recovered: 6.0, lane_busy: 4.0, lane_idle: 1.0,
-                           interval: 60.0, nice_high: 15.0, priority_low: 4.0
   github_issues "GitHubIssues", enabled: false
   # `area_names` reads each word of a planned or rescoped work item's area against the checkout
   # (`Hecks::Adapters::AreaNames`); a planned item whose area names nothing is dropped by name.
   area_names "WorkAreas", checked: true
   # `urgent_reserve`: red-* items that may start past a full cap (1 when absent); one expedited item
-  # takes its own place outside the cap and the reserve (ADR 0224). The cap 7 and epic limit 4 are
-  # not yet measured: docs/findings/dispatch-limits-2026-11.md.
+  # takes its own place outside the cap and the reserve (ADR 0224).
   work_limit "WorkLimits", cap: 7, urgent_reserve: 1
-  # `work_cap` moves the cap with the machine (the Tune `WorkCap`) inside `least` and `most`
-  # while `moves` is true; `moves: false` gives the fixed `work_limit` cap back.
-  work_cap "WorkLimits", moves: true, least: 2, most: 10
-  # `integration_bound`: minutes a MainIntegration run may stand in one stage before it is parked.
-  # Tap, 24 runs: verifying 14 min median, 31.5 max; CI is read every 2. `merged` times like `ci_running`.
-  integration_bound "Integration", verifying: 60, boarding: 30, pushed: 45, ci_running: 90,
-                                   reverifying: 60, merged: 90
-  # `signalbox_pressure` (ADR 0222, phase 3b): while `drives` is true the load guards, the moving
-  # cap and the heavy-jobs gate read Signalbox's posted pressure signal instead of their own
-  # readings, each keeping its own while the signal is dark. Off until the owner turns it.
-  signalbox_pressure "Signalbox", drives: false
-  # `signalbox_response` is the switch on local response (ADR 0222 law 3): while `drives`, a heavy
-  # job answers the posted band by its session kind through Signalbox's Response table, and waits
-  # on memory as before while the signal is dark. Off until the owner turns it.
-  signalbox_response "Signalbox", drives: false
-  dispatch_max_load "Dispatch", limit: 10.0
-  # `load_average`: the 1, 5 or 15-minute figure every load reader takes (the fill, the expedite bar, the
-  # Machine's marks, the board). 5 is steadier than 1, so the same `dispatch_max_load` admits more: turn it
-  # down if the load runs over.
-  load_average "Dispatch", minutes: 5
-  # `roundhouse: true` moves every Delegate reader of load from `uptime` to Roundhouse's `Load`
-  # query (ADR 0222, metering); off, each Machine reading keeps it beside as `metered_load`.
-  # Memory stays judged on free plus inactive pages; at the turn the marks see one of each meter.
-  metering "Machine", roundhouse: false
-  # `admission.signalbox` (ADR 0222, phase 3): Signalbox admits each coder by headroom in place of
-  # `work_limit`, the moving `work_cap` and the red `urgent_reserve`. Off, the cap holds.
-  admission "Dispatch", signalbox: false
-  # `protection.signalbox` (ADR 0222, phase 3): the boot-budget hold is Signalbox's breakers in
-  # their declared order, so `cpu_budget` holds new coders only once the helpers are within their
-  # share. Off, the boot fuse holds as before.
-  protection "Dispatch", signalbox: false
-  # `reaping.signalbox` (ADR 0222, phase 3): a reap's plain sweep is Signalbox's, ruled on each
-  # finished, stale and copy subject of Roundhouse's meter, and refused from a stale copy. The Hecks
-  # world's `reaping` line keeps the windows the old sweep reads. Off, the plain sweep reaps.
-  reaping "Sessions", signalbox: false
-  epic_wip_limit "Dispatch", limit: 4
-  # `work_group_cap` is the most work items one batch holds, its lead included, when a fill hands a
-  # group to one coder (`only=group:<path>`), so one session stays reviewable; the rest of the group
-  # waits for the next batch. The batch is one session, so it takes one place under `work_limit`.
-  work_group_cap "Dispatch", cap: 6
-  # `boot_storm`: a caller over `boots` boots in `minutes` has its own run held. `boot_share`: boots
-  # over `percent` of the CPU in `minutes`, at a load over its high mark, hold every start.
-  # `cpu_budget` is the day's hours, a reading only.
-  boot_storm "Dispatch", boots: 30, minutes: 5
-  boot_share "Dispatch", percent: 25.0, minutes: 15
-  cpu_budget "Dispatch", boot_hours_per_day: 6.0
-  # `load_shed` bounds the Delegate `Shed`: a rise of the load asks one started item to yield.
-  # `min_coders` 2: asking the only coder frees the machine for no other work. `at_once` 1: a
-  # rise while an asked run is still committing asks no more, so a slow yield empties nothing.
-  load_shed "Dispatch", min_coders: 2, at_once: 1
-  dispatch_roll_forward "Dispatch", roll_forward: false
-  frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 5
-  session_grace "Sessions", seconds: 120
-  # `run_gone_after`: minutes a started run may show no process, commit or changed file before it is
-  # gone, when `claude` cannot list sessions. `claude_executable`: where `claude` is when PATH lacks it.
-  run_gone_after "Dispatch", minutes: 60
-  # `stopped_session_after`: minutes a session `claude` lists as stopped may stand over a started run
-  # that shows no process, commit or changed file before the run is gone. A working or waiting
-  # session is never gone.
-  stopped_session_after "Dispatch", minutes: 60
-  claude_executable "Sessions", candidates: %w[~/.local/bin/claude ~/.claude/local/claude /opt/homebrew/bin/claude /usr/local/bin/claude]
-  # `ticks`: each waiting train pull request is ticked by a fresh launcher process every `seconds`
-  # for `minutes`. Measured 2026-11-14: 112 boots an hour (40 CPU-minutes) at 20 s; at 90 s the boots
-  # fall about four times and a merge is noticed 90 s late at most. The beat limit is 20.
-  ticks "Ticker", seconds: 90, minutes: 30
-  # `idles`: while a roll left planned work held back (boot budget, load, a pause) and nothing else
-  # moves, one launcher boot every `seconds` rolls the queue, backing off along `steps`, for `minutes`.
-  idles "Idler", seconds: 300, minutes: 120
   rust_build "RustBuild", jobs: 4, nice: 15
-  # `verifies`, read once the shallow check is off: `impacted` (quick gate, impacted specs, a search for
-  # the first bad merge), `quick` (quick gate only, no search, no marker) or `off` (nothing runs here).
-  # `quick` and `off` start no red episode (`MainIntegration::LocalMode`).
-  main_verification "MainVerification", workers: 2, nice: 10, verifies: "impacted"
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
   # the machine, in every checkout: the next one waits, saying so and in its report, until one ends
   # (`Codebase::HeavySlots`; the Rust build lock above already holds compiles to one at a time).
-  # Measured 2026-11-15: three gates beside four coders and the desktop held the load at 14 to 20
-  # on 12 cores against the `dispatch_max_load` of 10.0, and two still reached 22 beside a boarding
-  # gate; a gate takes 3 to 5 minutes alone, so one at a time costs little and holds the limit.
-  # Before it takes a place, a heavy job waits while memory is low by the `machine_marks` above
-  # (swap or compressor over its mark while free memory is short, until it is not), reading the machine
-  # every `memory_poll_seconds` (`Codebase::MemoryWait`); seen 2026-11-13 at 33 of 36 GB used.
-  heavy_jobs "HeavyJobs", cap: 1, memory_poll_seconds: 10.0, memory_give_up_seconds: 120.0
+  # A gate takes 3 to 5 minutes alone, so one at a time costs little.
+  heavy_jobs "HeavyJobs", cap: 1
   # `heavy_commands` names the heavy commands by verb and the job each takes a place as; one not named
-  # (`EarlyCi.request!`, a wait on a remote run) takes none (`Codebase::HeavySlots.command`).
+  # takes none (`Codebase::HeavySlots.command`).
   heavy_commands "HeavyCommands", run_behaviors: "behaviors"
   # `spec_workers` is the most workers one parallel spec run starts (a bare `rspec`, the gate's
   # parallel suite), never more than the cores: seen 2026-11-13, one run of 12 workers on 12 cores
@@ -148,8 +37,8 @@ Hecks.world "Tickets" do
   # AWS account). They run only when `HECKS_LIVE_SERVICES` names the tag, under every filter
   # (spec/support/live_services.rb), and a verification never hands that variable to its checks.
   live_services "Specs", tags: ["cloudfront"]
-  # `spec_bounds`: seconds a spec file, a check and a landing's impacted specs may take;
-  # `impacted_workers` caps those specs run at once, held to the room under `dispatch_max_load`.
+  # `spec_bounds`: seconds a spec file, a check and a change's impacted specs may take;
+  # `impacted_workers` caps those specs run at once.
   spec_bounds "Specs", file_seconds: 600, check_seconds: 2400, impacted_seconds: 600, impacted_workers: 4
   # `triggered_specs`: a change to `paths` runs `specs`; `always` runs for any change outside `docs/`,
   # ahead of the limit, the 1 to 3 s specs that broke trains #1507, #1511, #1516 and #1523 (about
@@ -161,12 +50,6 @@ Hecks.world "Tickets" do
                                     "spec/resident_persistence_guard_spec.rb",
                                     "spec/adapters/driven/journal_store/mint_plan_spec.rb",
                                     "spec/adapters/driven/journal_store/mint_plan_agreement_spec.rb"]
-  # `ledger_care`: a beat compacts the AgentRun journal once `entries` are compactable, waiting
-  # at most `wait_seconds` for the file's lock and deferring by name when another holds it. A beat
-  # also purges the outbox rows delivered more than `outbox_hours` ago.
-  ledger_care "LedgerCare", entries: 20_000, wait_seconds: 3, outbox_hours: 1
-  # `catcher_care`: a beat asks the Catcher to drain and detect once its file has stood `minutes` untouched.
-  catcher_care "CatcherCare", minutes: 30
   # The decision records' files (Tickets::Adr), relative to the checkout; `None` leaves the Adr
   # store a plain Memory one, as the memory overlay does for specs. Binding Adr makes the wiring
   # explicit, so the other aggregates take this default where no attaching domain hands one down.

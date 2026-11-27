@@ -22,7 +22,7 @@ module Hecks
       DOCUMENT = "docs/tools.md"
 
       # The sections of the document, in the order it lists them.
-      SECTIONS = %w[Custodian Deploy Site Codebase QualityControl].freeze
+      SECTIONS = %w[Custodian Deploy Site Codebase].freeze
 
       # The first line of a table, and the line that closes it.
       HEADER = "| launcher | replaces |\n|---|---|"
