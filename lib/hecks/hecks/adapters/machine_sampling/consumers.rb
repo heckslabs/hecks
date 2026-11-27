@@ -25,12 +25,12 @@ module Hecks
         private
 
         def row(purpose, group)
-          { purpose: purpose, cpu: group.sum(&:cpu).round(1), top: program(group.max_by(&:cpu)) }
+          { purpose: purpose, cpu: group.sum(&:cpu).round(1), top: program(group.max_by(&:cpu).command) }
         end
 
-        # The program's name of a process: its command's first word without its directory.
-        def program(entry)
-          first = entry.command.split.first
+        # The program's name of a command line: its first word without its directory.
+        def program(command)
+          first = command.split.first
           File.basename(first.to_s)
         end
       end
