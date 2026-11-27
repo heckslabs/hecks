@@ -209,7 +209,7 @@ RSpec.describe "client launcher smoke" do
     end
 
     it "says what a command wants and how it refuses", :aggregate_failures do
-      expect(results[:verb_help][:out]).to include("dispatches Pizzas::Order.CreatePizza", "name.value")
+      expect(results[:verb_help][:out]).to include("dispatches Pizzas::Order.CreatePizza", "name=…")
       expect(results[:refusal_help][:out]).to include("refused when:", "the payment covers the price")
       expect(results[:refusal_help][:status]).to eq(0)
     end

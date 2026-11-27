@@ -74,7 +74,7 @@ RSpec.describe "the QualityControl tool queries" do
     out, status = launch("quality_control", "ask", "sweep.run", "--help")
 
     expect(status).to eq(0)
-    expect(out).to include("reads QualityControl::Sweep.Run", "arguments.value")
+    expect(out).to include("reads QualityControl::Sweep.Run", "arguments=…")
   end
 
   describe Hecks::Adapters::QaTool do
