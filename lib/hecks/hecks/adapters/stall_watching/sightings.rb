@@ -152,15 +152,16 @@ module Hecks
           stall = key(kind, subject)
           { id: run, stall: stall, stall_kind: kind[:kind], subject: subject, opened_at: at.to_s, waited: waited,
             minutes: kind[:minutes], forgets: kind[:forgets], fixer: kind[:fixer], title: title(kind, subject),
-            detail: detail(kind, subject, at, waited), filed: "", count: 1, impediment: stall, cleared_by: Clearing.of(kind) }
+            detail: detail(kind, subject, at, waited, stall), filed: "", count: 1, impediment: stall,
+            cleared_by: Clearing.of(kind) }
         end
 
         def title(kind, subject) = "#{kind[:kind]} stalled: #{kind[:aggregate]} #{subject}"
 
-        def detail(kind, subject, at, waited)
+        def detail(kind, subject, at, waited, stall)
           "#{kind[:aggregate]} #{subject} recorded #{kind[:opens]} at #{at} and no #{kind[:closes]} after " \
             "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. " \
-            "#{unnamed(kind, subject)}#{seen(kind, waited)}#{move(kind)}"
+            "#{unnamed(kind, subject)}#{seen(kind, waited)}#{move(kind, stall)}"
         end
 
         # The label of a run the tap ties to no work item, so a run nobody named is seen as one.
@@ -176,8 +177,9 @@ module Hecks
           line ? "#{line}. " : ""
         end
 
-        # The kind's move, and the standing rule that no move stops a session.
-        def move(kind) = "Move: #{kind[:move]} Never stop or kill a session."
+        # The kind's move, then the command that reads the stall's row and the rule that no move
+        # stops a session ({Key.reading}).
+        def move(kind, stall) = "Move: #{kind[:move]} #{Key.reading(stall)}"
       end
     end
   end

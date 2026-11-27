@@ -22,7 +22,7 @@ module Hecks
           { id: run, stall: stall, stall_kind: signal[:kind], subject: subject, opened_at: at.utc.iso8601,
             waited: [(now - at.to_i) / 60, 0].max, minutes: 0, forgets: 0, fixer: signal[:fixer],
             title: "#{signal[:kind]}: #{subject}", detail: "#{detail} Fixer: #{signal[:fixer]}. " \
-                                                           "Move: #{signal[:move]} Never stop or kill a session.",
+                                                           "Move: #{signal[:move]} #{Key.reading(stall)}",
             filed: "", count: 1, impediment: stall, cleared_by: Clearing.of(signal) }
         end
       end
