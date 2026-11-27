@@ -1,9 +1,14 @@
+require_relative "judging_caller"
+
 module Hecks
   module Bluebook
     module MetaValidator
       # Judges a built .world against the language that describes worlds,
       # normalizing its settings into one Wiring per verb, one Setting per value.
       class WorldJudge
+        # The role the judge dispatches as: every role-gated command of its language declares it.
+        ROLE = JudgingCaller::DEPLOYMENT
+
         attr_reader :refusals
 
         def initialize(world)

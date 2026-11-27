@@ -2,6 +2,7 @@ require "digest"
 require "json"
 require_relative "meta_validator/verdict_cache"
 require_relative "meta_validator/modes"
+require_relative "meta_validator/judging_caller"
 require_relative "../closed_form"
 
 module Hecks
@@ -96,7 +97,8 @@ module Hecks
       end
 
       # The one entry point every artifact but a bluebook goes through: skip while judging is off,
-      # else judge once per distinct `key_text` and refuse a malformed artifact.
+      # else judge once per distinct `key_text`, as the role the judge's language declares
+      # (`judge::ROLE`), and refuse a malformed artifact.
       #
       # @param subject [Object] the artifact to judge
       # @param judge [Class] the judge to build over `subject`; it answers `refusals`
@@ -108,7 +110,7 @@ module Hecks
         return subject if disabled? || bootstrapping? || shadow_parsing?
 
         key = Digest::SHA256.hexdigest(yield)
-        refusals = verdicts[key] ||= judge.new(subject).refusals
+        refusals = verdicts[key] ||= JudgingCaller.as(judge::ROLE) { judge.new(subject).refusals }
         return subject if refusals.empty?
 
         raise DSL::Malformed, "#{label} is not well formed; #{refusals.join("; ")}"
@@ -156,8 +158,8 @@ module Hecks
 
       # Dispatches `bluebook` into the meta-domain and reads the result back.
       # A refused bluebook carries only its refusals — the records are
-      # half-written by definition. The judge is the process reading its own
-      # language, so it dispatches with no caller bound, whoever loaded the bluebook.
+      # half-written by definition. The judge states the `Language` role every
+      # command of bluebook.bluebook declares (`JudgingCaller`), whoever loaded the bluebook.
       #
       # @param bluebook [Object] a built bluebook graph, as `call`
       #   receives it
@@ -166,23 +168,24 @@ module Hecks
       #   declaration: Hash}`, the assembled graph `Reconstruction.of` reads
       #   back from the judged records
       def self.hold(bluebook)
-        judge = Runtime::Caller.without { Judge.new(bluebook) }
+        judge = JudgingCaller.as(Judge::ROLE) { Judge.new(bluebook) }
         return { refusals: judge.refusals } unless judge.refusals.empty?
 
         { refusals: [], declaration: Reconstruction.of(judge.runtime, bluebook.hecks_name) }
       end
 
       # The booted, self-judged language registry every ordinary bluebook is
-      # judged against — built once per process and memoized, with shadow parsing off and no
-      # ambient caller bound. A caller inside `while_shadow_parsing` that is first to ask would
-      # otherwise memoize a grammar parsed in that mode, or fail to load it; one inside
-      # `Hecks.as_caller` would have the language's own `Language`-role commands refused, and the
-      # grammar would be memoized without the bluebooks those refusals dropped.
+      # judged against — built once per process and memoized, with shadow parsing off and as the
+      # `Language` role (`JudgingCaller`). A caller inside `while_shadow_parsing` that is first to
+      # ask would otherwise memoize a grammar parsed in that mode, or fail to load it; one inside
+      # `Hecks.as_caller`, or a caller who stated no role, would have the language's own
+      # `Language`-role commands refused, and the grammar would be memoized without the bluebooks
+      # those refusals dropped.
       #
       # @return [Runtime::Registry] the booted, fixpoint-judged language
       #   registry
       def self.grammar_registry
-        @grammar_registry ||= while_not_shadow_parsing { Runtime::Caller.without { build_grammar_registry } }
+        @grammar_registry ||= while_not_shadow_parsing { JudgingCaller.as_language { build_grammar_registry } }
       end
 
       # The one-time build behind `grammar_registry`.

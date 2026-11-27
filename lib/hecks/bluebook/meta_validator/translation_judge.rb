@@ -1,3 +1,4 @@
+require_relative "judging_caller"
 require_relative "translation_judge/rules"
 
 module Hecks
@@ -6,6 +7,9 @@ module Hecks
       # Offers a built translation (a `translations/*.bluebook` edge) to the language that
       # describes translations. Field names follow the `Translation` structs, not the DSL builder.
       class TranslationJudge
+        # The role the judge dispatches as: every role-gated command of its language declares it.
+        ROLE = JudgingCaller::DEPLOYMENT
+
         include Rules
 
         # The rule lists an aggregate carries, in the order they are offered to the language.

@@ -1,3 +1,4 @@
+require_relative "judging_caller"
 require_relative "judge/identity"
 require_relative "judge/dispatching"
 require_relative "judge/walking"
@@ -24,6 +25,10 @@ module Hecks
         # since the plan derives a category's parent from its creating
         # command's one `*_id` argument and cannot express a second parent.
         WITHIN_ENTITY = %w[Command Query].freeze
+
+        # The role the judge dispatches as: every role-gated command of bluebook.bluebook
+        # declares it.
+        ROLE = JudgingCaller::LANGUAGE
 
         # Where a node sits among siblings is a fact about the walk, not
         # the node, so the walk supplies it rather than reading a stored
