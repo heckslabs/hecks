@@ -461,11 +461,13 @@ pub fn dispatch_pin(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Card {
-                        board: Some(args.board.clone()),
-                        reference: Some(args.reference.clone()),
-                        position: Some(args.position.clone()),
-                        status: "open".to_string(),
+                    build: Box::new(|| {
+                        Ok(Card {
+                            board: Some(args.board.clone()),
+                            reference: Some(args.reference.clone()),
+                            position: Some(args.position.clone()),
+                            status: "open".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -474,11 +476,13 @@ pub fn dispatch_pin(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Card {
-                        board: Some(args.board.clone()),
-                        reference: Some(args.reference.clone()),
-                        position: Some(args.position.clone()),
-                        status: "open".to_string(),
+                    build: Box::new(|| {
+                        Ok(Card {
+                            board: Some(args.board.clone()),
+                            reference: Some(args.reference.clone()),
+                            position: Some(args.position.clone()),
+                            status: "open".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

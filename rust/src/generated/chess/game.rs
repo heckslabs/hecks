@@ -2079,13 +2079,15 @@ pub fn dispatch_start(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Game {
-                        label: Some(args.label.clone()),
-                        turn: None,
-                        draw_offer: None,
-                        ply: None,
-                        pieces: vec![],
-                        status: "in_progress".to_string(),
+                    build: Box::new(|| {
+                        Ok(Game {
+                            label: Some(args.label.clone()),
+                            turn: None,
+                            draw_offer: None,
+                            ply: None,
+                            pieces: vec![],
+                            status: "in_progress".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2094,13 +2096,15 @@ pub fn dispatch_start(
                 let __hydrate_id: String = args.label.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Game {
-                        label: Some(args.label.clone()),
-                        turn: None,
-                        draw_offer: None,
-                        ply: None,
-                        pieces: vec![],
-                        status: "in_progress".to_string(),
+                    build: Box::new(|| {
+                        Ok(Game {
+                            label: Some(args.label.clone()),
+                            turn: None,
+                            draw_offer: None,
+                            ply: None,
+                            pieces: vec![],
+                            status: "in_progress".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

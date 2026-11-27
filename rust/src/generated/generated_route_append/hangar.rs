@@ -600,8 +600,10 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Hangar {
-                        code: Some(args.code.clone()),
+                    build: Box::new(|| {
+                        Ok(Hangar {
+                            code: Some(args.code.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -610,8 +612,10 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.code.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Hangar {
-                        code: Some(args.code.clone()),
+                    build: Box::new(|| {
+                        Ok(Hangar {
+                            code: Some(args.code.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

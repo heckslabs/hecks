@@ -831,16 +831,18 @@ pub fn dispatch_authorize(
                 let __hydrate_id: String = args.authorisation.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| CardPayment {
-                        account: Some(args.account.clone()),
-                        disputed_by: None,
-                        authorisation: Some(args.authorisation.clone()),
-                        amount: Some(args.amount.clone()),
-                        merchant: Some(args.merchant.clone()),
-                        tags: args.tags.clone(),
-                        account_status: None,
-                        account_customer_status: None,
-                        status: "authorized".to_string(),
+                    build: Box::new(|| {
+                        Ok(CardPayment {
+                            account: Some(args.account.clone()),
+                            disputed_by: None,
+                            authorisation: Some(args.authorisation.clone()),
+                            amount: Some(args.amount.clone()),
+                            merchant: Some(args.merchant.clone()),
+                            tags: args.tags.clone(),
+                            account_status: None,
+                            account_customer_status: None,
+                            status: "authorized".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

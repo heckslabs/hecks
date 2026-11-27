@@ -774,7 +774,7 @@ impl AskArgument {
 pub struct AskOption {
     pub option: String,
     pub key: String,
-    pub value: Option<String>,
+    pub value: String,
     pub at: Option<String>,
 }
 
@@ -785,11 +785,7 @@ impl crate::kernel::Fielded for AskOption {
         match name {
             "option" => Some(Field::Value(Value::Str(self.option.clone()))),
             "key" => Some(Field::Value(Value::Str(self.key.clone()))),
-            "value" => self
-                .value
-                .as_ref()
-                .map(|v| Field::Value(Value::Str(v.clone())))
-                .or(Some(Field::Value(Value::Nil))),
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
             "at" => self
                 .at
                 .as_ref()
@@ -831,9 +827,7 @@ impl AskOption {
             ),
             (
                 "value".to_string(),
-                self.value.as_ref().map_or(crate::kernel::Json::Null, |v| {
-                    crate::kernel::Json::Str(v.clone())
-                }),
+                crate::kernel::Json::Str(self.value.clone()),
             ),
             (
                 "at".to_string(),
@@ -892,14 +886,18 @@ impl AskOption {
                     ))
                 })?
             },
-            value: match v.get("value") {
-                Some(crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "AskOption.value expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "AskOption.value expects String, got {}",
                         x.describe()
                     ))
-                })?),
+                })?
             },
             at: match v.get("at") {
                 Some(crate::kernel::Json::Null) | None => None,
@@ -2367,20 +2365,22 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Query {
-                        aggregate: Some(args.aggregate.clone()),
-                        entity_id: args.entity_id.clone(),
-                        name: Some(args.name.clone()),
-                        description: args.description.clone(),
-                        order_field: args.order_field.clone(),
-                        order_way: args.order_way.clone(),
-                        limit: args.limit.clone(),
-                        returns: args.returns.clone(),
-                        wheres: vec![],
-                        attributes: vec![],
-                        needs: vec![],
-                        options: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Query {
+                            aggregate: Some(args.aggregate.clone()),
+                            entity_id: args.entity_id.clone(),
+                            name: Some(args.name.clone()),
+                            description: args.description.clone(),
+                            order_field: args.order_field.clone(),
+                            order_way: args.order_way.clone(),
+                            limit: args.limit.clone(),
+                            returns: args.returns.clone(),
+                            wheres: vec![],
+                            attributes: vec![],
+                            needs: vec![],
+                            options: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2389,20 +2389,22 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", owner_id, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Query {
-                        aggregate: Some(args.aggregate.clone()),
-                        entity_id: args.entity_id.clone(),
-                        name: Some(args.name.clone()),
-                        description: args.description.clone(),
-                        order_field: args.order_field.clone(),
-                        order_way: args.order_way.clone(),
-                        limit: args.limit.clone(),
-                        returns: args.returns.clone(),
-                        wheres: vec![],
-                        attributes: vec![],
-                        needs: vec![],
-                        options: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Query {
+                            aggregate: Some(args.aggregate.clone()),
+                            entity_id: args.entity_id.clone(),
+                            name: Some(args.name.clone()),
+                            description: args.description.clone(),
+                            order_field: args.order_field.clone(),
+                            order_way: args.order_way.clone(),
+                            limit: args.limit.clone(),
+                            returns: args.returns.clone(),
+                            wheres: vec![],
+                            attributes: vec![],
+                            needs: vec![],
+                            options: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2792,7 +2794,9 @@ pub struct FilterArgs {
 
 pub fn dispatch_filter(
     repo: &mut impl crate::kernel::Repository<Query>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: FilterArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -2845,7 +2849,40 @@ pub fn dispatch_filter(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Query {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(QueryName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            order_field: None,
+                            order_way: None,
+                            limit: None,
+                            returns: None,
+                            wheres: vec![],
+                            attributes: vec![],
+                            needs: vec![],
+                            options: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Filter",
         "Bluebook::Query",
         "Query",
@@ -3091,7 +3128,9 @@ pub struct OptionArgs {
 
 pub fn dispatch_option(
     repo: &mut impl crate::kernel::Repository<Query>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: OptionArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3116,7 +3155,40 @@ pub fn dispatch_option(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Query {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(QueryName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            order_field: None,
+                            order_way: None,
+                            limit: None,
+                            returns: None,
+                            wheres: vec![],
+                            attributes: vec![],
+                            needs: vec![],
+                            options: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Option",
         "Bluebook::Query",
         "Query",
@@ -3134,7 +3206,17 @@ pub fn dispatch_option(
             record.options.push(AskOption {
                 option: args.option.value.clone(),
                 key: args.key.value.clone(),
-                value: args.value.clone().map(|v| v.value.clone()),
+                value: args.value.clone().map(|v| v.value.clone()).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                            r#type: "AskOption",
+                            field: "value",
+                            expected: "String",
+                            offered: "nil",
+                        }
+                        .render_args(),
+                    )
+                })?,
                 at: args.at.clone().map(|v| v.value.clone()),
             });
             Ok(())
@@ -3340,7 +3422,9 @@ pub struct NeedArgs {
 
 pub fn dispatch_need(
     repo: &mut impl crate::kernel::Repository<Query>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: NeedArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3358,7 +3442,40 @@ pub fn dispatch_need(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Query {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(QueryName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            order_field: None,
+                            order_way: None,
+                            limit: None,
+                            returns: None,
+                            wheres: vec![],
+                            attributes: vec![],
+                            needs: vec![],
+                            options: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Need",
         "Bluebook::Query",
         "Query",
@@ -3567,7 +3684,9 @@ pub struct ArgumentArgs {
 
 pub fn dispatch_argument(
     repo: &mut impl crate::kernel::Repository<Query>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: ArgumentArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3602,7 +3721,42 @@ pub fn dispatch_argument(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = QueryName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Query {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(__created_name),
+                            description: None,
+                            order_field: None,
+                            order_way: None,
+                            limit: None,
+                            returns: None,
+                            wheres: vec![],
+                            attributes: vec![],
+                            needs: vec![],
+                            options: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Argument",
         "Bluebook::Query",
         "Query",

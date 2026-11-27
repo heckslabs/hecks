@@ -556,10 +556,12 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = args.agg.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| CollectionRules {
-                        agg: Some(args.agg.clone()),
-                        preconditions: vec![],
-                        field_formats: vec![],
+                    build: Box::new(|| {
+                        Ok(CollectionRules {
+                            agg: Some(args.agg.clone()),
+                            preconditions: vec![],
+                            field_formats: vec![],
+                        })
                     }),
                     state_independent: false,
                 }

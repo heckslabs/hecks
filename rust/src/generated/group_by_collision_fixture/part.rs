@@ -433,9 +433,11 @@ pub fn dispatch_stock(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Part {
-                        r#ref: Some(args.r#ref.clone()),
-                        bin: Some(args.bin.clone()),
+                    build: Box::new(|| {
+                        Ok(Part {
+                            r#ref: Some(args.r#ref.clone()),
+                            bin: Some(args.bin.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -444,9 +446,11 @@ pub fn dispatch_stock(
                 let __hydrate_id: String = args.r#ref.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Part {
-                        r#ref: Some(args.r#ref.clone()),
-                        bin: Some(args.bin.clone()),
+                    build: Box::new(|| {
+                        Ok(Part {
+                            r#ref: Some(args.r#ref.clone()),
+                            bin: Some(args.bin.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

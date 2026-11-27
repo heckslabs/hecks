@@ -305,9 +305,11 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| AuditTrail {
-                        reference: Some(args.reference.clone()),
-                        status: "clean".to_string(),
+                    build: Box::new(|| {
+                        Ok(AuditTrail {
+                            reference: Some(args.reference.clone()),
+                            status: "clean".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

@@ -248,8 +248,10 @@ pub fn dispatch_start(
                 let __hydrate_id: String = args.tag.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Run {
-                        tag: Some(args.tag.clone()),
+                    build: Box::new(|| {
+                        Ok(Run {
+                            tag: Some(args.tag.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

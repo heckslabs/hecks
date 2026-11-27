@@ -588,13 +588,15 @@ pub fn dispatch_take(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Charge {
-                        r#ref: Some(args.r#ref.clone()),
-                        booking: Some(args.booking.clone()),
-                        charged: Some(args.charged.clone()),
-                        label: Some(args.label.clone()),
-                        refunded: Some(Amount { value: 0 }),
-                        refund_label: None,
+                    build: Box::new(|| {
+                        Ok(Charge {
+                            r#ref: Some(args.r#ref.clone()),
+                            booking: Some(args.booking.clone()),
+                            charged: Some(args.charged.clone()),
+                            label: Some(args.label.clone()),
+                            refunded: Some(Amount { value: 0 }),
+                            refund_label: None,
+                        })
                     }),
                     state_independent: true,
                 }
@@ -603,13 +605,15 @@ pub fn dispatch_take(
                 let __hydrate_id: String = args.r#ref.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Charge {
-                        r#ref: Some(args.r#ref.clone()),
-                        booking: Some(args.booking.clone()),
-                        charged: Some(args.charged.clone()),
-                        label: Some(args.label.clone()),
-                        refunded: Some(Amount { value: 0 }),
-                        refund_label: None,
+                    build: Box::new(|| {
+                        Ok(Charge {
+                            r#ref: Some(args.r#ref.clone()),
+                            booking: Some(args.booking.clone()),
+                            charged: Some(args.charged.clone()),
+                            label: Some(args.label.clone()),
+                            refunded: Some(Amount { value: 0 }),
+                            refund_label: None,
+                        })
                     }),
                     state_independent: true,
                 }

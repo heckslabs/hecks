@@ -436,7 +436,7 @@ impl Head {
 pub struct ProjectionOption {
     pub option: String,
     pub key: String,
-    pub value: Option<String>,
+    pub value: String,
     pub at: Option<String>,
 }
 
@@ -447,11 +447,7 @@ impl crate::kernel::Fielded for ProjectionOption {
         match name {
             "option" => Some(Field::Value(Value::Str(self.option.clone()))),
             "key" => Some(Field::Value(Value::Str(self.key.clone()))),
-            "value" => self
-                .value
-                .as_ref()
-                .map(|v| Field::Value(Value::Str(v.clone())))
-                .or(Some(Field::Value(Value::Nil))),
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
             "at" => self
                 .at
                 .as_ref()
@@ -493,9 +489,7 @@ impl ProjectionOption {
             ),
             (
                 "value".to_string(),
-                self.value.as_ref().map_or(crate::kernel::Json::Null, |v| {
-                    crate::kernel::Json::Str(v.clone())
-                }),
+                crate::kernel::Json::Str(self.value.clone()),
             ),
             (
                 "at".to_string(),
@@ -554,14 +548,18 @@ impl ProjectionOption {
                     ))
                 })?
             },
-            value: match v.get("value") {
-                Some(crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "ProjectionOption.value expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "ProjectionOption.value expects String, got {}",
                         x.describe()
                     ))
-                })?),
+                })?
             },
             at: match v.get("at") {
                 Some(crate::kernel::Json::Null) | None => None,
@@ -2397,27 +2395,29 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ReadModel {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        description: args.description.clone(),
-                        query_name: Some(args.query_name.clone()),
-                        reference_name: args.reference_name.clone(),
-                        reference_target: args.reference_target.clone(),
-                        aggregate_heads: vec![],
-                        options: vec![],
-                        group_by: vec![],
-                        count: None,
-                        median_field: None,
-                        sum_field: None,
-                        avg_field: None,
-                        min_field: None,
-                        max_field: None,
-                        percentile_field: None,
-                        percentile_at: None,
-                        any_field: None,
-                        all_field: None,
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            description: args.description.clone(),
+                            query_name: Some(args.query_name.clone()),
+                            reference_name: args.reference_name.clone(),
+                            reference_target: args.reference_target.clone(),
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2426,27 +2426,29 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", args.bluebook, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ReadModel {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        description: args.description.clone(),
-                        query_name: Some(args.query_name.clone()),
-                        reference_name: args.reference_name.clone(),
-                        reference_target: args.reference_target.clone(),
-                        aggregate_heads: vec![],
-                        options: vec![],
-                        group_by: vec![],
-                        count: None,
-                        median_field: None,
-                        sum_field: None,
-                        avg_field: None,
-                        min_field: None,
-                        max_field: None,
-                        percentile_field: None,
-                        percentile_at: None,
-                        any_field: None,
-                        all_field: None,
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            description: args.description.clone(),
+                            query_name: Some(args.query_name.clone()),
+                            reference_name: args.reference_name.clone(),
+                            reference_target: args.reference_target.clone(),
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2781,7 +2783,9 @@ pub struct GatherArgs {
 
 pub fn dispatch_gather(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: GatherArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -2801,7 +2805,47 @@ pub fn dispatch_gather(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Gather",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -3004,7 +3048,9 @@ pub struct GroupByArgs {
 
 pub fn dispatch_group_by(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: GroupByArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3022,7 +3068,47 @@ pub fn dispatch_group_by(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "GroupBy",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -3201,7 +3287,9 @@ pub struct CountArgs {
 
 pub fn dispatch_count(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: CountArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3221,7 +3309,47 @@ pub fn dispatch_count(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: args.count.clone(),
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Count",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -3358,7 +3486,9 @@ pub struct MedianArgs {
 
 pub fn dispatch_median(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: MedianArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3378,7 +3508,47 @@ pub fn dispatch_median(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: args.median_field.clone(),
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Median",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -3521,7 +3691,9 @@ pub struct SumArgs {
 
 pub fn dispatch_sum(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: SumArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3541,7 +3713,47 @@ pub fn dispatch_sum(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: args.sum_field.clone(),
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Sum",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -3684,7 +3896,9 @@ pub struct AvgArgs {
 
 pub fn dispatch_avg(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: AvgArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3704,7 +3918,47 @@ pub fn dispatch_avg(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: args.avg_field.clone(),
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Avg",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -3847,7 +4101,9 @@ pub struct MinArgs {
 
 pub fn dispatch_min(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: MinArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3867,7 +4123,47 @@ pub fn dispatch_min(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: args.min_field.clone(),
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Min",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -4010,7 +4306,9 @@ pub struct MaxArgs {
 
 pub fn dispatch_max(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: MaxArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4030,7 +4328,47 @@ pub fn dispatch_max(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: args.max_field.clone(),
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Max",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -4179,7 +4517,9 @@ pub struct PercentileArgs {
 
 pub fn dispatch_percentile(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: PercentileArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4202,7 +4542,47 @@ pub fn dispatch_percentile(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: args.percentile_field.clone(),
+                            percentile_at: args.percentile_at.clone(),
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Percentile",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -4376,7 +4756,9 @@ pub struct AnyArgs {
 
 pub fn dispatch_any(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: AnyArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4396,7 +4778,47 @@ pub fn dispatch_any(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: args.any_field.clone(),
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Any",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -4539,7 +4961,9 @@ pub struct AllArgs {
 
 pub fn dispatch_all(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: AllArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4559,7 +4983,47 @@ pub fn dispatch_all(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: args.all_field.clone(),
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "All",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -4712,7 +5176,9 @@ pub struct OptionArgs {
 
 pub fn dispatch_option(
     repo: &mut impl crate::kernel::Repository<ReadModel>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: OptionArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4737,7 +5203,47 @@ pub fn dispatch_option(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ReadModel {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(ReadModelName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            query_name: None,
+                            reference_name: None,
+                            reference_target: None,
+                            aggregate_heads: vec![],
+                            options: vec![],
+                            group_by: vec![],
+                            count: None,
+                            median_field: None,
+                            sum_field: None,
+                            avg_field: None,
+                            min_field: None,
+                            max_field: None,
+                            percentile_field: None,
+                            percentile_at: None,
+                            any_field: None,
+                            all_field: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Option",
         "Bluebook::ReadModel",
         "ReadModel",
@@ -4755,7 +5261,17 @@ pub fn dispatch_option(
             record.options.push(ProjectionOption {
                 option: args.option.value.clone(),
                 key: args.key.value.clone(),
-                value: args.value.clone().map(|v| v.value.clone()),
+                value: args.value.clone().map(|v| v.value.clone()).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                            r#type: "ProjectionOption",
+                            field: "value",
+                            expected: "String",
+                            offered: "nil",
+                        }
+                        .render_args(),
+                    )
+                })?,
                 at: args.at.clone().map(|v| v.value.clone()),
             });
             Ok(())

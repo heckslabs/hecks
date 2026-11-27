@@ -370,10 +370,12 @@ pub fn dispatch_track(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Refund {
-                        refund_id: Some(args.refund_id.clone()),
-                        registration_id: Some(args.registration_id.clone()),
-                        status: "tracking".to_string(),
+                    build: Box::new(|| {
+                        Ok(Refund {
+                            refund_id: Some(args.refund_id.clone()),
+                            registration_id: Some(args.registration_id.clone()),
+                            status: "tracking".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -382,10 +384,12 @@ pub fn dispatch_track(
                 let __hydrate_id: String = args.refund_id.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Refund {
-                        refund_id: Some(args.refund_id.clone()),
-                        registration_id: Some(args.registration_id.clone()),
-                        status: "tracking".to_string(),
+                    build: Box::new(|| {
+                        Ok(Refund {
+                            refund_id: Some(args.refund_id.clone()),
+                            registration_id: Some(args.registration_id.clone()),
+                            status: "tracking".to_string(),
+                        })
                     }),
                     state_independent: true,
                 }

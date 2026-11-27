@@ -1636,15 +1636,17 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Roster {
-                        name: Some(args.name.clone()),
-                        motto: None,
-                        mood: None,
-                        standing: None,
-                        last_marked: None,
-                        seats: vec![],
-                        crew: vec![],
-                        assignments: vec![],
+                    build: Box::new(|| {
+                        Ok(Roster {
+                            name: Some(args.name.clone()),
+                            motto: None,
+                            mood: None,
+                            standing: None,
+                            last_marked: None,
+                            seats: vec![],
+                            crew: vec![],
+                            assignments: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -1653,15 +1655,17 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Roster {
-                        name: Some(args.name.clone()),
-                        motto: None,
-                        mood: None,
-                        standing: None,
-                        last_marked: None,
-                        seats: vec![],
-                        crew: vec![],
-                        assignments: vec![],
+                    build: Box::new(|| {
+                        Ok(Roster {
+                            name: Some(args.name.clone()),
+                            motto: None,
+                            mood: None,
+                            standing: None,
+                            last_marked: None,
+                            seats: vec![],
+                            crew: vec![],
+                            assignments: vec![],
+                        })
                     }),
                     state_independent: true,
                 }

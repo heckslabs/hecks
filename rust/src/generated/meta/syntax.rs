@@ -2682,11 +2682,13 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Syntax {
-                        bluebook: Some(args.bluebook.value.clone()),
-                        name: Some(args.name.clone()),
-                        keywords: vec![],
-                        arguments: vec![],
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: Some(args.bluebook.value.clone()),
+                            name: Some(args.name.clone()),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2695,11 +2697,13 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Syntax {
-                        bluebook: Some(args.bluebook.value.clone()),
-                        name: Some(args.name.clone()),
-                        keywords: vec![],
-                        arguments: vec![],
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: Some(args.bluebook.value.clone()),
+                            name: Some(args.name.clone()),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2923,7 +2927,8 @@ pub struct KeywordArgs {
 
 pub fn dispatch_keyword(
     repo: &mut impl crate::kernel::Repository<Syntax>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: KeywordArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3062,7 +3067,31 @@ pub fn dispatch_keyword(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: None,
+                            name: Some(SyntaxName {
+                                value: name.to_string(),
+                            }),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Keyword",
         "Bluebook::Syntax",
         "Syntax",
@@ -3656,7 +3685,8 @@ pub struct ArgumentArgs {
 
 pub fn dispatch_argument(
     repo: &mut impl crate::kernel::Repository<Syntax>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: ArgumentArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3791,7 +3821,31 @@ pub fn dispatch_argument(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: None,
+                            name: Some(SyntaxName {
+                                value: name.to_string(),
+                            }),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Argument",
         "Bluebook::Syntax",
         "Syntax",

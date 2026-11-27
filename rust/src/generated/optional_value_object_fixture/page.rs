@@ -818,10 +818,12 @@ pub fn dispatch_write(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Page {
-                        key: Some(args.key.clone()),
-                        body: Some(args.body.clone()),
-                        draft_body: None,
+                    build: Box::new(|| {
+                        Ok(Page {
+                            key: Some(args.key.clone()),
+                            body: Some(args.body.clone()),
+                            draft_body: None,
+                        })
                     }),
                     state_independent: true,
                 }
@@ -830,10 +832,12 @@ pub fn dispatch_write(
                 let __hydrate_id: String = args.key.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Page {
-                        key: Some(args.key.clone()),
-                        body: Some(args.body.clone()),
-                        draft_body: None,
+                    build: Box::new(|| {
+                        Ok(Page {
+                            key: Some(args.key.clone()),
+                            body: Some(args.body.clone()),
+                            draft_body: None,
+                        })
                     }),
                     state_independent: true,
                 }
