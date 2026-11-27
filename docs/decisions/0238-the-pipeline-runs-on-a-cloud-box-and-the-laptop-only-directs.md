@@ -9,7 +9,8 @@ reaches beyond this laptop and this repo", and it orders that epic's items `a-sh
 [0202](0202-a-write-from-a-worktree-to-a-shared-ledger-runs-in-the-main-checkout.md),
 [0205](0205-the-pipeline-is-its-own-project-switchyard-on-a-pinned-hecks.md),
 [0213](0213-the-run-ledger-stays-on-sqlite.md), [0220](0220-a-run-and-a-day-have-a-spend-bound-declared-as-data.md)
-and [0237](0237-rolls-follow-stable-by-policy-guarded-per-service.md).
+and [0237](0237-rolls-follow-stable-by-policy-guarded-per-service.md). Revised the same day, when the owner moved the
+whole pipeline to Switchyard; this record moves there with the pipeline.
 
 ## Context
 
@@ -60,7 +61,10 @@ What Hecks already has for the move:
    watchers.** The box is projected from a world of the pipeline's own with `deployed_to("AwsBox")`, as client
    services are. No infrastructure is written by hand. The first size is 4 vCPU and 16 GB on arm64
    (`t4g.xlarge`) with a 200 GB volume, and the fill's headroom readings decide when it is too small. The box
-   runs whichever repository holds the pipeline: Hecks today, Switchyard once 0205 is carried out.
+   runs Switchyard on a pinned Hecks, not Hecks itself: the owner decided on 2026-11-27 that the whole pipeline
+   leaves Hecks for Switchyard ("We can move off the whole pipeline to switch yard"), so the cloud work is built
+   with Switchyard as its home. Hecks keeps what any project uses (the `AwsBox` projection and the Postgres
+   adapter), and Switchyard uses them as a client does.
 2. **The ledger moves to Postgres, on the RDS instance the same projection makes.** This is the shared ledger
    every machine reads and claims from. It revisits 0213, which kept SQLite because one machine and one lock
    line did not pay for the move. A second machine is what pays for it, because SQLite cannot be shared over a
@@ -100,11 +104,20 @@ What Hecks already has for the move:
 10. **After the cutover the laptop only directs.** The owner answers agents and switches settings on the board,
     files epics by mail (the mail spool beat moves to the box), and runs launcher commands against the box
     through the door. Nothing of the pipeline runs on the laptop.
+11. **Fixture domains prove the move keeps the pipeline's behavior.** The Pipeline, PipelineBoard, Gate and
+    CiPipeline bluebooks get fixture domains in Switchyard's corpus, so their runtime is exercised, not only
+    their specs. Each fixture runs on SQLite, as the laptop does, and on Postgres, as the box will, and the two
+    runs must agree before a step that changes storage, claims or liveness lands, and before the cutover.
 
 ## Order of work
 
-Each step is a Work item on the epic, lands through the merge queue with its specs and the corpus proof, and
-leaves the laptop pipeline working.
+Each step is a Work item on the epic, lands in Switchyard through the merge queue with its specs and the corpus
+proof, and leaves the laptop pipeline working. The split that creates Switchyard (0205) comes first and is planned
+on its own. Until it lands, a step that is only framework work (a Linux reading, the Postgres adapter, the box
+projection) lands in Hecks, and the rest waits for Switchyard.
+
+0. **The fixture domains** (decision 11), as soon as Switchyard exists, so every later step is measured against
+   them. *New item.*
 
 1. **One root for the pipeline's state.** Every `Dir.home` site reads one setting (`pipeline_home`, defaulting
    to `~/.claude`), and every macOS reading has a Linux one (`/proc/meminfo` and `/proc/pressure` for `vm_stat`
