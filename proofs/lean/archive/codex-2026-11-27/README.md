@@ -8,6 +8,7 @@ STATUS: ARCHIVE, UNREVIEWED. Preserved so nothing is lost. Not the canonical pro
 - The ancestral implementation was not changed (Codex's statement; not independently checked).
 
 ## Contents
+The Ruby probes (`*.rb`, from `outputs/` and `work/`) are kept verbatim in `ruby-probes.tar.gz` (original hashes in `RUBY-PROBES.sha256`), not as loose files: the repository's rubocop style gate rejects them and they must not be edited. Extract with `tar -xzf ruby-probes.tar.gz`.
 Lean sources (7, also duplicated under `work/`): `RelationshipExperiment.lean` (relation laws), `OneFire.lean` (single `fire?` table), `CrystalExperiment.lean`, `AuthorityRelationship.lean`, `ExecutableRelationship.lean`, `RealizationBoundary.lean`, `PreStateEffects.lean`. Reports: `one-construct-accounting.md` (the complexity ledger), `verification-report.md`, `relationship-reduction-report.md`, `final-crystal-era-verdict.md`, `executable-boundaries-verdict.md`, `full-corpus-conformance-verdict.md`, `authority-relationship-report.md`, `realization-boundary-report.md`, `one-fire-proof-attempt.md`, `twenty-type-audit.md`, `ir-relationship-report.md`. Probes (`*.rb`) and results (`*.json`, `*-lean-check.txt`).
 
 ## What Codex reported (not verified by the scrum master except where stated)
