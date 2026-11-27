@@ -1693,29 +1693,24 @@ end
 
 # A rehearsal that would mint is the record a mint reads: QualityControl's Maintenance keeps the verdict and
 # the watermark the copy held, so Maintenance.MintEra finds it by this run (the mint plan's watermark guard).
-# QualityControl is attached here, so the seam is its translation of the migrate bluebook's audit, not an
-# `across` dispatch. It listens beside Judge, on the same audit and the same condition, because the rehearsal
-# is already five reactions deep at Judge and a reaction to RehearsalJudged would pass the dispatcher's depth bound.
-Hecks.hecksagon "QualityControl" do
-  subscribe "Hecks.RehearsalAudited"
-
+# It listens beside Judge, on the same audit and condition: at Judge the rehearsal is five reactions deep,
+# and a reaction to RehearsalJudged would pass the dispatcher's depth bound. Hecks attaches
+# QualityControl, so the reaction is Hecks' and QualityControl hears nothing of Hecks (ADR 0207).
+Hecks.hecksagon "Hecks" do
   translates "RecordVerdictWhenNothingWouldStopTheMint" do
     on RehearsalRun::RehearsalAudited
     where do
       (minting.value != "next" || edge_present.value) && refusal_total.value == 0
     end
+    across  "QualityControl"
     trigger Maintenance::RecordRehearsalVerdict, with: { run: :run, domain: :rehearsed_domain,
                                                           watermark: :watermark, rehearsal_verdict: "would_mint" }
   end
 end
 
-# The architect's session closes with a verdict, which the adapter reads off the job: JobRead carries
-# it, and the plan review records it. The run's key is the Work item, so it names the review.
+# Agents hears a submitted change from Coder and a recorded decision from Tickets, and nothing of the
+# Hecks domain: what a session's run, sweep or heartbeat means for Agents is the Hecks domain's to say.
 Hecks.hecksagon "Agents" do
-  subscribe "Hecks.JobRead"
-  # Each sweep of the sessions sends a verdict the coder's session refused again (Agents
-  # RedeliverTheUnresumedVerdict), or gives it up once its tries are spent.
-  subscribe "Hecks.SweepRequested"
   subscribe "Coder.WorkSubmitted"
   subscribe "Tickets.AdrDrafted"
   subscribe "Tickets.AdrAccepted"
@@ -1752,6 +1747,332 @@ Hecks.hecksagon "Agents" do
     trigger SubmissionReview::Request, with: { submission: :sha, work: :branch, brief: :branch, hops: 1,
                                                role: "reviewer", repo: :checkout }
   end
+end
+
+# A coder's session closes with its report, and the adapter reads the branch, commit and cleanliness of
+# the run's checkout off the job once a coder's job is done. A report whose last word is `submitted` hands
+# the branch in; Submit refuses main, stable and a dirty tree by name. Submitting also finishes the Work
+# item the branch is named for (Tickets) and starts maintenance (QualityControl), as a hand submit does.
+# A root: the reviewer's start a submission asks for sits past the depth limit counted from the job read.
+# Hecks attaches Coder, so the reaction is Hecks' and Coder hears nothing of Hecks (ADR 0207).
+Hecks.hecksagon "Hecks" do
+  translates "SubmitWhenTheCoderSaysSubmitted" do
+    on AgentRun::JobRead
+    root
+    where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
+    across  "Coder"
+    trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
+  end
+end
+
+# The Hecks domain runs and sweeps the roles' sessions and attaches Agents, so it says what each of its
+# events means there, as Agents' command across the attach (ADR 0207). These fire after the Hecks
+# domain's own reactions to the same event, in the order Agents declared them.
+Hecks.hecksagon "Hecks" do
+  # Each sweep of the sessions lapses every open review past its time limit. One inside its limit
+  # refuses by its given, so a sweep ends only the reviews that are late.
+  translates "LapseTheOverdueReview" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::PlanReview.Open"
+    across   "Agents"
+    trigger  PlanReview::Lapse,
+             with: { plan_review: :plan_review, work: :work,
+                     reason: "verdict-overdue: no plan review verdict came in two review windows, so your run " \
+                             "is blocked on the review. Edit nothing. Put it on the board's Stuck list: " \
+                             "exe/hecks agents Turn.finish! run.value=<work item> role.value=coder " \
+                             "at.value=<now, ISO 8601> verdict.value=blocked stuck.kind=verdict_overdue " \
+                             "\"stuck.what=no plan review verdict in two windows\" stuck.since=<now> " \
+                             "stuck.owner_run=<work item> stuck.link=- --wait, then end your turn blocked, " \
+                             "naming verdict-overdue" }
+  end
+
+  # Each sweep asks again for every open review past its first window; one inside its window, or one
+  # already asked again, refuses by its given.
+  translates "ReaskTheOverdueReview" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::PlanReview.Open"
+    across   "Agents"
+    trigger  PlanReview::Reask,
+             with: { plan_review: :plan_review, work: :work, hops: :hops, role: :role, repo: :repo, plan: :plan }
+  end
+
+  # A declined run is looked up among the reviews: the one it keys is unstarted, with its Work item
+  # read off the review's row. A declined run no review keys finds no row, so nothing happens. A root,
+  # since the decline sits at the end of a dispatch's chain and the wake after it is four steps long.
+  translates "UnstartTheDeclinedReview" do
+    on       "AgentRun.AgentRunDeclined"
+    root
+    for_each "Agents::PlanReview.OfRun"
+    across   "Agents"
+    trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work, reason: :refusal }
+  end
+
+  # An architect run that failed or was retired will never bring a verdict, so its review is unstarted
+  # with the reason and the waiting coder told, as for a declined run. A review already holding a
+  # verdict refuses, and a run no review keys finds no row.
+  translates "UnstartTheFailedReview" do
+    on       "AgentRun.SessionFailed"
+    root
+    for_each "Agents::PlanReview.OfRun"
+    across   "Agents"
+    trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work,
+                                          reason: "the architect's run failed and gave no verdict" }
+  end
+
+  translates "UnstartTheRetiredReview" do
+    on       "AgentRun.AgentRunRetired"
+    root
+    for_each "Agents::PlanReview.OfRun"
+    across   "Agents"
+    trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work,
+                                          reason: "the architect's session is gone and gave no verdict" }
+  end
+
+  # A finished architect run whose session `claude agents` no longer lists is recorded tidied,
+  # not retired, so its review is unstarted here: the session that would have written the
+  # verdict is gone. A review that already holds a verdict refuses.
+  translates "UnstartTheReviewOfAGoneSession" do
+    on       "AgentRun.SessionReviewed"
+    root
+    where    { listed == false }
+    for_each "Agents::PlanReview.OfRun"
+    across   "Agents"
+    trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work,
+                                          reason: "the architect's session is gone and gave no verdict" }
+  end
+
+  # A run with no Work item is a change review's, recorded by `RecordTheChangeVerdict` instead.
+  translates "RecordTheVerdictWhenNoReviewWasAsked" do
+    on      "AgentRun.JobRead"
+    root
+    where   { agent == "architect" && work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+    across  "Agents"
+    trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
+  end
+
+  # A coder began waiting on a Work item: each review of it that ended just before is reminded.
+  # One that ended earlier, was asked again, or holds a verdict refuses by its given.
+  translates "RemindTheCoderWhoWaitsAfterTheEnd" do
+    on       "AgentRun.ReviewAwaited"
+    root
+    for_each "Agents::PlanReview.OfWork"
+    across   "Agents"
+    trigger  PlanReview::Remind, with: { plan_review: :plan_review, work: :work }
+  end
+
+  # The architect's run for a change review is dispatched with no Work item, which tells its job
+  # read apart from a plan review's; a run no change review names finds no row.
+  translates "RecordTheChangeVerdict" do
+    on       "AgentRun.JobRead"
+    root
+    where    { agent == "architect" && work == "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+    for_each "Agents::ChangeReview.OfRun"
+    across   "Agents"
+    trigger  ChangeReview::Answer, with: { review: :review, verdict: :verdict, findings: :findings }
+  end
+
+  # Each sweep of the sessions sends every refused verdict again, until its coder takes it or the
+  # tries are spent. Only a refused resume is retried: a verdict with no started coder run is
+  # `undeliverable` and stays so. Of the two policies one passes its given, the other refuses.
+  translates "RedeliverTheUnresumedVerdict" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::Verdict.Unresumed"
+    across   "Agents"
+    trigger  Verdict::Redeliver, with: { verdict: :verdict, work: :work, answer: :answer, word: :word }
+  end
+
+  translates "AbandonTheUnresumedVerdict" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::Verdict.Unresumed"
+    across   "Agents"
+    trigger  Verdict::Abandon, with: { verdict: :verdict, work: :work,
+                                       reason: "the coder's session refused the verdict on every try" }
+  end
+
+  # The reviewer's closing text is the job's detail; its judgment word is in it.
+  translates "JudgeTheReviewersJudgment" do
+    on      "AgentRun.JobRead"
+    root
+    where   { agent == "reviewer" && judgment != "" && previous != state }
+    across  "Agents"
+    trigger Verdict::Judge, with: { run: :run, work: :work, role: "reviewer", answer: :detail }
+  end
+
+  # A coder run has closed: its job reads done or stopped, or its session went idle having said
+  # its report. A stop while an answer is on its way (`resuming`) or a wait on a plan review
+  # (`reviewing`) closes nothing. The open is refused, and benign, once the record is there.
+  translates "OpenTheResultOfAClosedCoderRun" do
+    on      "AgentRun.JobRead"
+    root
+    where   do
+      agent == "coder" && resuming != true && reviewing != true &&
+        (((state == "done" || state == "stopped") && previous != state) ||
+          (state == "working" && listed == "idle" && previous != "done" && report.to_s != ""))
+    end
+    across  "Agents"
+    trigger RunResult::Open, with: { run: :run }
+  end
+
+  translates "HearTheClosingOfACoderRun" do
+    on      "AgentRun.JobRead"
+    root
+    where   do
+      agent == "coder" && resuming != true && reviewing != true &&
+        (((state == "done" || state == "stopped") && previous != state) ||
+          (state == "working" && listed == "idle" && previous != "done" && report.to_s != ""))
+    end
+    across  "Agents"
+    trigger RunResult::Hear, with: { run: :run, closing: :report }
+  end
+
+  # Each sweep of the sessions hands on every question the scrum master has held past its window;
+  # one inside its window refuses by its given.
+  translates "EscalateWhatTheScrumMasterLeft" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::Message.Unsettled"
+    across   "Agents"
+    trigger  Message::Escalate, with: { message: :message }
+  end
+
+  # Each sweep falls back on every sent message nobody heard; one inside its window refuses by its given.
+  translates "FallBackOnWhatWentUnread" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::Message.Unread"
+    across   "Agents"
+    trigger  Message::FallBack, with: { message: :message }
+  end
+
+  # Each beat of the clock reads the spool once, keyed by the beat. A root, so it starts its own chain.
+  translates "IngestOnHeartbeat" do
+    on      "Heartbeat.Beaten"
+    root
+    across  "Agents"
+    trigger MailSpool::Ingest, with: { pass: :beat }
+  end
+
+  translates "WatchTheHandRunsOnHeartbeat" do
+    on      "Heartbeat.Beaten"
+    root
+    across  "Agents"
+    trigger HandRunWatch::Watch, with: { pass: :beat }
+  end
+
+  # Each clean verdict of the reverted work item is a miss; a work item never reviewed records none.
+  translates "RecordTheMissedReview" do
+    on       "RedEpisode.EpisodeReverting"
+    root
+    where    { work.value.to_s != "" }
+    for_each "Agents::SubmissionReview.CleanOfWork"
+    across   "Agents"
+    trigger  ReviewMiss::Record, with: { review: :review, submission: :submission, work: :work, tier: :tier,
+                                         hops: :hops, evidence: :evidence, episode: :run, culprit: :culprit,
+                                         spec: :spec, example: :example, finding: :finding }
+  end
+
+  translates "TickTheCadenceOnSweep" do
+    on       "SessionSweep.SweepRequested"
+    root
+    for_each "Agents::CanaryCadence.Cadences"
+    across   "Agents"
+    trigger  CanaryCadence::Tick, with: { canary_cadence: :canary_cadence }
+  end
+
+  # The brief is the stall's own detail, its subject and move filled in, so the run reads nothing to start.
+  translates "WakeWhenAStallIsFiled" do
+    on      "Stall.StallFiled"
+    where   { fixer.value == "orchestrator" }
+    across  "Agents"
+    trigger Escalation::Raise, with: { escalation: :stall, event: "StallFiled", rule: "rely-on-events", role: "orchestrator", repo: ".",
+                                       brief: :detail }
+  end
+
+  # A red episode that parks, or whose revert is refused, leaves main red with the flag up and no
+  # revert made: the owner hears it through the orchestrator. The episode's run keys the wake.
+  translates "WakeWhenAnEpisodeParks" do
+    on      "RedEpisode.EpisodeParked"
+    across  "Agents"
+    trigger Escalation::Raise, with: { escalation: :run, event: "EpisodeParked", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+                                       brief: "A red main's episode parked: its range already holds a revert, so nothing was reverted and the red flag stands. Report it to the owner with the culprit and spec on the event, under your standing rule all-hands-on-red." }
+  end
+
+  translates "WakeWhenARevertIsRefused" do
+    on      "SendTrain.RevertRefused"
+    across  "Agents"
+    trigger Escalation::Raise, with: { escalation: :run, event: "RevertRefused", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+                                       brief: "A red main's revert was refused (a dirty or off-main checkout, or a failed git revert), so the red flag stands with no revert. Report the refusal on the event to the owner, under your standing rule all-hands-on-red." }
+  end
+
+  translates "OpenTheSeatOnSweep" do
+    on      "SessionSweep.SweepRequested"
+    root
+    across  "Agents"
+    trigger Coordinator::Open, with: { role: "orchestrator", run: :run }
+  end
+
+  translates "StartTheEmptySeatOnSweep" do
+    on      "SessionSweep.SweepRequested"
+    root
+    across  "Agents"
+    trigger Coordinator::Start, with: { coordinator: "orchestrator", run: :run }
+  end
+
+  translates "LoseTheSeatWhenItsSessionEnds" do
+    on       "AgentRun.JobRead"
+    root
+    where    { (state == "stopped" || state == "failed") && previous != state && resuming != true }
+    for_each "Agents::Coordinator.OfRun"
+    across   "Agents"
+    trigger  Coordinator::Lose, with: { coordinator: :role, lost: :run, lost_by: :state }
+  end
+
+  translates "LoseTheSeatWhenItsStartIsDeclined" do
+    on       "AgentRun.AgentRunDeclined"
+    root
+    for_each "Agents::Coordinator.OfRun"
+    across   "Agents"
+    trigger  Coordinator::Lose, with: { coordinator: :role, lost: :run, lost_by: "declined" }
+  end
+
+  translates "LoseTheSeatWhenItsRunIsRetired" do
+    on       "AgentRun.AgentRunRetired"
+    root
+    for_each "Agents::Coordinator.OfRun"
+    across   "Agents"
+    trigger  Coordinator::Lose, with: { coordinator: :role, lost: :run, lost_by: "retired" }
+  end
+
+  translates "LoseTheSeatWhenItsSessionIsGone" do
+    on       "AgentRun.SessionReviewed"
+    root
+    where    { listed == false }
+    for_each "Agents::Coordinator.OfRun"
+    across   "Agents"
+    trigger  Coordinator::Lose, with: { coordinator: :role, lost: :run, lost_by: "gone" }
+  end
+
+  translates "RestThePrunerWhenItsRunEnds" do
+    on      "AgentRun.JobRead"
+    root
+    where   { (state == "done" || state == "stopped" || state == "failed") && previous != state && agent == "pruner" }
+    across  "Agents"
+    trigger Pruning::Rest, with: { pruning: "pruner" }
+  end
+
+  # Each sweep of the sessions lapses every open watcher past its window while attempts remain; a
+  # watcher inside its window, or one with no attempt left, refuses by its given.
+  translates "LapseTheOverdueWatcher" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::Watcher.Open"
+    across   "Agents"
+    trigger  Watcher::Lapse, with: { watcher: :watcher }
+  end
+
+  translates "GiveUpTheExhaustedWatcher" do
+    on       "SessionSweep.SweepRequested"
+    for_each "Agents::Watcher.Open"
+    across   "Agents"
+    trigger  Watcher::GiveUp, with: { watcher: :watcher }
+  end
 
   # The reviewer's session closes with its judgment, which the adapter reads off the job, and its report
   # is the findings (a missing_behavior names the scenario there); the run's key is the submitted commit,
@@ -1759,6 +2080,7 @@ Hecks.hecksagon "Agents" do
   translates "RecordTheReviewersJudgment" do
     on AgentRun::JobRead
     where { judgment != "" && previous != state }
+    across "Agents"
     trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment, findings: :findings }
   end
 
@@ -1768,6 +2090,7 @@ Hecks.hecksagon "Agents" do
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
     where { work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+    across "Agents"
     trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
   end
 
@@ -1775,19 +2098,22 @@ Hecks.hecksagon "Agents" do
   translates "RecordTheVerdictDelivered" do
     on AgentRun::AgentRunAnswered
     where { verdict != "" }
+    across "Agents"
     trigger Verdict::Deliver, with: { run: :verdict }
   end
 
   # The waiting coder's session refused the verdict's resume: the verdict is kept to be sent again
-  # (Agents `RedeliverTheUnresumedVerdict`), with the reason, not settled as undeliverable.
+  # (`RedeliverTheUnresumedVerdict`, above), with the reason, not settled as undeliverable.
   translates "RecordTheVerdictUnresumed" do
     on AgentRun::AgentRunUnresumed
+    across "Agents"
     trigger Verdict::Unresume, with: { run: :verdict, reason: :refusal }
   end
 
   # The verdict came after the coder's run had finished: the reason is the same kind of finding.
   translates "RecordTheVerdictOfAFinishedRun" do
     on AgentRun::AgentRunUnreached
+    across "Agents"
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
 
@@ -1795,24 +2121,8 @@ Hecks.hecksagon "Agents" do
   # undeliverable with the refusal, so the sweep does not send it again.
   translates "RecordTheVerdictOfAnEndedRun" do
     on AgentRun::AnswerRefused
+    across "Agents"
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
-  end
-end
-
-# A coder's session closes with its report, and the adapter reads the branch, commit and cleanliness of
-# the run's checkout off the job once a coder's job is done. A report whose last word is `submitted` hands
-# the branch in; Submit refuses main, stable and a dirty tree by name. Submitting also finishes the Work
-# item the branch is named for (Tickets) and starts maintenance (QualityControl), as a hand submit does.
-# A root, as the JobRead policies of the delegate bluebook are: the reviewer's start that a submission
-# asks for sits past the reaction depth limit when counted from the check that read the job.
-Hecks.hecksagon "Coder" do
-  subscribe "Hecks.JobRead"
-
-  translates "SubmitWhenTheCoderSaysSubmitted" do
-    on AgentRun::JobRead
-    root
-    where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
-    trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
   end
 end
 
@@ -1868,8 +2178,6 @@ Hecks.hecksagon "Delivery" do
   end
 
   subscribe "Coder.WorkSubmitted"
-  subscribe "Hecks.TrainMergeSeen"
-  subscribe "Hecks.ObserveAnswered"
 
   # A root: the job's start sits past the reaction depth limit, counted from the job's read.
   translates "LandWhenWorkIsSubmitted" do
@@ -1877,12 +2185,16 @@ Hecks.hecksagon "Delivery" do
     root
     trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
   end
+end
 
-  # GitHub merges the train's pull request in a merge commit local main does not hold yet, so
-  # main is pulled once per landed commit. Each pull is a root: the Observe chain is already at the bound.
+# GitHub merges the train's pull request in a merge commit local main does not hold yet, so main is
+# pulled once per landed commit, each pull a root: the Observe chain is already at the bound. Hecks
+# attaches Delivery, so these are Hecks' reactions and Delivery hears nothing of Hecks (ADR 0207).
+Hecks.hecksagon "Hecks" do
   translates "PullMainWhenMerged" do
     on      Integration::TrainMergeSeen
     root
+    across  "Delivery"
     trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
   end
 
@@ -1890,6 +2202,7 @@ Hecks.hecksagon "Delivery" do
     on      Integration::ObserveAnswered
     root
     where   { outcome.value == "passed" && pulled.value == false }
+    across  "Delivery"
     trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
   end
 
@@ -1897,6 +2210,7 @@ Hecks.hecksagon "Delivery" do
     on      Integration::ObserveAnswered
     root
     where   { outcome.value == "failed" && pulled.value == false }
+    across  "Delivery"
     trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
   end
 end

@@ -14,8 +14,9 @@ module Hecks
 
       # The finding kinds a context-map relationship may acknowledge: those about the relationship
       # itself. An undeclared coupling or a separate-ways breach has no relationship to carry the
-      # allowance; the fix is to declare one. A `context_cycle` is accepted only to hold a cycle
-      # that stood before the rule: it is reported as deprecated while it stands.
+      # allowance; the fix is to declare one. A `context_cycle` still loads, but from 8.0.0 it
+      # excuses no cycle: `model_check` names it in the cycle's error, and asks for it to be removed
+      # once the cycle is gone (ADR 0207).
       RELATIONSHIP_KINDS = %i[relationship_kind_mismatch conformist_translates unpublished_dependency
                               unused_relationship redundant_relationship core_conforms context_cycle].freeze
 

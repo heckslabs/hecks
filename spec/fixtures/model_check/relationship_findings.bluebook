@@ -1,5 +1,5 @@
 Hecks.bluebook "RelationshipFindings" do
-  vision "Four cross-domain policies — unacknowledged, contradictory (twice), and clean."
+  vision "Four cross-domain policies — one unacknowledged, three acknowledged (two by attaches, one by subscribe)."
   core
 
   aggregate "Thing" do
@@ -25,15 +25,15 @@ Hecks.bluebook "RelationshipFindings" do
     across  "Elsewhere"
   end
 
-  # Contradictory: across "Governance" while the hecksagon also attaches it,
-  # claiming Shared Kernel and Customer/Supplier at once.
+  # Acknowledged: across "Governance", which the hecksagon attaches, so this context depends on
+  # Governance and calls its command in that one direction.
   policy "OnGovernance" do
     on      "ThingDone"
     trigger Governance::SomeCommand
     across  "Governance"
   end
 
-  # Contradictory too: Tenancy is a bluebook the gem carries rather than a framework member, and
+  # Acknowledged too: Tenancy is a bluebook the gem carries rather than a framework member, and
   # `attaches` covers it the same way.
   policy "OnTenancy" do
     on      "ThingDone"

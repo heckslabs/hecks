@@ -79,7 +79,53 @@ a change to a role edits the bluebook that starts every session, and neither can
 - With the map loaded, a `model_check` of the whole corpus on 2026-11-14 reported the standing
   pairs as deprecated and nothing else about a context: no declared relationship of the Hecks or
   Banking maps disagreed with its wiring.
-- **Not built:** the refusal at 8.0.0 itself. `REFUSED_FROM` is the text of the warning; nothing
-  reads the running version and turns the warning into an error.
-- **Not verified:** the Rust parser reading `accepted_findings:` on a relationship in a committed
-  `.contextmap`; before this, only specs wrote that word.
+- The refusal at 8.0.0 and the untangling of the Hecks domain's four pairs are in the addendum below.
+
+## Addendum: from 8.0.0 an accepted cycle is refused (2026-11-27)
+
+**The refusal.** From 8.0.0 a relationship's `accepted_findings: { context_cycle: "…" }` excuses no
+cycle. Decisions 3 and 4 no longer hold: an accepted pair is not read as one context, and its cycle
+is an error like any other. The error names the acceptance ("which excuses no cycle from 8.0.0")
+beside the two ways out. An acceptance whose wiring no longer cycles is still the
+`context_cycle_settled` warning that says to remove it. No release reads the running version:
+the code that refuses ships in 8.0.0.
+
+**Where it is refused.** In `model_check`, not when the map loads. The map still accepts the word, as
+it accepts any relationship acknowledgement (ADR 0150), because refusing it at load would stop the
+whole system from booting, launcher and all, over a line that only names a pair: the person
+upgrading could not run `model_check` to learn which contexts cycle and through which edges. The
+cycle is in the wiring, which only `model_check` reads, so the finding that names the edges and the
+ways out is the clearer place, and a settled acceptance, which harms nothing, stays a warning.
+
+**An attach acknowledges an `across`.** The Hecks domain attaches every bluebook it carries, so the
+only way out of its cycles was the first one: the attaching context takes over the reactions its
+upstream held. Before, `model_check` called an `across` to a context the hecksagon attaches a
+contradictory relationship (a shared kernel and a customer/supplier at once). With an attach read
+as a dependency with a direction, calling the attached context's commands from the attaching
+context's own events keeps that direction, so the attach now acknowledges the `across` as a
+`subscribe` does, and the target counts as known wherever the attaching context boots.
+
+**The Hecks domain's four pairs are untangled.** Each reaction an attached context held to a Hecks
+event is now a `translates` in the Hecks domain's hecksagon, `across` into that context's command,
+with its condition, fan-out, mapping and `root` unchanged: QualityControl's mint verdict on a
+rehearsal audit, Coder's submit on a finished coder run, Delivery's three main pulls after a merge
+or a CI answer, and Agents' 38 reactions to a session's job read, sweep, decline, failure,
+retirement, heartbeat and red episode (32 of them were policies in `agents.bluebook`). They fire
+after the Hecks domain's own reactions to the same event, in the order the context declared them.
+`hecks.contextmap` declares each context upstream of Hecks (conformist and customer/supplier) and
+accepts no cycle; `spec/context_map_hecks_cycles_spec.rb` holds that list empty.
+
+**Left open.** Agents' session rules (lapse an overdue review on a sweep, unstart a review whose
+architect run failed) now read as the Hecks domain's wiring. The other way out, making AgentRun and
+the session sweep part of Agents so the rules sit in one bluebook, is a larger change the owner may
+still prefer. The cycle check reads four kinds of edge, and a plain `policy` in one bluebook on
+another context's event, with no `subscribe` beside it, is none of them: Tickets'
+`YieldWhenItsRunIsDeclined` on the Hecks domain's `AgentRun.AgentRunDeclined` is such a dependency
+the check does not see.
+
+**Rust.** The Rust parser has no context-map path: `hecks-parse` reads bluebooks, hecksagon
+attaches, adapters and worlds, and the generated keyword table only admits `relate`'s
+`accepted_findings:` argument. No Rust code builds a context map or looks for a cycle, and the
+check stays in Ruby with the rest of `model_check`: its edges come from a booted registry's
+hecksagons (attaches, subscriptions, translates) and bluebooks (`across`), which only the Ruby
+boot assembles.

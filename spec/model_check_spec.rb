@@ -211,14 +211,18 @@ RSpec.describe "the model checker" do
       expect(finding.message).to include('across "Elsewhere"')
     end
 
-    it "finds a domain both attached (Shared Kernel) AND reached via across (Customer/Supplier)" do
-      finding = findings.find { |f| f.kind == :contradictory_relationship && f.subject == "OnGovernance" }
-      expect(finding.message).to include('across "Governance"').and include('attaches "Governance"')
+    it "does not flag an across: to a domain the hecksagon attaches — OnGovernance is clean" do
+      expect(findings.map(&:subject)).not_to include("OnGovernance")
     end
 
-    it "finds a bluebook the gem carries, not only a framework member, attached and reached via across" do
-      finding = findings.find { |f| f.kind == :contradictory_relationship && f.subject == "OnTenancy" }
-      expect(finding.message).to include('across "Tenancy"').and include('attaches "Tenancy"')
+    it "does not flag an across: to an attached bluebook the gem carries — OnTenancy is clean" do
+      expect(findings.map(&:subject)).not_to include("OnTenancy")
+    end
+
+    it "does not call an attached across: target unknown, whatever domains the corpus booted" do
+      known_elsewhere = call_model_check(boot(File.join(ROOT_DIR, "spec/fixtures/model_check/relationship_findings.bluebook")),
+                                         known_domains: Set["Known"])
+      expect(known_elsewhere.select { |f| f.kind == :unknown_target_domain }.map(&:subject)).to eq(["OnElsewhere"])
     end
 
     it "does not flag a well-formed across: matched by a subscribe — OnKnown is clean" do
@@ -226,14 +230,14 @@ RSpec.describe "the model checker" do
     end
 
     it "raises no finding kind outside the ones this fixture deliberately triggers" do
-      expect(findings.map(&:kind).uniq.sort).to eq(%i[contradictory_relationship unacknowledged_relationship].sort)
+      expect(findings.map(&:kind).uniq).to eq(%i[unacknowledged_relationship])
     end
 
     it "checked, not routed — no sibling hecksagon at all means no cross-domain finding either way" do
       # With a cross-domain policy but no sibling hecksagon (every other fixture's shape),
-      # neither new finding is raised: the `return [] unless hecksagon` guard.
+      # no relationship finding is raised: the `return [] unless hecksagon` guard.
       no_hecksagon_findings = call_model_check(boot(File.join(ROOT_DIR, "spec/fixtures/model_check/policy_findings.bluebook")))
-      expect(no_hecksagon_findings.map(&:kind)).not_to include(:contradictory_relationship, :unacknowledged_relationship)
+      expect(no_hecksagon_findings.map(&:kind)).not_to include(:unacknowledged_relationship)
     end
   end
 
