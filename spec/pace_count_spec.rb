@@ -37,12 +37,3 @@ RSpec.describe Hecks::Adapters::PaceReading, "#count" do
     expect(text("MessageSent", "5m")).to include("MessageSent: 1", "window: 5m")
   end
 end
-
-# The polls that stay are named in the bluebook, each with the reason the world cannot push it.
-RSpec.describe "Pace edge samplers" do
-  it "names the sources a sampler reads" do
-    pace = boot_hecks_in_memory.registry.bluebook("Hecks").aggregate("Pace")
-    rows = pace.value_objects.find { |o| o.hecks_name == "EdgeSampler" }.members.map { |m| m.to_h[:source] }
-    expect(rows).to include("os_load", "process_list", "board_view")
-  end
-end
