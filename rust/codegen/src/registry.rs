@@ -1217,6 +1217,7 @@ mod tests {
                 invariant_check_lines: Vec::new(),
                 role: None,
                 roles: Vec::new(),
+                policy_only: false,
                 entity_name: "Handler".to_string(),
                 entity_identity_reading: "event_type.value".to_string(),
                 nested_name: "Dispatch".to_string(),
