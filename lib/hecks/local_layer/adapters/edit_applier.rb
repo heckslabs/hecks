@@ -20,7 +20,7 @@ module Hecks
       INDENT = /\A\s*/
 
       # @param text [String] the bluebook source
-      # @param edits [Array<Hash>] each with `:operation`, `:subject` and `:detail`, as plain strings
+      # @param edits [Array<Hash>] each with `:operation`, `:subject`, `:detail` (strings)
       # @return [String] the source with every edit applied in order
       # @raise [Unapplicable] when an edit names an aggregate or a line the text does not hold
       def self.call(text, edits)
