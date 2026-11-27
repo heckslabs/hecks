@@ -1,0 +1,10 @@
+{"note":"The coder: briefed with its change to the ledger, it waits for review, answers the reviewer's question while it is still finishing a turn, and closes once approved."}
+{"expect":"user","contains":"You are the coder"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-coder","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Finishing the spec for zero amounts."}]}},"after_ms":300}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"The change is ready for review."}}
+{"expect":"user","contains":"zero"}
+{"emit":{"type":"control_request","request_id":"c-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"reviewer","text":"Yes: post! refuses an amount of zero or less, and a spec covers it."}}}}},"after_ms":60,"answered":"success","reply_contains":"Sent to reviewer"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Answered the reviewer."}}
+{"expect":"user","contains":"Approved"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Approved; nothing left to do."}}

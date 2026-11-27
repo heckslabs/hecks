@@ -45,6 +45,8 @@ module Hecks
       # admits (ADR 0222). Each boots alone from its own directory.
       signalbox:   "lib/hecks/signalbox",
       roundhouse:  "lib/hecks/roundhouse",
+      # The Harness domain: agent sessions the supervisor in rust/harness holds, and their mail.
+      harness:     "lib/hecks/harness",
       # The Docs domain: a documentation page made of regions, each with where its words come from.
       docs:        "lib/hecks/docs",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
@@ -210,8 +212,7 @@ module Hecks
     # @param member [Member] the corpus member
     # @return [String] the member's owning domain directory path
     def domain_dir_of(member)
-      dir = File.directory?(member.path) ? member.path : File.dirname(member.path)
-      owning_dir(dir)
+      owning_dir(File.directory?(member.path) ? member.path : File.dirname(member.path))
     end
 
     # The bluebook a bluebook declares — `Hecks.bluebook "<Name>"`, or `Domain: <name>` for a file
