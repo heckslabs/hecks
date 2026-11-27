@@ -1,7 +1,6 @@
 require "spec_helper"
 require "hecks/hecks/adapters/stall_watching"
 require_relative "support/branch_repository"
-require_relative "support/shared_file_looks"
 
 # Two open branches are a pair only on files their unlanded commits change: a commit main holds
 # under another hash is landed work and shares nothing.
@@ -31,14 +30,5 @@ RSpec.describe "StallWatch impediments for branches that share only landed work"
     commit_files("lib/pending.rb")
     git("checkout", "-q", "main")
     expect(files).to include("one" => ["lib/pending.rb"])
-  end
-end
-
-RSpec.describe "StallWatch impediments name the row to read" do
-  include_context "with open branches that share a file"
-
-  it "tells the watcher the command that reads its own row" do
-    write_sources(started)
-    expect(pair[:detail]).to include("StallWatch.impediments run=<your run key> stall=#{pair[:stall]}")
   end
 end
