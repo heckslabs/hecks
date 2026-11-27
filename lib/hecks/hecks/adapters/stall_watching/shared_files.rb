@@ -67,7 +67,7 @@ module Hecks
           stall = key(signal, one, other)
           { id: run, stall: stall, stall_kind: signal[:kind], subject: "#{one[:branch]}+#{other[:branch]}",
             opened_at: opened, waited: waited(opened), minutes: 0, forgets: 0, fixer: signal[:fixer],
-            title: "#{signal[:kind]}: #{one[:branch]} and #{other[:branch]}", detail: detail(signal, one, other),
+            title: "#{signal[:kind]}: #{one[:branch]} and #{other[:branch]}", detail: detail(signal, one, other, stall),
             filed: "", count: 1, impediment: stall, cleared_by: Clearing.of(signal) }
         end
 
@@ -78,10 +78,10 @@ module Hecks
 
         def waited(at) = [(@now - Time.iso8601(at).to_i) / 60, 0].max
 
-        def detail(signal, one, other)
+        def detail(signal, one, other, stall)
           shared = (one[:files] & other[:files]).sort
           "#{one[:branch]} (#{one[:tip]}) and #{other[:branch]} (#{other[:tip]}) both change #{shared.join(", ")} " \
-            "against main. Fixer: #{signal[:fixer]}. Move: #{signal[:move]} Never stop or kill a session."
+            "against main. Fixer: #{signal[:fixer]}. Move: #{signal[:move]} #{Key.reading(stall)}"
         end
       end
     end
