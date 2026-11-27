@@ -975,13 +975,28 @@ fn policy_tail_json(p: &ir::Policy) -> Vec<(String, JsonValue)> {
 
 /// `IR::DomainPort#to_h` / `IR::PortOperation#to_h`.
 fn domain_port_json(p: &ir::DomainPort) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut fields = vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),
         (
             "operations".to_string(),
             JsonValue::Array(p.operations.iter().map(port_operation_json).collect()),
         ),
-    ])
+    ];
+    // Merged in only when there are some, so a port that binds no query keeps its old shape.
+    if !p.answered_queries.is_empty() {
+        fields.push((
+            "answered_queries".to_string(),
+            JsonValue::Array(
+                p.answered_queries
+                    .iter()
+                    .map(|name| {
+                        JsonValue::Object(vec![("name".to_string(), JsonValue::str(name.clone()))])
+                    })
+                    .collect(),
+            ),
+        ));
+    }
+    JsonValue::Object(fields)
 }
 
 fn port_operation_json(op: &ir::PortOperation) -> JsonValue {

@@ -532,6 +532,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("operation", "DomainPort"),
     ("tells", "DomainPort"),
     ("asks", "DomainPort"),
+    ("answers_query", "DomainPort"),
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),
     ("emits", "PortOperation"),
