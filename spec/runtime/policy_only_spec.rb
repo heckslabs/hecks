@@ -3,13 +3,13 @@ require "spec_helper"
 # `policy_only` and `acts_as` at dispatch (ADR 0216): a command only a policy's reaction may
 # dispatch, the role that reaction dispatches it as, and what a dispatch with no caller is.
 RSpec.describe "a policy_only command and an acts_as reaction" do
-  FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/role_unstated_caller.bluebook")
+  POLICY_ONLY_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/role_unstated_caller.bluebook")
 
   def build
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      Kernel.load(FIXTURE)
+      Kernel.load(POLICY_ONLY_FIXTURE)
       Kernel.load(File.expand_path("../../lib/hecks/ports/authorization.port", __dir__))
       Kernel.load(File.expand_path("../../lib/hecks/adapters/driven/governance_authorization.adapter", __dir__))
       bind_hecksagons

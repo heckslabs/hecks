@@ -3,6 +3,7 @@ require "spec_helper"
 # The push train's mint reactions, on a disposable domain shaped like the Hecks deliver domain: a
 # Boarding aggregate identified by its run key, and a mint whose events carry that same run key.
 RSpec.describe "a refused mint faults the boarding it was run for" do
+  # Records each reaction's verb and facts; the policy it reacts for (`reaction:`) is left out.
   class RefusedMintRecordingDispatcher
     attr_reader :calls
 
@@ -10,7 +11,7 @@ RSpec.describe "a refused mint faults the boarding it was run for" do
       @calls = []
     end
 
-    def reenter(verb, **arguments)
+    def reenter(verb, reaction: nil, **arguments)
       @calls << [verb, arguments]
     end
 

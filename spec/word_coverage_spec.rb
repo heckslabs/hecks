@@ -221,12 +221,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "its first real use is Interview.Record in lib/hecks/interviews/" \
                                            "interviews.bluebook (ADR 0194, decision 5), outside the scanned corpus. " \
                                            "Exercised by spec/creates_or_acts_spec.rb, the Interviews behaviors and " \
-                                           "the kernel's Hydrate::CreateOrAct guard tests.",
-    "acts_as (Policy)"                  =>
-                                           "the same as policy_only: the role a reaction runs as is read by the dispatch " \
-                                           "check still to come, and hecks' own reactions take it in role-migrate-hecks. " \
-                                           "Exercised by spec/role_unstated_vocabulary_spec.rb and " \
-                                           "spec/model_check_acts_as_spec.rb."
+                                           "the kernel's Hydrate::CreateOrAct guard tests."
   }.freeze
 
   UNNAMED_WORDS_WHY = <<~WHY.freeze

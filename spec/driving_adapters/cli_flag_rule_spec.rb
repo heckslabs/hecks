@@ -10,7 +10,8 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   def status(*argv) = run(*argv).last
 
   def create_pizza(*extra)
-    run("order.create_pizza!", "name=Margherita", "pizza.price_cents.cents=1200", "pizza.size.value=large", *extra)
+    run("order.create_pizza!", "--as", "Chef", "name=Margherita", "pizza.price_cents.cents=1200", "pizza.size.value=large",
+        *extra)
   end
 
   it "accepts --wait on a command whose bluebook does not opt into the launcher" do
