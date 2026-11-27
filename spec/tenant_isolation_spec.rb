@@ -44,6 +44,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     Hecks.hecksagon "Tenanted" do
       attaches "Governance"
       Tenanted::Widget.persisted_by("%<adapter>s")
+      revisions %<revisions>s
     end
   HECKSAGON
 
@@ -75,9 +76,9 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
 
   # One directory, two tenant overlays (environments/acme.world, bloom.world) overriding realm
   # and persistence settings.
-  def write_tenant_domain(adapter:, tenant_settings:)
+  def write_tenant_domain(adapter:, tenant_settings:, revisions: false)
     write("tenanted.bluebook", TENANT_ISOLATION_BLUEBOOK)
-    write("tenanted.hecksagon", format(TENANT_ISOLATION_HECKSAGON, adapter: adapter))
+    write("tenanted.hecksagon", format(TENANT_ISOLATION_HECKSAGON, adapter: adapter, revisions: revisions))
     write("context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     write("tenanted.world", TENANT_ISOLATION_WORLD)
     tenant_settings.each { |slug, settings| write_overlay(slug, adapter, settings) }
@@ -179,7 +180,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   end
 
   # One database proves isolation both through dispatch/query and through direct SQL.
-  context "when bound to real PostgresEra", :io do
+  context "when bound to real Postgres with revisions true", :io do
     around do |example|
       next example.run unless PostgresProbe.available?
 
@@ -194,7 +195,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
 
     def write_postgres_tenant_domain
       url = FencedOwner.url(@db)
-      write_tenant_domain(adapter: "PostgresEra", tenant_settings: {
+      write_tenant_domain(adapter: "Postgres", revisions: true, tenant_settings: {
                             "acme"  => { database: url, schema: "tenant_acme" },
                             "bloom" => { database: url, schema: "tenant_bloom" }
                           })
@@ -226,7 +227,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
       expect_tenant_capable(boot_tenant("acme"))
     end
 
-    it "keeps two tenants' data completely apart on real PostgresEra", :aggregate_failures do
+    it "keeps two tenants' data completely apart on real Postgres with revisions true", :aggregate_failures do
       write_postgres_tenant_domain
       router = tenant_router(boot_tenant("acme"), boot_tenant("bloom"))
       router.dispatch("Acme::Tenanted::Widget.Make", ref: { value: "acme-only-real-postgres" })

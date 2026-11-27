@@ -1,7 +1,7 @@
 # `Waybill` — retention note
 
 **Kept.** A construct combination that, checked directly against every
-existing `process_manager` in the corpus before this domain was
+existing `saga` in the corpus before this domain was
 authored, had never once been declared: a saga leg whose own `dispatch`
 targets a command owned by a NESTED ENTITY, not a plain aggregate.
 
@@ -16,7 +16,7 @@ targets a command owned by a NESTED ENTITY, not a plain aggregate.
   None targets an entity.
 - `qa/stress_domains/nested_pieces` proves a two-level nested entity
   fuzzes and dispatches correctly through ORDINARY (non-saga) addressing
-  — but nothing in that domain declares a `process_manager` at all.
+  — but nothing in that domain declares a `saga` at all.
 - No existing corpus member combines the two: a saga driving dispatch
   into a nested entity's own command.
 
@@ -57,7 +57,7 @@ fuzz-luck-dependent. `spec/waybill_spec.rb`'s three examples confirm
 this directly: `Manifest.Open`/`Manifest.AddSlot` (aggregate-level, legs
 1-2) deliver correctly every time; `Manifest::Slot.Fill` (entity-level,
 leg 3) never delivers; the saga's own `:refused` leg fires every time as
-a result, making `ConsignmentShipped` (this process manager's own
+a result, making `ConsignmentShipped` (this saga's own
 `ends_on`) an unreachable happy path today.
 
 ## Confirmed NOT a saga-wide bug — `PolicyInterpreter` does not share it

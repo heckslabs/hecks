@@ -10,23 +10,22 @@ use crate::json::Json;
 /// matching `Exporter.lineage`'s own output shape.
 ///
 /// An aggregate with no `persisted_by` bind falls back to the world's `default_adapter` for the
-/// target bluebook, then to `"Memory"`.
+/// target bluebook, then to `"Memory"`. An aggregate is capable when it binds Postgres and the
+/// hecksagon sets `revisions true`: the revision layout (ADR 0182).
 pub fn run(
     ir: &mut Json,
     hecksagon_path: Option<&Path>,
     world_default: Option<&str>,
-    root: &Path,
+    _root: &Path,
 ) -> Result<(), String> {
-    let binds = match hecksagon_path {
+    let text = match hecksagon_path {
         Some(path) => {
-            let text = std::fs::read_to_string(path)
-                .map_err(|e| format!("reading {}: {e}", path.display()))?;
-            persistence_binds(&text)
+            std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?
         }
-        None => HashMap::new(),
+        None => String::new(),
     };
+    let binds = persistence_binds(&text);
     let fallback_adapter = world_default.unwrap_or("Memory").to_string();
-    let capable_adapters = lineage_capable_adapter_names(root)?;
 
     // Collected before `ir.set` below: Rust can't hold this borrow of `ir`
     // alongside the `&mut` call.
@@ -39,7 +38,7 @@ pub fn run(
             let adapter_name = binds
                 .get(name.as_str())
                 .map_or(fallback_adapter.as_str(), String::as_str);
-            capable_adapters.iter().any(|a| a == adapter_name)
+            revision_layout(adapter_name, &text)
         })
         .map(|name| {
             let storage_name = crate::hecks_naming::snake(&name);
@@ -102,73 +101,25 @@ pub(crate) fn persistence_binds(text: &str) -> HashMap<String, String> {
     binds
 }
 
-// Where an adapter class can live: the driven adapters, and the era plugin that holds `PostgresEra`,
-// the one adapter that declares itself lineage-capable.
-const ADAPTER_DIRS: [&str; 2] = [
-    "lib/hecks/adapters/driven",
-    "lib/hecks/ports/persistence/plugins/era",
-];
+/// The one adapter whose hecksagon can choose the revision layout, as Ruby's `Postgres.layout_class`.
+pub(crate) const REVISION_ADAPTER: &str = "Postgres";
 
-// Reads each adapter's own source file rather than invoking Ruby.
-pub(crate) fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
-    let mut names = Vec::new();
-    for relative in ADAPTER_DIRS {
-        let dir = root.join(relative);
-        let entries =
-            std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))?;
-
-        for entry in entries {
-            let entry = entry.map_err(|e| format!("reading {}: {e}", dir.display()))?;
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) != Some("rb") {
-                continue;
-            }
-
-            let text = std::fs::read_to_string(&path)
-                .map_err(|e| format!("reading {}: {e}", path.display()))?;
-            if !declares_lineage_capable_true(&text) {
-                continue;
-            }
-            if let Some(name) = top_level_class_name(&text) {
-                names.push(name);
-            }
-        }
-    }
-
-    Ok(names)
+/// Whether an aggregate bound to `adapter` in the hecksagon `text` keeps Postgres's revision
+/// layout, the one layout with eras and lineage: Ruby's `Ports::Persistence::Layout`.
+pub(crate) fn revision_layout(adapter: &str, text: &str) -> bool {
+    adapter == REVISION_ADAPTER && declares_revisions(text)
 }
 
-// Matches `def self.lineage_capable? = true`, including the endless-method
-// form, without a regex dependency.
-fn declares_lineage_capable_true(text: &str) -> bool {
-    const NEEDLE: &str = "lineage_capable?";
-    let mut search_from = 0;
-    while let Some(rel) = text[search_from..].find(NEEDLE) {
-        let after = &text[search_from + rel + NEEDLE.len()..];
-        let trimmed = after.trim_start();
-        if trimmed.starts_with("= true") {
-            return true;
-        }
-        search_from += rel + NEEDLE.len();
-    }
-    false
-}
-
-// Assumes one primary class per adapter file, matching the corpus.
-fn top_level_class_name(text: &str) -> Option<String> {
-    for line in text.lines() {
-        let trimmed = line.trim_start();
-        if let Some(rest) = trimmed.strip_prefix("class ") {
-            let name: String = rest
-                .chars()
-                .take_while(|c| c.is_alphanumeric() || *c == '_')
-                .collect();
-            if !name.is_empty() {
-                return Some(name);
-            }
-        }
-    }
-    None
+// The hecksagon's last `revisions` line decides, as the DSL's `revisions(on = true)` does: bare
+// `revisions` and `revisions true` turn it on, `revisions false` off.
+fn declares_revisions(text: &str) -> bool {
+    text.lines()
+        .map(|line| line.split('#').next().unwrap_or_default().trim())
+        .filter_map(|line| line.strip_prefix("revisions"))
+        .filter(|rest| rest.is_empty() || rest.starts_with([' ', '(']))
+        .map(|rest| rest.trim_matches(|c: char| c.is_whitespace() || c == '(' || c == ')'))
+        .next_back()
+        .is_some_and(|value| value.is_empty() || value == "true")
 }
 
 #[cfg(test)]
@@ -213,35 +164,42 @@ mod tests {
     }
 
     #[test]
-    fn declares_lineage_capable_true_matches_the_endless_method_form() {
-        assert!(declares_lineage_capable_true(
-            "      def self.lineage_capable? = true\n"
-        ));
-        assert!(!declares_lineage_capable_true(
-            "      def self.lineage_capable? = false\n"
-        ));
-        assert!(!declares_lineage_capable_true("no such method here\n"));
+    fn postgres_with_revisions_true_is_the_revision_layout() {
+        let text = "Hecks.hecksagon \"Shop\" do\n  Shop::Order.persisted_by(\"Postgres\")\n  revisions true\nend\n";
+        assert!(revision_layout("Postgres", text));
     }
 
-    // The adapter moved out of `lib/hecks/adapters/driven` once and the scan silently found none, which
-    // left every lineage-capable aggregate out of a Ruby-free build's `ir.json`.
     #[test]
-    fn finds_postgres_era_in_the_real_source_tree() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let names = lineage_capable_adapter_names(&root).expect("scans the adapter directories");
+    fn postgres_without_revisions_is_the_table_layout() {
+        let text = "Hecks.hecksagon \"Shop\" do\n  Shop::Order.persisted_by(\"Postgres\")\nend\n";
+        assert!(!revision_layout("Postgres", text));
+    }
+
+    #[test]
+    fn the_last_revisions_line_decides() {
+        assert!(!declares_revisions("  revisions true\n  revisions false\n"));
+        assert!(declares_revisions("  revisions\n"));
+        assert!(!declares_revisions(
+            "  revisions_kept true\n  # revisions true\n"
+        ));
+    }
+
+    #[test]
+    fn revisions_on_another_adapter_is_no_revision_layout() {
+        assert!(!revision_layout("Memory", "  revisions true\n"));
+    }
+
+    // Ruby picks the layout in `Postgres.layout_class`; if that moves, this pass no longer
+    // describes what Ruby boots.
+    #[test]
+    fn ruby_postgres_picks_its_layout_from_revisions() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../lib/hecks/adapters/driven/postgres.rb");
+        let text = std::fs::read_to_string(&path).expect("reads postgres.rb");
         assert!(
-            names.iter().any(|name| name == "PostgresEra"),
-            "lineage-capable adapters found: {names:?}"
-        );
-    }
-
-    #[test]
-    fn finds_the_top_level_class_name() {
-        assert_eq!(
-            top_level_class_name(
-                "module Hecks\n  module Adapters\n    class Postgres\n      def x; end\n"
-            ),
-            Some("Postgres".to_string())
+            text.contains("def self.layout_class(revisions:)"),
+            "{}",
+            path.display()
         );
     }
 }

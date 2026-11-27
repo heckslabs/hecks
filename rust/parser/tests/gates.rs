@@ -30,7 +30,7 @@ fn now_implemented_fixtures_parse_for_real() {
         ("policy.bluebook", "FixturePolicy"),
         ("lifecycle.bluebook", "FixtureLifecycle"),
         ("read_model.bluebook", "FixtureReadModel"),
-        ("process_manager.bluebook", "FixtureProcessManager"),
+        ("saga.bluebook", "FixtureSaga"),
         ("aggregate.bluebook", "FixtureAggregate"),
         ("entity.bluebook", "FixtureEntity"),
     ];
@@ -454,8 +454,8 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
         "expected identified_by/Entity covered, got: {stdout}"
     );
     assert!(
-        stdout.contains("[\"correlates_by\", \"ProcessManager\"]"),
-        "expected correlates_by/ProcessManager covered, got: {stdout}"
+        stdout.contains("[\"correlates_by\", \"Saga\"]"),
+        "expected correlates_by/Saga covered, got: {stdout}"
     );
     assert!(
         stdout.contains("[\"dispatch\", \"Handler\"]"),
@@ -960,7 +960,7 @@ fn world_scalars_last_call_wins_and_default_database_is_only_a_flag() {
     assert!(flat.contains("\"realm\": \"Examples\""), "got: {out}");
     assert!(flat.contains("\"latest\": \"v1\""), "got: {out}");
     assert!(
-        flat.contains("\"default_adapter\": \"PostgresEra\""),
+        flat.contains("\"default_adapter\": \"Postgres\""),
         "got: {out}"
     );
     assert!(flat.contains("\"default_database\": true"), "got: {out}");
@@ -1136,7 +1136,7 @@ fn every_real_world_file_parses_and_prints_no_setting_value() {
 fn a_bare_aggregate_correlates_by_resolves_to_its_identity_and_a_dotted_key_stays() {
     // `correlates_by Message` means the aggregate's identity (`Message.id`, the field its `id`
     // attribute names); the dotted `:"Message.id"` beside it is kept as written.
-    let path = fixture("process_manager_bare_correlation.bluebook");
+    let path = fixture("saga_bare_correlation.bluebook");
     let output = run(&[
         "bluebook",
         "--bluebook",
@@ -1156,15 +1156,70 @@ fn a_bare_aggregate_correlates_by_resolves_to_its_identity_and_a_dotted_key_stay
 }
 
 #[test]
+fn process_manager_is_refused_by_name_and_names_saga() {
+    // ADR 0180: `saga` keeps `process_manager` as its `was:`, and live source spelling the old
+    // word is refused with the replacement named, as the Ruby builder refuses it.
+    let dir = std::env::temp_dir().join(format!("hecks_parse_pm_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("process_manager.bluebook");
+    let source = std::fs::read_to_string(fixture("saga.bluebook")).unwrap();
+    std::fs::write(&path, source.replace("  saga \"", "  process_manager \"")).unwrap();
+    let output = run(&[
+        "bluebook",
+        "--bluebook",
+        "FixtureSaga",
+        path.to_str().unwrap(),
+    ]);
+    std::fs::remove_dir_all(&dir).ok();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success()
+            && stderr.contains("process_manager is gone — saga is the word now"),
+        "expected the process_manager refusal, got: {stderr}"
+    );
+}
+
+/// A saga correlated by a bare value object; it is written out here, not kept as a fixture, because
+/// a changed bluebook in the tree must boot.
+const BARE_NON_AGGREGATE: &str = r#"Hecks.bluebook "FixtureBareNonAggregate" do
+  aggregate "Message" do
+    identified_by :id
+    attribute :id, MessageId
+
+    value_object "MessageId" do
+      attribute :value, String
+    end
+
+    command "Schedule" do
+      emits "Scheduled"
+    end
+  end
+
+  saga "ScheduledSend" do
+    correlates_by MessageId
+    starts_on "Message.Scheduled"
+
+    transition "Message.Scheduled" => "scheduled", from: "start" do
+      dispatch Message::Schedule
+    end
+  end
+end
+"#;
+
+#[test]
 fn a_bare_correlates_by_naming_no_aggregate_is_refused() {
     // A bare value object is not an aggregate, so it gets the whole-field refusal the Ruby builder gives.
-    let path = fixture("process_manager_bare_non_aggregate.bluebook");
+    let dir = std::env::temp_dir().join(format!("hecks_parse_bare_vo_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("saga_bare_non_aggregate.bluebook");
+    std::fs::write(&path, BARE_NON_AGGREGATE).unwrap();
     let output = run(&[
         "bluebook",
         "--bluebook",
         "FixtureBareNonAggregate",
         path.to_str().unwrap(),
     ]);
+    std::fs::remove_dir_all(&dir).ok();
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         !output.status.success(),

@@ -48,16 +48,16 @@ module Hecks
           reset_schema!(database, schema, create: true)
         end
 
-        # `:postgres_era` is the only mode that exercises era/lineage-bound SQL; plain
-        # `:postgres` never touches that machinery. Unlike `:postgres`, there's no shared
-        # scratch constant here — `database:`/`schema:` are required keyword args because
-        # the caller (the QualityControl sweep's persistence parity, in Switchyard) owns that
-        # database's lifecycle.
+        # `:postgres_era` is the only mode that exercises era/lineage-bound SQL: Postgres with
+        # `revisions true`, its revision layout. Plain `:postgres` never touches that machinery.
+        # Unlike `:postgres`, there's no shared scratch constant here — `database:`/`schema:`
+        # are required keyword args because the caller (the QualityControl sweep's persistence
+        # parity, in Switchyard) owns that database's lifecycle.
         def rebind_to_postgres_era!(copy, database:, schema:, disposable: true)
           require "hecks/pg_options"
           require_owned_scratch!(database, schema)
 
-          rewrite_bindings!(copy, "PostgresEra")
+          rewrite_bindings!(copy, "Postgres", revisions: true)
           ensure_postgres_era_schema!(database: database, schema: schema)
 
           write_worlds!(copy, "hecks_fuzz_postgres_era.world") do |name|
@@ -75,7 +75,8 @@ module Hecks
                 "There is no shared default, unlike :postgres, so the caller cannot forget to own the lifecycle."
         end
 
-        # The world text for one bluebook on `PostgresEra`, in a throwaway schema the caller owns.
+        # The world text for one bluebook on Postgres's revision layout, in a throwaway schema the
+        # caller owns.
         #
         # `allow_superuser true` is deliberate: the era write-fence is row-level security, which a
         # superuser bypasses, and the fence is not under test here.
@@ -85,8 +86,8 @@ module Hecks
         def postgres_era_world(name, database, schema, disposable: true)
           <<~WORLD
             Hecks.world "#{name}" do
-              default_adapter "PostgresEra"
-              persisted_by("PostgresEra") do
+              default_adapter "Postgres"
+              persisted_by("Postgres") do
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true

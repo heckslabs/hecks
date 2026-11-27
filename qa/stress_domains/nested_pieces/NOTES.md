@@ -8,7 +8,7 @@ theoretical.
 `EntityBuilder#entity_impl` has supported "a piece nested inside a piece"
 since ADR 0026 (S17). The only place that shape is actually declared
 anywhere in this repository is the language's own self-describing meta-
-bluebook, `lib/hecks/language/bluebook/process_manager.bluebook`
+bluebook, `lib/hecks/language/bluebook/saga.bluebook`
 (`entity "Handler"` containing `entity "Dispatch"`) — used for grammar
 and glossary tooling, never booted as a real domain, never fuzzed. No
 example (`pizzas`/`banking`/`chess`/`roster`/...) and no prior
@@ -62,7 +62,7 @@ nested_pieces_spec.rb` already exercises — both are now expected to
 agree (`NotFound` on both engines) if PR #526's own Rust-side companion
 work also landed; hop two additionally answers the NEW question of
 whether a compiled binary even GENERATES for a two-level-deep entity
-command at all (untested — the only precedent, `ProcessManager::
+command at all (untested — the only precedent, `Saga::
 Handler.Dispatch`, is the framework's own bootstrap meta-bluebook, not
 an ordinary generated domain, though `rust/codegen/src/commands.rs`'s
 own `entity_command_skip_reason` comment confirms it is at least KNOWN

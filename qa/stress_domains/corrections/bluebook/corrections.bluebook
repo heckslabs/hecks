@@ -155,7 +155,7 @@ Hecks.bluebook "Corrections" do
 
 # Correlates on `Entry.Amend`'s redundant `reference` argument; unreachable while that command
 # cannot emit.
-  process_manager "CorrectionWatch" do
+  saga "CorrectionWatch" do
     correlates_by :"reference.value"
     starts_on Ledger::EntryAmended
     ends_on   AuditTrail::AuditTrailFlagged

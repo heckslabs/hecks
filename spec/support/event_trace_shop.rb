@@ -42,12 +42,13 @@ module EventTraceShop
   module_function
 
   # Writes the domain into `dir`; `adapter` and `world` wire its persistence, nil leaves Memory.
-  def write(dir, adapter: nil, world: nil)
+  def write(dir, adapter: nil, world: nil, revisions: false)
     FileUtils.mkdir_p(File.join(dir, "bluebook"))
     File.write(File.join(dir, "bluebook/trace.bluebook"), BLUEBOOK)
     return unless adapter
 
-    File.write(File.join(dir, "bluebook/trace.hecksagon"), %(Hecks.hecksagon "Trace" do\n  persisted_by "#{adapter}"\nend\n))
+    File.write(File.join(dir, "bluebook/trace.hecksagon"),
+               %(Hecks.hecksagon "Trace" do\n  persisted_by "#{adapter}"\n  revisions #{revisions}\nend\n))
     File.write(File.join(dir, "bluebook/trace.world"), world)
   end
 
@@ -57,7 +58,7 @@ module EventTraceShop
 
   def postgres_world(database)
     settings = %W[database\ "#{database}" disposable_ledger\ true allow_superuser\ true].join("\n    ")
-    %(Hecks.world "Trace" do\n  persisted_by("PostgresEra") do\n    #{settings}\n  end\nend\n)
+    %(Hecks.world "Trace" do\n  persisted_by("Postgres") do\n    #{settings}\n  end\nend\n)
   end
 
   # Boots the domain in `dir` and places and touches an order.

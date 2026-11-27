@@ -17,6 +17,8 @@ RSpec.describe "Hecks::Adapters::PostgresEra::LineageManager::RevisionResolver â
   before do
     allow(Hecks::Adapters::PostgresEra).to receive(:connect_for).and_return(instance_double(PG::Connection, close: nil))
     allow(Hecks::Adapters::PostgresEra::Lineage).to receive(:new).and_return(lineage)
+    allow(Hecks::Adapters::PostgresLayoutRecord).to receive(:new)
+      .and_return(instance_double(Hecks::Adapters::PostgresLayoutRecord, check!: nil))
     allow(Hecks::Runtime::StorageShape).to receive(:project).and_return({})
   end
 

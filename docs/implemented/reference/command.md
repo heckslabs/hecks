@@ -320,11 +320,12 @@ meter.commands.find { |c| c.hecks_name == "Calibrate" }.mints_era  # => true
 ```
 
 This is a storage concern, so it is moving out of the bluebook to the world that binds the
-persistence. A world's `persisted_by("PostgresEra")` block names the commands instead:
+persistence. A world's `persisted_by("Postgres")` block, for a hecksagon that sets `revisions true`,
+names the commands instead:
 
 ```text
 Hecks.world "Ledger" do
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://hecks@localhost/ledger"
     mints_era "Maintenance.MintEra"   # one `Aggregate.Command` name, or a list
   end

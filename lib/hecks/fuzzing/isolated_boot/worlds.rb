@@ -16,6 +16,12 @@ module Hecks
         # a newline ends the statement, and the next one must stay.
         PERSISTED_BY_BIND = /persisted_by[ \t]*\(?[ \t]*(?:"[^"]+"|[a-z_]\w*)[ \t]*\)?/
 
+        # A hecksagon's `revisions` line, which only a rebind to Postgres's revision layout keeps.
+        REVISIONS_LINE = /\A\s*revisions\b/
+
+        # The opening line of a `Hecks.hecksagon "Name" do` block.
+        HECKSAGON_OPENING = /^(\s*)Hecks\.hecksagon\s+"[^"]+"\s+do[ \t]*$/
+
         # Replaces every `.world` in the copy with one that declares only `default_adapter`,
         # so an aggregate left unbound by its hecksagon still falls back to `adapter_name`.
         def write_default_worlds!(copy, adapter_name)
@@ -109,12 +115,20 @@ module Hecks
         # Rewrites every `persisted_by` bind — aggregate-scoped or bare at the hecksagon's
         # own root, naming its adapter as a literal or through a local variable — to name
         # `adapter_name`, and drops every `projected_by` bind outright (unread rather than
-        # broken, since `Registry#read_repository` falls back to the authoritative repo).
-        def rewrite_bindings!(copy, adapter_name)
+        # broken, since `Registry#read_repository` falls back to the authoritative repo). Every
+        # `revisions` line goes too; `revisions: true` opens each hecksagon block with
+        # `revisions true` instead, for Postgres's revision layout.
+        def rewrite_bindings!(copy, adapter_name, revisions: false)
           Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
-            lines = File.readlines(path).grep_v(PROJECTED_BY_BIND)
-            File.write(path, lines.join.gsub(PERSISTED_BY_BIND, "persisted_by(\"#{adapter_name}\")"))
+            lines = File.readlines(path).grep_v(PROJECTED_BY_BIND).grep_v(REVISIONS_LINE)
+            text = lines.join.gsub(PERSISTED_BY_BIND, "persisted_by(\"#{adapter_name}\")")
+            File.write(path, revisions ? with_revisions(text) : text)
           end
+        end
+
+        # `text` with `revisions true` opening every `Hecks.hecksagon` block in it.
+        def with_revisions(text)
+          text.gsub(HECKSAGON_OPENING) { "#{Regexp.last_match(0)}\n#{Regexp.last_match(1)}  revisions true" }
         end
       end
     end

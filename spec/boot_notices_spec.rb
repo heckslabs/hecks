@@ -1,7 +1,7 @@
 require "spec_helper"
 require_relative "support/boot_notice_samples"
 
-# A refusal says what the command said first. The runtime's own boot notices (a process manager
+# A refusal says what the command said first. The runtime's own boot notices (a saga
 # with no `save_saga`, an outbox row claimed before a crash, a worktree without the overlay
 # files) follow it after a divider, so the first line is the cause and nothing is lost.
 RSpec.describe Hecks::BootNotices do

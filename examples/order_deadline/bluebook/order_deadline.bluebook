@@ -1,6 +1,6 @@
 # Example: a deadline reaches a saga as an ordinary command (ADR 0169). The order holds the
 # instant it falls due; `Expire` reads the clock through `needs :now` and refuses until then; the
-# process manager reacts to `OrderExpired` like any event and dispatches the undoing itself.
+# saga reacts to `OrderExpired` like any event and dispatches the undoing itself.
 Hecks.bluebook "OrderDeadline" do
   vision "An order holds stock while it waits to be paid, and gives the stock back once it is overdue: time reaches the saga as a command an inbound clock may dispatch early, twice or late without changing the answer."
 
@@ -120,7 +120,7 @@ Hecks.bluebook "OrderDeadline" do
   end
 
   # The saga learns about time only through `OrderExpired`; its checkpoint holds no clock.
-  process_manager "Fulfilment" do
+  saga "Fulfilment" do
     correlates_by :"reference.value"
     starts_on Order::OrderPlaced
     ends_on   Order::OrderPaid

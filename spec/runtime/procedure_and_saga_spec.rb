@@ -29,7 +29,7 @@ RSpec.describe "a saga, and when it compensates" do
       end
     end
 
-    process_manager "Pipeline" do
+    saga "Pipeline" do
       correlates_by :"candidate.id"
       starts_on "CandidateApplied"
       ends_on   "OfferAccepted"

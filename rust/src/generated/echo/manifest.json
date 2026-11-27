@@ -165,13 +165,13 @@
     "routed": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Echo::Charge",
     "generated": true,
     "routed": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Echo::Watch",
     "generated": true,
     "routed": true

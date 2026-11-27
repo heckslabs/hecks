@@ -5,14 +5,13 @@ module Hecks
       # direction: an `attaches` and a `subscribe` as much as an `across` policy or a `translates`,
       # since the context that attaches or listens cannot be understood without the other.
       #
-      # A cycle that stood before the rule is accepted on its relationship in the context map
-      # (`accepted_findings: { context_cycle: "reason" }`) and reported as deprecated; one that is
-      # not accepted is an error. An accepted pair is read as one context while it stands, so a
-      # longer ring through it is still refused.
+      # A cycle is an error, whatever the context map says. A relationship that accepts one
+      # (`accepted_findings: { context_cycle: "reason" }`) excuses nothing from {REFUSED_FROM}: the
+      # error names the acceptance, and an acceptance whose cycle is gone is reported to be removed.
       module ContextCycles
         # The edge kinds that make one context depend on another: all of them.
         DEPENDENCY_KINDS = %w[customer_supplier acl shared_kernel subscription].freeze
-        # The release from which an accepted cycle is refused too.
+        # The release from which an accepted cycle is refused like any other.
         REFUSED_FROM = "8.0.0".freeze
 
         # Cycles are reported across the whole corpus: no one bluebook's check sees both directions.
@@ -20,11 +19,12 @@ module Hecks
         # @param edges [Array<Hash>] `Projections::ContextRelationships.call`, for every registry
         # @param accepted [Hash{Array(String, String) => String}] each pair of contexts a context
         #   map accepts a cycle between, sorted, with its reason
-        # @return [Array<Finding>] an error for each group of contexts that reach each other, and
-        #   a warning for each accepted pair: deprecated while it stands, stale once it is gone
+        # @return [Array<Finding>] an error for each group of contexts that reach each other, and a
+        #   warning for each accepted pair the wiring does not cycle through
         def context_cycle_findings(edges, accepted: {})
-          graph = dependency_graph(edges)
-          refused_cycle_findings(graph, accepted.keys) + accepted.map { |pair, reason| accepted_finding(graph, pair, reason) }
+          groups = cyclic_groups(dependency_graph(edges))
+          settled = accepted.keys.reject { |pair| groups.any? { |group| (pair - group).empty? } }
+          groups.map { |group| refused_cycle_finding(group, accepted.keys) } + settled.map { |pair| settled_finding(pair) }
         end
 
         # @return [Hash{String => Array<String>}] each context to the contexts it depends on
@@ -35,12 +35,14 @@ module Hecks
           end
         end
 
-        # @return [Array<Finding>] an error for each cycle the accepted pairs do not explain
-        def refused_cycle_findings(graph, pairs)
-          cyclic_groups(merged(graph, pairs)).map do |group|
-            names = group.flatten.sort
-            Finding.new(kind: :context_cycle, severity: :error, subject: names.join(" <-> "), message: refused_message(names))
-          end
+        # @param group [Array<String>] contexts that reach each other, sorted
+        # @param pairs [Array<Array(String, String)>] the pairs a context map accepts a cycle
+        #   between
+        # @return [Finding] the error for the group, naming any acceptance inside it
+        def refused_cycle_finding(group, pairs)
+          held = pairs.select { |pair| (pair - group).empty? }
+          Finding.new(kind: :context_cycle, severity: :error, subject: group.join(" <-> "),
+                      message: refused_message(group) + held.map { |pair| acceptance_note(pair) }.join)
         end
 
         def refused_message(names)
@@ -48,24 +50,9 @@ module Hecks
             "downstream of it, never both; move the reactions to one side's hecksagon, or make them one context"
         end
 
-        # The graph with each accepted pair drawn as one node, and no edge inside a node.
-        def merged(graph, pairs)
-          node = nodes_of(graph, pairs)
-          graph.each_with_object(Hash.new { |held, key| held[key] = [] }) do |(from, targets), held|
-            targets.each { |to| held[node[from]] |= [node[to]] unless node[from] == node[to] }
-          end
-        end
-
-        # @return [Hash{String => Array<String>}] each context to the accepted group it stands in
-        def nodes_of(graph, pairs)
-          names = (graph.keys + graph.values.flatten + pairs.flatten).uniq
-          pairs.each_with_object(names.to_h { |name| [name, [name]] }) { |pair, node| join(node, pair) }
-        end
-
-        # Puts the two contexts of a pair, and whatever each already stands with, in one group.
-        def join(node, pair)
-          joined = pair.flat_map { |name| node[name] }.uniq.sort
-          joined.each { |name| node[name] = joined }
+        def acceptance_note(pair)
+          "; the context map accepts the cycle between #{pair.join(" and ")} (accepted_findings: " \
+            "{ context_cycle: ... }), which excuses no cycle from #{REFUSED_FROM}"
         end
 
         # @param maps [Array<Bluebook::ContextMap>] the context maps of every booted system
@@ -81,21 +68,11 @@ module Hecks
         # @return [Array<Finding>] {#context_cycle_findings}, with the cycles those maps accept
         def corpus_cycle_findings(edges, maps) = context_cycle_findings(edges, accepted: accepted_cycles(maps))
 
-        def accepted_finding(graph, pair, reason)
-          left, right = pair
-          standing = reachable_from(graph, left).include?(right) && reachable_from(graph, right).include?(left)
-          Finding.new(kind: standing ? :context_cycle : :context_cycle_settled, severity: :warning,
-                      subject: pair.join(" <-> "), message: standing ? deprecated_message(pair, reason) : settled_message(pair))
-        end
-
-        def deprecated_message(pair, reason)
-          "#{pair.join(" and ")} depend on each other, accepted in the context map (#{reason}); an accepted " \
-            "context cycle is deprecated and refused from #{REFUSED_FROM}"
-        end
-
-        def settled_message(pair)
-          "the context map accepts a cycle between #{pair.join(" and ")}, and the wiring no longer has one — " \
-            "remove `context_cycle` from the relationship's accepted_findings"
+        def settled_finding(pair)
+          Finding.new(kind: :context_cycle_settled, severity: :warning, subject: pair.join(" <-> "),
+                      message: "the context map accepts a cycle between #{pair.join(" and ")}, and the wiring " \
+                               "has none — remove `context_cycle` from the relationship's accepted_findings, " \
+                               "which excuses nothing from #{REFUSED_FROM}")
         end
 
         # Nodes that reach each other, grouped. A node with no way back is not in a cycle.

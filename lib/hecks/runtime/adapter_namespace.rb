@@ -1,3 +1,5 @@
+require_relative "registry/retired_adapter_rule"
+
 module Hecks
   module Runtime
     # The one place the runtime turns a declared adapter name into the class behind it.
@@ -12,10 +14,17 @@ module Hecks
     module AdapterNamespace
       module_function
 
+      # A removed adapter's name is refused here, so the class it left behind is reached only as
+      # the layout a hecksagon chooses (`Registry::RetiredAdapterRule`).
+      #
       # @param name [String] the adapter's declared name
       # @return [Class] the adapter class of that name
       # @raise [NameError] if no adapter class has that name
-      def resolve(name) = Hecks::Adapters.const_get(name)
+      # @raise [WiringError] if the name is a removed adapter's, naming its replacement
+      def resolve(name)
+        Registry::RetiredAdapterRule.refuse_lookup!(name)
+        Hecks::Adapters.const_get(name)
+      end
     end
   end
 end

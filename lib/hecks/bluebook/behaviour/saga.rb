@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module Behaviour
-      # Readings over a process manager's trigger, states and handlers.
+      # Readings over a saga's trigger, states and handlers.
       # Its `compensation` is derived from the handler that answers a refusal, not declared.
       module Saga
         # The bluebook's name for this construct.

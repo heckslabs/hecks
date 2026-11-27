@@ -14,7 +14,7 @@ Hecks.bluebook "FixtureBareCorrelation" do
     end
   end
 
-  process_manager "ScheduledSend" do
+  saga "ScheduledSend" do
     correlates_by Message
     starts_on "Message.Scheduled"
 
@@ -23,7 +23,7 @@ Hecks.bluebook "FixtureBareCorrelation" do
     end
   end
 
-  process_manager "Dotted" do
+  saga "Dotted" do
     correlates_by :"Message.id"
     starts_on "Message.Scheduled"
 

@@ -129,18 +129,19 @@ module Hecks
 
       # Parses held source into its own IR, in a throwaway registry.
       #
-      # Tries the live grammar first, falling back to the shadow one only
-      # on `Malformed` — the one signal meaning "not in the live grammar"
-      # (ADR 0025); any other exception propagates unchanged.
+      # Tries the live grammar first, falling back to the shadow one only on "not in the live
+      # grammar" (ADR 0025): the DSL's `Malformed`, or the closed form's refusal of a retired
+      # spelling (`process_manager`). Any other exception propagates unchanged.
       #
       # @param source [String] the held bluebook text to evaluate
       # @param path [String] the file path reported as the text's origin
       # @return [Bluebook::Declaration, nil] the first bluebook declared; nil when it declares none
       # @raise [Bluebook::DSL::Malformed] if neither grammar accepts the text
+      # @raise [ClosedForm::Refused] if the text reaches outside the closed vocabulary of its era
       # @raise [SyntaxError] if the text is not valid Ruby
       def shadow_parse(source, path)
         parse_bluebook(source, path, shadow: false)
-      rescue Hecks::Bluebook::DSL::Malformed
+      rescue Hecks::Bluebook::DSL::Malformed, Hecks::ClosedForm::Refused
         parse_bluebook(source, path, shadow: true)
       end
 

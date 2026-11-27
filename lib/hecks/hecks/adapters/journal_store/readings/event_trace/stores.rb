@@ -12,7 +12,8 @@ module Hecks
           # named but cannot be opened, so the trace can say why it has nothing to show.
           class Stores
             SQLITE = %w[Sqlite SqlitePersistence].freeze
-            POSTGRES = %w[PostgresEra].freeze
+            # Postgres keeps a readable event log only in its revision layout (ADR 0182).
+            POSTGRES = %w[Postgres].freeze
 
             # One place events are kept: `kind` is `:sqlite`, `:postgres` or `:none`.
             Store = Struct.new(:kind, :adapter, :key, :name, :settings)
@@ -55,15 +56,16 @@ module Hecks
             end
 
             def build(name, adapter, settings)
-              kind = kind_of(adapter)
+              kind = kind_of(name, adapter)
               key = kind == :none ? adapter : location(kind, settings)
               Store.new(kind, adapter, key, name, settings)
             end
 
-            def kind_of(adapter)
+            def kind_of(name, adapter)
               return :sqlite if SQLITE.include?(adapter)
 
-              POSTGRES.include?(adapter) ? :postgres : :none
+              revisions = POSTGRES.include?(adapter) && Ports::Persistence::Layout.revisions?(@registry, name)
+              revisions ? :postgres : :none
             end
 
             def location(kind, settings)

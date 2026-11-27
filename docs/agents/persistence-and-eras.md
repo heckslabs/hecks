@@ -15,7 +15,7 @@ the line is a lock in the repository's git directory, and a commit the remote al
 answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`.
 
 - Dev work needs no environment variable: Hecks is in Memory unless a local hecksagon's root
-  `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it). Do not add local
+  `persisted_by "Postgres"` and `revisions true` opt it in (the attached bluebooks inherit both). Do not add local
   files to a development checkout, and none by hand to the train's copy. The one exception is the
   train's generated, gitignored `hecks.local.hecksagon`, which `Train#write_overlay` writes at each
   boarding from the `KeptAggregate` rows of `lib/hecks/hecks/hecks.bluebook`: the clock chain's
@@ -47,7 +47,7 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   Renamed or reshaped data needs rules: `exe/hecks schema_revision.scaffold_translation domain.value=<dir>`
   writes them from the database the domain's own world names, and `schema_revision.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
-  (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
+  (`persisted_by("Postgres") do ... mint_eras true end`, also from an overlay); `hecks config`
   reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`).
 - A tooling ledger may opt out of eras with `disposable_ledger true` in the same block
   (`LineageManager::DisposableLedger`): an additive shape change is applied in place, any other

@@ -2,7 +2,7 @@ require "hecks/ports/persistence/plugins/era"
 
 module Hecks
   module Fuzzing
-    # Checks a target's real, already-configured `PostgresEra` ledger for
+    # Checks a target's real, already-configured Postgres revision ledger for
     # ancestor eras still holding writes nobody has merged forward.
     module RevisionBoundary
       module_function
@@ -19,7 +19,7 @@ module Hecks
         reason = unaudited_reason(registry, bluebook)
         return not_applicable(reason) if reason
 
-        audit(registry, bluebook, "PostgresEra")
+        audit(registry, bluebook, bound_adapter(registry, bluebook))
       rescue StandardError => e
         # A refused connection or malformed `.world` settings is not the
         # same as nothing to audit, so this reports `:error`, never the
@@ -27,12 +27,14 @@ module Hecks
         failed("#{e.class}: #{e.message}")
       end
 
-      # Why a bluebook has no `PostgresEra` lineage to audit, or nil when it does.
+      # Why a bluebook has no revision lineage to audit, or nil when it does.
       def unaudited_reason(registry, bluebook)
         return "#{bluebook.name} declares no aggregates" unless bluebook.aggregates.first
 
         adapter_name = bound_adapter(registry, bluebook)
-        "#{bluebook.name} is bound to #{adapter_name}, not PostgresEra" unless adapter_name == "PostgresEra"
+        return if Hecks::Runtime::RevisionCheck.lineage_capable?(registry, adapter_name, bluebook.name)
+
+        "#{bluebook.name} is bound to #{adapter_name}, not Postgres with revisions true"
       end
 
       def bound_adapter(registry, bluebook)

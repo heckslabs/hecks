@@ -104,9 +104,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "its one real use, the QA ledger's wiring-only directory, moved to Switchyard " \
                                            "(ADR 0205); no example domain or framework member holds only wiring. The word " \
                                            "is exercised by its reference doctest.",
-    "revisions (Hecksagon)"             =>
-                                           "Postgres-only, and no tracked parity corpus binds a Postgres adapter, so no " \
-                                           "corpus hecksagon sets it. The word is exercised by spec/hecksagon_revisions_spec.rb.",
     "inspect_query (Query)"             =>
                                            "a real declaration would be vacuous: no adapter in this codebase implements the " \
                                            "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \
@@ -226,7 +223,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "check still to come, and hecks' own reactions take it in role-migrate-hecks. " \
                                            "Exercised by spec/role_unstated_vocabulary_spec.rb and " \
                                            "spec/model_check_acts_as_spec.rb.",
-    "resumes (ProcessManager)"          =>
+    "resumes (Saga)"                    =>
                                            "its real uses were in the development pipeline's bluebooks, which moved to " \
                                            "Switchyard (ADR 0205), and no example domain uses it yet. The word is " \
                                            "exercised by its reference doctest.",

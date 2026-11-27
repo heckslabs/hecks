@@ -7,7 +7,7 @@ module Hecks
     class JournalStore
       module Readings
         module EventTrace
-          # A PostgresEra database over a session that refuses every write.
+          # A Postgres revision-layout database over a session that refuses every write.
           class PostgresReader < Reader
             # @param name [String] the bluebook the settings belong to, for refusals
             # @param settings [Hash] the world's persistence settings

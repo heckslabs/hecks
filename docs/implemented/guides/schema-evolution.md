@@ -23,10 +23,12 @@ documents the other answer: the shape change is declared, the same way
 everything else here is declared, and a real tool tells you — before
 you boot — whether every old record survives it.
 
-This is `PostgresEra`'s job specifically, not Postgres's in general.
-Plain `Postgres` has no era tracking — it boots whatever text it is
-handed, the same as `Memory`, `Sqlite`, and `Heki`, none of which carry
-a translation system either. `PostgresEra` is the one binding that
+This is the job of Postgres's revision layout specifically, not of
+Postgres in general. A hecksagon picks that layout with `revisions true`
+beside `persisted_by "Postgres"` (ADR 0182). Plain `Postgres`, without
+it, has no era tracking — it boots whatever text it is handed, the same
+as `Memory`, `Sqlite`, and `Heki`, none of which carry a translation
+system either. The revision layout is the one binding that
 holds the source text a booted domain was born from, refuses on drift
 between held text and booting text, and requires a deliberate
 `translations/*.bluebook` file the moment a shape change would
@@ -46,7 +48,8 @@ Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.blu
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.world"))
 Hecks.hecksagon("Pizzas") do
   attaches "Governance"
-  Pizzas::Order.persisted_by("PostgresEra")
+  Pizzas::Order.persisted_by("Postgres")
+  revisions true
 end
 Hecks.hecksagon("Governance") do
   Governance::RoleAssignment.persisted_by("Memory")
@@ -156,14 +159,15 @@ BLUEBOOK
 
 File.write(File.join(GRANGE_DIR, "bluebook/grange.hecksagon"), <<~HECKSAGON)
   Hecks.hecksagon "Grange" do
-    Grange::Crate.persisted_by("PostgresEra")
+    Grange::Crate.persisted_by("Postgres")
+    revisions true
   end
 HECKSAGON
 
 File.write(File.join(GRANGE_DIR, "bluebook/grange.world"), <<~WORLD)
   Hecks.world "Grange" do
     realm "Doctest"
-    persisted_by("PostgresEra") do
+    persisted_by("Postgres") do
       database "postgres://localhost/#{GRANGE_DB}"
       allow_superuser true   # this guide runs as the ambient Postgres user — see "Who the fence can hold" below
     end
@@ -219,7 +223,8 @@ BLUEBOOK
 
 File.write(File.join(GRANGE_DIR, "bluebook/grange.hecksagon"), <<~HECKSAGON)
   Hecks.hecksagon "Grange" do
-    Grange::Bin.persisted_by("PostgresEra")
+    Grange::Bin.persisted_by("Postgres")
+    revisions true
   end
 HECKSAGON
 
@@ -461,7 +466,7 @@ refuses.
 
 That is exactly what a bare `database "some_db"` does on a self-hosted
 machine: it connects as whatever Postgres user your shell defaults to,
-which is almost always a superuser. So `PostgresEra` asks the catalog
+which is almost always a superuser. So the revision layout asks the catalog
 first, on every boot, and **refuses** to boot over a superuser or
 BYPASSRLS connection, naming the role and the two ways out:
 

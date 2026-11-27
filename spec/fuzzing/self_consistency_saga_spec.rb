@@ -3,7 +3,7 @@ require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
 
 # Saga cold-rehydration and redelivery idempotency, against the waybill stress domain's
-# `Packing` process manager.
+# `Packing` saga.
 RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)", :aggregate_failures do
   # File-unique constant names: a bare name inside `describe` lands on Object, and
   # load_hygiene_spec refuses collisions across spec files.
@@ -118,7 +118,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
     end
   end
 
-  describe "a domain with no process manager at all" do
+  describe "a domain with no saga at all" do
     it "skips cleanly — no findings, not a claimed pass" do
       steps    = Hecks::Fuzzing::SequenceGenerator.generate(SAGA_REHYDRATION_PIZZAS_ROOT, seed: 2, steps: 10)
       findings = Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_PIZZAS_ROOT, steps, self_consistency: true)

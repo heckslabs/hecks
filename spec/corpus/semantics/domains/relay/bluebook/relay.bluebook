@@ -45,7 +45,7 @@ Hecks.bluebook "Relay" do
     end
   end
 
-  process_manager "Delivery" do
+  saga "Delivery" do
     correlates_by :"tag.value"
     starts_on "ParcelPosted"
     ends_on   "ParcelDelivered"

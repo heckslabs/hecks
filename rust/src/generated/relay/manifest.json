@@ -23,7 +23,7 @@
     "routed": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Relay::Delivery",
     "generated": true,
     "routed": true

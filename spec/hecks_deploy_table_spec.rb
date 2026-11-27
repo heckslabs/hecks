@@ -195,7 +195,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       provision("overlaid")
       overlay = File.read(File.join(dir, "environments/overlaid.world"))
 
-      expect(overlay).to include('realm "Acme"', 'persisted_by("PostgresEra")', 'database "hecks_tenants"')
+      expect(overlay).to include('realm "Acme"', 'persisted_by("Postgres")', 'database "hecks_tenants"')
     end
 
     it "registers the tenant in Tenancy" do

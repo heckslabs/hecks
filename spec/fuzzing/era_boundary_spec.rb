@@ -144,14 +144,15 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
   # need not match the current era: the module reads `hecks_eras`/the journal, never a shape hash.
   def write_fixture_files!(root, bluebook_source)
     File.write(File.join(root, "fixture.bluebook"), bluebook_source)
-    File.write(File.join(root, "fixture.hecksagon"), hecksagon_source("PostgresEra"))
+    File.write(File.join(root, "fixture.hecksagon"), hecksagon_source("Postgres", revisions: true))
     File.write(File.join(root, "fixture.world"), world_source)
   end
 
-  def hecksagon_source(adapter)
+  def hecksagon_source(adapter, revisions: false)
     <<~RUBY
       Hecks.hecksagon "RevisionBoundaryFixture" do
         RevisionBoundaryFixture::Widget.persisted_by("#{adapter}")
+        revisions #{revisions}
       end
     RUBY
   end
@@ -159,7 +160,7 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
   def world_source
     <<~RUBY
       Hecks.world "RevisionBoundaryFixture" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "#{database_url}"
           mint_eras true
           allow_superuser true
@@ -208,14 +209,14 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
     scrub.close
   end
 
-  it "reports checked: false for a domain not bound to PostgresEra at all" do
+  it "reports checked: false for a domain not bound to Postgres with revisions at all" do
     File.write(File.join(@fixture_root, "fixture.bluebook"), ERA_BOUNDARY_V1_SOURCE)
     File.write(File.join(@fixture_root, "fixture.hecksagon"), hecksagon_source("Memory"))
 
     result = described_class.diverged_ancestor_writes(@fixture_root)
 
     expect(result.values_at(:checked, :kind)).to eq([false, :not_applicable])
-    expect(result[:reason]).to include("not PostgresEra")
+    expect(result[:reason]).to include("not Postgres with revisions true")
   end
 
   # Nothing to audit and could-not-audit must differ: `hecks quality_control Sweep.run` reads

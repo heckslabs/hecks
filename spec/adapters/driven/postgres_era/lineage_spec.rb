@@ -1315,7 +1315,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
 
     def superuser_refusal
-      lead = "cannot boot Ledger: PostgresEra's era write-fence is row-level security, and this " \
+      lead = "cannot boot Ledger: the revision layout's era write-fence is row-level security, and this " \
              "connection's role #{ambient["rolname"].inspect} is "
       closing = "#{Regexp.escape("Connect as an ordinary role instead")}.*" \
                 "#{Regexp.escape("or declare `allow_superuser true` in the same persisted_by block")}"

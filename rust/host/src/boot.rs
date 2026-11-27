@@ -462,6 +462,13 @@ async fn boot_postgres(
     let needs_lineage = needs_lineage(&aggregates, google_auth_configured());
 
     let era: Option<i32> = if needs_lineage {
+        // Before anything is provisioned, and on every boot, as Ruby's revision layout checks:
+        // a database that holds this domain in Postgres's table layout is refused by name.
+        let storage_names: Vec<&str> = aggregates.iter().map(|a| a.storage_name.as_str()).collect();
+        mint::check_revision_layout(&client, domain, &storage_names)
+            .await
+            .map_err(|e| format!("{e:#}"))?;
+
         // Idempotent (gated by `provisioner?`); must run before the
         // first `journal::held_eras` call, since `hecks_eras` doesn't
         // exist yet on a truly fresh Postgres instance.

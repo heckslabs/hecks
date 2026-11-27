@@ -1131,13 +1131,13 @@ mod tests {
     #[test]
     fn a_nested_entity_command_locates_its_hops_in_ruby_order() {
         let aggregate = AggregateEntry {
-            name: "ProcessManager".to_string(),
-            module_name: "processmanager".to_string(),
-            record: "ProcessManager".to_string(),
+            name: "Saga".to_string(),
+            module_name: "saga".to_string(),
+            record: "Saga".to_string(),
             commands: Vec::new(),
             entity_commands: Vec::new(),
             nested_entity_commands: vec![NestedEntityCommandEntry {
-                verb: "Bluebook::ProcessManager.Handler.Dispatch.Bind".to_string(),
+                verb: "Bluebook::Saga.Handler.Dispatch.Bind".to_string(),
                 name: "Bind".to_string(),
                 entity_record: "Handler".to_string(),
                 nested_record: "Dispatch".to_string(),
@@ -1164,8 +1164,8 @@ mod tests {
         let generated = emit_registry(&Exemplar::load(), &[aggregate]);
 
         assert!(
-            generated.contains("if store.processmanager.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs")
-                && generated.contains("let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id_lenient(facts_json).ok();")
+            generated.contains("if store.saga.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs")
+                && generated.contains("let hop2_id = crate::generated::meta::saga::Dispatch::extract_id_lenient(facts_json).ok();")
                 && generated.contains("&hop1_wants, hop2_id.as_deref(), &hop2_wants,")
         );
     }

@@ -23,8 +23,8 @@ module Hecks
           drop_from_guard:      "removes a `from:` lifecycle guard",
           retarget_transition:  "points a lifecycle transition at a different state",
           drop_policy:          "removes a whole `policy`",
-          drop_saga_transition: "removes a `process_manager` transition and its handler",
-          drop_saga_dispatch:   "removes a `dispatch` a `process_manager` handler makes",
+          drop_saga_transition: "removes a `saga` transition and its handler",
+          drop_saga_dispatch:   "removes a `dispatch` a `saga` handler makes",
           swap_emits:           "makes a command emit a different event of the same file"
         }.freeze
 

@@ -106,7 +106,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
 
   def lifecycle_on_constants
     proc do
-      process_manager "WidgetLifecycle" do
+      saga "WidgetLifecycle" do
         correlates_by :"number.value"
         starts_on Widget::WidgetMade
         ends_on   Widget::WidgetFinished
@@ -118,7 +118,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
 
   def lifecycle_on_quoted
     proc do
-      process_manager "WidgetLifecycle" do
+      saga "WidgetLifecycle" do
         correlates_by :"number.value"
         starts_on "WidgetMade"
         ends_on   "WidgetMade"
@@ -206,7 +206,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
   end
 
   # Needs two distinct emitted events (Make/Finish), so it cannot reuse `make_emitting_qualified`.
-  it "accepts a bare, qualified event constant on a process_manager's starts_on/ends_on/transition, but " \
+  it "accepts a bare, qualified event constant on a saga's starts_on/ends_on/transition, but " \
      "stores only the bare event name — SagaInterpreter matches a bare event.name, never a dotted one", :aggregate_failures do
     pm = bare_starts_ends_on_ir.sagas.first
     # A qualified constant stores the bare name here, unlike `on`/`emits`, which keep the ".".
@@ -215,7 +215,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     expect(pm.handlers.first.event_type).to eq("WidgetMade")
   end
 
-  it "keeps the same-aggregate emits bare beside a process_manager that names the qualified constant" do
+  it "keeps the same-aggregate emits bare beside a saga that names the qualified constant" do
     expect(bare_starts_ends_on_ir.aggregates.first.commands.first.emits).to eq(["WidgetMade"])
   end
 

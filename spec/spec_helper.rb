@@ -85,10 +85,9 @@ module InMemoryDomain
   LOCAL_STORAGE_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/local_storage.adapter")
   PRISM_ADAPTER    = File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter")
   POSTGRES_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres.adapter")
-  POSTGRES_ERA_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres_era.adapter")
   # ADR 0033 — the era/lineage plugin is not core-required; a spec that binds
-  # PostgresEra must `require "hecks/ports/persistence/plugins/era"` itself,
-  # same as any other consumer would.
+  # Postgres with `revisions true` must `require "hecks/ports/persistence/plugins/era"`
+  # itself, same as any other consumer would.
   ERA_PLUGIN = "hecks/ports/persistence/plugins/era".freeze
 
   # Loads one or more bluebook files as a single bluebook, judging the
@@ -123,8 +122,9 @@ module InMemoryDomain
 
   GOVERNANCE_POSTGRES_ERA_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Governance" do
-      Governance::RoleAssignment.persisted_by("PostgresEra")
-      Governance::RoleTransition.persisted_by("PostgresEra")
+      Governance::RoleAssignment.persisted_by("Postgres")
+      Governance::RoleTransition.persisted_by("Postgres")
+      revisions true
     end
   HECKSAGON
 
@@ -135,7 +135,7 @@ module InMemoryDomain
   def self.governance_postgres_era_world(database_url)
     <<~RUBY
       Hecks.world "Governance" do
-        persisted_by("PostgresEra") { database "#{database_url}" }
+        persisted_by("Postgres") { database "#{database_url}" }
       end
     RUBY
   end

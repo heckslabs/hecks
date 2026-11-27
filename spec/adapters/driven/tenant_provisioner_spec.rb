@@ -33,10 +33,10 @@ RSpec.describe Hecks::Adapters::TenantProvisioner do
     end
   end
 
-  it "binds PostgresEra when the record names no adapter" do
+  it "binds Postgres when the record names no adapter" do
     adapter.write_overlay(**tenant, adapter: nil, directory: { value: @dir })
 
-    expect(File.read(overlay_path)).to include('persisted_by("PostgresEra")')
+    expect(File.read(overlay_path)).to include('persisted_by("Postgres")')
   end
 
   it "ignores the record's other fields" do

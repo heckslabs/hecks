@@ -92,7 +92,7 @@ RSpec.describe Hecks::Projector::Exporter do
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         load_core_ports
-        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
+        Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
       end
@@ -117,8 +117,8 @@ RSpec.describe Hecks::Projector::Exporter do
       member = registry.bluebooks.fetch("Directory").aggregate("Member")
       adapter = Hecks::Runtime::RevisionCheck.adapter_for(registry, "Directory", member)
 
-      expect(adapter).to eq("PostgresEra")
-      expect(Hecks::Runtime::RevisionCheck.lineage_capable?(registry, adapter)).to be true
+      expect(adapter).to eq("Postgres")
+      expect(Hecks::Runtime::RevisionCheck.lineage_capable?(registry, adapter, "Directory")).to be true
     end
   end
 

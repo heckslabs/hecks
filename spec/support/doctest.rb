@@ -198,7 +198,7 @@ module Doctest
 
     def load_adapters
       MemoryPorts.load!
-      Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if @guide.postgres
+      Kernel.load(InMemoryDomain::POSTGRES_ADAPTER) if @guide.postgres
     end
 
     def declare(block)

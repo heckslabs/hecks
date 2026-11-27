@@ -20,7 +20,8 @@ module Hecks
       def of?(registry, name, bluebook)
         return true if Framework.members.key?(name)
 
-        era_managed?(registry, adapter_of(registry, name, bluebook)) && !disposable?(registry, name)
+        adapter = adapter_of(registry, name, bluebook)
+        era_managed?(registry, adapter, name) && !disposable?(registry, name, adapter)
       end
 
       # @param registry [Runtime::Registry] a registry loaded from the committed world
@@ -34,14 +35,16 @@ module Hecks
 
       # @param registry [Runtime::Registry] a registry loaded from the committed world
       # @param adapter [String] an adapter's name
-      # @return [Boolean] whether the adapter carries eras
-      def era_managed?(registry, adapter) = Runtime::RevisionCheck.lineage_capable?(registry, adapter)
+      # @param name [String] the bluebook's name, whose hecksagon picks the adapter's layout
+      # @return [Boolean] whether the adapter carries eras for that bluebook
+      def era_managed?(registry, adapter, name) = Runtime::RevisionCheck.lineage_capable?(registry, adapter, name)
 
       # @param registry [Runtime::Registry] a registry loaded from the committed world
       # @param name [String] the bluebook's name
+      # @param adapter [String] the adapter its first aggregate binds
       # @return [Boolean] whether the committed world marks the bluebook's era store disposable
-      def disposable?(registry, name)
-        settings = registry.binding_settings(name, Ports::Persistence::VERB, "PostgresEra")
+      def disposable?(registry, name, adapter)
+        settings = registry.binding_settings(name, Ports::Persistence::VERB, adapter)
         [true, "true"].include?(settings[:disposable_ledger])
       end
     end

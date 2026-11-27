@@ -20,7 +20,7 @@ export HECKS_ENVIRONMENT=memory
 ```
 
 `hecks console!` and `hecks init!` set this for themselves; the other commands below do not.
-Skip it and `hecks deploy Recipe.project!` stops with `cannot bind PostgresEra`,
+Skip it and `hecks deploy Recipe.project!` stops with `cannot bind Postgres`,
 which means hecks went looking for that local Postgres.
 
 ## 1. Write it

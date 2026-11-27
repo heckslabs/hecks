@@ -39,7 +39,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
       end
     end
 
-    process_manager "Watch" do
+    saga "Watch" do
       correlates_by :"code.value"
       starts_on "SightingRaised"
       ends_on   "AlarmOpened"

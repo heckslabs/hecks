@@ -1,13 +1,13 @@
 //! The closed form's own refusals, one per way a file could reach past the vocabulary.
 
-use super::check;
+use super::{check, Era};
 
 fn bluebook(body: &str) -> String {
     format!("Hecks.bluebook \"Probe\" do\n  aggregate \"Order\" do\n{body}\n  end\nend\n")
 }
 
 fn refused(source: &str) -> String {
-    match check("probe.bluebook", source) {
+    match check(Era::Live, "probe.bluebook", source) {
         Ok(text) => panic!("admitted:\n{text}"),
         Err(diagnostic) => diagnostic.to_string(),
     }
@@ -19,7 +19,7 @@ fn a_closed_bluebook_comes_back_line_for_line_without_comments() {
         "    # the total\n    attribute :total, Integer,\n      default: 0\n    \
          given \"positive\" do\n      total >= 0\n    end",
     );
-    let text = check("probe.bluebook", &source).expect("closed");
+    let text = check(Era::Live, "probe.bluebook", &source).expect("closed");
     assert_eq!(text.lines().count(), source.lines().count());
     assert!(text.contains("attribute :total, Integer, default: 0"));
     assert!(!text.contains('#'));
@@ -91,14 +91,14 @@ fn a_rule_that_runs_code_is_refused() {
 fn a_hecksagon_bind_verb_is_open_but_never_a_ruby_method() {
     let ok = "Hecks.hecksagon \"P\" do\n  persisted_by \"Heki\"\n  Probe::Order.persisted_by \
               \"Memory\"\n  Probe::Order.port \"Feed\" do\n  end\nend\n";
-    assert!(check("p.hecksagon", ok).is_ok());
+    assert!(check(Era::Live, "p.hecksagon", ok).is_ok());
     for line in [
         "  system \"id\"",
         "  instance_eval \"1\"",
         "  Probe::Order.send :x",
     ] {
         let source = format!("Hecks.hecksagon \"P\" do\n{line}\nend\n");
-        let message = match check("p.hecksagon", &source) {
+        let message = match check(Era::Live, "p.hecksagon", &source) {
             Ok(_) => panic!("admitted {line}"),
             Err(diagnostic) => diagnostic.to_string(),
         };
@@ -110,16 +110,43 @@ fn a_hecksagon_bind_verb_is_open_but_never_a_ruby_method() {
 fn a_loop_that_builds_words_is_refused() {
     let source = "Hecks.hecksagon \"P\" do\n  %w[A B].each do |name|\n    persisted_by name\n  \
                   end\nend\n";
-    assert!(check("p.hecksagon", source).is_err());
+    assert!(check(Era::Live, "p.hecksagon", source).is_err());
 }
 
 #[test]
 fn a_world_binding_is_open_but_its_values_are_literals() {
     let ok =
         "Hecks.world \"P\" do\n  realm \"local\"\n  heki do\n    dir \"tmp/heki\"\n  end\nend\n";
-    assert!(check("p.world", ok).is_ok());
+    assert!(check(Era::Live, "p.world", ok).is_ok());
     let home = "Hecks.world \"P\" do\n  heki do\n    dir File.expand_path(\"~/.x\")\n  end\nend\n";
-    assert!(check("p.world", home).is_err());
+    assert!(check(Era::Live, "p.world", home).is_err());
     let exit = "Hecks.world \"P\" do\n  exit\nend\n";
-    assert!(check("p.world", exit).is_err());
+    assert!(check(Era::Live, "p.world", exit).is_err());
+}
+
+/// A bluebook declaring its saga with `word`, the live `saga` or the `process_manager` it keeps
+/// as its `was:`.
+fn saga_spelled(word: &str) -> String {
+    format!("Hecks.bluebook \"Probe\" do\n  {word} \"Checkout\" do\n    starts_on \"Placed\"\n  end\nend\n")
+}
+
+#[test]
+fn live_source_declares_a_saga_with_saga() {
+    assert!(check(Era::Live, "probe.bluebook", &saga_spelled("saga")).is_ok());
+}
+
+#[test]
+fn live_source_spelling_process_manager_is_refused_with_saga_named() {
+    let message = refused(&saga_spelled("process_manager"));
+    assert_eq!(
+        message,
+        "probe.bluebook:2: process_manager is gone — saga is the word now"
+    );
+}
+
+#[test]
+fn frozen_era_text_still_admits_process_manager() {
+    let source = saga_spelled("process_manager");
+    let text = check(Era::Frozen, "probe.bluebook", &source).expect("frozen text is admitted");
+    assert!(text.contains("process_manager \"Checkout\" do"), "{text}");
 }

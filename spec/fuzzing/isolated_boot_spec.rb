@@ -236,7 +236,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
           attaches "Governance"
         end
       HECKSAGON
-      write(root, "bluebook/consumer.world", %(Hecks.world "Widgets" do\n  default_adapter "PostgresEra"\nend\n))
+      write(root, "bluebook/consumer.world", %(Hecks.world "Widgets" do\n  default_adapter "Postgres"\nend\n))
       write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
       write(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook", WIDGETS_BLUEBOOK)
       File.join(root, "bluebook")

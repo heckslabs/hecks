@@ -3,7 +3,7 @@ module Hecks
     module DSL
       class BluebookBuilder
         module Validation
-          # Checks that a process manager's `correlates_by` lands on a scalar field of the commands
+          # Checks that a saga's `correlates_by` lands on a scalar field of the commands
           # that emit the events it reacts to.
           module CorrelationKeys
             private
@@ -28,7 +28,7 @@ module Hecks
             def resolve_bare_correlation_key!(bluebook, process_manager, key)
               aggregate = find_correlated_aggregate(bluebook, key)
               unless aggregate
-                raise ProcessManagerBuilder::InvalidSaga,
+                raise SagaBuilder::InvalidSaga,
                       bare_correlation_message(process_manager.name, key)
               end
 
@@ -55,13 +55,13 @@ module Hecks
               return "id" if paths.empty?
               return paths.first.delete_suffix(".value") if paths.one?
 
-              raise ProcessManagerBuilder::InvalidSaga,
+              raise SagaBuilder::InvalidSaga,
                     "#{process_manager.name} correlates_by #{aggregate.name}, but #{aggregate.name} has a " \
                     "composite identity — name the one field, e.g. #{aggregate.name}.#{paths.first}"
             end
 
             # `correlates_by` must land on a scalar: the dotted path is walked against each
-            # command that emits an event the process manager reacts to. A command lacking the
+            # command that emits an event the saga reacts to. A command lacking the
             # first segment is skipped, since correlation has fallback tiers
             # (saga_interpreter/correlation.rb).
             def validate_correlation_keys!(sagas, aggregates)
@@ -71,7 +71,7 @@ module Hecks
                 reason = correlation_key_violation(pm, aggregates)
                 next unless reason
 
-                raise ProcessManagerBuilder::InvalidSaga,
+                raise SagaBuilder::InvalidSaga,
                       "#{pm.name} correlates_by #{pm.correlates_by.inspect}, but #{reason}"
               end
             end

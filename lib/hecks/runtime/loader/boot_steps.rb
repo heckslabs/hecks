@@ -42,6 +42,8 @@ module Hecks
         # persistence plugin contributes its own gates generically (ADR 0031).
         def run_boot_gates!(registry, directory, open_stores: true)
           gates = BootGates.new
+          # Before any adapter loads: a binding to a removed adapter is refused by name.
+          registry.refuse_retired_adapters!
           load_bound_adapters!(registry)
           Ports::Persistence.each_plugin { |plugin| plugin.contribute_boot_gates(registry, gates) }
 
@@ -55,22 +57,35 @@ module Hecks
         end
 
         # Resolves the Ruby implementation of every adapter a hecksagon binds, and of every
-        # `default_adapter` a world names (a bluebook that binds nothing takes its world's).
-        # An adapter's implementation can register its own persistence plugin as
-        # a side effect of loading (e.g. `PostgresEra`) — resolving here, before
-        # gates are collected, is what registers those plugins' gates without
-        # the app requiring them itself. A bind with no implementation is left
-        # for `verify!` to refuse.
+        # `default_adapter` a world names (a bluebook that binds nothing takes its world's), in the
+        # layout the domain's hecksagon picks (`revisions true` picks Postgres's revision layout).
+        # A layout's implementation can register its own persistence plugin as a side effect of
+        # loading (the revision layout registers the era plugin) — resolving here, before gates
+        # are collected, is what registers those plugins' gates without the app requiring them
+        # itself. A bind with no implementation is left for `verify!` to refuse.
         def load_bound_adapters!(registry)
-          bound   = registry.hecksagons.each_value.flat_map { |hecksagon| hecksagon.binds.map(&:adapter) }
-          default = registry.worlds.each_value.filter_map(&:default_adapter)
-          (bound + default).each { |name| load_adapter(registry, name) }
+          (bound_adapters(registry) + default_adapters(registry)).uniq.each do |domain, name|
+            load_adapter(registry, domain, name)
+          end
         end
 
         private
 
-        def load_adapter(registry, name)
-          registry.adapter_class(name)
+        # Each domain paired with every adapter its hecksagon binds.
+        def bound_adapters(registry)
+          registry.hecksagons.each_value.flat_map do |hecksagon|
+            hecksagon.binds.map { |bind| [hecksagon.domain, bind.adapter] }
+          end
+        end
+
+        # Each domain paired with the `default_adapter` its world names, where it names one.
+        def default_adapters(registry)
+          naming = registry.worlds.values.select(&:default_adapter)
+          naming.map { |world| [world.domain, world.default_adapter] }
+        end
+
+        def load_adapter(registry, domain, name)
+          Ports::Persistence::Layout.adapter_class(registry, domain, name)
         rescue WiringError
           nil
         end

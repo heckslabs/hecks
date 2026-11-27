@@ -27,12 +27,13 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
   TOML
 
   CAP_MANAGED_PLATFORM = <<~RUBY.freeze
-    adapter = "PostgresEra"
+    adapter = "Postgres"
 
     Hecks.hecksagon "ManagedPlatform" do
       attaches "Governance"
       ManagedPlatform::Client.persisted_by(adapter)
       ManagedPlatform::ManagedSite.persisted_by(adapter)
+      revisions true
     end
 
     Hecks.hecksagon "Governance" do
@@ -48,7 +49,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       expect(infer(CAP_BANKING)).not_to include("postgres_era")
     end
 
-    it "reads directory's PostgresEra binding and translation edge, and its lack of a rust feature" do
+    it "reads directory's revision-layout binding and translation edge, and its lack of a rust feature" do
       expect(infer(CAP_DIRECTORY)).to include("postgres_era", "translations", "sqlite")
       expect(infer(CAP_DIRECTORY)).not_to include("rust", "role_gated", "sagas")
     end
@@ -88,7 +89,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
   end
 
-  describe ".infer, reading how a hecksagon names PostgresEra" do
+  describe ".infer, reading how a hecksagon binds Postgres with revisions" do
     def postgres_era_for(hecksagon_text)
       Dir.mktmpdir do |tmp|
         File.write(File.join(tmp, "sample.hecksagon"), hecksagon_text)
@@ -96,31 +97,35 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       end
     end
 
+    # A one-block hecksagon around `body`, which also sets `revisions true`.
+    def revised(body) = %(Hecks.hecksagon "A" do\n#{body}\n  revisions true\nend\n)
+
     it "still reads every literal spelling" do
-      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by("PostgresEra")\nend\n))).to be(true)
-      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by "PostgresEra"\nend\n))).to be(true)
-      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  persisted_by "PostgresEra"\nend\n))).to be(true)
+      expect(postgres_era_for(revised(%(  A::Thing.persisted_by("Postgres"))))).to be(true)
+      expect(postgres_era_for(revised(%(  A::Thing.persisted_by "Postgres")))).to be(true)
+      expect(postgres_era_for(revised(%(  persisted_by "Postgres")))).to be(true)
       expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by("Memory")\nend\n))).to be(false)
     end
 
-    it "reads a variable assigned PostgresEra and passed to persisted_by" do
-      text = %(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+    it "does not read Postgres without revisions, its table layout" do
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by("Postgres")\nend\n))).to be(false)
+    end
+
+    it "reads a variable assigned Postgres and passed to persisted_by" do
+      text = %(adapter = "Postgres"\n#{revised("  A::Thing.persisted_by(adapter)")})
       expect(postgres_era_for(text)).to be(true)
       expect(postgres_era_for(text.sub("persisted_by(adapter)", "persisted_by adapter"))).to be(true)
     end
 
     it "does not read a variable assigned another adapter" do
-      expect(postgres_era_for(%(adapter = "Postgres"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)))
-        .to be(false)
-      ternary = %(adapter = ENV["LAMBDA"] == "true" ? "Lambda" : "Postgres"\n) +
-                %(Hecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+      expect(postgres_era_for(%(adapter = "Heki"\n#{revised("  A::Thing.persisted_by(adapter)")}))).to be(false)
+      ternary = %(adapter = ENV["LAMBDA"] == "true" ? "Lambda" : "Postgres"\n#{revised("  A::Thing.persisted_by(adapter)")})
       expect(postgres_era_for(ternary)).to be(false)
     end
 
     it "does not read a variable that is never passed to persisted_by" do
-      expect(postgres_era_for(%(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by("Memory")\nend\n)))
-        .to be(false)
-      expect(postgres_era_for(%(adapter = "PostgresEra"\nother = "Memory"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(other)\nend\n)))
+      expect(postgres_era_for(%(adapter = "Postgres"\n#{revised(%(  A::Thing.persisted_by("Memory")))}))).to be(false)
+      expect(postgres_era_for(%(adapter = "Postgres"\nother = "Memory"\n#{revised("  A::Thing.persisted_by(other)")})))
         .to be(false)
     end
 
@@ -139,8 +144,8 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       end
     end
 
-    it "rewrites a variable-named bind, so a Memory boot no longer inherits PostgresEra" do
-      text = %(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+    it "rewrites a variable-named bind, so a Memory boot no longer inherits Postgres" do
+      text = %(adapter = "Postgres"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
       out = rewritten(text, "Memory")
 
       expect(out).to include(%(A::Thing.persisted_by("Memory")))
@@ -148,7 +153,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
 
     it "still rewrites literal binds" do
-      out = rewritten(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by "PostgresEra"\nend\n), "Memory")
+      out = rewritten(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by "Postgres"\nend\n), "Memory")
 
       expect(out).to include(%(A::Thing.persisted_by("Memory")))
     end
@@ -168,7 +173,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       expect(described_class.resolve(%i[differential ruby_only], %w[sqlite])).to eq(%i[ruby_only])
     end
 
-    it "resolves persistence_parity, era_boundary and concurrency only off a PostgresEra binding" do
+    it "resolves persistence_parity, era_boundary and concurrency only off a revision-layout binding" do
       expect(described_class.resolve(all_enabled, %w[postgres_era sqlite translations]))
         .to include(:persistence_parity, :era_boundary, :concurrency, :adapter_parity_postgres)
       expect(described_class.resolve(all_enabled, %w[sqlite translations]))
