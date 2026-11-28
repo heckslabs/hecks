@@ -1,0 +1,10 @@
+{"note":"The worker: mid-turn on a long change, its turn is interrupted for the lead's urgent message, which it takes next; the peer's ordinary message waits behind it."}
+{"expect":"user","contains":"You are the worker"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-worker","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Working through the change, file by file."}]}},"after_ms":20}
+{"expect":"interrupt"}
+{"emit":{"type":"result","subtype":"error_during_execution","is_error":true,"result":""}}
+{"expect":"user","contains":"from lead"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Rebased on main before going on."}}
+{"expect":"user","contains":"from peer"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Added the changelog line."}}

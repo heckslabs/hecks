@@ -1,0 +1,5 @@
+{"note":"A peer: it sends the worker an ordinary message, which waits for the worker's turn to end, behind any urgent one."}
+{"expect":"user","contains":"You are the peer"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-peer","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"p-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"worker","text":"When you are free, the changelog wants a line."}}}}},"after_ms":100,"answered":"success","reply_contains":"Sent to worker"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Left the worker a note."}}

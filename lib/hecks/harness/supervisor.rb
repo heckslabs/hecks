@@ -44,12 +44,16 @@ module Hecks
         answered(request(op) { |tell| tell["session"] == name && %w[opened refused].include?(tell["tell"]) })
       end
 
-      # Hands a message to its addressee, written now or when its turn ends.
+      # Hands a message to its addressee, written now or when its turn ends; an urgent one
+      # interrupts the turn and is written as soon as it ends.
       #
+      # @param marks [Hash] `about`, the message it answers, and `urgency`, "urgent" to interrupt a
+      #   running turn (nil or "normal" waits for it)
       # @return [Hash] the `delivered` or `queued` tell
       # @raise [Refused] when the supervisor refuses or does not answer
-      def deliver(key:, sender:, addressee:, text:, about: nil)
-        op = { op: "deliver", session: addressee, message: key, from: sender, text: text, about: about }.compact
+      def deliver(key:, sender:, addressee:, text:, **marks)
+        op = { op: "deliver", session: addressee, message: key, from: sender, text: text, about: marks[:about],
+               urgent: marks[:urgency] == "urgent" || nil }.compact
         answered(request(op) { |tell| tell["message"] == key && %w[queued delivered refused].include?(tell["tell"]) })
       end
 

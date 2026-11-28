@@ -8,6 +8,10 @@
 //! middle of a turn holds it, and it is written the moment that turn ends, so `delivered` marks
 //! the moment the addressee starts on it.
 //!
+//! A delivery marked `urgent` is not left to wait for the turn: it goes ahead of the held
+//! deliveries, the session's turn is interrupted (an `interrupt` control request, told as
+//! `interrupted`), and once the cut turn ends the urgent message is written as the next one.
+//!
 //! A delivery the supervisor refuses is not lost on its sender: a sender that still runs is told,
 //! as a turn of its own from `harness`, that its message did not arrive and why, and the
 //! `noticed` tell records it. A sender relaying for someone else learns at once that the one it
@@ -25,9 +29,9 @@
 //! ([`role::permits`]). Each answer is told, `allowed` or `denied`, so the ledger records it.
 //!
 //! Ops: `open` (session, program, args, model, cwd, brief, handover, tools), `deliver` (session,
-//! message, from, text, about), `stop` (session) and `quit`. Tells: `ready`, `opened`, `started`,
-//! `sent`, `allowed`, `denied`, `turn_ended`, `queued`, `delivered`, `noticed`, `stopped`, `refused`, `fault`,
-//! `tick` and `quit`.
+//! message, from, text, about, urgent), `stop` (session) and `quit`. Tells: `ready`, `opened`,
+//! `started`, `sent`, `allowed`, `denied`, `turn_ended`, `queued`, `interrupted`, `delivered`,
+//! `noticed`, `stopped`, `refused`, `fault`, `tick` and `quit`.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::fs::{self, File};
@@ -82,14 +86,16 @@ struct Delivery {
     text: String,
     about: Option<String>,
     notice: bool,
+    urgent: bool,
 }
 
-/// One session: its child, its stdin, and whether a turn is running.
+/// One session: its child, its stdin, whether a turn is running and whether it is being cut short.
 struct Session {
     child: Child,
     tools: Vec<String>,
     stdin: Option<ChildStdin>,
     busy: bool,
+    interrupting: bool,
     held: VecDeque<Delivery>,
 }
 
@@ -257,6 +263,7 @@ impl<W: Write> Supervisor<W> {
                 tools,
                 stdin,
                 busy: false,
+                interrupting: false,
                 held: VecDeque::new(),
             },
         );
@@ -291,6 +298,7 @@ impl<W: Write> Supervisor<W> {
                 .filter(|about| !about.is_empty())
                 .map(ToString::to_string),
             notice: false,
+            urgent: op.get("urgent").and_then(Value::as_bool).unwrap_or(false),
         };
         if delivery.message.is_empty() || delivery.text.is_empty() {
             return self.refuse(session, "a delivery needs a message id and text");
@@ -326,31 +334,62 @@ impl<W: Write> Supervisor<W> {
             ),
             about: Some(refused.message.clone()),
             notice: true,
+            urgent: false,
         };
         self.write_or_hold(&refused.from, notice)
     }
 
-    /// Writes a delivery now, or holds it while the session is mid-turn.
+    /// Writes a delivery now, or holds it while the session is mid-turn. An urgent one is held
+    /// ahead of every delivery that is not, and cuts the running turn short.
     fn write_or_hold(&mut self, session: &str, delivery: Delivery) -> Result<(), String> {
         let Some(target) = self.sessions.get_mut(session) else {
             return Ok(());
         };
-        if target.busy {
-            let message = delivery.message.clone();
-            let notice = delivery.notice;
-            target.held.push_back(delivery);
-            let held = target.held.len() as f64;
-            return self.tell(
-                "queued",
-                vec![
-                    ("session", Value::text(session)),
-                    ("message", Value::text(message)),
-                    ("held", Value::Number(held)),
-                    ("notice", Value::Bool(notice)),
-                ],
-            );
+        if !target.busy {
+            return self.hand(session, &delivery);
         }
-        self.hand(session, &delivery)
+        let message = delivery.message.clone();
+        let notice = delivery.notice;
+        let urgent = delivery.urgent;
+        if urgent {
+            let ahead = target.held.iter().take_while(|held| held.urgent).count();
+            target.held.insert(ahead, delivery);
+        } else {
+            target.held.push_back(delivery);
+        }
+        let held = target.held.len() as f64;
+        let interrupt = urgent && !target.interrupting;
+        if interrupt {
+            target.interrupting = true;
+        }
+        let mut fields = vec![
+            ("session", Value::text(session)),
+            ("message", Value::text(&message)),
+            ("held", Value::Number(held)),
+            ("notice", Value::Bool(notice)),
+        ];
+        if urgent {
+            fields.push(("urgent", Value::Bool(true)));
+        }
+        self.tell("queued", fields)?;
+        if interrupt {
+            self.interrupt(session, &message)?;
+        }
+        Ok(())
+    }
+
+    /// Asks a session's child to cut its running turn short, for an urgent `message`.
+    fn interrupt(&mut self, session: &str, message: &str) -> Result<(), String> {
+        self.requests += 1;
+        let request = protocol::control_request(&format!("harness-{}", self.requests), "interrupt");
+        self.write(session, &request)?;
+        self.tell(
+            "interrupted",
+            vec![
+                ("session", Value::text(session)),
+                ("message", Value::text(message)),
+            ],
+        )
     }
 
     /// Writes one delivery as the session's next user turn.
@@ -381,6 +420,9 @@ impl<W: Write> Supervisor<W> {
         fields.push(("from", Value::text(&delivery.from)));
         if let Some(about) = &delivery.about {
             fields.push(("about", Value::text(about)));
+        }
+        if delivery.urgent {
+            fields.push(("urgent", Value::Bool(true)));
         }
         self.tell("delivered", fields)
     }
@@ -513,6 +555,9 @@ impl<W: Write> Supervisor<W> {
                         if let Some(about) = outgoing.about {
                             fields.push(("about", Value::text(about)));
                         }
+                        if outgoing.urgent {
+                            fields.push(("urgent", Value::Bool(true)));
+                        }
                         self.tell("sent", fields)
                     }
                     None => Ok(()),
@@ -541,6 +586,7 @@ impl<W: Write> Supervisor<W> {
         let next = match self.sessions.get_mut(session) {
             Some(target) => {
                 target.busy = false;
+                target.interrupting = false;
                 if target.stdin.is_some() {
                     target.held.pop_front()
                 } else {

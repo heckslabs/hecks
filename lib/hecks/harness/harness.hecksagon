@@ -31,7 +31,8 @@ Hecks.hecksagon "Harness" do
     end
   end
 
-  # The supervisor's mail: a message written to its addressee, at once or when its turn ends.
+  # The supervisor's mail: a message written to its addressee, at once or when its turn ends, or,
+  # when it is urgent, as soon as its turn is interrupted.
   Harness::Message.port "Mail" do
     asks "Deliver", to: Message do
       attribute :key,       MessageKey
@@ -39,6 +40,7 @@ Hecks.hecksagon "Harness" do
       attribute :addressee, Party
       attribute :text,      MessageText
       attribute :about,     MessageKey, optional: true
+      attribute :urgency,   Urgency, optional: true
       answers "DeliveryHanded"
       refuses "DeliveryRefused"
     end

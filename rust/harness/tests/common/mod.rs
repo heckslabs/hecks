@@ -94,7 +94,8 @@ impl Served {
         json::parse(&line).expect("a tell is JSON")
     }
 
-    /// Routes every `sent` tell to its addressee until `done` holds, as the bluebook's policy does.
+    /// Routes every `sent` tell to its addressee, urgent or not, until `done` holds, as the bluebook's
+    /// policy does.
     pub fn route_until(&mut self, done: impl Fn(&[Value]) -> bool) -> Vec<Value> {
         let mut seen = Vec::new();
         while !done(&seen) {
@@ -118,6 +119,10 @@ impl Served {
                     (
                         "about",
                         Value::text(tell.str_at("about").unwrap_or_default()),
+                    ),
+                    (
+                        "urgent",
+                        Value::Bool(tell.get("urgent").and_then(Value::as_bool) == Some(true)),
                     ),
                 ]));
             }

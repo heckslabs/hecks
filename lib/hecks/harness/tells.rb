@@ -4,7 +4,7 @@ module Hecks
   module Harness
     # Each tell the supervisor writes, as the Harness command that records it. The supervisor
     # decides nothing about mail: a `sent` tell becomes a posted Message, and the bluebook's policy
-    # delivers it.
+    # delivers it. An `interrupted` tell records the turn an urgent message cut short.
     module Tells
       module_function
 
@@ -23,7 +23,7 @@ module Hecks
       # @return [Array<Array(String, Hash)>] each command and its arguments
       def commands(tell)
         case tell["tell"]
-        when "started", "turn_ended", "allowed", "denied", "stopped" then session_commands(tell)
+        when "started", "turn_ended", "interrupted", "allowed", "denied", "stopped" then session_commands(tell)
         when "sent", "delivered", "tick" then mail_commands(tell)
         else []
         end
@@ -34,6 +34,7 @@ module Hecks
         case tell["tell"]
         when "started"    then [["Session.RecordStarted", { session: name, claude: plain(tell["claude_session"]) }]]
         when "turn_ended" then [["Session.RecordTurnEnded", turn(tell)]]
+        when "interrupted" then [["Session.RecordInterrupted", { session: name, cutter: plain(tell["message"]) }]]
         when "allowed"    then [["Session.RecordAllowed", { session: name, tool: plain(tell["tool"]) }]]
         when "denied"     then [["Session.RecordWithheld", { session: name, tool: plain(tell["tool"]) }]]
         else stopped(tell)
@@ -57,7 +58,8 @@ module Hecks
 
       def post(tell)
         { key: plain(tell["message"]), sender: plain(tell["session"]), addressee: plain(tell["to"]),
-          text: plain(tell["text"]), sent_at: moment(tell), about: tell["about"] && plain(tell["about"]) }
+          text: plain(tell["text"]), sent_at: moment(tell), about: tell["about"] && plain(tell["about"]),
+          urgency: plain(tell["urgent"] ? "urgent" : "normal") }
       end
 
       # The session's exit, then each message it still held, which will not be delivered now.

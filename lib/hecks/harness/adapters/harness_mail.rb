@@ -6,10 +6,12 @@ module Hecks
   module Adapters
     # The `Mail` port's adapter for the Harness: it hands a posted message to the running
     # supervisor ({Harness::Supervisor.current}), which writes it to the addressee at once or when
-    # its turn ends. With no supervisor running, every ask is refused.
+    # its turn ends, or, for an urgent message, once it has interrupted the turn. With no
+    # supervisor running, every ask is refused.
     class HarnessMail
-      # What the supervisor writes of the ask; `about` is nil when the message answers nothing.
-      FIELDS = %i[key sender addressee text about].freeze
+      # What the supervisor writes of the ask; `about` is nil when the message answers nothing, and
+      # `urgency` nil or "normal" when it waits for the addressee's turn to end.
+      FIELDS = %i[key sender addressee text about urgency].freeze
 
       def initialize(**); end
 
@@ -22,7 +24,8 @@ module Hecks
       end
 
       # The runtime hands an ask the record it addresses, so a routed or handed-on message is
-      # written from the ledger: its sender, its new addressee, its text and what it is about.
+      # written from the ledger: its sender, its new addressee, its text, what it is about and how
+      # urgent it is.
       #
       # @param ask [Hash] the `DeliverRecorded` ask's key, and the message as the ledger holds it
       # @return [Hash] as {#deliver}
