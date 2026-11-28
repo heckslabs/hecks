@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "context_line"
+require_relative "launcher"
 require_relative "../driven/worktree_overlay"
 
 module Hecks
@@ -11,7 +12,8 @@ module Hecks
       # that aggregate's record by the next command, so the write is refused by the aggregate's
       # name and the command that writes the overlay. A checkout with no local overlay is in
       # Memory by choice (a fresh clone, CI, a client: ADR 0136) and is let through, and so is a
-      # process that asks for Memory with `HECKS_ENVIRONMENT=memory`.
+      # process that asks for Memory with `HECKS_ENVIRONMENT=memory`. A launcher that names itself
+      # (`HECKS_LAUNCHER`, see {Launcher}) is judged by its own repository and named in the refusal.
       class KeptCheck
         # The overlay whose presence says a checkout has opted into persistence.
         OVERLAY = "lib/hecks/hecks/hecks.local.hecksagon"
@@ -42,7 +44,7 @@ module Hecks
         def opted_in_root(directory)
           return if @env["HECKS_ENVIRONMENT"].to_s == "memory"
 
-          root = WorktreeOverlay.ascend_to_git(File.expand_path(directory))
+          root = Launcher.root(@env) || WorktreeOverlay.ascend_to_git(File.expand_path(directory))
           root if root && File.file?(File.join(root, OVERLAY))
         end
 
@@ -66,7 +68,7 @@ module Hecks
           copy = kept_rows.copy_of(root)
           "hecks: refused: #{row[:domain]}::#{row[:aggregate]} is kept across processes (#{row[:reason]}), but this " \
             "checkout binds it to Memory, so the next command would forget it. Write the overlay with " \
-            "`exe/hecks LocalOverlay.write! root.value=#{root} copy.value=#{copy}`."
+            "`#{Launcher.command(@env)} LocalOverlay.write! root.value=#{root} copy.value=#{copy}`."
         end
       end
     end

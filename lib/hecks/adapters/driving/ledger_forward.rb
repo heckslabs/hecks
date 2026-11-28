@@ -2,6 +2,7 @@
 
 require "open3"
 require_relative "exit_status"
+require_relative "launcher"
 require_relative "ledger_stores"
 require_relative "write_guard"
 
@@ -89,7 +90,7 @@ module Hecks
           return WriteGuard::STORES unless seams[:runtime]
 
           here = WorktreeOverlay.checkout_root(directory) || WorktreeOverlay.ascend_to_git(File.expand_path(directory))
-          LedgerStores.for_runtime(seams[:runtime], here)
+          LedgerStores.for_runtime(seams[:runtime], here, *Launcher.root(seams.fetch(:env, ENV)))
         end
 
         # The line as the main checkout runs it: the worktree is named when the command takes a
