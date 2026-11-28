@@ -661,9 +661,7 @@ Hecks.bluebook "Harness" do
     end
 
     # The moment the window opens, an ISO 8601 time; the first moment of the day when none is given.
-    value_object "WindowStart" do
-      attribute :value, String
-    end
+    value_object "WindowStart", String
 
     value_object "Minutes" do
       attribute :value, Integer, default: 60
