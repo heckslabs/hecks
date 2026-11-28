@@ -8,7 +8,8 @@ require_relative "support/new_work_started"
 RSpec.describe "the expedite lane" do
   include_context "with new work started"
 
-  Item = Struct.new(:key, :title, :priority)
+  # Scoped to the example group: a top-level `Item` shadows the read-model specs' `Item` aggregate.
+  let(:item_record) { Struct.new(:key, :title, :priority) }
 
   let(:hecks) { boot_hecks_in_memory }
   let(:slots) { Hecks::Adapters::WorkSlots }
@@ -29,7 +30,7 @@ RSpec.describe "the expedite lane" do
 
   def expedite(key) = plan(key) && cli("work.expedite!", "to=#{key}")
 
-  def item(key, priority = "") = Item.new(key, key, priority)
+  def item(key, priority = "") = item_record.new(key, key, priority)
 
   def held = (1..7).map { |n| item("s-#{n}") }
 
