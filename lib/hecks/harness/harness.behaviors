@@ -31,6 +31,21 @@ Hecks.behaviors "Harness" do
     expect refused: "a turn ends only in a session that runs or is stopping"
   end
 
+  test "a refused tool is recorded with the role and the reason" do
+    tests "RecordWithheld", on: "Session"
+    setup "Harness::Session.Open", name: { value: "reviewer" }, brief: { value: "You are the reviewer." }
+    input session: "reviewer", tool: { value: "Bash" }, role: { value: "reviewer" },
+          reason: { value: "Bash is withheld from reviewer" }
+    expect emits: %w[ToolWithheld]
+  end
+
+  test "an allowed tool is recorded with the role that holds it" do
+    tests "RecordAllowed", on: "Session"
+    setup "Harness::Session.Open", name: { value: "reviewer" }, brief: { value: "You are the reviewer." }
+    input session: "reviewer", tool: { value: "Read" }, role: { value: "reviewer" }
+    expect emits: %w[ToolAllowed]
+  end
+
   test "a message posted with no supervisor running is undeliverable" do
     tests "Post", on: "Message"
     input key: { value: "reviewer-1" }, sender: { value: "reviewer" }, addressee: { value: "coder" },
