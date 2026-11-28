@@ -52,6 +52,12 @@ Hecks.hecksagon "Harness" do
       refuses "RecordedDeliveryRefused"
     end
   end
+
+  # The crew's usage over one baseline window: tokens from the session transcripts and finished
+  # items from the tap, read and never written.
+  Harness::Baseline.port "CrewUsage" do
+    answers_query "Reading"
+  end
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.
