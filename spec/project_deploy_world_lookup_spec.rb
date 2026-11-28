@@ -1,13 +1,12 @@
 require "tmpdir"
 require "fileutils"
 
-# Which `.world` file `hecks deploy project <dir>` reads when none is named after the directory:
-# the QA ledger (`qa/`) holds `quality_control.world` beside `governance.world`, attaches the
-# QualityControl bluebook from the gem, and has no bluebook of its own.
+# Which `.world` file `hecks deploy project <dir>` reads when none is named after the directory.
+# A domain shaped like Switchyard's QA ledger holds `quality_control.world` beside
+# `governance.world`, attaches the QualityControl bluebook from the gem, and has no bluebook of
+# its own; the ledger itself moved to Switchyard (ADR 0205), which checks its own copy.
 RSpec.describe "hecks deploy project world lookup", :io do
   let(:recipe) { Hecks::Tools.fetch("project_deploy") }
-
-  def root = File.expand_path("..", __dir__)
 
   def write_domain(dir, worlds:, hecksagon: nil)
     bluebook_dir = File.join(dir, "ledger", "bluebook")
@@ -15,11 +14,6 @@ RSpec.describe "hecks deploy project world lookup", :io do
     worlds.each { |name| File.write(File.join(bluebook_dir, "#{name}.world"), "Hecks.world \"#{name}\" do\nend\n") }
     File.write(File.join(bluebook_dir, "ledger.hecksagon"), hecksagon) if hecksagon
     File.join(dir, "ledger")
-  end
-
-  it "resolves the QA ledger's quality_control.world" do
-    expect(recipe.world_file_for(File.join(root, "qa")))
-      .to eq(File.join(root, "qa", "bluebook", "quality_control.world"))
   end
 
   # Yields a scratch domain written with the given worlds (and hecksagon), removed afterwards.
