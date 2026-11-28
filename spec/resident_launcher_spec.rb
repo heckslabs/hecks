@@ -10,7 +10,7 @@ RSpec.describe "a launcher through its resident" do
 
   # A line a cold launcher spends its whole boot on, so the resident has something to save.
   SLOW = %w[tickets Work.undone].freeze
-  LINES = [%w[--help], %w[RedFlag.status], %w[RedFlag.nonsense], %w[no_such_command]].freeze
+  LINES = [%w[--help], %w[launch.ended], %w[launch.nonsense], %w[no_such_command]].freeze
 
   # What the lines answer when the launcher boots on its own, after one run has filled the help
   # cache.
@@ -36,7 +36,7 @@ RSpec.describe "a launcher through its resident" do
 
   it "keeps the resident standing across lines, one process serving them all", :aggregate_failures do
     pid = start_resident
-    3.times { launch("RedFlag.status") }
+    3.times { launch("launch.ended") }
     expect(resident_pid).to eq(pid), -> { why_ended(pid) }
     expect(File.socket?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT))).to be(true)
   end
@@ -52,7 +52,7 @@ RSpec.describe "a launcher through its resident" do
 
   it "keeps a resident standing that is too slow to answer in time but keeps taking callers", :aggregate_failures do
     pid = start_resident
-    too_slow_to_answer { 3.times { launch_until_taken("RedFlag.status") } }
+    too_slow_to_answer { 3.times { launch_until_taken("launch.ended") } }
     expect(resident_pid).to eq(pid), -> { why_ended(pid) }
     expect(File.socket?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT))).to be(true)
   end
@@ -68,7 +68,7 @@ RSpec.describe "a launcher through its resident" do
   def line_after_a_change(pid)
     with_newer_lockfile do
       wait_until_retired
-      [launch("RedFlag.status").status, wait_for_new_resident(pid)]
+      [launch("launch.ended").status, wait_for_new_resident(pid)]
     end
   end
 
@@ -83,13 +83,13 @@ RSpec.describe "a launcher through its resident" do
   it "answers the line at the cost of one cold boot when the resident was killed", :aggregate_failures do
     pid = start_resident
     Process.kill("KILL", pid)
-    expect(launch("RedFlag.status").out).to include("main is")
+    expect(launch("launch.ended").out).to start_with("[")
     expect(wait_for_new_resident(pid)).not_to eq(pid)
   end
 
   it "leaves one resident when two first lines arrive together", :aggregate_failures do
     stop_resident
-    answers = Array.new(2) { Thread.new { launch("RedFlag.status") } }.map(&:value)
+    answers = Array.new(2) { Thread.new { launch("launch.ended") } }.map(&:value)
     expect(answers.map(&:status)).to eq([0, 0])
     wait_for_resident
     expect(Dir.glob(File.join(ResidentLaunch::PATHS.directory, "*.pid")).size).to eq(1)

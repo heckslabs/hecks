@@ -10,7 +10,7 @@ module Hecks
   module Runtime
     # An opt-in, append-only local log of what the runtime dispatched: one JSON line per event and
     # one per policy delivery. It exists for the domains that persist nothing (Memory keeps no
-    # journal), so a reader such as the PipelineBoard can still see them.
+    # journal), so a reader outside the process can still see them.
     #
     # It is off unless a world declares it: `event_tap "EventTap", path: "...", max_bytes: N`. A
     # client's world declares nothing, so a client writes no file. The boot may hand in an

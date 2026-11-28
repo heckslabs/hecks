@@ -1,30 +1,17 @@
 Hecks.bluebook "Hecks" do
   domain_module "Serve" do
-    vision "Open something on a port until it is stopped: the Composer, a rendered example, or a static site."
+    vision "Open something on a port until it is stopped: a rendered example, a static site or an MCP server."
 
     aggregate "Server", kind: "Run" do
       description "One server opened on a checkout, until it is stopped."
 
       attribute :port,      Port, optional: true
-      attribute :domains,   PathList, optional: true
-      attribute :agent,     AgentName, optional: true
       attribute :directory, Directory, optional: true
       attribute :stdio,     Switch, optional: true
 
       # One directory of files, named by a path.
       value_object "Directory" do
         attribute :value, String, matches: :present
-      end
-
-      # Which agent drives the Composer's assistant: the real `claude`, or a scripted `fake` for
-      # trying the editor without a model.
-      value_object "AgentName" do
-        attribute :value, String, pattern: '^(claude|fake)$'
-      end
-
-      # Domain directories, comma separated.
-      value_object "PathList" do
-        attribute :value, String, matches: :csv_list
       end
 
       # A local port a server listens on.
@@ -44,20 +31,6 @@ Hecks.bluebook "Hecks" do
         sets :operation, to: "present"
 
         emits PresentRequested
-      end
-
-      command "Compose" do
-        role "Maintainer"
-        goal "Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped"
-
-        attribute :port,    Port, optional: true, sets: true
-        attribute :domains, PathList, optional: true, sets: true
-        attribute :agent,   AgentName, default: "claude", sets: true
-        attribute :run,     RunKey, sets: true
-
-        sets :operation, to: "compose"
-
-        emits ComposeRequested
       end
 
       command "Preview" do
@@ -101,46 +74,8 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # Shows the pipeline board from this domain's registry, so its wiring page carries every
-    # bluebook attached here. The board is PipelineBoard's: this aggregate only asks for it, and
-    # the PipelineBoard policy `ServeWhenBoardRequested` runs its `Serve` in this registry.
-    aggregate "Board" do
-      description "One pipeline board served from the Hecks registry, until it is stopped."
-
-      identified_by :run
-
-      attribute :run,  RunKey
-      attribute :port, Port, optional: true
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-      end
-
-      # A local port the board is served on.
-      value_object "Port" do
-        attribute :value, Integer, default: 4747
-
-        invariant("a port is 1024 to 65535") { value >= 1024 && value <= 65535 }
-      end
-
-      command "Serve" do
-        role "Maintainer"
-        goal "Show the pipeline board on 127.0.0.1 until stopped, with every bluebook attached to Hecks on its wiring page"
-
-        attribute :port, Port, default: 4747, sets: true
-        attribute :run,  RunKey, sets: true
-
-        emits BoardServeRequested
-      end
-    end
-
     policy "ExamineWhenPresentRequested" do
       on      "Server.PresentRequested"
-      ask     :examine, with: { run: :run }
-    end
-
-    policy "ExamineWhenComposeRequested" do
-      on      "Server.ComposeRequested"
       ask     :examine, with: { run: :run }
     end
 

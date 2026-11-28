@@ -6,13 +6,12 @@ RSpec.describe "the glossary a domain carries with it" do
   # Domain folder (relative to the repo root) => the bluebook it declares.
   GLOSSARY_DOMAINS = {
     "examples/pizzas"  => "Pizzas",
-    "examples/banking" => "Banking",
-    "qa"               => "QualityControl"
+    "examples/banking" => "Banking"
   }.freeze
 
   def bluebook_of(domain, name)
-    # Loaded as `hecks glossary` loads it, wiring included, but with no repository opened (`qa`'s
-    # worlds would otherwise need their database); each policy's ask is bound to the port it names.
+    # Loaded as `hecks glossary` loads it, wiring included, but with no repository opened; each
+    # policy's ask is bound to the port it names.
     declaration = Hecks.describe(File.join(InMemoryDomain::ROOT, domain), environment: nil).registry.bluebook(name)
     Hecks::Bluebook::AskResolution.bind_resolved(declaration)
     declaration

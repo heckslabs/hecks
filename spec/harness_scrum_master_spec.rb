@@ -11,6 +11,10 @@ require_relative "support/hecks_harness_binary"
 module HarnessScrumMasterWorld
   TAPES = File.join(HecksHarnessBinary::DIR, "tests/tapes")
 
+  # The crew's role files moved to Switchyard (ADR 0205), so the scrum master is briefed from a
+  # minimal role file kept beside the specs.
+  ROLES = File.expand_path("fixtures/harness_roles", __dir__)
+
   # A tick the spec records past the question's window, beside the supervisor's own.
   WINDOW_MS = 900_000
 
@@ -31,7 +35,7 @@ module HarnessScrumMasterWorld
 
     # Opens each role on its role file and each other session on its brief.
     def open_all(run)
-      roles.each { |role| run.open_role(role) }
+      roles.each { |role| run.open_role(role, root: ROLES) }
       briefs.each { |name, brief| run.open(name, brief) }
     end
 

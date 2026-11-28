@@ -49,45 +49,20 @@ A session that needs its own checkout uses `git worktree add`, and retires it wi
 
 **A command knows where it stands.** Every command resolves the checkout from the directory it
 runs in: the primary checkout of that repository (`git rev-parse --git-common-dir`), or the worktree
-holding the branch it acts on (`main` is the primary's). Pass no `checkout=`, `repo=` or `domain=`
-path for Landing, LinkedTree, `SendTrain.board!`, `AgentRun.dispatch!` or `Operation.follow`; a path
-you do pass overrides the resolution. A linked worktree loads the primary's local overlay, so it
-reads and writes the same stores; where it cannot, a write the primary persists is sent to the primary
-or refused by name, never put in Memory. `run_impacted_specs!` compares with `origin/main`.
+holding the branch it acts on (`main` is the primary's). A path you do pass overrides the resolution.
+A linked worktree loads the primary's local overlay, so it reads and writes the same stores; where it
+cannot, a write the primary persists is sent to the primary or refused by name, never put in Memory.
+`run_impacted_specs!` compares with `origin/main`.
 
-**Discarding a branch.** `exe/hecks Landing.retire! --confirm` removes a worktree whose work is on `main`.
-`exe/hecks Landing.discard! reason.value=… --confirm` removes one whose commits `main` lacks, and an
-agent runs it only when the owner explicitly asks for that branch, never on its own work: the standing
-rule is to report unpushed or uncommitted work, not delete it. It refuses uncommitted files, and its
-report names the tip sha.
+**Worktrees are never nested.** A new worktree goes beside the primary checkout, never inside another
+worktree.
 
-**Worktrees are never nested.** A new worktree goes under the primary checkout's `.claude/worktrees`, never inside another worktree: `EnterWorktree` from a linked worktree is refused by `.claude/hooks/worktree_nesting_guard.sh`, and the hecks verbs resolve their target from the primary.
-
-**Always pull `main` before you push.** Fetch and rebase onto `origin/main` right
-before every push, and again if the pre-push gate ran long enough for `main` to
-move. Many sessions push to `main`; a stale push is rejected or buries their work.
-
-**Pull `main` first, before you cut a branch.** `LinkedTree.add!` runs `LinkedTree.pull_main!` (a
-fast-forward, or a rebase of local `main`'s unpushed commits; it never forces or discards and refuses a
-dirty checkout by name) before it cuts the branch. A harness-made worktree (`EnterWorktree`) is cut from
-`origin/main`, not local `main`: check `git merge-base --is-ancestor origin/main HEAD` and rebase.
-
-**Push `main` only by boarding the train** (`send_train.board! --confirm`), other branches with
-`git push`. The pre-push hook (`.githooks/pre-push`) runs on every push and refuses a plain push of
-`main`; never bypass it. Agents never use `--no-verify` and never set `HECKS_OWNER_PUSH`, which is
-the owner's alone. Do not open a pull request for `main` by hand.
-
-**A red `main` stands a red flag.** While it stands, `Landing` and `SendTrain` refuse by name
-(`main is red: flag <id>`) everything except the fix of a red-* Work item; `exe/hecks RedFlag.status`
-says whether one stands. How to listen, check in and resume: `docs/agents/landing-and-dispatch.md`.
-
-## Briefing a session
-
-A brief is an outcome, not a list of stop signs. `Coder::Brief.compose!` (`lib/hecks/coder/coder.bluebook`)
-builds it from a Work item: the title and detail as the outcome, its `area` (omitted when the item has
-none), and the standing rules, which live in that bluebook and are not restated in agent prompts. Map the
-whole picture, act on everything in the area, stop only for a risk of losing data, an owner-only action, or
-a change outside the area, and report what was stuck first.
+**Pull `main` before you cut a branch and before you push.** Fetch and rebase onto `origin/main`
+right before every push, and again if the pre-push gate ran long enough for `main` to move. The
+pre-push hook (`.githooks/pre-push`) runs on every push; never bypass it. Agents never use
+`--no-verify` and never set `HECKS_OWNER_PUSH`, which is the owner's alone. The development pipeline
+that lands branches on `main` (the train, the red flag, dispatch) is its own project, Switchyard
+(`docs/decisions/0205-the-pipeline-is-its-own-project-switchyard-on-a-pinned-hecks.md`).
 
 ## Running specs
 
@@ -106,10 +81,10 @@ exe/hecks test_suite_run.run_impacted_specs! --wait
 changes map to (`cap.value=`, `dry.value=true`). Specs run in Memory and need no database.
 
 - **The full spec suite runs only in CI.** `run_suite!` is refused locally; run the quick gate and
-  named specs. The landing runs the quick gate and the impacted specs again and refuses on red.
-- **A spec never touches the owner's live state.** `spec/support/live_state_guard.rb` and
-  `live_ledger_guard.rb` fail a spec that reaches the live event tap, red flag or ledgers; a spec
-  that needs a repository, a flag or a tap builds its own under a temporary directory.
+  named specs.
+- **A spec never touches the owner's live state.** `spec/support/live_state_guard.rb` fails a spec
+  that reaches the live event tap; a spec that needs a repository or a tap builds its own under a
+  temporary directory.
 
 ## Comments, RuboCop and generated output
 
@@ -143,16 +118,14 @@ current list of what this repo can do.
 - `exe/hecks <command>! name=value …` does something;
   `exe/hecks <query> name=value …` reads something, written bare. `query` before the name is
   taken only where a command shares the query's name, and refused anywhere else.
-- A command is named by its aggregate and verb, as the bluebook spells them: `SendTrain.board!`,
-  `Hecks::SendTrain.board!` and `Hecks::SendTrain.Board` all reach it, and so does the older
-  snake-case `send_train.board!`. The listing and `--help` print `SendTrain.board!`; the heading
+- A command is named by its aggregate and verb, as the bluebook spells them: `ModelCheckRun.model_check!`,
+  `Hecks::ModelCheckRun.model_check!` and `Hecks::ModelCheckRun.ModelCheck` all reach it, and so does the
+  older snake-case `model_check_run.model_check!`. The listing and `--help` print `ModelCheckRun.model_check!`; the heading
   over a group of commands is the aggregate, so each line under it completes the call.
 - Before writing a script, look for the command that already does it
   (projections, regeneration, style checks, model_check, smoke tests).
-  If none exists, a script is fine as a follow-up: a role's session is refused its first script
-  until it has run a hecks command (run the script again if none fits), and every script is
-  recorded. A script needed twice becomes a command in the bluebook
-  (`exe/hecks agents Script.candidates` lists them).
+  If none exists, a script is fine as a follow-up; a script needed twice becomes a command in the
+  bluebook.
 - Add `--wait` when you need the result before the next step.
 
 ## Releases are the owner's
@@ -165,13 +138,7 @@ never push to `stable`, which is only promoted. Releases and deploys come from `
 
 Each of these holds detail only some sessions need. Read the one that matches your work first.
 
-- `docs/agents/landing-and-dispatch.md`: landing a branch, the red flag, era inspection, QA and
-  dispatch, stalls.
-- `docs/agents/lanes-and-releases.md`: the push train, rehearsals, `main` and `stable`, promotion,
-  `edge`, releases, changing a lane or a required check.
 - `docs/agents/persistence-and-eras.md`: Memory and local overlays, worktree borrowing, the shape
-  ledger, translation edges, `mint_eras`, `disposable_ledger`, quieting QA for a mint.
-- `docs/agents/ci-speed.md`: keeping CI under three minutes, where a spec or job runs, caches,
-  shards, measuring a run.
+  ledger, translation edges, `mint_eras`, `disposable_ledger`.
 - `docs/agents/specs-and-style.md`: the spec runner, the live-state guards, comment style, RuboCop
   and generated output, in full.

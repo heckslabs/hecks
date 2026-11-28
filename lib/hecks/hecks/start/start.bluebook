@@ -134,6 +134,43 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # How this copy of Hecks is set up, read and never written: its settings, its stores and
+    # whether it can run here (`hecks config` and `hecks doctor` ask these).
+    aggregate "Workspace" do
+      description "A look at how this copy of Hecks is set up: its settings, its stores and whether it can run here."
+      acknowledges :no_command_surface, "a look at a copy: it answers how the copy is set up and changes nothing"
+
+      attribute :checkout, Place
+      identified_by :checkout
+
+      # A directory inside the repository; the current directory when a query names none.
+      value_object "Place" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "Settings" do
+        description "What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it."
+        attribute :domain, Place, optional: true
+        returns Document
+      end
+
+      query "Doctor" do
+        description "Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see."
+        attribute :domain, Place, optional: true
+        returns Document
+      end
+
+      query "Where" do
+        description "Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks."
+        attribute :domain, Place, optional: true
+        returns Document
+      end
+    end
+
     policy "WriteWhenRequested" do
       on      "Launch.LaunchersRequested"
       ask     :write, with: { run: :run }

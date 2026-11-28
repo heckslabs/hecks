@@ -78,8 +78,8 @@ module Hecks
         # @return [Array<Hash>] the injected kept rows, else the runtime registry's
         def kept_rows(seams)
           seams.fetch(:kept) do
-            require "hecks/hecks/adapters/main_integration/kept_rows"
-            MainIntegration::KeptRows.from_registry(seams[:runtime]&.registry)
+            require "hecks/hecks/adapters/local_overlaying/kept_rows"
+            Hecks::Adapters::KeptRows.from_registry(seams[:runtime]&.registry)
           end
         end
 

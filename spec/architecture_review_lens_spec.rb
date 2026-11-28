@@ -1,11 +1,10 @@
 require "spec_helper"
 
-# The architect's rubric holds the Hecks modeling (M) and Hecks craft (C) lenses, each rule with a
-# test, a smell and a construct, and the architect's role names both lenses in its steps.
+# The architecture rubric holds the Hecks modeling (M) and Hecks craft (C) lenses, each rule with a
+# test, a smell and a construct, and points at repo examples that exist.
 RSpec.describe "the architecture review rubric" do
   let(:root)   { InMemoryDomain::ROOT }
   let(:rubric) { File.read(File.join(root, "docs/ARCHITECTURE_REVIEW.md")) }
-  let(:steps)  { File.read(File.join(root, "lib/hecks/agents/agents.bluebook")) }
 
   def rule(id) = rubric[/^- \*\*#{id}\b.*?(?=^- \*\*|^## )/m].to_s
 
@@ -26,10 +25,6 @@ RSpec.describe "the architecture review rubric" do
   it "points at repo examples that exist" do
     paths = rubric.scan(%r{`(lib/hecks/[\w/.]+\.(?:bluebook|hecksagon))`}).flatten.uniq
     expect(paths.reject { |path| File.exist?(File.join(root, path)) }).to be_empty
-  end
-
-  it "names the lenses in the architect's steps" do
-    expect(steps).to include("five lenses", "Hecks modeling (M", "Hecks craft (C", "Read the best example")
   end
 
   it "gives every smell the seeded bad plans need" do

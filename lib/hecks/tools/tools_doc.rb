@@ -7,7 +7,7 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Writes the launcher forms of `docs/tools.md` from the `RetiredScript` rows of the Vocabulary
-    # bluebook. Each row names a command (or, in QualityControl, a query); its form is rendered from
+    # bluebook. Each row names a command (or a query); its form is rendered from
     # that command's own arguments, the same projection the launcher parses against, so a form can
     # neither keep an argument the command dropped nor miss one it gained.
     #
@@ -22,7 +22,7 @@ module Hecks
       DOCUMENT = "docs/tools.md"
 
       # The sections of the document, in the order it lists them.
-      SECTIONS = %w[Custodian Deploy Site Codebase QualityControl].freeze
+      SECTIONS = %w[Custodian Deploy Site Codebase].freeze
 
       # The first line of a table, and the line that closes it.
       HEADER = "| launcher | replaces |\n|---|---|"
@@ -225,7 +225,7 @@ module Hecks
           end
         end
 
-        # `hecks ir`, `hecks console!`, `hecks quality_control sweep.run`, `hecks host.check_era!`.
+        # `hecks ir`, `hecks console!`, `hecks host.check_era!`.
         # The launcher takes a name that is only a query as a query, so no `query` word is needed.
         def words(declaration, name, row, bang:)
           route = route_for(Adapters::Driving::LauncherOptions.settings(@runtime, declaration) || {}, declaration, name, row)

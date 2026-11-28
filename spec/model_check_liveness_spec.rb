@@ -135,28 +135,18 @@ RSpec.describe "model_check over waits" do
     end
   end
 
-  describe "the Hecks bluebook's own rows" do
+  describe "the Hecks bluebook" do
     let(:hecks) { boot_hecks_in_memory.registry.bluebook("Hecks") }
-    let(:rows) { Hecks::Tools::ModelCheck.timeout_rows(hecks) }
 
-    def hecks_findings(timeouts) = Hecks::Bluebook::ModelCheck.liveness_findings(hecks, timeouts, held: true)
-
-    def waits_of(timeouts, subject)
-      hecks_findings(timeouts).select { |f| f.kind == :wait_without_timeout && f.subject == subject }.map(&:message)
+    it "names no state its opening and closing events disagree with" do
+      findings = Hecks::Bluebook::ModelCheck.liveness_findings(hecks, [], held: true)
+      expect(findings.reject { |f| f.kind == :wait_without_timeout }.map(&:to_s)).to be_empty
     end
 
-    it "name states their opening and closing events agree with" do
-      expect(hecks_findings(rows).reject { |f| f.kind == :wait_without_timeout }.map(&:to_s)).to be_empty
-    end
-
-    it "time a started AgentRun, which is a wait without them", :aggregate_failures do
-      expect(waits_of(rows, "AgentRun")).to be_empty
-      expect(waits_of([], "AgentRun")).to include(a_string_starting_with('"started" can hold a record forever'))
-    end
-
-    it "are read by the model check command, which finds none in a bluebook that declares none" do
-      expect([rows.size, Hecks::Tools::ModelCheck.timeout_rows(load_errand(File.join(LIVENESS_ERRAND, "errand.bluebook")))])
-        .to eq([hecks.aggregate("StallWatch").value_objects.find { |o| o.hecks_name == "StallKind" }.members.size, nil])
+    it "declares no timeout rows, as the errand declares none, so the model check reads none" do
+      expect([Hecks::Tools::ModelCheck.timeout_rows(hecks),
+              Hecks::Tools::ModelCheck.timeout_rows(load_errand(File.join(LIVENESS_ERRAND, "errand.bluebook")))])
+        .to eq([nil, nil])
     end
   end
 end

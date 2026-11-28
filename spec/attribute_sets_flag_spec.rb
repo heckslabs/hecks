@@ -45,7 +45,7 @@ RSpec.describe "attribute sets: true" do
   # What `hecks-parse` answers for the bluebook: its output, its error and its status.
   def parsed(body)
     bluebook_file(body) do |path|
-      Open3.capture3(Hecks::Composer::Parse.binary, "bluebook", "--bluebook", "Shelf", path)
+      Open3.capture3(Hecks::SentenceForm.binary, "bluebook", "--bluebook", "Shelf", path)
     end
   end
 

@@ -189,7 +189,7 @@ RSpec.describe Hecks::Bluebook::Merge do
     def source(path) = File.read(File.expand_path("../../#{path}", __dir__))
 
     %w[
-      lib/hecks/hecks/deliver/deliver.bluebook
+      lib/hecks/tickets/bluebook/tickets.bluebook
       lib/hecks/framework/bluebook/framework.hecksagon
       examples/pizzas/bluebook/pizzas.world
     ].each do |path|
@@ -199,10 +199,10 @@ RSpec.describe Hecks::Bluebook::Merge do
     end
 
     it "names a conflict in a large bluebook by its aggregate and member" do
-      deliver = source("lib/hecks/hecks/deliver/deliver.bluebook")
-      line = "attribute :landed,   Word,   optional: true"
-      ours, theirs = %w[Word Report].map { |type| change(deliver, line, "attribute :landed, #{type}") }
-      expect(conflicts(deliver, ours, theirs)).to eq(["Integration.landed: attribute changed on both branches"])
+      tickets = source("lib/hecks/tickets/bluebook/tickets.bluebook")
+      line = "attribute :dismissal,      Body, optional: true"
+      ours, theirs = %w[Word Report].map { |type| change(tickets, line, "attribute :dismissal, #{type}") }
+      expect(conflicts(tickets, ours, theirs)).to eq(["Finding.dismissal: attribute changed on both branches"])
     end
   end
 

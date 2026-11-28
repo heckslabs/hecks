@@ -4,7 +4,7 @@ require "hecks/hecks/adapters/work_landings"
 
 # A work item is done only when a landing of its branch is on main, or when its finish names why it
 # lands nothing. A bare `Work.finish!` with no landing is refused by name and leaves the item as it
-# was; the WorkLandings port reads the landing records and `main`.
+# was; the WorkLandings port reads `main`.
 RSpec.describe "finishing a work item" do
   before(:all) { @hecks = InMemoryDomain.boot_hecks_in_memory }
 
@@ -17,10 +17,13 @@ RSpec.describe "finishing a work item" do
 
   def planned(key) = cli("Work.plan!", "work.value=#{key}", "title.value=Change #{key}")
 
+  # The checkout's git, stood in for: the branch's tip is the one candidate, and main holds it.
   def landed_on_main(sha)
-    items = instance_double(Hecks::Adapters::Dispatching::WorkItems, landed_commits: [sha])
-    allow(Hecks::Adapters::Dispatching::WorkItems).to receive(:new).and_return(items)
-    allow(Hecks::Adapters::Git).to receive(:new).and_return(instance_double(Hecks::Adapters::Git, ancestor?: true))
+    tip = instance_double(Hecks::Adapters::Shell::Result, ok?: true, out: "#{sha}\n")
+    none = instance_double(Hecks::Adapters::Shell::Result, ok?: false, out: "")
+    git = instance_double(Hecks::Adapters::Git, ancestor?: true)
+    allow(git).to receive(:capture) { |*args, **| args.first == "rev-parse" ? tip : none }
+    allow(Hecks::Adapters::Git).to receive(:new).and_return(git)
   end
 
   it "refuses a finish with no landing on main, by name" do

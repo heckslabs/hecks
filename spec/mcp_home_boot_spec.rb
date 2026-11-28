@@ -1,10 +1,10 @@
 require "spec_helper"
-require_relative "support/role_door_kept_checkout"
+require_relative "support/home_attached_checkout"
 require "hecks/adapters/driving/mcp"
 
 # A read of a bluebook the home domain attaches is answered from the home domain's own boot.
 RSpec.describe Hecks::Adapters::Driving::Mcp::HomeBoot do
-  include RoleDoorKeptCheckout
+  include HomeAttachedCheckout
 
   let(:mcp) { Hecks::Adapters::Driving::Mcp }
 

@@ -326,8 +326,8 @@ RSpec.describe "what the resident trusts" do
     end
 
     it "are run by the launcher itself, however the verb is spelled", :aggregate_failures do
-      spellings = [%w[pipeline_board PipelineBoard.serve!], %w[PipelineBoard.serve!], %w[pipeline_board.serve!],
-                   %w[Hecks::PipelineBoard.serve!], %w[Server.present!], %w[server.compose!], %w[Server.preview!]]
+      spellings = [%w[Server.present!], %w[server.present!], %w[Hecks::Server.present!], %w[Server.preview!],
+                   %w[server.preview]]
       expect(spellings.map { |argv| bypassed?(*argv) }).to all(be(true))
     end
 
@@ -336,8 +336,8 @@ RSpec.describe "what the resident trusts" do
     end
 
     it "leave ordinary lines, even ones that name a preview, to the resident", :aggregate_failures do
-      expect(bypassed?("Dispatch.Preview", "repo.value=.")).to be(false)
-      expect(bypassed?("RedFlag.status")).to be(false)
+      expect(bypassed?("Build.Preview", "repo.value=.")).to be(false)
+      expect(bypassed?("Operation.status")).to be(false)
     end
   end
 end

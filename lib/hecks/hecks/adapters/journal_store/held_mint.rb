@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "held_domain"
-require_relative "../../../quality_control/adapters/qa_era_mint"
-require_relative "../../../quality_control/adapters/qa_auto_mint"
+require_relative "revision_mint"
+require_relative "auto_mint"
 require_relative "../../../adapters/driven/postgres_era"
 
 module Hecks
@@ -10,10 +10,10 @@ module Hecks
     class JournalStore
       # The Hecks domain's held mint, answered on the `JournalStore` port's `Mint`.
       #
-      # It reads the domain's facts through the shared mint decision (`QaAutoMint.facts`, which
+      # It reads the domain's facts through the shared mint decision (`AutoMint.facts`, which
       # runs `MintDecision.decide_latest`), refuses by name whatever the decision does not allow,
-      # and mints through `QaRevisionMint`, the mint transaction the QualityControl ledger uses. The
-      # reader and the minter are injected so a spec runs with no database.
+      # and mints through `RevisionMint`, the one-mint era check. The reader and the minter are
+      # injected so a spec runs with no database.
       class HeldMint
         # The Hecks domain's bluebook directory, the one a checkout boots.
         DOMAIN = File.expand_path("../..", __dir__)
@@ -29,7 +29,7 @@ module Hecks
         #   declares `disposable_ledger true`; else `held` (the count of held eras), and when any
         #   are held, `next_era`, `status` (the boot's resolution,
         #   `LineageManager::RevisionResolution`), `watermark`, `from`, `to` and `verdict` (see
-        #   `QaAutoMint.facts`)
+        #   `AutoMint.facts`)
         def self.read(directory)
           domain = HeldDomain.open(directory, mode: :translated)
           return { eraless: domain.adapter_name } unless domain.capable?
@@ -38,15 +38,15 @@ module Hecks
           resolution = domain.resolution
           return { held: 0 } if resolution.status == "unheld"
 
-          QaAutoMint.facts(directory).merge(held: resolution.held_count, next_era: resolution.latest[:ordinal] + 1,
-                                            status: resolution.status)
+          AutoMint.facts(directory).merge(held: resolution.held_count, next_era: resolution.latest[:ordinal] + 1,
+                                          status: resolution.status)
         end
 
-        # Mints the era through the QualityControl mint transaction, against the Hecks domain.
+        # Mints the era through the one-mint era check, against the Hecks domain.
         #
         # @return [Array(String, Boolean)] the minted label or the refusal, and whether it minted
         def self.mint(era, request)
-          QaRevisionMint.call(DOMAIN, domain: NAME, era: era, request: request, ledger: DOMAIN)
+          RevisionMint.call(domain: NAME, era: era, request: request, ledger: DOMAIN)
         end
 
         # @param directory [String] the bluebook directory a mint is for
@@ -90,7 +90,7 @@ module Hecks
           verdict = facts[:verdict]
           refuse!("the decision is #{verdict.verdict}, not would_mint: #{verdict.reason}") unless verdict.verdict == "would_mint"
           refuse_rehearsal!(rehearsal_verdict)
-          stale = watermark && QaAutoMint.stale_watermark(watermark, facts[:watermark])
+          stale = watermark && AutoMint.stale_watermark(watermark, facts[:watermark])
           refuse!(stale) if stale
         end
 

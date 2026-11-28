@@ -4,16 +4,12 @@ require "fileutils"
 require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
-require "hecks/hecks/adapters/machine_profiling"
 require_relative "heavy_commands"
 require_relative "holder_mark"
-require_relative "memory_wait"
-require_relative "response_wait"
 require_relative "slot_queue"
 require_relative "slot_text"
 require_relative "slot_wait"
 require_relative "spec_workers"
-require "hecks/signalbox/adapters/pressure_signal"
 
 module Hecks
   module Adapters
@@ -25,18 +21,17 @@ module Hecks
       #
       # A place is a kernel `flock` on one of `cap` files under the cache directory, so a holder
       # that dies, even killed, frees its place at once and none is ever held for a dead process.
-      # Waiting never counts toward a job's own time bounds, and nothing running is stopped. A job
-      # first waits on memory or its kind's answer to pressure ({ResponseWait.before}); holding a
-      # place, its children's workers are held to `spec_workers` (`PARALLEL_PROCESSOR_COUNT`, read
-      # by RuboCop, unless set). A job does not wait in CI or when `HELD` says a parent started it,
-      # or once it gave up; a rejoining waiter keeps its place ({SlotWait}).
+      # Waiting never counts toward a job's own time bounds, and nothing running is stopped. Holding
+      # a place, a job's children's workers are held to `spec_workers` (`PARALLEL_PROCESSOR_COUNT`,
+      # read by RuboCop, unless set). A job does not wait in CI or when `HELD` says a parent started
+      # it, or once it gave up; a rejoining waiter keeps its place ({SlotWait}).
       class HeavySlots
         extend HeavyCommands
 
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
 
-        # The cap when neither the world nor the machine's profile names one.
+        # The cap when the world names none.
         DEFAULT_CAP = 3
 
         # The environment variable a holder sets for the children it starts.
@@ -54,32 +49,19 @@ module Hecks
         # How often a waiting job looks at the places again.
         POLL = 0.5
 
-        # While the owner has `signalbox_pressure` drive it and Signalbox's signal is current, the
-        # places are the gates the signal's headroom fits, at least one and at most the world's cap.
-        #
         # @param root [String] a hecks checkout
-        # @param signal [Hash, nil] Signalbox's current signal while it drives the places
-        # @return [Integer] the cap its Tickets world's `heavy_jobs` line sets, else `DEFAULT_CAP`;
-        #   the gates the signal fits inside it while the signal drives
-        def self.cap_of(root, signal: PressureSignal.at_root(root)) = PressureSignal.places(signal, declared_cap(root))
-
-        # @param dir [String] a hecks checkout
-        # @return [Integer] the cap its Tickets world's `heavy_jobs` line sets (the owner's
-        #   override), else the one the machine's profile derives, else `DEFAULT_CAP`
-        def self.declared_cap(dir) = Integer(RustBuild::WorldRows.row(dir, VERB)[:cap] || MachineProfiling.of(VERB, DEFAULT_CAP))
+        # @return [Integer] the cap its Tickets world's `heavy_jobs` line sets, else `DEFAULT_CAP`
+        def self.cap_of(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:cap] || DEFAULT_CAP)
 
         # Runs a job of a checkout in a place and names any wait at the top of its report.
         #
         # @param root [String] the hecks checkout whose world sets the cap
         # @param job [String] the job's class
         # @yieldreturn [String] the job's report
-        # @return [String] the report, after the line that names the wait when there was one; for
-        #   a helper's job the pressure sends home, the line that says it was not started
+        # @return [String] the report, after the line that names the wait when there was one
         def self.admitted(root, job, &)
           report, note = held(root, job, &)
           note.empty? ? report : "#{note}\n#{report}"
-        rescue ResponseWait::Left => e
-          "not started: #{e.message}"
         end
 
         # Runs a job of a checkout in a place, for a job whose answer is not a report.
@@ -89,7 +71,7 @@ module Hecks
         # @return [Array(Object, String)] what the block returned, and the wait to name: empty when
         #   it took a place at once
         def self.held(root, job, &)
-          new(cap: cap_of(root), memory: ResponseWait.before(root), workers: SpecWorkers.count(root)).hold(job, &)
+          new(cap: cap_of(root), workers: SpecWorkers.count(root)).hold(job, &)
         end
 
         # @param base [#[]] the environment
@@ -104,15 +86,14 @@ module Hecks
         # @param base [#[]] the environment, for the switches above
         # @param err [#puts] where the waiting note goes
         # @param options [Hash] `clock:` answers the time in seconds and `pause:` sleeps the given
-        #   seconds, the monotonic clock and `sleep` when absent; `memory:` ({MemoryWait}) is waited
-        #   on before a place is taken, none when absent; `workers:` is the worker count the held
-        #   job's children are held to, none when absent
+        #   seconds, the monotonic clock and `sleep` when absent; `workers:` is the worker count
+        #   the held job's children are held to, none when absent
         def initialize(cap:, dir: self.class.directory, base: ENV, err: $stderr, **options)
           @cap = cap
           @dir = dir
           @base = base
           @err = err
-          @memory, @workers = options.values_at(:memory, :workers)
+          @workers = options[:workers]
           @clock = options.fetch(:clock) { -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) } }
           @pause = options.fetch(:pause) { ->(seconds) { sleep(seconds) } }
         end
@@ -125,9 +106,7 @@ module Hecks
         def hold(job, &)
           return [yield, ""] if HolderMark.covers?(@base)
 
-          memory = @memory ? @memory.wait(job) : ""
-          place, slot = acquire(job)
-          note = [memory, slot].reject(&:empty?).join("; ")
+          place, note = acquire(job)
           return [with_held(&), note] unless place
 
           [holding(place, job, &), note]

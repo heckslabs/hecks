@@ -17,7 +17,7 @@
 #
 # A local world connects as the ordinary role `hecks`, never a superuser: the era write-fence
 # (row-level security) is bypassed by one, so boot refuses it. Create the role once with
-# `hecks quality_control sweep.create_ledger_role hecks` and the database with `createdb -O hecks hecks`.
+# `createuser hecks` and the database with `createdb -O hecks hecks`.
 #
 # Postgres's revision layout versions the storage shape. Once a database holds an era, a later change to this
 # domain's shape needs a translation edge, kept in `translations/` beside the bluebook; an
@@ -28,7 +28,7 @@
 # `names` gives a command the launcher name clients type,
 # `settled` names the commands that always wait for their reactions, as if `--wait` were given, so a
 # refusal is an exit status and a reason on standard error (`package.vendor`, which a script runs
-# for its outcome; `dispatch.fill`, whose answer is the report its Choose recorded), `unknown_runs` names the questions about one run that refuse a run the process
+# for its outcome), `unknown_runs` names the questions about one run that refuse a run the process
 # does not hold, as unknown, not as an empty list (`rehearsal_run.rehearsal_outcome`: a run is kept
 # by the process that made it, so `request` waits and prints the whole outcome), `executable` is where `hecks project_cli` writes this bluebook's launcher (the
 # gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
@@ -48,30 +48,15 @@
 # **event_tap** `path` is the append-only file the runtime writes events and policy deliveries to (one JSON line each,
 # names and outcomes, never payloads) and `max_bytes` the size at which it moves to `<path>.1`; absent, nothing is written.
 #
-# **landing** sets the line `landing.train!` holds: `stale_minutes` is how long a ticket may go without a heartbeat
-# before the next one removes it as abandoned (30 when absent), `wait_minutes` how long a ticket waits for its turn
-# (40 when absent), and `shell_lock` names a lock directory an older brief makes by hand, honoured as the holder
-# while it exists. `landing.land!` and `landing.finish!` take no place in it: they move main by a compare-and-swap.
-#
 Hecks.world "Hecks" do
   realm "Hecks"
-  # The tables the renamed aggregates keep: Workspace was Checkout, Revision was Commit, SendTrain was
-  # PushTrain and ReviewRequest was PullRequest, and their rows stay where they were written.
-  # A boot that found them empty beside the old tables' rows would refuse by name.
-  stored_as Workspace: "checkout", SendTrain: "push_train", ReviewRequest: "pull_request"
+  # The table the renamed Workspace keeps (it was Checkout), so its rows stay where they were
+  # written. A boot that found it empty beside the old table's rows would refuse by name.
+  stored_as Workspace: "checkout"
   # The command whose own record an unminted boot is let write: a mint cannot start from a boot whose
   # shape no era holds yet. This domain's Postgres binding lives in uncommitted local files, so the
   # name is said here, where every copy reads it.
   minting commands: ["SchemaRevision.MintHeld"]
-  landing "Queue", stale_minutes: 30, wait_minutes: 40
-  # How long a hold on local main for a boarding lasts before it expires on its own, so main is never held longer.
-  boarding_hold "Window", max_minutes: 20
-  # What the mechanical cleanup of finished sessions removes. `worktree_scratch` lists the paths, relative to a
-  # worktree, whose ignored contents are cleared before it is retired (tracked, untracked and unignored files are never
-  # touched). `session_keep`: hours a session no run holds is kept once done or stopped; removing one only drops
-  # it from `claude agents`. `abandon_after_minutes`: how long a helper may stay blocked with no answer before its
-  # run ends `abandoned` and is reaped (`AbandonTheUnansweredHelper`); without it no helper is ended.
-  reaping "Sessions", worktree_scratch: ["tmp", ".ruby-lsp", "rust/*/target", "rust/target", "target"], session_keep: 24, abandon_after_minutes: 30, answer_after_minutes: 10, remove_done_after_minutes: 30, merged_worktrees_after_minutes: 60, outside_worktrees: ["~/Projects/hecks-worktrees"]
   # How long an outbox row may stand claimed before a boot settles it as failed (abandoned, not redelivered)
   # and names it once. A claim that old was left by a process that died; nothing else releases it, so without a
   # bound the same rows were named on every boot. Ten minutes is the longest a reaction is expected to run.
@@ -80,33 +65,14 @@ Hecks.world "Hecks" do
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run
   # every file they are given; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).
   test_scope "Local", suite_runs_in: "ci"
-  # The launchd jobs Hecks writes run at `process_type: "Standard"` so macOS may use the performance cores for them
-  # and every process they start; Background QoS pins a job and its children to the efficiency cores and is refused.
-  # `nice` is the increment; `low_priority_io: true` would throttle the job's disk IO and is left off.
-  launchd_job "Beat", process_type: "Standard", nice: 10, low_priority_io: false
-  # The job that keeps a Claude daemon up. The daemon and every session it hosts inherit its scheduling, so it runs at
-  # normal priority: Standard, nice 0, no throttled IO. A daemon started from a niced or Background process stays on the
-  # efficiency cores for good.
-  claude_daemon_job "ClaudeDaemon", process_type: "Standard", nice: 0, low_priority_io: false
-  # The free space, in gigabytes, below which the board's Disk free tile asks for attention and then fails.
-  disk_health "PipelineBoard", attention_gb: 20, failed_gb: 5
-  # How the board is kept small: it reads its state every `refresh_seconds`, and restarts itself, as the
-  # command that started it, above `rss_mb` megabytes resident or after `age_hours` hours up.
-  board_restart "PipelineBoard", refresh_seconds: 30, rss_mb: 1024, age_hours: 24
   # A resident (ADR 0201) exits after `idle_seconds` idle (`worktree_idle_seconds` in a linked worktree); past
-  # `max_residents` (derived from the machine's profile when no line sets it) a checkout boots cold. A launcher waits `ready_wait_ms` for its first word; it takes `workers`
-  # callers at once; control commands (shared stores only; never Landing, Integration or AgentRun, which act on a worktree's branch) go to the control process, the primary's resident kept by launchd, from any worktree.
+  # `max_residents` (8 when no line sets it) a checkout boots cold. A launcher waits `ready_wait_ms` for its first word; it takes `workers`
+  # callers at once; control commands (shared stores only, never one that acts on a worktree's branch) go to the control process, the primary's resident kept by launchd, from any worktree.
   resident "Launcher", idle_seconds: 600, worktree_idle_seconds: 120, ready_wait_ms: 400, workers: 8,
-           control: "work message dial redflag"
-  # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
-  # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level. These are
-  # the volume's own lines for relief; `disk_health` above sets the floors of the board's Disk free tile.
-  disk_space "DiskSpace", rising_free_gb: 60, rising_used_percent: 80, high_free_gb: 30, high_used_percent: 90
-  # The agent roles the board pins at its top. Each wakes on demand; none may issue an owner decision.
-  agent_roles "PipelineBoard", roles: "orchestrator,orchestrator-owner,planner,architect,coder,reviewer,pruner,scrum-master,staff-engineer,product-owner"
-  # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
-  # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
-  # world declares no `event_tap`, so a client writes no file. The file rotates at `max_bytes`.
+           control: "work"
+  # The runtime appends one JSON line per event and per policy delivery here, so a reader sees the
+  # domains that persist nothing. A client's world declares no `event_tap`, so a client writes no
+  # file. The file rotates at `max_bytes`.
   event_tap "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
   launcher "Launcher", run_keys: true,
                        caller_roles: ["Maintainer", "Operator", "QA engineer", "Language", "Language designer",
@@ -119,18 +85,14 @@ Hecks.world "Hecks" do
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
-                                  handover.clear rehearsal_run.request send_train.board
-                                  agent_run.dispatch agent_run.check
-                                  dispatch.fill dial.turn],
+                                  handover.clear rehearsal_run.request],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
                        names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "package.check" => "registry.check",
-                                "agent_run.check_all" => "session_sweep.check_all",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],
-                       reads_tap: %w[Operation.Feed Pace.read PipelineBoard.Snapshot Work.undone AgentRun.running
-                                     AgentRun.tidyable PlanReview.reviews Role.guard Role.server_env],
+                       reads_tap: %w[Operation.Feed Work.undone],
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun
@@ -139,9 +101,8 @@ Hecks.world "Hecks" do
                        everyday: %w[operation.run operation.open_console gate_run.gate
                                     test_suite_run.run_changed test_suite_run.run_spec_example
                                     test_suite_run.run_spec_files test_suite_run.run_impacted_specs
-                                    build.build_host shipment.ship send_train.board
-                                    codebase.search],
-                       bluebooks: %w[Delivery Deploy Governance Tenancy Site Tickets Composer QualityControl],
+                                    build.build_host codebase.search],
+                       bluebooks: %w[Deploy Governance Tenancy Site Tickets],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init]
 end

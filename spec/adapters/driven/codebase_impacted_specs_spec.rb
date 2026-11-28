@@ -123,8 +123,8 @@ RSpec.describe Hecks::Adapters::Codebase::ImpactedSpecs do
 
   # What the rehearsal's own map names for these changed files.
   def rehearsal_map(changed)
-    skip = Hecks::Adapters::GitRehearsal::Impacted::Skips.new(dir, scratch: -> { false })
-    Hecks::Adapters::GitRehearsal::SpecMap.new(dir).map(changed, limit: 60, skip: skip).specs
+    skip = Hecks::Adapters::Codebase::SpecSkips.new(dir, scratch: -> { false })
+    Hecks::Adapters::Codebase::SpecMap.new(dir).map(changed, limit: 60, skip: skip).specs
   end
 
   it "maps as the rehearsal's own map does for the same diff" do

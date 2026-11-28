@@ -49,8 +49,8 @@ module Hecks
         # The kept-row reader, loaded when a command is checked: a boot loads no Ruby from an
         # applied tree before the grammar table is built.
         def kept_rows
-          require "hecks/hecks/adapters/main_integration/kept_rows"
-          MainIntegration::KeptRows
+          require "hecks/hecks/adapters/local_overlaying/kept_rows"
+          Hecks::Adapters::KeptRows
         end
 
         def kept_row(root, bluebook, aggregate)

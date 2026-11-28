@@ -5,7 +5,7 @@ require_relative "support/protocols_kept_store"
 # twice, each boot its own registry, over the store the overlay binds for its kept rows.
 RSpec.describe "the crew's working agreements, across processes" do
   let(:root) { Dir.mktmpdir("protocols-store") }
-  let(:rows) { Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry) }
+  let(:rows) { Hecks::Adapters::KeptRows.from_registry(boot_hecks_in_memory.registry) }
 
   after { FileUtils.remove_entry(root) }
 

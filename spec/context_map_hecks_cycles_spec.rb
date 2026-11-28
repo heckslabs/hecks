@@ -1,23 +1,19 @@
 require "spec_helper"
 require "hecks/bluebook/model_check"
 
-# The Hecks domain's own context cycles (ADR 0207). Four pairs depended on each other when a cycle
-# was first refused: Hecks with Agents, Coder, Delivery and QualityControl. Each is untangled, the
-# Hecks domain taking over the reactions its attached context held, so `hecks.contextmap` accepts
-# none and the wiring has none. This is the ratchet: the list below stays empty.
+# The Hecks domain's own context cycles (ADR 0207). Four pairs depended on each other before a
+# cycle was refused; each ran through a context that moved out with the development pipeline
+# (ADR 0205), so none stands now. This is the ratchet: the map accepts no cycle, and none is found.
 RSpec.describe "The Hecks domain's context cycles" do
-  # The pairs the map may accept. It started with four; each was removed as it was untangled.
-  let(:standing) { [] }
-
   let(:registry) { boot_hecks_in_memory.registry }
   let(:edges) { Hecks::Projections::ContextRelationships.call(registry: registry) }
   let(:accepted) { Hecks::Bluebook::ModelCheck.accepted_cycles([registry.context_map("Hecks")]) }
 
-  it "accepts no cycle beyond the ones that stood before the rule" do
-    expect(accepted.keys - standing).to be_empty
+  it "accepts no cycle" do
+    expect(accepted.keys).to be_empty
   end
 
-  it "has no context cycle in its wiring" do
-    expect(Hecks::Bluebook::ModelCheck.context_cycle_findings(edges, accepted: accepted).map(&:to_s)).to be_empty
+  it "has no cycle, with nothing accepted" do
+    expect(Hecks::Bluebook::ModelCheck.context_cycle_findings(edges).map(&:to_s)).to be_empty
   end
 end

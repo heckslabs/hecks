@@ -181,7 +181,6 @@ Hecks/GitHistoryThroughThePort:
     - "exe/**/*"
   Exclude:
     - "**/adapters/**/*"
-    - "lib/hecks/vendor/**/*"
     - "lib/rubocop/**/*"
 
 # Elapsed time is measured on the monotonic clock; `Time.now - File.mtime(f)` is left alone.
@@ -448,7 +447,6 @@ Naming/PredicateMethod:
     - "lib/hecks/adapters/driven/sqlite/dispatch_claims.rb"
     - "lib/hecks/adapters/driven/sqlite/outbox.rb"
     - "lib/hecks/adapters/driven/sqlite/repository.rb"
-    - "lib/hecks/composer/jobs.rb"
     - "lib/hecks/ports/key_vault.rb"
     - "lib/hecks/ports/persistence/append_only.rb"
     - "lib/hecks/tools/evolve_run.rb"
@@ -502,7 +500,6 @@ Style/EvalWithLocation:
 # the text is curl's own token or table row text, not a Ruby format string
 Style/FormatStringToken:
   Exclude:
-    - "lib/hecks/projections/ci_pipeline/table/checks.rb"
     - "lib/hecks/projections/deploy/box/roll_scripts.rb"
 
 # a forked child reopens the standard streams to capture its output

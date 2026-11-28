@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/framework_bluebooks"
 
 # `attaches` brings a bluebook the gem carries (the language, Expression, Tenancy, Deploy,
-# Site, QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the
+# Site, Tickets) into a domain by name (ADR 0080, section 4). Like a vendored package, the
 # attached
 # bluebook is a bounded context, and the consumer's sibling hecksagon for it is the
 # anti-corruption layer.
@@ -95,36 +95,35 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
     expect { attach("Nowhere") }.to raise_error(Hecks::Runtime::WiringError, /no bluebook of that name.*Deploy.*from: :vendor/)
   end
 
-  # QualityControl ships its ports and adapters beside its bluebook, so every hecksagon that
-  # attaches it (the Hecks bluebook, the QA ledger) gets the same contract.
+  # Tickets ships its ports and adapters beside its bluebook, so every hecksagon that attaches it
+  # gets the same contract.
   describe "a bluebook that ships its ports and adapters" do
-    let(:registry) { attach("QualityControl") }
+    let(:registry) { attach("Tickets") }
 
     it "declares the bluebook's ports on its aggregates", :aggregate_failures do
-      quality_control = registry.bluebook("QualityControl")
+      tickets = registry.bluebook("Tickets")
 
-      expect(quality_control.aggregate("Ticket").port("IssueTracker")).not_to be_nil
-      expect(quality_control.aggregate("Clearance").port("CI")).not_to be_nil
+      expect(tickets.aggregate("Finding").port("GitHubIssues")).not_to be_nil
+      expect(tickets.aggregate("Work").port("WorkLandings")).not_to be_nil
     end
 
     it "loads the adapters that bind them, one per port" do
       bound = registry.adapters.values.to_h { |adapter| [adapter.name, adapter.port] }
 
-      expect(bound).to include("GithubIssues" => "IssueTracker", "GithubChecks" => "CI",
-                               "GitPr" => "GitPr", "Agent" => "Agent")
+      expect(bound).to include("Velocity" => "Velocity", "EpicMembers" => "EpicMembers")
     end
 
     it "loads nothing twice when a second hecksagon attaches the bluebook" do
       registry_with do
         declare_console
-        Hecks::FrameworkBluebooks.load!("QualityControl")
+        Hecks::FrameworkBluebooks.load!("Tickets")
 
-        expect(Hecks::FrameworkBluebooks.load!("QualityControl")).to be_nil
+        expect(Hecks::FrameworkBluebooks.load!("Tickets")).to be_nil
       end
     end
 
     it "leaves a bluebook with no ports file or adapters as it was" do
-      expect(attach("Deploy").adapters.keys).not_to include("GithubIssues")
+      expect(attach("Deploy").adapters.keys).not_to include("Velocity")
     end
   end
 

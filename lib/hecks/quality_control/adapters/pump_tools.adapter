@@ -1,8 +1,0 @@
-# Binds EventDelivery's `Pumping` port to `PumpTools`, which runs the QA ledger's event pump once for
-# a requested `Pump.Run`. Required by name, not relative, so a copy of this directory shares the one
-# implementation loaded.
-require "hecks/quality_control/adapters/pump_tools"
-
-Hecks.adapter "PumpTools" do
-  port "Pumping"
-end

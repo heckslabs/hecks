@@ -110,7 +110,7 @@ module Hecks
     # raises it instead of announcing its `refuses` event, so the defect is seen where it happens.
     #
     # `ArgumentError` is left out on purpose: adapters raise its subclasses to refuse input they
-    # were handed (`TenantProvisioner::Refused`, `Composer::Workspace::OutsideWorkspace`), and
+    # were handed (`TenantProvisioner::Refused`), and
     # parsing outside data raises it (`Integer("x")`, `Date::Error`), so it is the world saying no
     # as often as it is a wrong call.
     PROGRAMMING_ERRORS = [NameError, TypeError, FrozenError, ScriptError].freeze

@@ -102,34 +102,16 @@ RSpec.describe "the Codebase rows of the ADR table" do
                note: "no bin script: it serves the storehouse bus to an MCP client over stdio until it " \
                      "closes; `mcp` is the launcher's alias for it"),
     AdrRow.new(script: "present", verbs: %w[present]),
-    AdrRow.new(script: "compose", verbs: %w[compose],
-               note: "no bin script: it serves the Composer, a live bluebook editor, over one domain " \
-                     "directory on the loopback address, as present serves the banking forms"),
     AdrRow.new(script: "release", verbs: %w[publish],
                note: "without --confirm it is the old --dry-run; --gem-only, --npm-only, --npm-local and " \
                      "--no-wait are booleans (--yes is --confirm)"),
     AdrRow.new(script: "release_gem", verbs: %w[publish_gem]),
-    AdrRow.new(script: "decide_ci_gate", verbs: %w[decide_ci_gate],
-               note: "no bin script: it replaces the base-commit shell of the changed-paths action, so a gated " \
-                     "job's detector is a call to the binary"),
-    AdrRow.new(script: "project_ci_gates", verbs: %w[project_ci_gates],
-               note: "no bin script: it replaces the path-gate shell that sat inline in ci.yml and " \
-                     "ci-postgres-io-parallel.yml, and like regenerate_corpus it only compares without --confirm"),
-    AdrRow.new(script: "project_ci_pipeline", verbs: %w[project_ci_pipeline],
-               note: "no bin script: it writes the workflow files whose rows the CiWorkflows bluebook declares, " \
-                     "and like regenerate_corpus it only compares without --confirm"),
-    AdrRow.new(script: "project_lanes", verbs: %w[project_lanes],
-               note: "no bin script: it writes the branch rulesets and the promotion workflow from the Lane rows; " \
-                     "without --confirm it only compares, and only --live --confirm changes GitHub"),
     AdrRow.new(script: "watch", verbs: %w[watch],
                note: "no bin script: it faults when a lane has stood behind the lane it follows for longer than " \
                      "its Lane row allows, and the fault files a finding"),
     AdrRow.new(script: "promote", verbs: %w[promote],
                note: "no bin script: it moves a lane onto a commit that passed every RequiredCheck; without " \
                      "--confirm it only rehearses the move"),
-    AdrRow.new(script: "project_agent_roles", verbs: %w[project_agent_roles],
-               note: "no bin script: it writes .claude/agents from the RoleFile rows of the Role aggregate, and " \
-                     "like regenerate_corpus it only compares without --confirm"),
     AdrRow.new(script: "project_tools_doc", verbs: %w[project_tools_doc],
                note: "no bin script: it writes the launcher forms of docs/tools.md from the RetiredScript rows, " \
                      "and like regenerate_corpus it only compares without --confirm"),

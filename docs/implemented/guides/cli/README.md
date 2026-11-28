@@ -37,14 +37,12 @@ without its bang is refused, with the bang spelling in the reply.
 <!-- generated:begin cli section=index -->
 - [build](build.md): Compile and regenerate.
 - [check](check.md): Is it right? Gate, model check, style, inspection and audit.
-- [delegate](delegate.md): Hand work to a background session.
-- [deliver](deliver.md): Take finished work into the shared line.
 - [evolve](evolve.md): Change the language and rewrite to match.
 - [find](find.md): Read the code: search the checkout's text, read a file, outline what it declares, find where a name is declared. Read the record: search work items, findings and decisions by their words.
 - [migrate](migrate.md): Move a store between shapes.
 - [operate](operate.md): Run a domain and look inside it.
 - [release](release.md): Certify, publish and pin versions.
-- [serve](serve.md): Open something on a port until it is stopped: the Composer, a rendered example, or a static site.
+- [serve](serve.md): Open something on a port until it is stopped: a rendered example, a static site or an MCP server.
 - [start](start.md): Begin a domain or a project.
 - [test](test.md): Run the specs and fuzzers.
 <!-- generated:end cli -->

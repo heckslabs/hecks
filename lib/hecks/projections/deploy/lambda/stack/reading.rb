@@ -109,8 +109,8 @@ module Hecks
 
             def read_dispatch
               # `dispatch "None"` skips generating a rust/host dispatch Lambda for a domain with no
-              # `.bluebook` command surface to dispatch through (e.g. QualityControl's GitHub
-              # webhook, dispatching straight into Ruby); such a domain's WebFunction becomes its
+              # `.bluebook` command surface to dispatch through (e.g. a GitHub webhook
+              # dispatching straight into Ruby); such a domain's WebFunction becomes its
               # only Lambda.
               @dispatch_none = deploy_settings[:dispatch].to_s == "None"
               # Names the env var WebFunction's `lambda_handler.rb` finds the fetched secret's

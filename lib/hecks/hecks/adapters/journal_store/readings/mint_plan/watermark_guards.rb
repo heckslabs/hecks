@@ -1,15 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "../../../../../quality_control/adapters/qa_auto_mint"
-
 module Hecks
   module Adapters
     class JournalStore
       module Readings
         module MintPlan
           # The watermark the mint reads and the freshness of a rehearsal against it, by the mint's
-          # own rule (`QaAutoMint.stale_watermark`): the ledger may move only by the run's own
-          # `Maintenance` record, counted by `Lineage#rows_of_after`.
+          # own rule ({.stale}): the ledger may move only by the run's own `Maintenance` record,
+          # counted by `Lineage#rows_of_after`.
           class WatermarkGuards
             RECORDED = <<~SQL
               SELECT payload->>'watermark' AS watermark, payload->'rehearsal_verdict'->>'value' AS verdict
@@ -19,6 +17,19 @@ module Hecks
               ORDER BY id DESC LIMIT 1
             SQL
             RULE = "the mint refuses when the ledger moved by anything but the run's own Maintenance record"
+
+            # Why a rehearsal is stale against the live watermark, or nil when it is fresh: it is
+            # fresh while the ledger moved by nothing but the run's own rows.
+            #
+            # @param rehearsed [Integer] the watermark the rehearsal read
+            # @param live [Integer] the ledger's watermark now
+            # @param own_rows [Integer] the rows above `rehearsed` that are the run's own record
+            # @return [String, nil] the refusal, or nil when the rehearsal is fresh
+            def self.stale(rehearsed, live, own_rows: 0)
+              return if rehearsed == live - own_rows
+
+              "the ledger watermark moved from #{rehearsed} to #{live} since the rehearsal; rehearse again"
+            end
 
             # @param report [Report] where each guard is recorded
             # @param db [PG::Connection] the read-only connection
@@ -60,7 +71,7 @@ module Hecks
 
             def freshness(ref, watermark)
               own = @lineage.rows_of_after(watermark, "maintenance", ref)
-              stale = QaAutoMint.stale_watermark(watermark, live, own_rows: own)
+              stale = self.class.stale(watermark, live, own_rows: own)
               return [:refuse, stale] if stale
 
               [:pass, "rehearsal #{ref} read watermark #{watermark}; #{own} row(s) above it are the run's own record"]

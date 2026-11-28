@@ -9,13 +9,6 @@
 lib/hecks/bench/cli.rb
 lib/hecks/embryonaut_bluebook/vendor_cli.rb
 lib/hecks/mcp_stdio_guard.rb
-lib/hecks/quality_control/cli/qa_concurrency_racer.rb
-lib/hecks/quality_control/cli/qa_mutate.rb
-lib/hecks/quality_control/cli/qa_postgres_migrate.rb
-lib/hecks/quality_control/cli/qa_postgres_role.rb
-lib/hecks/quality_control/cli/qa_seed_angles.rb
-lib/hecks/quality_control/cli/qa_seed_targets.rb
-lib/hecks/quality_control/cli/qa_tick.rb
 lib/hecks/query_ir_mcp.rb
 lib/hecks/release/approval.rb
 lib/hecks/release/runner.rb

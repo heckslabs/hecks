@@ -7,7 +7,7 @@ module Hecks
       # that names none follows the Hecks domain, the one the query belongs to.
       #
       # A word that holds a path separator is a directory. A bare word is first a bluebook name of
-      # the Hecks domain (`Hecks`, `Tickets`, `agents`, `quality_control`), which boots that
+      # the Hecks domain (`Hecks`, `Tickets`, `Deploy`), which boots that
       # domain, so its aggregate filter picks the log; then a directory beside the caller; and
       # otherwise it is refused with the names it could have been. The names are read from the boot
       # a name needs anyway, so a refusal costs no boot a follow would not have made.

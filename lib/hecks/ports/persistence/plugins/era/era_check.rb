@@ -101,7 +101,7 @@ module Hecks
 
       # Picks the files to read for a bluebook no file in the domain directory declares.
       #
-      # Tries, in order: a bluebook the gem carries (the QA ledger's QualityControl), the domain's
+      # Tries, in order: a bluebook the gem carries (`gem_bluebook`), the domain's
       # own single remaining file, a framework member, then a vendored embryonaut bluebook.
       #
       # @param bluebook [Bluebook::Declaration] the bluebook whose source is wanted

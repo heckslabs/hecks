@@ -1,5 +1,5 @@
 require "tmpdir"
-require "hecks/hecks/adapters/main_integration/train"
+require "hecks/hecks/adapters/local_overlaying/local_overlay"
 
 # Boots the Protocols bluebook with its own registry over one SQLite store under a directory, as
 # the checkout's overlay binds it: the hecksagon is the overlay's own text, so it names exactly
@@ -21,7 +21,7 @@ module ProtocolsKeptStore
   end
 
   def self.files(root, rows)
-    overlay = Hecks::Adapters::MainIntegration::LocalOverlay.new(root, rows, "main").text
+    overlay = Hecks::Adapters::LocalOverlay.new(root, rows, "main").text
     [write(root, "protocols.hecksagon", overlay[/^Hecks\.hecksagon "Protocols" do.*?^end/m]),
      write(root, "protocols.world", world(root))]
   end

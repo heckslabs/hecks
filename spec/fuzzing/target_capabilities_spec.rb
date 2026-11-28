@@ -194,23 +194,15 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
 
       # The dial and requirements table must agree on the mode vocabulary
       # in both directions, or `resolve` would silently hide the drift.
-      define_dials!
-      expect(QualityControlDials::MODES.keys).to match_array(described_class::MODE_REQUIREMENTS.keys)
+      expect(dial_modes.keys).to match_array(described_class::MODE_REQUIREMENTS.keys)
     end
   end
 
-  # Boots a throwaway qa/bluebook copy on Memory to read QualityControlDials,
-  # never the live hecks_quality_control database (spec/quality_control_spec.rb).
-  def define_dials!
-    return if defined?(QualityControlDials::MODES)
-
-    Hecks::Fuzzing::Replay.call(File.join(CAP_ROOT, "qa/bluebook"), [])
-  end
+  # The dial's modes, as qa/settings.yml declares them.
+  def dial_modes = Hecks::Fuzzing::QaSettings.load(File.join(CAP_ROOT, "qa/settings.yml")).modes
 
   describe "the live corpus, resolved against the dial" do
-    before { define_dials! }
-
-    let(:enabled) { QualityControlDials::MODES.select { |_, on| on }.keys }
+    let(:enabled) { dial_modes.select { |_, on| on }.keys }
 
     it "gives banking the differential seat plus properties, self-consistency and the skip report" do
       expect(described_class.resolve(enabled, infer(CAP_BANKING)))

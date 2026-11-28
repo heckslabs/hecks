@@ -157,20 +157,9 @@ end
     answers_query "EpicProgress"
   end
 
-  # The backlog in the order the Dispatching port starts it, read and never written.
-  Tickets::Work.port "PriorityReport" do
-    answers_query "PriorityReport"
-  end
-
   # One work item read whole, with the claims that overlap it, read and never written.
   Tickets::Work.port "WorkShow" do
     answers_query "Show"
-  end
-
-  # The standup: the tap's finished work items, the next of the same ordering and one reading of the
-  # machine, read and never written.
-  Tickets::Work.port "Standup" do
-    answers_query "Standup"
   end
 
   # The velocity of a day: the hours of work finished, recorded or INFERRED from git, read and never

@@ -1,3 +1,0 @@
-Hecks.adapter "FakeAgent" do
-  port "composer_agent"
-end

@@ -10,19 +10,19 @@ RSpec.describe Hecks::Adapters::Driving::Resident::Client do
     described_class.serving?
   end
 
-  ["Board.serve!", "Hecks::Board.serve!", "board.serve", "PipelineBoard.serve!", "pipeline_board.serve"].each do |word|
+  ["Server.present!", "Hecks::Server.present!", "server.present", "Server.serve_query_ir_mcp!"].each do |word|
     it "runs #{word} itself" do
       expect(serving?(word, "port=4747", "--wait")).to be(true)
     end
   end
 
   it "leaves a command that ends to the resident" do
-    expect(serving?("Board.status")).to be(false)
+    expect(serving?("Server.complete")).to be(false)
   end
 
-  it "names the Hecks domain's Board.Serve command, which the bypassed line boots and runs", :aggregate_failures do
+  it "names the Hecks domain's Server.Present command, which the bypassed line boots and runs", :aggregate_failures do
     source = File.read(File.expand_path("../lib/hecks/hecks/serve/serve.bluebook", __dir__))
-    expect(source[/aggregate "Board" do.*?\n    end\n/m]).to include('command "Serve" do')
-    expect(described_class::SERVING).to include("board.serve")
+    expect(source[/aggregate "Server".*?\n    end\n/m]).to include('command "Present" do')
+    expect(described_class::SERVING).to include("server.present")
   end
 end

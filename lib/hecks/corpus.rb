@@ -20,31 +20,15 @@ module Hecks
     # or directly in `<dir>` (see `bluebook_files`). Stemmed by directory.
     DIRECTORY_KINDS = {
       example:     "examples/*",
+      # The stress domains: hand-written and generated bluebooks that each hold one shape the
+      # generators once got wrong, kept as Rust conformance and model-check fixtures.
       stress:      "qa/stress_domains/*",
       semantics:   "spec/corpus/semantics/domains/*",
       # The Hecks domain (ADR 0080): its bluebooks share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
       hecks:       "lib/hecks/hecks",
-      # The Coder and Fixer domains keep their bluebook beside their hecksagon in their own folder.
-      coder:       "lib/hecks/coder",
-      fixer:       "lib/hecks/fixer",
-      # The PipelineBoard domain keeps its bluebook beside its hecksagon and adapters.
-      board:       "lib/hecks/pipeline_board",
-      # The Pipeline domain: one passage per change, moved by the other domains' events.
-      pipeline:    "lib/hecks/pipeline",
-      # The Catcher domain: raw actions seen outside any declared command, kept, judged and acted
-      # on.
-      catcher:     "lib/hecks/catcher",
-      # The Agents domain: the roles that work a change, each handing off through a command.
-      agents:      "lib/hecks/agents",
-      # The Triage domain: one incident per red main, its causes, and who holds each.
-      triage:      "lib/hecks/triage",
       # The LocalLayer domain: edits recorded locally, applied through the pipeline as one batch.
       local_layer: "lib/hecks/local_layer",
-      # Signalbox decides how the machine's compute is spent; Roundhouse runs the sessions it
-      # admits (ADR 0222). Each boots alone from its own directory.
-      signalbox:   "lib/hecks/signalbox",
-      roundhouse:  "lib/hecks/roundhouse",
       # The Harness domain: agent sessions the supervisor in rust/harness holds, and their mail.
       harness:     "lib/hecks/harness",
       # The Docs domain: a documentation page made of regions, each with where its words come from.
@@ -60,33 +44,20 @@ module Hecks
     FILE_KINDS = {
       grammar:        "lib/hecks/grammar/*.bluebook",
       framework:      "lib/hecks/framework/bluebook/*.bluebook",
-      qa:             "lib/hecks/quality_control/*.bluebook",
       language:       "lib/hecks/language/**/*.bluebook",
       deploy:         "lib/hecks/deploy/bluebook/*.bluebook",
       site:           "lib/hecks/site/bluebook/*.bluebook",
       rails_app:      "lib/hecks/rails_app/bluebook/*.bluebook",
       tickets:        "lib/hecks/tickets/bluebook/*.bluebook",
-      composer:       "lib/hecks/composer/bluebook/*.bluebook",
       tenancy:        "lib/hecks/tenancy/bluebook/*.bluebook",
-      gate:           "lib/hecks/gate/*.bluebook",
       questions:      "lib/hecks/questions/*.bluebook",
       bulk:           "lib/hecks/bulk/bluebook/*.bluebook",
-      # The CI bluebooks keep their bluebook beside their hecksagon, not under a `bluebook/` folder.
-      # CiPipeline is attachable; CiSpeed boots from its own directory; CiWorkflows is the client
-      # whose rows project into .github/workflows.
-      ci_pipeline:    "lib/hecks/ci_pipeline/*.bluebook",
-      ci_speed:       "lib/hecks/ci_speed/*.bluebook",
-      ci_workflows:   "lib/hecks/ci_workflows/*.bluebook",
-      # The Interviews bluebook boots from its own directory beside its hecksagon (ADR 0194).
-      interviews:     "lib/hecks/interviews/*.bluebook",
       # The Clients bluebook boots from its own directory beside its hecksagon.
       clients:        "lib/hecks/clients/*.bluebook",
       # The LiveDiscovery bluebook boots from its own directory beside its hecksagon.
       live_discovery: "lib/hecks/live_discovery/*.bluebook",
       # The StaffEngineer bluebook boots from its own directory beside its hecksagon.
       staff_engineer: "lib/hecks/staff_engineer/*.bluebook",
-      # The ContextBudget bluebook boots from its own directory beside its hecksagon.
-      context_budget: "lib/hecks/context_budget/*.bluebook",
       # The Protocols bluebook boots from its own directory beside its hecksagon.
       protocols:      "lib/hecks/protocols/*.bluebook",
       fixture:        "spec/fixtures/**/*.bluebook"
@@ -135,7 +106,7 @@ module Hecks
 
     # Every kind hecks model_check walks: excludes language/deploy (checked
     # elsewhere) and anything a route already sends to its own destination.
-    MODEL_CHECK_KINDS = %i[example grammar framework vendored qa stress fixture hecks].freeze
+    MODEL_CHECK_KINDS = %i[example grammar framework vendored stress fixture hecks].freeze
 
     # Every corpus member `hecks model_check` and `spec/model_check_spec.rb` walk.
     #
@@ -143,23 +114,6 @@ module Hecks
     # @return [Array<Member>] members of `MODEL_CHECK_KINDS`, less any routed elsewhere
     def model_check_members(root: ROOT)
       members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
-    end
-
-    # **The ledger sweeps itself** — its own bluebook is a domain like any
-    # other, and the one rotation member that is neither an example nor a
-    # stress domain.
-    ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
-
-    # What the QA rotation is made of — every example and stress domain,
-    # plus the ledger, as `reference => repo-relative path` — derived, not hand-kept.
-    #
-    # @param root [String] repository root to search under
-    # @return [Hash{String => String}] each rotation member's stem/reference mapped
-    #   to its repo-relative path
-    def rotation_targets(root: ROOT)
-      members(:example, :stress, root: root)
-        .to_h { |member| [member.stem, member.path.delete_prefix("#{root}/")] }
-        .merge(ROTATION_LEDGER)
     end
 
     # Every bootable domain in the project — any directory holding a
@@ -192,10 +146,9 @@ module Hecks
     # Sweepable domains a fuzz cannot boot from its copy, by repo-relative directory, each with
     # the reason. A fuzz boots a tmpdir copy of a domain to isolate its state.
     FUZZ_UNBOOTABLE = {
-      "lib/hecks/hecks"                                           => "the gem's own bluebook; model_check covers it",
-      "spec/fixtures/qa_discover_external_domains/projects/hecks" => "declares the reserved bluebook name `Hecks`",
-      "spec/fixtures/sentence/cms_page"                           => "holds one bluebook twice, as sentences and as Ruby; " \
-                                                                     "sentence_form_spec compares the pair"
+      "lib/hecks/hecks"                 => "the gem's own bluebook; model_check covers it",
+      "spec/fixtures/sentence/cms_page" => "holds one bluebook twice, as sentences and as Ruby; " \
+                                           "sentence_form_spec compares the pair"
     }.freeze
 
     # Every sweepable domain a fuzz can boot: `sweepable_domains` less `FUZZ_UNBOOTABLE`.

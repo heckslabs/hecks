@@ -6,14 +6,11 @@ require "spec_helper"
 RSpec.describe Hecks::Adapters::Driving::McpScope do
   # Names that carry data and reach nothing outside the domain's own files.
   PLAIN_ARGUMENTS = %w[
-    age agent aggregates arguments at body budget budget_minutes cap check clean clock comment commits component context copy
-    crate declaration_cache days dry dry_run email environment era example exclude fills finding format full_gate
-    gate held helper how inner isolation iterations kind lane landed list_shards message name named new_name now number only
-    opened_by opens outcome owner package pairs_shape parallel parent persist_regressions pin probe profile pulled pushed quote
-    reason refusal rehearsal_verdict
-    report required resuming retried revert role run runs scope seed_start seeds session shard stage state stdout
-    steps strict subject tags taking target targets ticks timeout title to top verb verdict warmup watermark winners word
-    window_days work workers works_as
+    aggregates arguments at body budget cap check clock component context copy crate declaration_cache days dry dry_run
+    email environment era example exclude fills format inner isolation iterations kind lane list_shards name named new_name
+    only opens package pairs_shape parallel persist_regressions pin profile reason rehearsal_verdict required role run runs
+    seed_start seeds shard stage stdout steps strict subject tags target targets ticks timeout to top verb warmup watermark
+    winners word window_days workers
   ].freeze
 
   let(:classes) do
@@ -21,11 +18,8 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
       ref: described_class::REF_ARGUMENTS, plain: PLAIN_ARGUMENTS }
   end
 
-  # The Hecks bluebook and the delivery package it attaches, which holds the repository verbs.
-  let(:served_bluebooks) do
-    declaration = boot_hecks_in_memory
-    [Hecks::Storehouse.bluebook_for(declaration), declaration.registry.bluebook("Delivery")]
-  end
+  # The Hecks bluebook, which the server serves.
+  let(:served_bluebooks) { [Hecks::Storehouse.bluebook_for(boot_hecks_in_memory)] }
 
   let(:public_argument_names) do
     served_bluebooks.flat_map { |bluebook| public_commands(bluebook) }
