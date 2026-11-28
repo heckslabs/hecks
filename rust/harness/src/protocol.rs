@@ -165,6 +165,14 @@ pub fn control_error(request_id: &str, error: &str) -> String {
     .to_json()
 }
 
+/// A permission grant: the tool is used, on the input it asked with.
+pub fn permission_allowed(input: Value) -> Value {
+    Value::object(vec![
+        ("behavior", Value::text("allow")),
+        ("updatedInput", input),
+    ])
+}
+
 /// A permission refusal the model reads: the tool is not used and `reason` reaches it.
 pub fn permission_denied(reason: &str) -> Value {
     Value::object(vec![

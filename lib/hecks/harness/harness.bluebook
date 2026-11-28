@@ -141,6 +141,18 @@ Hecks.bluebook "Harness" do
     end
 
     # The session asked for a tool the harness withholds; the model was told and went on.
+    # A session opened for a role holds the tools its role names; the supervisor allows a use of one
+    # of them, and both answers are recorded.
+    command "RecordAllowed" do
+      role "System"
+      goal "Record a tool the session asked for and was allowed, as one its role names"
+
+      reference_to Session
+      attribute :tool, ToolName
+
+      emits "ToolAllowed"
+    end
+
     command "RecordWithheld" do
       role "System"
       goal "Record a tool the session asked for and was refused"

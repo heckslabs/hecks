@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 require_relative "supervisor"
+require_relative "roles"
 
 module Hecks
   module Harness
-    # How a session's child is started: the `open` op's `program`, `args`, `model` and `cwd`.
+    # How a session's child is started: the `open` op's `program`, `args`, `model`, `cwd` and
+    # `tools`.
     module Launch
       module_function
 
@@ -27,6 +29,24 @@ module Hecks
       # @return [Proc] the launch for a session name
       def replay(dir, binary: Supervisor::BINARY, tapes: {})
         ->(name) { { program: binary, args: ["replay", File.join(dir, "#{tapes.fetch(name, name)}.jsonl")] } }
+      end
+
+      # A session named for one of the crew's roles starts as `launch` starts it, holding the tools
+      # its role file names, and on the role's model unless `launch` names one. A session named for
+      # no role starts as `launch` starts it, with `send_message` its one tool.
+      #
+      # @param launch [#call] the child for a session name, such as {claude} or {replay}
+      # @param root [String] the checkout whose role files are read
+      # @return [Proc] the launch for a session name
+      def crew(launch, root: Roles::ROOT)
+        roles = Roles.names(root: root)
+        lambda do |name|
+          started = launch.call(name)
+          next started unless roles.include?(name)
+
+          role = Roles.role(name, root: root)
+          { model: role.model, **started.compact, tools: role.tools }.compact
+        end
       end
     end
   end

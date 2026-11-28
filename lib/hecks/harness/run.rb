@@ -52,6 +52,12 @@ module Hecks
         owner("AgentRun.Start", run: { value: key }, session: { value: session }, brief: { value: brief })
       end
 
+      # Starts a run of one of the crew's roles under its own key, in a session named for the role
+      # and briefed from its role file (see {Roles}).
+      #
+      # @return [void]
+      def start_role(key, role) = start(key, role, Roles.brief(role))
+
       # Starts a run in a standing seat whose session stopped, as the Owner: the session is reopened
       # on the brief, and its new child starts from the handover the seat's last session left.
       #
