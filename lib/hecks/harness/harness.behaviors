@@ -131,4 +131,39 @@ Hecks.behaviors "Harness" do
           text: { value: "" }, sent_at: { value: 100 }
     expect refused: "MessageText.value must match"
   end
+
+  test "a sprint's first hour is recorded as its baseline" do
+    tests "Record", on: "Baseline"
+    input key: { value: "2026-11-28/first_hour" }, sprint: { value: "2026-11-28" }, window: { value: "first_hour" },
+          minutes: { value: 60 }, tokens_per_minute: { value: 41000.5 }, items_per_hour: { value: 3.0 },
+          cache_hit_rate: { value: 0.62 }, by_role: { value: "coder=30000/0.7" }
+    expect emits: %w[BaselineRecorded]
+  end
+
+  test "the same window of the same sprint is not recorded twice" do
+    tests "Record", on: "Baseline"
+    setup "Harness::Baseline.Record", key: { value: "2026-11-28/first_hour" }, sprint: { value: "2026-11-28" }, window: { value: "first_hour" },
+          minutes: { value: 60 }, tokens_per_minute: { value: 41000.5 }, items_per_hour: { value: 3.0 },
+          cache_hit_rate: { value: 0.62 }, by_role: { value: "coder=30000/0.7" }
+    input key: { value: "2026-11-28/first_hour" }, sprint: { value: "2026-11-28" }, window: { value: "first_hour" },
+          minutes: { value: 60 }, tokens_per_minute: { value: 41000.5 }, items_per_hour: { value: 3.0 },
+          cache_hit_rate: { value: 0.62 }, by_role: { value: "coder=30000/0.7" }
+    expect refused: "already exists"
+  end
+
+  test "a baseline is recorded for the first hour or the fourth, no other window" do
+    tests "Record", on: "Baseline"
+    input key: { value: "2026-11-28/hour_4" }, sprint: { value: "2026-11-28" }, window: { value: "hour_9" },
+          minutes: { value: 60 }, tokens_per_minute: { value: 41000.5 }, items_per_hour: { value: 3.0 },
+          cache_hit_rate: { value: 0.62 }, by_role: { value: "coder=30000/0.7" }
+    expect refused: "BaselineWindow admits"
+  end
+
+  test "a cache hit rate above one is not recorded" do
+    tests "Record", on: "Baseline"
+    input key: { value: "2026-11-28/first_hour" }, sprint: { value: "2026-11-28" }, window: { value: "first_hour" },
+          minutes: { value: 60 }, tokens_per_minute: { value: 41000.5 }, items_per_hour: { value: 3.0 },
+          cache_hit_rate: { value: 1.4 }, by_role: { value: "coder=30000/0.7" }
+    expect refused: "a rate is between 0 and 1"
+  end
 end
