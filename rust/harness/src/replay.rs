@@ -4,12 +4,15 @@
 //!
 //! - `{"expect": "user", "contains": "..."}` waits for the next user turn on stdin and checks it
 //!   holds the text.
+//! - `{"expect": "interrupt"}` waits for the harness to interrupt the turn, as an urgent message
+//!   does; the tape then emits how the cut turn ends.
 //! - `{"emit": {...}, "after_ms": 40}` prints the object as one line after the pause. When it is a
 //!   `control_request`, the child waits for the matching `control_response`, as Claude Code does,
 //!   and `"answered": "success"` or `"reply_contains": "..."` check the answer.
 //! - `{"note": "..."}` is skipped.
 //!
-//! Control requests the harness sends (`initialize`, `interrupt`) are answered on their own. After
+//! Control requests the harness sends (`initialize`, `interrupt`) are answered on their own; an
+//! interrupt is also kept, for an `expect` of it to take. After
 //! the last step the child waits for its stdin to close, then exits 0. A step that is not met in
 //! [`WAIT`] fails the replay.
 
@@ -25,11 +28,16 @@ use crate::protocol;
 /// How long one step waits for the harness.
 pub const WAIT: Duration = Duration::from_secs(10);
 
+/// The line the child keeps, in place of an `interrupt` it answered, for an `expect` to take.
+const INTERRUPTED: &str = "harness_interrupt";
+
 /// One step of a tape.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Step {
     /// Wait for a user turn holding `contains`.
     ExpectUser { contains: String },
+    /// Wait for the harness to interrupt the running turn.
+    ExpectInterrupt,
     /// Print `line` after `after_ms`; for a control request, wait for its answer and check it.
     Emit {
         line: Value,
@@ -56,13 +64,16 @@ pub fn steps(tape: &str) -> Result<Vec<Step>, String> {
             continue;
         }
         if let Some(expected) = step.str_at("expect") {
-            if expected != "user" {
-                return Err(format!(
-                    "tape line {at}: only a user turn is expected, not {expected:?}"
-                ));
-            }
-            steps.push(Step::ExpectUser {
-                contains: step.str_at("contains").unwrap_or_default().to_string(),
+            steps.push(match expected {
+                "user" => Step::ExpectUser {
+                    contains: step.str_at("contains").unwrap_or_default().to_string(),
+                },
+                "interrupt" => Step::ExpectInterrupt,
+                _ => {
+                    return Err(format!(
+                        "tape line {at}: a user turn or an interrupt is expected, not {expected:?}"
+                    ))
+                }
             });
         } else if let Some(line) = step.get("emit") {
             steps.push(Step::Emit {
@@ -141,6 +152,9 @@ impl Child {
                     Err(format!("the user turn {text:?} does not hold {contains:?}"))
                 }
             }
+            Step::ExpectInterrupt => self
+                .take(out, |line| line.str_at("type") == Some(INTERRUPTED))
+                .map(|_| ()),
             Step::Emit {
                 line,
                 after_ms,
@@ -223,6 +237,12 @@ impl Child {
                     out,
                     &protocol::control_success(id, Value::object::<&str>(vec![])),
                 )?;
+                if is_interrupt(&value) {
+                    return Ok(Some(Value::object(vec![(
+                        "type",
+                        Value::text(INTERRUPTED),
+                    )])));
+                }
                 continue;
             }
             return Ok(Some(value));
@@ -233,6 +253,15 @@ impl Child {
         self.closed = true;
         None
     }
+}
+
+/// Whether `line` is the harness asking the child to cut its turn short.
+fn is_interrupt(line: &Value) -> bool {
+    line.str_at("type") == Some("control_request")
+        && line
+            .get("request")
+            .and_then(|request| request.str_at("subtype"))
+            == Some("interrupt")
 }
 
 fn check_answer(
@@ -265,8 +294,9 @@ fn emit<W: Write>(out: &mut W, line: &str) -> Result<(), String> {
 /// Turns a recording `serve --record` wrote for one session into a tape.
 ///
 /// What the child printed becomes `emit` steps, paced by the gaps between them; each user turn
-/// the harness wrote becomes an `expect` of its first line. Control messages the harness wrote are
-/// left out: the replay answers and awaits them on its own.
+/// the harness wrote becomes an `expect` of its first line, and each interrupt an `expect` of an
+/// interrupt. The other control messages the harness wrote are left out: the replay answers and
+/// awaits them on its own.
 ///
 /// # Errors
 ///
@@ -301,6 +331,9 @@ pub fn tape_from_recording(recording: &str) -> Result<String, String> {
                     ("expect", Value::text("user")),
                     ("contains", Value::text(first)),
                 ])
+            }
+            Some("to") if is_interrupt(&line) => {
+                Value::object(vec![("expect", Value::text("interrupt"))])
             }
             _ => continue,
         };
@@ -368,6 +401,48 @@ mod tests {
             protocol::control_success("c1", Value::object(vec![("behavior", Value::text("deny"))]));
         let tape = "{\"emit\":{\"type\":\"control_request\",\"request_id\":\"c1\",\"request\":{\"subtype\":\"can_use_tool\"}},\"answered\":\"success\",\"reply_contains\":\"deny\"}\n";
         assert!(played(tape, &format!("{answer}\n")).is_ok());
+    }
+
+    #[test]
+    fn waits_for_the_harness_to_interrupt_the_turn() {
+        let input = format!(
+            "{}\n{}\n",
+            protocol::control_request("h1", "initialize"),
+            protocol::control_request("h2", "interrupt")
+        );
+        let tape = "{\"expect\":\"interrupt\"}\n{\"emit\":{\"type\":\"result\",\"subtype\":\"error_during_execution\",\"is_error\":true}}\n";
+        let out = played(tape, &input).unwrap();
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines.len(), 3, "{out}");
+        assert!(
+            lines[1].contains("\"request_id\":\"h2\"")
+                && lines[2].contains("error_during_execution")
+        );
+    }
+
+    #[test]
+    fn fails_an_interrupt_that_never_comes() {
+        let input = format!("{}\n", protocol::user_message("go"));
+        assert!(played("{\"expect\":\"interrupt\"}\n", &input)
+            .unwrap_err()
+            .contains("closed the pipe"));
+    }
+
+    #[test]
+    fn records_an_interrupt_as_an_expect_of_one() {
+        let recording = Value::object(vec![
+            ("dir", Value::text("to")),
+            ("at_ms", Value::Number(3.0)),
+            (
+                "line",
+                Value::text(protocol::control_request("h2", "interrupt")),
+            ),
+        ])
+        .to_json();
+        assert_eq!(
+            steps(&tape_from_recording(&recording).unwrap()).unwrap(),
+            [Step::ExpectInterrupt]
+        );
     }
 
     #[test]

@@ -2,7 +2,8 @@
 //!
 //! It answers the JSON-RPC messages a child sends through `mcp_message` control requests. Its one
 //! tool, `send_message`, does not deliver anything itself: it hands the message to the harness,
-//! which tells the bluebook, and the bluebook's policy decides the delivery.
+//! which tells the bluebook, and the bluebook's policy decides the delivery. A send marked
+//! `urgent` asks for the addressee's turn to be interrupted rather than waited for.
 
 use crate::json::Value;
 use crate::protocol::{MCP_SERVER, SEND_TOOL};
@@ -19,6 +20,9 @@ pub struct Outgoing {
     pub text: String,
     /// The message it answers or relays, when the sender named one.
     pub about: Option<String>,
+    /// Whether it may cut into the addressee's turn: an urgent message is not held until the turn
+    /// ends, the turn is interrupted and the message written next.
+    pub urgent: bool,
 }
 
 /// What the server makes of one JSON-RPC message.
@@ -130,6 +134,16 @@ fn send_tool() -> Value {
                             "about",
                             field("The id of the message this one answers or relays, such as coder-1"),
                         ),
+                        (
+                            "urgent",
+                            Value::object(vec![
+                                ("type", Value::text("boolean")),
+                                (
+                                    "description",
+                                    Value::text("True only when it cannot wait: the addressee's turn is interrupted and the message is its next turn"),
+                                ),
+                            ]),
+                        ),
                     ]),
                 ),
                 ("required", Value::Array(vec![Value::text("to"), Value::text("text")])),
@@ -168,8 +182,22 @@ fn call(id: Value, params: &Value) -> Handled {
         .map(str::trim)
         .filter(|about| !about.is_empty())
         .map(ToString::to_string);
+    let urgent = arguments
+        .get("urgent")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let said = format!("Sent to {to}. The reply arrives as a new message.");
-    tool_result(id, &said, false, Some(Outgoing { to, text, about }))
+    tool_result(
+        id,
+        &said,
+        false,
+        Some(Outgoing {
+            to,
+            text,
+            about,
+            urgent,
+        }),
+    )
 }
 
 fn tool_result(id: Value, text: &str, is_error: bool, outgoing: Option<Outgoing>) -> Handled {
@@ -232,7 +260,8 @@ mod tests {
             Some(Outgoing {
                 to: "reviewer".into(),
                 text: "please review".into(),
-                about: None
+                about: None,
+                urgent: false
             })
         );
     }
@@ -243,6 +272,15 @@ mod tests {
         assert_eq!(
             handled(line).outgoing.and_then(|outgoing| outgoing.about),
             Some("coder-1".to_string())
+        );
+    }
+
+    #[test]
+    fn carries_whether_a_send_is_urgent() {
+        let line = r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"coder","text":"stop, the base moved","urgent":true}}}"#;
+        assert_eq!(
+            handled(line).outgoing.map(|outgoing| outgoing.urgent),
+            Some(true)
         );
     }
 

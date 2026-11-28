@@ -57,6 +57,11 @@ Hecks.bluebook "Harness" do
       attribute :value, String, default: ""
     end
 
+    # The urgent message that cut a turn short, by its key.
+    value_object "Cutter" do
+      attribute :value, String, matches: :present
+    end
+
     lifecycle :status, default: "opening" do
       transition "RecordRunning"   => "running",  from: "opening"
       transition "RecordNotOpened" => "refused",  from: "opening"
@@ -123,6 +128,20 @@ Hecks.bluebook "Harness" do
       given("a turn ends only in a session that runs or is stopping") { status == "running" || status == "stopping" }
 
       emits "TurnEnded"
+    end
+
+    # An urgent message did not wait for the turn: the supervisor interrupted it, the cut turn's end
+    # is recorded as an error, and the urgent message is the session's next turn.
+    command "RecordInterrupted" do
+      role "System"
+      goal "Record that an urgent message cut the session's running turn short"
+
+      reference_to Session
+      attribute :cutter, Cutter
+
+      given("only a turn of a session that runs or is stopping is cut short") { status == "running" || status == "stopping" }
+
+      emits "TurnInterrupted"
     end
 
     # A turn that said something leaves the session's handover: the last words its seat's next
@@ -437,6 +456,8 @@ Hecks.bluebook "Harness" do
     attribute :about,        MessageKey, optional: true
     # Whether the scrum master holds it as a coder's question, and how that ended.
     attribute :hold,         Hold
+    # Whether it waits for its addressee's turn to end (normal) or cuts the turn short (urgent).
+    attribute :urgency,      Urgency
     # The scrum master's message on the question, when it handed the question on.
     attribute :findings,     MessageKey, optional: true
 
@@ -465,6 +486,11 @@ Hecks.bluebook "Harness" do
       attribute :value, String, default: "none", one_of: ["none", "held", "settled", "handed-on"]
     end
 
+    # A sender marks a message urgent only when it cannot wait: the addressee's turn is interrupted.
+    value_object "Urgency" do
+      attribute :value, String, default: "normal", one_of: ["normal", "urgent"]
+    end
+
     lifecycle :status, default: "posted" do
       transition "RecordDelivered"     => "delivered",     from: "posted"
       transition "RecordUndeliverable" => "undeliverable", from: "posted"
@@ -485,9 +511,10 @@ Hecks.bluebook "Harness" do
       attribute :addressee, Party
       attribute :text,      MessageText
       attribute :sent_at,   Moment
-      # Given on every post, nil when the message answers nothing: DeliverEachMessage reads it,
-      # and a policy's with: refuses a field the event does not carry.
+      # Given on every post, nil when the message answers nothing or is not urgent: DeliverEachMessage
+      # reads both, and a policy's with: refuses a field the event does not carry.
       attribute :about,     MessageKey, optional: true
+      attribute :urgency,   Urgency, optional: true
 
       emits "MessagePosted"
     end
@@ -665,7 +692,8 @@ Hecks.bluebook "Harness" do
   policy "DeliverEachMessage" do
     on    "Message.MessagePosted"
     where { !(sender.value.start_with?("coder") && addressee.value == "orchestrator" && about.unset?) }
-    ask   :deliver, with: { key: :key, sender: :sender, addressee: :addressee, text: :text, about: :about }
+    ask   :deliver, with: { key: :key, sender: :sender, addressee: :addressee, text: :text, about: :about,
+                            urgency: :urgency }
   end
 
   # A routed or handed-on question is delivered as the ledger holds it, to its new addressee.

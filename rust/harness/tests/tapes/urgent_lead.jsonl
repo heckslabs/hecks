@@ -1,0 +1,5 @@
+{"note":"The lead: briefed while a worker is mid-turn, it learns the base moved and sends the worker an urgent message, which cannot wait for the worker's turn to end."}
+{"expect":"user","contains":"You are the lead"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-lead","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"l-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"worker","text":"Stop: main moved under your branch, rebase before you go on.","urgent":true}}}}},"after_ms":300,"answered":"success","reply_contains":"Sent to worker"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Told the worker to stop and rebase."}}
