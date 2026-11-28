@@ -82,9 +82,11 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # The ask names the run alone, so an `Up` given none of the optional arguments still asks; the
+    # adapter is handed the run's record, with whichever of them it holds.
     policy "BringUpTheCrewWhenAsked" do
       on  "Crew.CrewUpRequested"
-      ask :bring_up, with: { checkout: :checkout, tapes: :tapes, turns: :turns }
+      ask :bring_up, with: { run: :run }
     end
 
     policy "EndTheCrewWhenItStopped" do

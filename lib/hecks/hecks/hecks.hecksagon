@@ -127,9 +127,7 @@ Hecks.hecksagon "Hecks" do
   # the supervisor binary is not built.
   Hecks::Crew.port "Bringing" do
     asks "BringUp", to: Crew do
-      attribute :checkout, CheckoutPath, optional: true
-      attribute :tapes,    TapeDirectory, optional: true
-      attribute :turns,    TurnCount, optional: true
+      attribute :run, RunKey
       answers "CrewStopped"
       refuses "CrewNotBroughtUp"
     end

@@ -69,6 +69,13 @@ RSpec.describe "One command brings up the crew", :io do
     expect(HecksCrewWorld.up(@hecks, "crew-3", tapes, checkout: tapes)).to include(status: "refused", last: /cannot read/)
   end
 
+  it "asks for the crew when the command is given none of its optional arguments" do
+    Hecks::Runtime::Caller.as(role: "Maintainer") do
+      @hecks.dispatch_flat("Hecks::Crew.Up", run: { value: "crew-4" }, checkout: { value: tapes })
+    end
+    expect(HecksCrewWorld.record(@hecks, "crew-4")).to include(status: "refused", last: /cannot read/)
+  end
+
   it "refuses the crew when a role has no tape" do
     FileUtils.rm(File.join(tapes, "coder.jsonl"))
     expect(HecksCrewWorld.up(@hecks, "crew-2", tapes)).to include(status: "refused", last: /no tape in .* for coder/)
