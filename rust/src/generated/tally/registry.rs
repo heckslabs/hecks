@@ -591,6 +591,91 @@ pub fn dispatch_by_name(
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
+        "Tallying::Tally.Raise" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::tally::tally::RaiseArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::tally::tally::RaiseArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::tally::tally::RaiseArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::tally::tally::RaiseArgs::from_json(v)?;
+                            args.count.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::tally::tally::RaiseArgs| {
+                            Ok(())
+                        },
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::tally::tally::RaiseArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::tally::tally::RaiseArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::tally::tally::RaiseArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::tally::tally::RaiseArgs::from_json(v)?;
+                            args.count.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::tally::tally::RaiseArgs| {
+                            Ok(())
+                        },
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::tally::tally::Tally::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Raise",
+                                aggregate: "Tally",
+                                identity: "tag.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Tallying::Tally", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::tally::tally::dispatch_raise(
+                &mut store.tally,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
         "Tallying::Tally.Weigh" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
@@ -1610,6 +1695,7 @@ pub fn command_creates(verb: &str) -> bool {
         "Tallying::Tally.Add" => false,
         "Tallying::Tally.Increase" => false,
         "Tallying::Tally.Lower" => false,
+        "Tallying::Tally.Raise" => false,
         "Tallying::Tally.Weigh" => false,
         "Tallying::Tally.Certify" => false,
         "Tallying::Tally.Cap" => false,
@@ -1648,6 +1734,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Tallying::Tally.Add" => &["by"],
         "Tallying::Tally.Increase" => &["count"],
         "Tallying::Tally.Lower" => &["count"],
+        "Tallying::Tally.Raise" => &["count"],
         "Tallying::Tally.Weigh" => &["more"],
         "Tallying::Tally.Certify" => &[],
         "Tallying::Tally.Cap" => &["cap"],

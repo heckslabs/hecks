@@ -19,9 +19,10 @@ module Hecks
         private_constant :GuardState
 
         # Checks whether `command` may run against `subject`: its declared
-        # `given`s, then `declaring`'s lifecycle guard.
+        # `given`s, then `declaring`'s lifecycle guard. A bare name reads an
+        # argument before the record (C2.2); `old.*` always reads the record.
         #
-        # @param subject [Runtime::Instance] pre-mutation record a `given` reads
+        # @param subject [Runtime::Instance] pre-mutation record a `given` reads, also as `old`
         # @param declaring [Bluebook::Aggregate, Bluebook::Entity, nil] also runs
         #   the lifecycle guard when given
         # @param parent [Runtime::Instance, nil] entity command's parent record
@@ -34,7 +35,7 @@ module Hecks
           # `dereference` below resolves fresh reference arguments only,
           # never a stored `projects` field, which `state` already has.
           attrs = with_rule_context(args.merge(dereference(domain, command, args)), parent, correction)
-          refuse_unmet_givens(command, GuardState.new(subject), attrs)
+          refuse_unmet_givens(command, GuardState.new(subject), attrs.merge(old: subject.state))
 
           enforce_lifecycle_guard(declaring, command, subject) if declaring
         end

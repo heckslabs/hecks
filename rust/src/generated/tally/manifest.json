@@ -42,6 +42,12 @@
   },
   {
     "kind": "command",
+    "id": "Tallying::Tally.Raise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Tallying::Tally.Weigh",
     "generated": true,
     "routed": true
