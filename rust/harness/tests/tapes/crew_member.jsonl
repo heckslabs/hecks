@@ -1,0 +1,7 @@
+{"note":"Any one of the crew, opened for its role: it is told how mail works and which tools it holds, then asks to use three tools. Every role names Bash; only the coder names Edit, and only the reviewer may start a reviewer subagent."}
+{"expect":"user","contains":"You run as a harness session. You reach other sessions with send_message"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-crew-member","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"r-perm-bash","request":{"subtype":"can_use_tool","tool_name":"Bash","input":{"command":"exe/hecks RedFlag.status"}}},"after_ms":5,"answered":"success","reply_contains":"\"behavior\":\"allow\""}
+{"emit":{"type":"control_request","request_id":"r-perm-edit","request":{"subtype":"can_use_tool","tool_name":"Edit","input":{"file_path":"lib/ledger.rb","old_string":"a","new_string":"b"}}},"after_ms":5,"answered":"success"}
+{"emit":{"type":"control_request","request_id":"r-perm-agent","request":{"subtype":"can_use_tool","tool_name":"Agent","input":{"subagent_type":"reviewer","prompt":"Review the change."}}},"after_ms":5,"answered":"success"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Ready."}}

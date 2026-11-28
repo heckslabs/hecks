@@ -3,15 +3,20 @@
 //! A role file (`.claude/agents/<role>.md`, generated from the Agents bluebook) opens with the
 //! frontmatter Claude Code reads, then the role in prose. A harness session reads none of the
 //! frontmatter, and its steps name the shell's mail commands, which the session does not have. So
-//! the brief is a short preamble that says how mail works in a harness run, then the role's prose,
-//! unchanged.
+//! the brief is a short preamble that says how mail works in a harness run and which tools the
+//! session holds, then the role's prose, unchanged.
 
 use crate::protocol::SEND_TOOL;
 
-/// What every role's session is told before its role.
-pub fn preamble() -> String {
+/// What a role's session is told before its role: how mail works, then the tools it holds.
+pub fn preamble(tools: &[String]) -> String {
+    format!("{} {}", mail(), held(tools))
+}
+
+/// How mail works in a harness run, the same for every role.
+fn mail() -> String {
     format!(
-        "You run as a harness session. Your one tool is {SEND_TOOL}(to, text, about). A message \
+        "You run as a harness session. You reach other sessions with {SEND_TOOL}(to, text, about). A message \
          reaches you as a turn that starts \"Message <id> from <name>\", and a message the harness \
          could not deliver comes back to you as a turn that starts \"Notice from harness\". Where \
          your role says to read your inbox or to run exe/hecks Message.send!, {SEND_TOOL} \
@@ -21,10 +26,24 @@ pub fn preamble() -> String {
     )
 }
 
-/// The brief for the role whose file is `role_file`: the preamble, a blank line, then the file
-/// without its frontmatter.
-pub fn of_role(role_file: &str) -> String {
-    format!("{}\n\n{}", preamble(), body(role_file).trim())
+/// The tools the session may use beside the mail, as its role names them; the harness refuses
+/// every other.
+fn held(tools: &[String]) -> String {
+    if tools.is_empty() {
+        format!("{SEND_TOOL} is your one tool: the harness refuses every other.")
+    } else {
+        format!(
+            "Beside {SEND_TOOL}, your tools are the ones your role names: {}. The harness refuses \
+             every other.",
+            tools.join(", ")
+        )
+    }
+}
+
+/// The brief for the role whose file is `role_file` and whose session holds `tools`: the preamble,
+/// a blank line, then the file without its frontmatter.
+pub fn of_role(role_file: &str, tools: &[String]) -> String {
+    format!("{}\n\n{}", preamble(tools), body(role_file).trim())
 }
 
 /// What a session reopened in a standing seat is told before the handover its seat's last session
@@ -83,35 +102,53 @@ mod tests {
         );
     }
 
+    fn bash() -> Vec<String> {
+        vec!["Bash".to_string()]
+    }
+
     #[test]
     fn opens_with_how_mail_works_in_a_harness_run() {
-        assert!(of_role(FILE)
-            .starts_with("You run as a harness session. Your one tool is send_message"));
+        assert!(of_role(FILE, &bash()).starts_with(
+            "You run as a harness session. You reach other sessions with send_message"
+        ));
     }
 
     #[test]
     fn says_where_a_note_on_a_message_goes() {
-        assert!(preamble().contains("send what you found to the orchestrator, about that message."));
+        assert!(preamble(&bash())
+            .contains("send what you found to the orchestrator, about that message."));
+    }
+
+    #[test]
+    fn names_the_tools_the_role_holds() {
+        assert!(preamble(&["Read".to_string(), "Bash".to_string()])
+            .ends_with("your tools are the ones your role names: Read, Bash. The harness refuses every other."));
+    }
+
+    #[test]
+    fn says_send_message_is_the_one_tool_of_a_role_that_names_none() {
+        assert!(preamble(&[])
+            .ends_with("send_message is your one tool: the harness refuses every other."));
     }
 
     #[test]
     fn carries_the_role_unchanged_after_the_preamble() {
-        assert!(of_role(FILE)
+        assert!(of_role(FILE, &bash())
             .ends_with("\n\nYou are the staff engineer role.\n\n## Limits\n\nRelay only."));
     }
 
     #[test]
     fn leaves_out_the_frontmatter() {
-        assert!(!of_role(FILE).contains("tools: Bash"));
+        assert!(!of_role(FILE, &bash()).contains("tools: Bash"));
     }
 
     #[test]
     fn takes_a_file_with_no_frontmatter_whole() {
-        assert!(of_role("You are the coder.\n").ends_with("\n\nYou are the coder."));
+        assert!(of_role("You are the coder.\n", &[]).ends_with("\n\nYou are the coder."));
     }
 
     #[test]
     fn takes_a_file_whose_frontmatter_never_closes_whole() {
-        assert!(of_role("---\nname: x\n").ends_with("---\nname: x"));
+        assert!(of_role("---\nname: x\n", &[]).ends_with("---\nname: x"));
     }
 }

@@ -23,7 +23,7 @@ module Hecks
       # @return [Array<Array(String, Hash)>] each command and its arguments
       def commands(tell)
         case tell["tell"]
-        when "started", "turn_ended", "denied", "stopped" then session_commands(tell)
+        when "started", "turn_ended", "allowed", "denied", "stopped" then session_commands(tell)
         when "sent", "delivered", "tick" then mail_commands(tell)
         else []
         end
@@ -34,6 +34,7 @@ module Hecks
         case tell["tell"]
         when "started"    then [["Session.RecordStarted", { session: name, claude: plain(tell["claude_session"]) }]]
         when "turn_ended" then [["Session.RecordTurnEnded", turn(tell)]]
+        when "allowed"    then [["Session.RecordAllowed", { session: name, tool: plain(tell["tool"]) }]]
         when "denied"     then [["Session.RecordWithheld", { session: name, tool: plain(tell["tool"]) }]]
         else stopped(tell)
         end

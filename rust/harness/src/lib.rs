@@ -4,7 +4,7 @@
 //! ([`protocol`]), serving the one in-process MCP tool `send_message` ([`mcp`]). [`replay`] plays a
 //! child from a tape, so the whole exchange is proven with no model, and [`measure`] reads the
 //! supervisor's tells against the mail's baseline. [`brief`] turns a role file into a session's
-//! brief, and [`json`] is the std-only reader and writer the wire needs.
+//! brief, [`role`] reads the tools and model it holds, and [`json`] is the std-only reader and writer the wire needs.
 
 /// A role file turned into a session's brief.
 pub mod brief;
@@ -18,5 +18,7 @@ pub mod measure;
 pub mod protocol;
 /// A child played from a tape.
 pub mod replay;
+/// A role's session: its brief, the tools it may use and its model.
+pub mod role;
 /// The supervisor: each session's child, its mail and its tells.
 pub mod supervisor;

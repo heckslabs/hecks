@@ -20,9 +20,13 @@
 //! A session reopened in a standing seat is told its brief and then the `handover` its seat's last
 //! session left ([`brief::opening`]), so the new child takes up where the last one stopped.
 //!
-//! Ops: `open` (session, program, args, model, cwd, brief, handover), `deliver` (session, message, from,
-//! text, about), `stop` (session) and `quit`. Tells: `ready`, `opened`, `started`, `sent`,
-//! `denied`, `turn_ended`, `queued`, `delivered`, `noticed`, `stopped`, `refused`, `fault`,
+//! A session opened for a role holds the tools its role names (the `open` op's `tools`), beside
+//! `send_message`: the supervisor allows a use of one of them, and refuses every other tool
+//! ([`role::permits`]). Each answer is told, `allowed` or `denied`, so the ledger records it.
+//!
+//! Ops: `open` (session, program, args, model, cwd, brief, handover, tools), `deliver` (session,
+//! message, from, text, about), `stop` (session) and `quit`. Tells: `ready`, `opened`, `started`,
+//! `sent`, `allowed`, `denied`, `turn_ended`, `queued`, `delivered`, `noticed`, `stopped`, `refused`, `fault`,
 //! `tick` and `quit`.
 
 use std::collections::{BTreeMap, VecDeque};
@@ -38,6 +42,7 @@ use crate::brief;
 use crate::json::{self, Value};
 use crate::mcp;
 use crate::protocol::{self, Heard, Request, MCP_SERVER};
+use crate::role;
 
 /// How long a stopped child has to exit on its own before it is killed.
 pub const STOP_GRACE: Duration = Duration::from_secs(5);
@@ -82,6 +87,7 @@ struct Delivery {
 /// One session: its child, its stdin, and whether a turn is running.
 struct Session {
     child: Child,
+    tools: Vec<String>,
     stdin: Option<ChildStdin>,
     busy: bool,
     held: VecDeque<Delivery>,
@@ -236,10 +242,19 @@ impl<W: Write> Supervisor<W> {
             });
         }
         let pid = f64::from(child.id());
+        let tools: Vec<String> = op
+            .get("tools")
+            .and_then(Value::as_array)
+            .unwrap_or_default()
+            .iter()
+            .filter_map(Value::as_str)
+            .map(ToString::to_string)
+            .collect();
         self.sessions.insert(
             session.to_string(),
             Session {
                 child,
+                tools,
                 stdin,
                 busy: false,
                 held: VecDeque::new(),
@@ -458,14 +473,22 @@ impl<W: Write> Supervisor<W> {
 
     fn asked(&mut self, session: &str, request_id: &str, request: Request) -> Result<(), String> {
         match request {
-            Request::Permission { tool, .. } => {
-                let reason =
-                    format!("{tool} is withheld in this session; send_message is its one tool.");
-                let answer =
-                    protocol::control_success(request_id, protocol::permission_denied(&reason));
-                self.write(session, &answer)?;
+            Request::Permission { tool, input } => {
+                let held = self
+                    .sessions
+                    .get(session)
+                    .is_some_and(|open| role::permits(&open.tools, &tool, &input));
+                let (answer, kind) = if held {
+                    (protocol::permission_allowed(input), "allowed")
+                } else {
+                    let reason = format!(
+                        "{tool} is withheld in this session: it holds send_message and the tools its role names."
+                    );
+                    (protocol::permission_denied(&reason), "denied")
+                };
+                self.write(session, &protocol::control_success(request_id, answer))?;
                 self.tell(
-                    "denied",
+                    kind,
                     vec![
                         ("session", Value::text(session)),
                         ("tool", Value::text(tool)),
