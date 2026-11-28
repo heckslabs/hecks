@@ -299,9 +299,12 @@ Hecks.bluebook "Harness" do
       transition "Decline" => "refused",  from: "requested"
       transition "Finish"  => "finished", from: "started"
       # A requested run waits only for the supervisor's answer to its session's open, and a started
-      # one on its session, which runs until it is stopped or exits.
+      # one on its session, which runs until it is stopped or exits. A run that ended frees its key,
+      # so the next run of the same work item starts a fresh record instead of being refused as
+      # already recorded.
       mark :rests, "requested", "started"
       mark :terminal, "finished", "refused"
+      mark :reusable, "finished", "refused"
     end
 
     command "Start" do

@@ -97,6 +97,35 @@ Hecks.behaviors "Harness" do
     expect emits: %w[SeatRunRequested], status: "requested", condition: ""
   end
 
+  test "a run whose earlier run ended frees its key and starts again" do
+    tests "Start", on: "AgentRun"
+    setup "Harness::AgentRun.Start", run: { value: "work-1" }, session: { value: "coder" }, brief: { value: "You are the coder." }
+    input run: { value: "work-1" }, session: { value: "reviewer" }, brief: { value: "You are the reviewer." }
+    expect emits: %w[RunRequested SessionOpenRequested SessionNotSpawned SessionNotOpened RunRefused], status: "refused"
+  end
+
+  test "a seat's run takes the key an ended run freed" do
+    tests "TakeSeat", on: "AgentRun"
+    setup "Harness::AgentRun.Start", run: { value: "work-1" }, session: { value: "coder" }, brief: { value: "You are the coder." }
+    input run: { value: "work-1" }, session: { value: "scrum-master" }, brief: { value: "You are the scrum master." }
+    expect emits: %w[SeatRunRequested], status: "requested"
+  end
+
+  test "a late finish from the old session does not end the fresh run under the same key" do
+    tests "Finish", on: "AgentRun"
+    setup "Harness::AgentRun.Start", run: { value: "work-1" }, session: { value: "coder" }, brief: { value: "You are the coder." }
+    setup "Harness::AgentRun.TakeSeat", run: { value: "work-1" }, session: { value: "scrum-master" }, brief: { value: "You are the scrum master." }
+    input agent_run: "work-1", condition: { value: "done" }, code: { value: "0" }
+    expect refused: "Finish moves it only from"
+  end
+
+  test "a run still held keeps its key" do
+    tests "TakeSeat", on: "AgentRun"
+    setup "Harness::AgentRun.TakeSeat", run: { value: "seat-2" }, session: { value: "scrum-master" }, brief: { value: "You are the scrum master." }
+    input run: { value: "seat-2" }, session: { value: "scrum-master" }, brief: { value: "You are the scrum master." }
+    expect refused: "seat-2"
+  end
+
   test "a tick of the clock is recorded at its moment" do
     tests "Tick", on: "Clock"
     input reading: { value: "tick-60000" }, now: { value: 60_000 }
