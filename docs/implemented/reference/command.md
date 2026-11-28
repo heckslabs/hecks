@@ -78,6 +78,15 @@ Hecks.bluebook "CommandReference" do
       emits "MeterRecalled"
     end
 
+    command "Correct" do
+      # A GIVEN READS THE RECORD AS `old` where an argument hides the field it sets.
+      reference_to Meter
+      attribute :reading, Reading
+      given("the corrected reading is below the one held") { reading.units < old.reading.units }
+      sets :reading
+      emits "MeterCorrected"
+    end
+
     command "Log" do
       # OPENS THE METER its serial names, or writes on the one already there.
       creates_or_acts
@@ -437,15 +446,15 @@ A bare name in a `given` reads the command's argument first, then the record, so
 shares a field's name hides that field. `old` names the record as it stands, as it does in an
 `ensures`, so the rule can read both: the argument by its bare name, the record as `old.<field>`.
 
-```ruby skip
-# spec/corpus/semantics/domains/tally/
-command "Raise" do
-  reference_to Tally
-  attribute :count, Count
-  given("the new count is above the one held") { count.value > old.count.value }
-  sets :count
-  emits "CountRaised"
-end
+`Correct` takes a reading named like the field it sets, so its rule reads the argument bare and
+the record as `old.reading`:
+
+```ruby
+corrected = CommandReference::Meter.install!(serial: 11)
+corrected.advance!(units: 10, note: "read")
+corrected.correct!(reading: { units: 8 })
+corrected.reading.units  # => 8
+corrected.correct!(reading: { units: 9 })  # ~> GivenNotMet: the corrected reading is below the one held
 ```
 
 ## sets
