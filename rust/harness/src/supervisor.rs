@@ -93,6 +93,7 @@ struct Delivery {
 struct Session {
     child: Child,
     tools: Vec<String>,
+    role: Option<String>,
     stdin: Option<ChildStdin>,
     busy: bool,
     interrupting: bool,
@@ -256,11 +257,16 @@ impl<W: Write> Supervisor<W> {
             .filter_map(Value::as_str)
             .map(ToString::to_string)
             .collect();
+        let role = op
+            .get("role")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
         self.sessions.insert(
             session.to_string(),
             Session {
                 child,
                 tools,
+                role,
                 stdin,
                 busy: false,
                 interrupting: false,
@@ -516,26 +522,27 @@ impl<W: Write> Supervisor<W> {
     fn asked(&mut self, session: &str, request_id: &str, request: Request) -> Result<(), String> {
         match request {
             Request::Permission { tool, input } => {
-                let held = self
-                    .sessions
-                    .get(session)
-                    .is_some_and(|open| role::permits(&open.tools, &tool, &input));
+                let open = self.sessions.get(session);
+                let role = open.and_then(|open| open.role.clone());
+                let reason = withheld(&tool, role.as_deref());
+                let held = open.is_some_and(|open| role::permits(&open.tools, &tool, &input));
                 let (answer, kind) = if held {
                     (protocol::permission_allowed(input), "allowed")
                 } else {
-                    let reason = format!(
-                        "{tool} is withheld in this session: it holds send_message and the tools its role names."
-                    );
                     (protocol::permission_denied(&reason), "denied")
                 };
                 self.write(session, &protocol::control_success(request_id, answer))?;
-                self.tell(
-                    kind,
-                    vec![
-                        ("session", Value::text(session)),
-                        ("tool", Value::text(tool)),
-                    ],
-                )
+                let mut fields = vec![
+                    ("session", Value::text(session)),
+                    ("tool", Value::text(tool)),
+                ];
+                if let Some(role) = role {
+                    fields.push(("role", Value::text(role)));
+                }
+                if kind == "denied" {
+                    fields.push(("reason", Value::text(reason)));
+                }
+                self.tell(kind, fields)
             }
             Request::Mcp { server, message } if server == MCP_SERVER => {
                 let handled = mcp::handle(&message);
@@ -676,4 +683,13 @@ impl<W: Write> Supervisor<W> {
 /// The MCP reply as the child reads it: wrapped in `mcp_response`.
 fn control_success(request_id: &str, reply: Value) -> String {
     protocol::control_success(request_id, Value::object(vec![("mcp_response", reply)]))
+}
+
+/// Why `tool` is refused, in the words the model is told: the role's name when the session has one.
+fn withheld(tool: &str, role: Option<&str>) -> String {
+    let whose = role.map_or_else(
+        || "in this session".to_string(),
+        |role| format!("from {role}"),
+    );
+    format!("{tool} is withheld {whose}: it holds send_message and the tools its role names.")
 }

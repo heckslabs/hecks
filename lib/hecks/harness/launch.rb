@@ -5,8 +5,8 @@ require_relative "roles"
 
 module Hecks
   module Harness
-    # How a session's child is started: the `open` op's `program`, `args`, `model`, `cwd` and
-    # `tools`.
+    # How a session's child is started: the `open` op's `program`, `args`, `model`, `cwd`,
+    # `tools` and `role`.
     module Launch
       module_function
 
@@ -45,7 +45,7 @@ module Hecks
           next started unless roles.include?(name)
 
           role = Roles.role(name, root: root)
-          { model: role.model, **started.compact, tools: role.tools }.compact
+          { model: role.model, **started.compact, tools: role.tools, role: name }.compact
         end
       end
     end

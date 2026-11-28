@@ -74,6 +74,14 @@ fn the_shell_is_withheld_and_the_session_is_told() {
         .filter_map(|tell| tell.str_at("tool"))
         .collect();
     assert_eq!(denied, ["Bash"]);
+    let reasons = seen
+        .iter()
+        .filter(|tell| tell.str_at("tell") == Some("denied"))
+        .all(|tell| {
+            tell.str_at("reason")
+                .is_some_and(|reason| reason.contains("Bash"))
+        });
+    assert!(reasons, "a refusal says why: {seen:#?}");
 }
 
 #[test]
