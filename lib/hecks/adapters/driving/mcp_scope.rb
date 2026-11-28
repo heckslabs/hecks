@@ -48,7 +48,7 @@ module Hecks
         # and holds no colon: `host:repo` and `https://host/x` would otherwise pass as relative
         # paths.
         PATH_ARGUMENTS = %w[
-          checkout destination dir directory domain domains file files fixture holding paths repo root script
+          checkout destination dir directory domain domains file files fixture holding paths repo root script tapes
         ].freeze
 
         # Argument names whose values are git refs: plain names only, so a value cannot read as an

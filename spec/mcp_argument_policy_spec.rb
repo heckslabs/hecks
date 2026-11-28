@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
     aggregates arguments at body budget cap check clock component context copy crate declaration_cache days dry dry_run
     email environment era example exclude fills format inner isolation iterations kind lane list_shards name named new_name
     only opens package pairs_shape parallel persist_regressions pin profile reason rehearsal_verdict required role run runs
-    seed_start seeds shard stage stdout steps strict subject tags target targets ticks timeout to top verb warmup watermark
+    seed_start seeds shard stage stdout steps strict subject tags target targets ticks timeout to top turns verb warmup watermark
     winners word window_days workers
   ].freeze
 

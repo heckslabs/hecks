@@ -1,0 +1,104 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Crew" do
+    vision "One command brings up the crew: every role opened as a Harness session on its own brief and tools, served until it is stopped."
+
+    # With `tapes`, each role's child is played from `<tapes>/<role>.jsonl`, so it runs with no model;
+    # with `turns`, the crew stops once every session has ended that many turns.
+    #   exe/hecks Crew.up! --wait
+    aggregate "Crew" do
+      description "One bringing-up of the crew as Harness sessions, from its request until it was stopped or refused: every role with a role file under the checkout's .claude/agents (the command's own checkout unless checkout names another) but the owner's orchestrator, each a Claude Code child of the supervisor."
+
+      identified_by :run
+
+      attribute :run,      RunKey
+      attribute :checkout, CheckoutPath, optional: true
+      attribute :tapes,    TapeDirectory, optional: true
+      attribute :turns,    TurnCount, optional: true
+      attribute :last,     Reason, optional: true
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # The checkout whose `.claude/agents` holds the crew's role files.
+      value_object "CheckoutPath" do
+        attribute :value, String, matches: :present
+      end
+
+      # A directory of replay tapes, one a role, named for the role.
+      value_object "TapeDirectory" do
+        attribute :value, String, matches: :present
+      end
+
+      # How many turns every session ends before the crew is stopped.
+      value_object "TurnCount" do
+        attribute :value, Integer
+
+        invariant("a crew is stopped after at least one turn") { value >= 1 }
+      end
+
+      # How the crew ended, or why it was not brought up.
+      value_object "Reason" do
+        attribute :value, String, matches: :present
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        mark :terminal, "ended", "refused"
+        transition "End"    => "ended",   from: "requested"
+        transition "Refuse" => "refused", from: "requested"
+      end
+
+      command "Up" do
+        role "Maintainer"
+        goal "Bring up the crew: open every role as a Harness session on its brief and tools, and serve them until stopped"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, CheckoutPath, optional: true, sets: true
+        attribute :tapes,    TapeDirectory, optional: true, sets: true
+        attribute :turns,    TurnCount, optional: true, sets: true
+
+        emits CrewUpRequested
+      end
+
+      command "End" do
+        role "System"
+        goal "Record that the crew was stopped, and how"
+
+        reference_to Crew
+        attribute :last, Reason, sets: true
+
+        emits CrewEnded
+      end
+
+      command "Refuse" do
+        role "System"
+        goal "Record why the crew was not brought up"
+
+        reference_to Crew
+        attribute :last, Reason, sets: true
+
+        emits CrewRefused
+      end
+    end
+
+    # The ask names the run alone, so an `Up` given none of the optional arguments still asks; the
+    # adapter is handed the run's record, with whichever of them it holds.
+    policy "BringUpTheCrewWhenAsked" do
+      on  "Crew.CrewUpRequested"
+      ask :bring_up, with: { run: :run }
+    end
+
+    policy "EndTheCrewWhenItStopped" do
+      on      "Crew.CrewStopped"
+      acts_as "System"
+      trigger Crew::End, with: { last: :last }
+    end
+
+    policy "RefuseTheCrewWhenNotBroughtUp" do
+      on      "Crew.CrewNotBroughtUp"
+      acts_as "System"
+      trigger Crew::Refuse, with: { last: :refusal }
+    end
+  end
+end

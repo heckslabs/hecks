@@ -75,6 +75,12 @@ module Hecks
       # @return [void]
       def stop(name) = owner("Session.Stop", session: name)
 
+      # @return [Array<String>] the sessions the supervisor did not open, by name
+      def unopened
+        refused = runtime.events.select { |event| event.name == "SessionNotSpawned" }
+        refused.map(&:id)
+      end
+
       # Records tells until the block holds for every tell read so far.
       #
       # @yieldparam tells [Array<Hash>] the tells read so far

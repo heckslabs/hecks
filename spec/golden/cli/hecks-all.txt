@@ -78,6 +78,9 @@ commands:
   Audit:
     …
     verify!
+  Crew:
+    …
+    up!
   LanguageRun:
     …
     project_model!
@@ -201,13 +204,13 @@ commands:
     ConformanceRun.complete! ConformanceRun.fault! ConformanceRun.examine! ConformanceRun.perform!
     StyleRun.accept! StyleRun.complete! StyleRun.fault! StyleRun.examine! StyleRun.perform!
     InspectionRun.accept! InspectionRun.complete! InspectionRun.fault! InspectionRun.examine!
-    InspectionRun.perform! Audit.confirm! Audit.fail! Audit.walk! LanguageRun.accept!
-    LanguageRun.complete! LanguageRun.fault! LanguageRun.examine! LanguageRun.perform!
-    SyntaxBootCache.record! SyntaxBootCache.invalidate! SyntaxBootCache.rebuild!
-    CodemodRun.accept! CodemodRun.complete! CodemodRun.fault! CodemodRun.examine!
-    CodemodRun.perform! ScriptRun.accept! ScriptRun.complete! ScriptRun.fault! ScriptRun.examine!
-    ScriptRun.perform! SchemaRevision.permit! SchemaRevision.settle! SchemaRevision.abandon!
-    SchemaRevision.examine! SchemaRevision.apply! SchemaRevision.mint!
+    InspectionRun.perform! Audit.confirm! Audit.fail! Audit.walk! Crew.end! Crew.refuse!
+    Crew.bring_up! LanguageRun.accept! LanguageRun.complete! LanguageRun.fault!
+    LanguageRun.examine! LanguageRun.perform! SyntaxBootCache.record! SyntaxBootCache.invalidate!
+    SyntaxBootCache.rebuild! CodemodRun.accept! CodemodRun.complete! CodemodRun.fault!
+    CodemodRun.examine! CodemodRun.perform! ScriptRun.accept! ScriptRun.complete! ScriptRun.fault!
+    ScriptRun.examine! ScriptRun.perform! SchemaRevision.permit! SchemaRevision.settle!
+    SchemaRevision.abandon! SchemaRevision.examine! SchemaRevision.apply! SchemaRevision.mint!
     SchemaRevision.mint_release! SchemaRevision.capture! Seal.record! RehearsalRun.boot!
     RehearsalRun.audit! RehearsalRun.judge! RehearsalRun.withhold! RehearsalRun.refuse!
     RehearsalRun.fail! RehearsalRun.survey! RehearsalRun.examine! Operation.succeed!
