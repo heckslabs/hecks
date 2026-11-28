@@ -10,7 +10,7 @@ decisions behind it are [ADR 0180](decisions/0180-a-process-manager-has-one-name
 (saga names), [ADR 0182](decisions/0182-one-postgres-adapter-picks-its-layout-from-the-hecksagon.md)
 (the Postgres layout and the outbox refusal), [ADR 0194](decisions/0194-interviews-are-the-beginning-of-work.md)
 (interviews), [ADR 0205](decisions/0205-the-pipeline-is-its-own-project-switchyard-on-a-pinned-hecks.md)
-(shipments and the Delivery bluebook), [ADR 0207](decisions/0207-no-two-contexts-depend-on-each-other-and-a-standing-cycle-is-deprecated.md)
+(the pipeline's move to Switchyard), [ADR 0207](decisions/0207-no-two-contexts-depend-on-each-other-and-a-standing-cycle-is-deprecated.md)
 (context cycles) and [ADR 0216](decisions/0216-a-role-gated-command-refuses-a-caller-who-states-no-role.md)
 (the caller's role).
 
@@ -23,11 +23,13 @@ decisions behind it are [ADR 0180](decisions/0180-a-process-manager-has-one-name
    Boot refuses it until you do.
 4. Run `hecks ConformanceRun.report_role_shadow! domain.value=<dir> --wait` and clear what it lists
    (section 3). Set `HECKS_ROLE_ENFORCEMENT=shadow` while you do, if you must deploy first.
-5. Search your hecksagons, worlds, context maps, scripts, CI jobs, hooks, Makefiles and docs for the
+5. If a hecksagon attaches a bluebook that section 15 lists, or a script runs the pipeline's
+   commands, do section 15. Boot refuses the attach until you do.
+6. Search your hecksagons, worlds, context maps, scripts, CI jobs, hooks, Makefiles and docs for the
    names in sections 4 to 12 and change them, including any `query` or `ask` before a query.
-6. Regenerate any `ir.json` you keep (section 9).
-7. Run `hecks-parse closed --check` over your declaration files and fix what sections 9 and 13 list.
-8. Run `hecks ModelCheckRun.model_check! --wait`, fix any `context_cycle` error (section 14), and run
+7. Regenerate any `ir.json` you keep (section 9).
+8. Run `hecks-parse closed --check` over your declaration files and fix what sections 9 and 13 list.
+9. Run `hecks ModelCheckRun.model_check! --wait`, fix any `context_cycle` error (section 14), and run
    your own specs.
 
 ## 1. Reactions on an adapter with no outbox
@@ -288,7 +290,8 @@ in a bluebook is unchanged.
 ## 7. Composer timeline key
 
 `POST /composer/timeline` answers `{ "saves": [{name, at, text}, …] }`, where 7.x answered
-`{ "revisions": … }`. Anything that reads the Composer's timeline JSON must read `saves`.
+`{ "revisions": … }`. Anything that reads the Composer's timeline JSON must read `saves`. The
+Composer itself moves to Switchyard with the pipeline (section 15).
 
 ## 8. The world verb `event_log`
 
@@ -365,13 +368,15 @@ The saga stores' `process_manager` column keeps its name.
   `replace_when: nil` to its signature; an adapter that does not take it raises.
 - Postgres's revision layout (7.x's `PostgresEra`) now refuses a boot when an aggregate would be
   stored under a name with no journal rows while an earlier name holds some. 7.x booted it over an
-  empty store. Add the `stored_as` line the
-  refusal names.
-- QualityControl attaches the `EventDelivery` framework member. `EventCursor`, `EventReaction`,
-  `EventPump`, `EventPump.pump!` and the `qa_event_pump` row are gone; a run is `Pump.run!` on
-  EventDelivery.
+  empty store. Add the `stored_as` line the refusal names.
+- QualityControl, which moves to Switchyard (section 15), attaches the `EventDelivery` framework
+  member. `EventCursor`, `EventReaction`, `EventPump`, `EventPump.pump!` and the `qa_event_pump`
+  row are gone; a run is `Pump.run!` on EventDelivery.
 
 ## 11. CLI commands that are gone or changed
+
+Each replacement this section names belongs to the pipeline, which runs from Switchyard from 8.0
+(section 15), so run it from a Switchyard checkout.
 
 - **`hecks interview` and `Launch.interview!` are removed**, with their `expert` and `no_ai`
   arguments, the `interview_*` tools and the SME bluebook. Record an interview with the Interviews
@@ -417,6 +422,8 @@ An old spelling is refused like any name the bluebook does not declare, with exi
 ```
 
 The refusal lists current names that share a prefix with what you typed, under `did you mean:`.
+`SendTrain` and `ReviewRequest` move to Switchyard with the pipeline (section 15), so their new
+names run from Switchyard's launcher.
 
 `query` before a query is refused, with exit status 2, unless a command of the same bluebook has the
 same name:
@@ -509,6 +516,52 @@ What to change:
 
 - **Find them:** `grep -rn 'context_cycle' --include='*.contextmap' .`, then run
   `hecks ModelCheckRun.model_check! --wait`.
+
+## 15. The development pipeline leaves Hecks for Switchyard
+
+The pipeline that lands work on `main`, and the tooling around it, is its own Hecks project from
+8.0: Switchyard ([ADR 0205](decisions/0205-the-pipeline-is-its-own-project-switchyard-on-a-pinned-hecks.md)).
+It stands on a pinned Hecks as a client project does. What leaves the gem:
+
+- **The pipeline:** landings, the train, the red flag, dispatch, the stall watch and the pipeline's
+  other modules of the Hecks domain under `lib/hecks/hecks/`, with their adapters and their lines in
+  `hecks.world`, and the vendored Delivery bluebook (`Landing`, `LinkedTree`, `Revision`,
+  `SendTrain`, `ReviewRequest`, `Shipment` and Workspace's git questions).
+- **The bluebooks around it:** the board (`PipelineBoard`), the agents, the coder, the fixer,
+  triage, Signalbox, Roundhouse, the CI pipeline (the bluebook that generated the workflows), the
+  gate memo, CI speed, the catcher and the context budget.
+- **The Composer, Interviews and the SME bluebook**, and **QualityControl** with its QA ledger.
+- **`.claude/`** (the role files, hooks and skills), most of `qa/` and the agent tools in
+  `lib/hecks/tools`.
+
+What stays: the StaffEngineer bluebook, the Harness, the fuzzer, the gate tools (`GateRun`,
+`StyleRun`, `ConformanceRun`), Tickets, `qa/settings.yml`, `qa/stress_domains` and
+`qa/combination_miner`.
+
+**Attaching by name.** These names are no longer bluebooks the gem carries: `Composer`,
+`QualityControl`, `Fixer`, `Coder`, `CiPipeline`, `PipelineBoard`, `Pipeline`, `Agents`, `Triage`,
+`Interviews`, `Signalbox` and `Roundhouse`. A hecksagon that attaches one is refused at boot with
+`Hecks::Runtime::WiringError`:
+
+```
+attaches "Composer": the gem carries no bluebook of that name — known: Adapter, Bluebook, … To attach a vendored package, write `attaches "Composer", from: :vendor`
+```
+
+Delete the `attaches` line, and run the work it did from a Switchyard checkout. Their commands
+(`Landing.finish!`, `SendTrain.board!`, `Shipment.ship!`, `hecks interviews …`,
+`hecks quality_control …` and the rest) are unknown to the `hecks` launcher, so a script that runs
+them runs Switchyard's launcher instead.
+
+**`Harness::Run#open_role`.** The gem carries no role files, so `open_role(role, root:)` takes the
+checkout whose `.claude/agents` holds them. Without `root:` it raises `Harness::Roles::Unbriefed`
+(`no role file for <role> at <path>`).
+
+**The resident's cap.** `max_residents` is 8 when the world sets none; it no longer comes from a
+machine profile. Write `max_residents:` on the world's `resident` line if 8 does not suit.
+
+- **Find them:** `grep -rnE 'attaches "(Composer|QualityControl|Fixer|Coder|CiPipeline|PipelineBoard|Pipeline|Agents|Triage|Interviews|Signalbox|Roundhouse)"' --include='*.hecksagon' .`,
+  and search scripts and CI jobs for `Landing.`, `SendTrain.`, `Shipment.`, `interviews` and
+  `quality_control`.
 
 ## Not in 8.0
 
