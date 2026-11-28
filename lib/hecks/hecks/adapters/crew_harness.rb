@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-require "fileutils"
-require "json"
-require "open3"
 require "tmpdir"
 require "hecks/harness/run"
+require_relative "crew_harness/journal"
 
 module Hecks
   module Adapters
@@ -22,9 +20,6 @@ module Hecks
       # The crew was not brought up: the binary is not built, a role or tape is missing, or the
       # supervisor did not open a session.
       class NotBroughtUp < StandardError; end
-
-      # A replay did not do what its journal says, or could not be run.
-      class NotReplayed < StandardError; end
 
       # How often the supervisor's clock ticks while the crew is served: well inside the time the
       # pump waits for a tell, so a crew waiting on its mail is never taken for a stalled one.
@@ -69,9 +64,8 @@ module Hecks
       #   replay did otherwise; the first act each session did otherwise is named
       def replay_journal(**held)
         @checkout = checkout(held)
-        journal = File.expand_path(plain(held[:journal]))
-        turns = outline(journal).transform_values { |counts| counts.fetch("turns") }
-        Dir.mktmpdir("crew-replay") { |scratch| replayed(journal, turns, scratch) }
+        journal = Journal.new(plain(held[:journal]), binary: @binary)
+        Dir.mktmpdir("crew-replay") { |scratch| { last: { value: replayed(journal, scratch) } } }
       rescue NotBroughtUp => e
         raise NotReplayed, e.message
       end
@@ -126,73 +120,35 @@ module Hecks
         crew.all? { |role| tells.count { |tell| tell["tell"] == kind && tell["session"] == role } >= count }
       end
 
-      # Tapes the journal's recordings, plays the crew on them until each session has ended the
-      # turns it ended in the journal or has stopped, and holds the replay's journal to the run's.
-      def replayed(journal, turns, scratch)
-        tapes = taped(journal, turns.keys, File.join(scratch, "tapes"))
+      # Plays the crew on the journal's tapes until each session has ended the turns it ended in
+      # the journal or has stopped, and holds the replay's journal to the run's.
+      def replayed(journal, scratch)
+        crew = recorded(journal)
         replay = File.join(scratch, "journal")
-        crew = roles(nil)
-        unrecorded = crew - turns.keys
-        raise NotReplayed, "the journal at #{journal} has no recording for #{unrecorded.join(", ")}" unless unrecorded.empty?
+        run = Harness::Run.new(launch: launch(journal.taped(File.join(scratch, "tapes"))), tick_ms: TICK_MS,
+                               record: replay, binary: @binary)
+        played(run, crew, journal.turns)
+        journal.held_by(replay)
+      end
 
-        run = Harness::Run.new(launch: launch(tapes), tick_ms: TICK_MS, record: replay, binary: @binary)
-        begin
-          open_crew(run, crew)
-          run.pump { |tells| crew.all? { |role| finished?(tells, role, turns.fetch(role)) } }
-        ensure
-          run.close
-        end
-        held(journal, replay)
+      def played(run, crew, turns)
+        open_crew(run, crew)
+        run.pump { |tells| crew.all? { |role| finished?(tells, role, turns.fetch(role)) } }
+      ensure
+        run.close
+      end
+
+      def recorded(journal)
+        crew = roles(nil)
+        unrecorded = crew - journal.turns.keys
+        raise NotReplayed, "the journal at #{journal.dir} has no recording for #{unrecorded.join(", ")}" unless unrecorded.empty?
+
+        crew
       end
 
       def finished?(tells, role, turns)
         mine = tells.select { |tell| tell["session"] == role }
         mine.any? { |tell| tell["tell"] == "stopped" } || mine.count { |tell| tell["tell"] == "turn_ended" } >= turns
-      end
-
-      def taped(journal, sessions, dir)
-        FileUtils.mkdir_p(dir)
-        sessions.each do |session|
-          File.write(File.join(dir, "#{session}.jsonl"), harness("tape", File.join(journal, "#{session}.jsonl")))
-        end
-        dir
-      end
-
-      def outline(journal)
-        raise NotReplayed, "the hecks-harness binary is not built at #{@binary}" unless File.executable?(@binary)
-        raise NotReplayed, "no journal at #{journal}" unless File.directory?(journal)
-
-        JSON.parse(harness("journal", journal))
-      end
-
-      def held(journal, replay)
-        out, status = Open3.capture2(@binary, "compare", journal, replay)
-        raise NotReplayed, "cannot compare #{journal} with its replay" unless [0, 1].include?(status.exitstatus)
-
-        compared = JSON.parse(out)
-        raise NotReplayed, diverged(compared) unless compared.fetch("held")
-
-        said = "replayed #{compared.fetch("matched")} acts of #{compared.fetch("sessions")} sessions, " \
-               "each as the journal has it"
-        { last: { value: said } }
-      end
-
-      # Each session's first surprise, in a sentence.
-      def diverged(compared)
-        surprises = compared.fetch("surprises").map do |surprise|
-          "#{surprise.fetch("session")} at act #{surprise.fetch("at") + 1}: the journal has " \
-            "#{told(surprise["journal"])}, the replay #{told(surprise["replay"])}"
-        end
-        "the replay did otherwise: #{surprises.join("; ")}"
-      end
-
-      def told(act) = act ? JSON.generate(act) : "nothing"
-
-      def harness(*args)
-        out, err, status = Open3.capture3(@binary, *args)
-        raise NotReplayed, err.strip.empty? ? "hecks-harness #{args.first} failed" : err.strip unless status.success?
-
-        out
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
