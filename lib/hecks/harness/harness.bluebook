@@ -732,6 +732,159 @@ Hecks.bluebook "Harness" do
     end
   end
 
+  # The crew's move into the harness, one role at a time. It holds the order, how many switches are
+  # measured and whether the checkpoint after the first two is recorded, so every rule about what
+  # may begin next is a guard on this one record.
+  aggregate "Rollout" do
+    description "The crew's move into the harness: the order of its roles, the switches measured, and the checkpoint after the first two."
+
+    identified_by :key
+
+    attribute :key,        RolloutKey
+    attribute :seat_1,     Role
+    attribute :seat_2,     Role
+    attribute :seat_3,     Role
+    attribute :seat_4,     Role
+    attribute :seat_5,     Role
+    attribute :seat_6,     Role
+    attribute :seat_7,     Role
+    attribute :seat_8,     Role
+    attribute :measured,   Measured
+    attribute :checkpoint, Checkpointed
+    attribute :current,    Switching
+    created_by "Rollout.Plan"
+
+    value_object "RolloutKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # How many roles have been switched and measured.
+    value_object "Measured" do
+      attribute :value, Integer, default: 0
+    end
+
+    # Whether the re-evaluation after the first two switches is recorded: sizes, fill rules, load rule.
+    value_object "Checkpointed" do
+      attribute :value, String, default: "no", one_of: ["no", "yes"]
+    end
+
+    # The role now switching; empty between switches.
+    value_object "Switching" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "Role" do
+      attribute :value, String, matches: :present
+    end
+
+    # The Baseline reading the switch is measured against, as its BaselineKey.
+    value_object "Reading" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Seconds" do
+      attribute :value, Float, default: 0.0
+
+      invariant("a time is not below zero") { value >= 0 }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+
+      invariant("a count is not below zero") { value >= 0 }
+    end
+
+    value_object "Held" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "Begin"   => "switching", from: "planned"
+      transition "Measure" => "planned",   from: "switching"
+      # A rollout waits on a role's measuring, which takes live runs, and on the checkpoint, which
+      # the crew decides: neither is a wait the bluebook times.
+      mark :rests, "planned", "switching"
+    end
+
+    command "Plan" do
+      role "Owner"
+      goal "Plan the order the crew's roles switch into the harness, the scrum master last"
+
+      attribute :key, RolloutKey, sets: true
+      attribute :seat_1, Role, sets: true
+      attribute :seat_2, Role, sets: true
+      attribute :seat_3, Role, sets: true
+      attribute :seat_4, Role, sets: true
+      attribute :seat_5, Role, sets: true
+      attribute :seat_6, Role, sets: true
+      attribute :seat_7, Role, sets: true
+      attribute :seat_8, Role, sets: true
+
+      given("the scrum master is last") { seat_8.value == "scrum-master" }
+
+      emits "RolloutPlanned"
+    end
+
+    command "Begin" do
+      role "Owner"
+      goal "Begin switching the next role in the order into the harness"
+
+      reference_to Rollout
+      attribute :role, Role
+
+      given("it is the next role in the order") do
+        (measured.value == 0 && role.value == seat_1.value) ||
+        (measured.value == 1 && role.value == seat_2.value) ||
+        (measured.value == 2 && role.value == seat_3.value) ||
+        (measured.value == 3 && role.value == seat_4.value) ||
+        (measured.value == 4 && role.value == seat_5.value) ||
+        (measured.value == 5 && role.value == seat_6.value) ||
+        (measured.value == 6 && role.value == seat_7.value) ||
+        (measured.value == 7 && role.value == seat_8.value)
+      end
+      given("fewer than two roles are measured, or the checkpoint is recorded") { measured.value < 2 || checkpoint.value == "yes" }
+
+      sets :current, to: :role
+
+      emits "SwitchBegan"
+    end
+
+    command "Measure" do
+      role "Owner"
+      goal "Record the switching role's waiting time, cold starts and claim age against a baseline reading"
+
+      reference_to Rollout
+      attribute :role,        Role
+      attribute :baseline,    Reading
+      attribute :waiting_p90, Seconds
+      attribute :cold_starts, Count
+      attribute :claim_age,   Seconds
+      attribute :settled,     Switching, default: { value: "" }
+
+      given("it is the role switching") { current.value == role.value }
+
+      sets :measured, increment: { value: 1 }
+      sets :current, to: :settled
+
+      emits "SwitchMeasured"
+    end
+
+    command "Checkpoint" do
+      role "Owner"
+      goal "Record the re-evaluation after the first two switches: do sizes, the fill rules and the load rule still hold"
+
+      reference_to Rollout
+      attribute :held,    Held
+      attribute :checked, Checkpointed, default: { value: "yes" }
+
+      given("two roles are measured") { measured.value >= 2 }
+
+      sets :checkpoint, to: :checked
+
+      emits "RolloutCheckpointed"
+    end
+  end
+
   # The supervisor's clock: a tick it writes every interval, read here so a wait is timed even
   # when no session says anything.
   aggregate "Clock" do

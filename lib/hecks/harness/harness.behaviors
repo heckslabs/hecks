@@ -213,52 +213,53 @@ Hecks.behaviors "Harness" do
 
   # The crew moves into the harness one role at a time: the order is the Rollout's, a switch is
   # measured before the next begins, and a checkpoint follows the first two.
-  ORDER = "reviewer,coder,architect,product-owner,staff-engineer,lead,orchestrator,scrum-master"
+  SEATS = { seat_1: "reviewer", seat_2: "coder", seat_3: "architect", seat_4: "product-owner",
+            seat_5: "staff-engineer", seat_6: "lead", seat_7: "orchestrator", seat_8: "scrum-master" }.freeze
 
   test "a rollout is planned with the scrum master last" do
     tests "Plan", on: "Rollout"
-    input key: { value: "crew-1" }, order: { value: ORDER }
+    input key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     expect emits: %w[RolloutPlanned], status: "planned"
   end
 
   test "a rollout with the scrum master anywhere but last is not planned" do
     tests "Plan", on: "Rollout"
-    input key: { value: "crew-1" }, order: { value: "scrum-master,reviewer,coder" }
+    input key: { value: "crew-1" }, **SEATS.merge(seat_1: "scrum-master", seat_8: "reviewer").transform_values { |role| { value: role } }
     expect refused: "the scrum master is last"
   end
 
   test "the first role to switch is the reviewer" do
     tests "Begin", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     input rollout: "crew-1", role: { value: "reviewer" }
     expect emits: %w[SwitchBegan], status: "switching"
   end
 
   test "a role out of order does not switch" do
     tests "Begin", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     input rollout: "crew-1", role: { value: "coder" }
     expect refused: "it is the next role in the order"
   end
 
   test "the scrum master does not switch first" do
     tests "Begin", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     input rollout: "crew-1", role: { value: "scrum-master" }
     expect refused: "it is the next role in the order"
   end
 
   test "a switch is not measured before it began" do
     tests "Measure", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     input rollout: "crew-1", role: { value: "reviewer" }, baseline: { value: "2026-11-28/first_hour" },
           waiting_p90: { value: 300.0 }, cold_starts: { value: 1 }, claim_age: { value: 40.0 }
-    expect refused: "Measure moves it only from"
+    expect refused: "it is the role switching"
   end
 
   test "a switch is measured against a baseline reading" do
     tests "Measure", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     setup "Harness::Rollout.Begin", rollout: "crew-1", role: { value: "reviewer" }
     input rollout: "crew-1", role: { value: "reviewer" }, baseline: { value: "2026-11-28/first_hour" },
           waiting_p90: { value: 300.0 }, cold_starts: { value: 1 }, claim_age: { value: 40.0 }
@@ -267,15 +268,15 @@ Hecks.behaviors "Harness" do
 
   test "the next role does not switch before the one switching is measured" do
     tests "Begin", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     setup "Harness::Rollout.Begin", rollout: "crew-1", role: { value: "reviewer" }
     input rollout: "crew-1", role: { value: "coder" }
-    expect refused: "Begin moves it only from"
+    expect refused: "it is the next role in the order"
   end
 
   test "the third role does not switch before the checkpoint after the first two" do
     tests "Begin", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     setup "Harness::Rollout.Begin", rollout: "crew-1", role: { value: "reviewer" }
     setup "Harness::Rollout.Measure", rollout: "crew-1", role: { value: "reviewer" }, baseline: { value: "2026-11-28/first_hour" },
           waiting_p90: { value: 300.0 }, cold_starts: { value: 1 }, claim_age: { value: 40.0 }
@@ -283,13 +284,27 @@ Hecks.behaviors "Harness" do
     setup "Harness::Rollout.Measure", rollout: "crew-1", role: { value: "coder" }, baseline: { value: "2026-11-28/first_hour" },
           waiting_p90: { value: 280.0 }, cold_starts: { value: 1 }, claim_age: { value: 35.0 }
     input rollout: "crew-1", role: { value: "architect" }
-    expect refused: "two roles are measured and the checkpoint is recorded"
+    expect refused: "fewer than two roles are measured, or the checkpoint is recorded"
   end
 
   test "the checkpoint is recorded only once two roles are measured" do
     tests "Checkpoint", on: "Rollout"
-    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, order: { value: ORDER }
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
     input rollout: "crew-1", held: { value: "sizes, fill rules and load rule hold" }
     expect refused: "two roles are measured"
+  end
+
+  test "the third role switches once the checkpoint is recorded" do
+    tests "Begin", on: "Rollout"
+    setup "Harness::Rollout.Plan", key: { value: "crew-1" }, **SEATS.transform_values { |role| { value: role } }
+    setup "Harness::Rollout.Begin", rollout: "crew-1", role: { value: "reviewer" }
+    setup "Harness::Rollout.Measure", rollout: "crew-1", role: { value: "reviewer" }, baseline: { value: "2026-11-28/first_hour" },
+          waiting_p90: { value: 300.0 }, cold_starts: { value: 1 }, claim_age: { value: 40.0 }
+    setup "Harness::Rollout.Begin", rollout: "crew-1", role: { value: "coder" }
+    setup "Harness::Rollout.Measure", rollout: "crew-1", role: { value: "coder" }, baseline: { value: "2026-11-28/first_hour" },
+          waiting_p90: { value: 280.0 }, cold_starts: { value: 1 }, claim_age: { value: 35.0 }
+    setup "Harness::Rollout.Checkpoint", rollout: "crew-1", held: { value: "sizes, fill rules and load rule hold" }
+    input rollout: "crew-1", role: { value: "architect" }
+    expect emits: %w[SwitchBegan], status: "switching"
   end
 end
