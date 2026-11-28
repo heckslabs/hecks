@@ -5,6 +5,7 @@ require_relative "safe_signal"
 require "open3"
 require "tmpdir"
 require_relative "../../rust_build/session_build"
+require_relative "../../rust_build/batch_priority"
 
 module Hecks
   module Adapters
@@ -89,8 +90,10 @@ module Hecks
         Dir.mktmpdir("spec-progress") { |dir| yield File.join(dir, "progress") }
       end
 
+      def batch(argv, chdir) = RustBuild::BatchPriority.wrap(argv, chdir)
+
       def run(argv, env, chdir)
-        Open3.popen3(env, *argv, chdir: chdir, pgroup: true) do |input, out, err, waiter|
+        Open3.popen3(env, *batch(argv, chdir), chdir: chdir, pgroup: true) do |input, out, err, waiter|
           input.close
           readers = [out, err].map { |stream| Thread.new { stream.read } }
           reason = await(waiter, chdir)
