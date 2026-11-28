@@ -133,7 +133,7 @@ jobs:
       # settles a coder's question or hands it on to the orchestrator, and a role's run is finished
       # only when its session ended.
       - name: "rspec: Harness sessions exchanging messages on replay tapes, and its Rust parse"
-        run: bundle exec rspec --tag io spec/harness_exchange_spec.rb spec/harness_staff_engineer_spec.rb spec/harness_scrum_master_spec.rb spec/harness_agent_run_spec.rb spec/harness_standing_seat_spec.rb spec/harness_crew_spec.rb spec/hecks_crew_spec.rb spec/harness_urgent_spec.rb spec/harness_parser_parity_spec.rb
+        run: bundle exec rspec --tag io spec/harness_exchange_spec.rb spec/harness_staff_engineer_spec.rb spec/harness_scrum_master_spec.rb spec/harness_agent_run_spec.rb spec/harness_standing_seat_spec.rb spec/harness_crew_spec.rb spec/hecks_crew_spec.rb spec/harness_urgent_spec.rb spec/hecks_crew_replay_spec.rb spec/harness_parser_parity_spec.rb
 
       - name: "cargo test: rust/harness (hecks-harness)"
         run: cd rust/harness && cargo test
