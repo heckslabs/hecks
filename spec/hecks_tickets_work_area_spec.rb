@@ -50,7 +50,7 @@ RSpec.describe "Work area claims" do
 
   it "drops the claim of a released row", :aggregate_failures do
     start("area/m", "lib/x")
-    cli("work.release!", "to=area/m")
+    cli("work.release!", "to=area/m", "wrap_up.value=left it")
 
     expect(row("area/m").values_at("claimed_by", "claimed_at", "budget_minutes")).to eq(["", "", 0])
     expect(row("area/m")["area"]).to be_empty
@@ -77,7 +77,7 @@ RSpec.describe "Work area claims" do
 
   it "frees the area when the holder is released" do
     start("area/h", "lib/x")
-    cli("work.release!", "to=area/h")
+    cli("work.release!", "to=area/h", "wrap_up.value=left it")
 
     expect(start("area/i", "lib/x")["status"]).to eq("started")
   end

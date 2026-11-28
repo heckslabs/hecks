@@ -35,10 +35,18 @@ module Hecks
         when "started"    then [["Session.RecordStarted", { session: name, claude: plain(tell["claude_session"]) }]]
         when "turn_ended" then [["Session.RecordTurnEnded", turn(tell)]]
         when "interrupted" then [["Session.RecordInterrupted", { session: name, cutter: plain(tell["message"]) }]]
-        when "allowed"    then [["Session.RecordAllowed", { session: name, tool: plain(tell["tool"]) }]]
-        when "denied"     then [["Session.RecordWithheld", { session: name, tool: plain(tell["tool"]) }]]
+        when "allowed"    then [["Session.RecordAllowed", tool_use(tell)]]
+        when "denied"     then [["Session.RecordWithheld", tool_use(tell, reason: true)]]
         else stopped(tell)
         end
+      end
+
+      # A tool use as recorded: the tool, and the role and reason when the supervisor told them.
+      def tool_use(tell, reason: false)
+        use = { session: tell["session"], tool: plain(tell["tool"]) }
+        use[:role] = plain(tell["role"]) if tell["role"]
+        use[:reason] = plain(tell["reason"]) if reason && tell["reason"]
+        use
       end
 
       # A sent message is posted, a delivery is timed, and a tick of the supervisor's clock is

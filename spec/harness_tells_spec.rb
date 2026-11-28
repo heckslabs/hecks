@@ -46,6 +46,24 @@ RSpec.describe Hecks::Harness::Tells do
       .to eq({ value: "error" })
   end
 
+  it "records a refused tool with the role that lacks it and the reason" do
+    tell = { "tell" => "denied", "session" => "reviewer", "tool" => "Bash", "role" => "reviewer",
+             "reason" => "Bash is withheld from reviewer" }
+    expect(commands(tell)).to eq([["Session.RecordWithheld",
+                                   { session: "reviewer", tool: { value: "Bash" }, role: { value: "reviewer" },
+                                     reason: { value: "Bash is withheld from reviewer" } }]])
+  end
+
+  it "records an allowed tool with the role that holds it" do
+    tell = { "tell" => "allowed", "session" => "reviewer", "tool" => "Read", "role" => "reviewer" }
+    expect(commands(tell).dig(0, 1, :role)).to eq({ value: "reviewer" })
+  end
+
+  it "records a refused tool of a session with no role without one" do
+    tell = { "tell" => "denied", "session" => "ad-hoc", "tool" => "Bash", "reason" => "Bash is withheld" }
+    expect(commands(tell).dig(0, 1, :role)).to be_nil
+  end
+
   it "records nothing for a tell that only answers an op" do
     expect(%w[ready opened queued noticed refused quit].flat_map { |kind| commands({ "tell" => kind }) }).to be_empty
   end
