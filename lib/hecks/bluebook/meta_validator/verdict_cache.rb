@@ -40,7 +40,7 @@ module Hecks
         # calls into them. An edit there leaves every verdict as it was, so
         # their files stay out of the key. Paths are relative to `lib/hecks`.
         CONSUMER_TREES = %r{\A/hecks/(?:bench|cli|codemod|deploy|doc|adapters/driving|fuzzing|projections|
-                            quality_control|release)(?:/|\.rb\z)}x
+                            release)(?:/|\.rb\z)}x
 
         # The subtrees of `lib/` that are domains built in the language, not the language: each
         # holds bluebooks and the adapters behind their ports, and `require "hecks"` loads none of
@@ -49,9 +49,7 @@ module Hecks
         # leaves both as they were (`language_digest`). Paths are relative to `lib/hecks`;
         # `spec/syntax_boot_key_spec.rb` fails if the table is built after any of these trees' Ruby
         # is loaded, or if describing the Hecks domain loads Ruby from them that is not an adapter.
-        APPLIED_TREES = %r{\A/hecks/(?:hecks|tickets|pipeline|pipeline_board|gate|questions|coder|
-                           catcher|ci_pipeline|ci_speed|ci_workflows|fixer|site|sme|tenancy|
-                           rails_app)(?:/|\.rb\z)}x
+        APPLIED_TREES = %r{\A/hecks/(?:hecks|tickets|questions|site|tenancy|rails_app)(?:/|\.rb\z)}x
 
         # A file of other code that has not been read or written for this long is pruned on write.
         # Reading marks a file as used, so a checkout that only reads keeps its file.

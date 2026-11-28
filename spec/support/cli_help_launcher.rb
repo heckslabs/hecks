@@ -14,8 +14,7 @@ module CliHelpLauncher
   SNAPSHOTS = {
     "hecks" => [],
     "hecks-help" => ["--help"], "hecks-all" => ["--all"],
-    "module-build" => ["build"], "module-check" => ["check"], "module-delegate" => ["delegate"],
-    "module-deliver" => ["deliver"], "module-evolve" => ["evolve"], "module-find" => ["find"],
+    "module-build" => ["build"], "module-check" => ["check"], "module-evolve" => ["evolve"], "module-find" => ["find"],
     "module-migrate" => ["migrate"], "module-operate" => ["operate"], "module-release" => ["release"],
     "module-serve" => ["serve"], "module-start" => ["start"], "module-test" => ["test"]
   }.freeze

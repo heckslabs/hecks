@@ -1,6 +1,5 @@
 require_relative "../../runtime/errors"
 require_relative "../../storehouse/confinement"
-require_relative "mcp_scope/closed_role"
 require_relative "mcp_scope/launcher_door"
 require_relative "mcp_scope/domain_reach"
 
@@ -11,7 +10,6 @@ module Hecks
       # named domains in reader mode; and in commands mode those plus `dispatch` and `run` of a
       # closed list of commands — reach, not identity (ADR 0072, ADR 0089).
       class McpScope
-        include ClosedRole
         include LauncherDoor
         include DomainReach
 
@@ -85,11 +83,11 @@ module Hecks
         # the server runs in commands mode.
         attr_reader :allowed_commands
 
-        # @param closed_role [String, nil] set for a server that serves no tool (`ClosedRole`)
-        def initialize(allowed_domains:, allowed_commands: nil, closed_role: nil)
+        # @param allowed_domains [Array<String>, nil] the domains a restricted server serves
+        # @param allowed_commands [Array<String>, nil] the commands a commands server dispatches
+        def initialize(allowed_domains:, allowed_commands: nil)
           @allowed_domains = allowed_domains&.map { |path| Storehouse.confine!(path, DOMAINS_VARIABLE) }.freeze
           @allowed_commands = allowed_commands&.dup&.freeze
-          @closed_role = closed_role
         end
 
         def restricted? = !@allowed_domains.nil?
@@ -97,13 +95,10 @@ module Hecks
         def commands_mode? = !@allowed_commands.nil?
 
         def served_tools
-          return [] if closed?
-
           commands_mode? ? COMMAND_TOOLS : READER_TOOLS
         end
 
         def refusal(name)
-          return closed_refusal(name) if closed?
           return commands_only_refusal(name) unless restricted?
 
           { ok:    false,
@@ -195,7 +190,6 @@ module Hecks
 
         def notes
           return [] unless restricted?
-          return closed_notes if closed?
 
           return Presenter.reader_notes(@allowed_domains) unless commands_mode?
 

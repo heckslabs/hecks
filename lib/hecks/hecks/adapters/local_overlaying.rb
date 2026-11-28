@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "console_capture"
-require_relative "main_integration"
-require_relative "main_integration/local_overlay"
+require_relative "local_overlaying/local_overlay"
 
 module Hecks
   module Adapters
@@ -13,7 +12,7 @@ module Hecks
       # @param aggregate [Bluebook::Aggregate, nil] `LocalOverlay`, whose kept rows are written
       # @param registry [Runtime::Registry, nil] unused
       def initialize(aggregate: nil, registry: nil)
-        @rows = MainIntegration::KeptRows.of(aggregate)
+        @rows = KeptRows.of(aggregate)
       end
 
       # @param held [Hash] the `LocalOverlay` record: `root` and `copy`
@@ -22,11 +21,11 @@ module Hecks
       #   a copy that keeps no row
       def lay(**held)
         root = File.expand_path(plain(held[:root]).to_s)
-        overlay = MainIntegration::LocalOverlay.new(root, @rows, copy_of(held))
+        overlay = LocalOverlay.new(root, @rows, copy_of(held))
         refuse!("#{root} holds no lib/hecks/hecks, so it is not a hecks checkout") unless hecks_checkout?(overlay)
         written = overlay.write
         { output: { value: written ? "wrote #{written}" : "#{overlay.path} is current" } }
-      rescue MainIntegration::LocalOverlay::Empty => e
+      rescue LocalOverlay::Empty => e
         refuse!(e.message)
       end
 
@@ -36,9 +35,9 @@ module Hecks
 
       def copy_of(held)
         copy = plain(held[:copy]).to_s
-        return copy if MainIntegration::KeptRows::COPIES.include?(copy)
+        return copy if KeptRows::COPIES.include?(copy)
 
-        refuse!("copy #{copy.inspect} is not one of #{MainIntegration::KeptRows::COPIES.join(", ")}")
+        refuse!("copy #{copy.inspect} is not one of #{KeptRows::COPIES.join(", ")}")
       end
 
       def refuse!(message) = raise(ConsoleCapture::Failure, message)

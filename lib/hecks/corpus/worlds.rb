@@ -2,7 +2,7 @@ module Hecks
   module Corpus
     # Where `.world` files live, for the parser parity check. Extended onto `Corpus`.
     module Worlds
-      WORLD_GLOBS = %w[lib/**/*.world examples/**/*.world qa/**/*.world spec/fixtures/**/*.world].freeze
+      WORLD_GLOBS = %w[lib/**/*.world examples/**/*.world spec/fixtures/**/*.world].freeze
 
       # Every `.world` file the repo carries.
       #

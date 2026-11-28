@@ -1,17 +1,16 @@
 require_relative "../module_folders"
 module Hecks
   module Corpus
-    # How a domain's hecksagon names a bluebook the gem carries and loads by name, as the QA
-    # ledger's does: a `Hecks.hecksagon "QualityControl"` block whose first line is
-    # `bluebook_from :gem`. Captures the bluebook's name.
+    # How a domain's hecksagon names a bluebook the gem carries and loads by name: a
+    # `Hecks.hecksagon "<Name>"` block whose first line is `bluebook_from :gem`. Captures the
+    # bluebook's name.
     ATTACHED_BLUEBOOK = /Hecks\.hecksagon\s*\(?\s*"([^"]+)"\s*\)?\s*(?:do|\{)\s*\n\s*bluebook_from\s*:gem\b/
 
     # Where a domain path keeps its bluebooks, and what a member boots. Extended onto `Corpus`.
     module Sources
       # Where a domain path keeps its bluebooks — `<domain>/bluebook/*.bluebook`, or the directory
-      # itself when that holds none, or the bluebook files its hecksagons load by name (the QA
-      # ledger, `qa/bluebook`, holds only wiring: its bluebook ships in
-      # `lib/hecks/quality_control/`).
+      # itself when that holds none, or the bluebook files its hecksagons load by name (a domain
+      # that holds only wiring, whose bluebook ships in the gem).
       #
       # @param domain_path [String] path to a domain directory
       # @return [Array<String>, nil] `.bluebook` file paths found, or nil when none

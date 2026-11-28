@@ -16,9 +16,11 @@ module Hecks
       # It rides the `SourceTree` port as the gate and the spec batches do. Recording never refuses
       # a run: a log it cannot write turns into one line saying so.
       class Trials
+        # `uptime`'s load figure (macOS): the first number after `load average(s):`.
+        UPTIME_LOAD = /load averages?:\s*([\d.,]+)/
         # @param ledger [Ledger] where the rows are kept
         # @param clock [#call] answers the time
-        # @param load [#call, nil] answers the one-minute load average; `uptime`'s when nil
+        # @param load [#call, nil] answers the one-minute load average; the machine's when nil
         # @param cpus [Integer] the machine's cpu count
         def initialize(ledger: Ledger.new, clock: -> { Time.now.utc }, load: nil, cpus: Etc.nprocessors)
           @ledger = ledger
@@ -70,9 +72,14 @@ module Hecks
           "#{tally.subject}: #{tally.passes} of #{tally.runs} passed, pass^#{PassK::K} #{format("%.2f", tally.pass_k)}"
         end
 
+        # The 1-minute load average: `/proc/loadavg`'s first figure, else the first figure after
+        # `load average(s):` in `uptime` (macOS), else nil. The figure is a note on the record,
+        # never a reason to refuse a run.
         def machine_load
-          require_relative "../dispatching/settings"
-          Dispatching::Settings.uptime_load(minutes: 1)
+          return Float(File.read("/proc/loadavg").split.first) if File.readable?("/proc/loadavg")
+
+          figure = IO.popen(["uptime"], &:read)[UPTIME_LOAD, 1]
+          figure && Float(figure.delete_suffix(",").tr(",", "."))
         rescue StandardError
           nil
         end

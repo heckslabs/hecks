@@ -1,53 +1,24 @@
 require "spec_helper"
 
-# Pipeline adapters answer "did X land, when, in which batch" from the ledger and the event journal;
-# a raw read of git history is allowed only where the answer is a git fact (remote carriage, commit
+# Adapters answer "did X land, when, in which batch" from the ledger and the event journal; a raw
+# read of git history is allowed only where the answer is a git fact (remote carriage, commit
 # ancestry, ordering, counts), and each such file is listed here with the reason. The scan covers
-# `lib/hecks/hecks/adapters` and `lib/hecks/pipeline_board`; the vendored delivery adapters under
-# `embryonaut_bluebooks` are outside it on purpose.
+# `lib/hecks/hecks/adapters`; the vendored delivery adapters under `embryonaut_bluebooks` are
+# outside it on purpose.
 module GitHistoryReads
   ROOT = File.expand_path("..", __dir__)
-  ROOTS = %w[lib/hecks/hecks/adapters lib/hecks/pipeline_board].freeze
+  ROOTS = %w[lib/hecks/hecks/adapters].freeze
   SUBCOMMANDS = %w[log rev-list show merge-base name-rev describe cat-file].freeze
   QUOTED = /"(?:#{SUBCOMMANDS.join("|")})"/
   SHELLED = /\bgit (?:-C \S+ )?(?:#{SUBCOMMANDS.join("|")})\b/
   GIT_WORD = /\bgit\b/i
   ALLOWED = {
-    "branch_pruning/reading.rb"               => "whether main holds a branch's commits, and the ones it lacks: ancestry",
-    "claude_cleaning/worktree_check.rb"       => "unpushed commits of a worktree before removal: a checkout fact",
-    "codebase/bluebook_extraction.rb"         => "merge-base picks the diff base of the bluebooks a branch changed: ancestry",
-    "codebase/impacted_specs.rb"              => "merge-base picks the diff base of a branch: ancestry is git",
-    "codebase/release_facts.rb"               => "trailer of the commit that set the version: message text is git",
-    "desktop_alert.rb"                        => "subjects of the commits a push carried, shown in a notification",
-    "dispatching/landed_since.rb"             => "commit time of a given sha; no event yet carries the landed time",
-    "doctor_reading.rb"                       => "commits main is ahead of origin/main: the remote's state is git",
-    "first_commit_facts.rb"                   => "the branch's first commit since main and its files: ancestry",
-    "main_integration/commit_age.rb"          => "commit time of a run's landed sha in its checkout: a commit fact",
-    "main_spec_run.rb"                        => "a commit's own spec file text, to try it on main's tree: content is git",
-    "git_launcher.rb"                         => "whether the train's copy already holds a pushed commit: never move it back",
-    "git_refs.rb"                             => "ancestry, first-parent order and commit times: the ledger has no parentage",
-    "git_rehearsal/due.rb"                    => "how far main is ahead of its tracking branch and since when",
-    "git_rehearsal/due/remote.rb"             => "how far main is behind its tracking branch and that branch's tip",
-    "git_rehearsal/due/unpushed.rb"           => "the unpushed commits' subjects and times: the commits are git",
-    "git_rehearsal/record.rb"                 => "orders rehearsal records by ancestry, else commit time",
-    "git_train.rb"                            => "commits a boarding carries beyond the remote: the push has not happened",
-    "git_train/carriage.rb"                   => "what the remote carries after a push and what waits behind it",
-    "git_train/landings.rb"                   => "merges a boarding carries beyond the remote main, read before BranchPushed",
-    "git_shallow_check/strays.rb"             => "lines a branch's tree removes against main: content is git",
-    "git_train/pull_request_boarding.rb"      => "commits waiting behind a boarded commit on main: ancestry",
-    "git_train/reverting.rb"                  => "parent count of a merge decides how it is reverted: commit shape",
-    "git_train/survey.rb"                     => "newest commit and ahead counts of each branch: ancestry",
-    "git_worktrees.rb"                        => "commit counts between refs of a worktree: ancestry",
-    "github_branch_ci/baseline.rb"            => "merge-base finds the commit a coder's branch was cut from: ancestry",
-    "github_pull_requests/train_sweep.rb"     => "whether a commit is in main: the squash lands after the push",
-    "landing/conflict_settling.rb"            => "the base, ours and theirs of a path in conflict: index stages are git",
-    "main_integration/boarded_check.rb"       => "whether a train commit is in the remote main: remote carriage",
-    "main_integration/carried_check.rb"       => "whether origin/main carries a landed commit, squash too: remote",
-    "main_integration/newest_first.rb"        => "unpushed commits of main in topological order: ancestry",
-    "main_integration/repository.rb"          => "merges and messages between two commits: no parentage in the ledger",
-    "main_integration/standing.rb"            => "commits since a landed one, direct and adopted included: a count",
-    "run_activity.rb"                         => "time of the newest commit not on origin: unpushed work of a checkout",
-    "pipeline_board/adapters/pipeline_git.rb" => "board facts about main, origin, stable: ahead counts, times"
+    "codebase/bluebook_extraction.rb" => "merge-base picks the diff base of the bluebooks a branch changed: ancestry",
+    "codebase/impacted_specs.rb"      => "merge-base picks the diff base of a branch: ancestry is git",
+    "codebase/release_facts.rb"       => "trailer of the commit that set the version: message text is git",
+    "doctor_reading.rb"               => "commits main is ahead of origin/main: the remote's state is git",
+    "git_refs.rb"                     => "ancestry, first-parent order and commit times: the ledger has no parentage",
+    "work_landings.rb"                => "the commit on main whose branch or message names a work item: ancestry"
   }.freeze
 
   module_function

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../../../../quality_control/adapters/qa_auto_mint"
+require_relative "../../auto_mint"
 
 module Hecks
   module Adapters
@@ -8,9 +8,9 @@ module Hecks
       module Readings
         module MintPlan
           # The command line that runs the mint the plan found would go ahead: the Hecks domain's
-          # `SchemaRevision.mint_held!`, or `Maintenance.mint_era!`. Whatever the run supplies
-          # is a `<placeholder>`; the rest is read from the store. `--confirm` is added when the
-          # auto-mint rule (`QaAutoMint.held_reason`) holds the mint for the owner.
+          # `SchemaRevision.mint_held!`, or another ledger's `Maintenance.mint_era!`. Whatever the
+          # run supplies is a `<placeholder>`; the rest is read from the store. `--confirm` is added
+          # when the auto-mint rule (`AutoMint.held_reason`) holds the mint for the owner.
           class CommandLine
             # @param held [HeldDomain] the loaded domain
             # @param verdict [LineageManager::MintDecision::Verdict] the decision
@@ -46,8 +46,8 @@ module Hecks
             # The owner's confirmation, unless the auto-mint rule lets the mint run without it.
             def confirm?
               from = @latest[:label]
-              facts = { verdict: @verdict, from: from }.merge(QaAutoMint.edge_facts(@held, @held.directory, from))
-              !QaAutoMint.held_reason(facts, refusal_total: 0).nil?
+              facts = { verdict: @verdict, from: from }.merge(AutoMint.edge_facts(@held, @held.directory, from))
+              !AutoMint.held_reason(facts, refusal_total: 0).nil?
             end
           end
         end

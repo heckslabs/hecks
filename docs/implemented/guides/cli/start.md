@@ -46,4 +46,12 @@ A way into the framework opened for a project: its launchers, or an MCP server.
 - `hecks Launch.project_cli! [<domains>]`: Write a command-line launcher beside each domain of this project
 - `hecks init! <name> [adapter=] [dir=]`: Write the stub files of a new domain
 - `hecks Launch.project_rails! [<dir>]`: Write the controllers and routes a Rails app drives its domain through
+
+### Workspace
+
+A look at how this copy of Hecks is set up: its settings, its stores and whether it can run here.
+
+- `hecks config [<domain>]`: What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it.
+- `hecks doctor [<domain>]`: Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
+- `hecks Workspace.where [<domain>]`: Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
 <!-- generated:end cli -->

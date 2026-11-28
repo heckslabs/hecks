@@ -18,15 +18,11 @@ name: Nightly main
 # for the feature-binaries cache in ghcr), because GitHub checks the grant before the run starts.
 #
 # When it is red, `report` opens one issue for the day (or comments on it if a rerun is also red)
-# that names the failed jobs. To feed the QA tick's CI watch, run
-# `exe/hecks quality_control main_run.request! run=<this run's id>` (Hecks::QualityControl
-# MainRun / RedSpec read it with lib/hecks/quality_control/adapters/run_reader.rb). The run id is
-# in the issue.
+# that names the failed jobs. The run id is in the issue.
 #
 # Try it once by hand: gh workflow run nightly-main.yml, then watch it with gh run watch. Look for
 # the log line "[check-attestation] Nightly main runs every check" in each attestation step and for
-# no job reporting "skipped" other than ci_attest_write, inherit_certification and the path-gated
-# ones that say so.
+# no job reporting "skipped" other than ci_attest_write and the path-gated ones that say so.
 on:
   schedule:
     # 09:23 UTC, about 02:23 Pacific: after the day's pushes, before anyone is awake. Off the hour
@@ -80,9 +76,8 @@ jobs:
           failed=$(gh run view "$RUN_ID" --json jobs \
             --jq '[.jobs[] | select(.conclusion == "failure") | .name] | sort | map("- " + .) | join("\n")')
           [ -n "$failed" ] || failed="- (no job reported a failure; ci finished $CI_RESULT)"
-          # shellcheck disable=SC2016 # the backticks in the body are Markdown, not substitutions
-          body=$(printf 'Run: %s\nCommit: %s\nci result: %s\n\nFailed jobs:\n%s\n\nA green here means every suite ran for real (attestation is ignored). Ask the CI watch about it: `exe/hecks quality_control main_run.request! run=%s`.' \
-            "$url" "$GITHUB_SHA" "$CI_RESULT" "$failed" "$RUN_ID")
+          body=$(printf 'Run: %s\nCommit: %s\nci result: %s\n\nFailed jobs:\n%s\n\nA green here means every suite ran for real (attestation is ignored).' \
+            "$url" "$GITHUB_SHA" "$CI_RESULT" "$failed")
           # The kind: and severity: labels a Finding issue carries (what lane-watch files), plus this workflow's own.
           for label in kind:ci severity:high nightly-main; do
             gh label create "$label" --force >/dev/null 2>&1 || true

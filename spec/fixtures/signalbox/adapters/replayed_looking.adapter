@@ -1,7 +1,0 @@
-# Binds the `Looking` port to `ReplayedLooking`, for `signalbox.behaviors`, which must not read git,
-# the machine or Delegate's records.
-require "hecks/signalbox/adapters/replayed_looking"
-
-Hecks.adapter "ReplayedLooking" do
-  port "Looking"
-end

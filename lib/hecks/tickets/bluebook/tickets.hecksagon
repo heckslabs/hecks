@@ -3,18 +3,6 @@
 Hecks.hecksagon "Tickets" do
   attaches "Governance"
   persisted_by "Memory"
-
-  # The Hecks domain's landing found the step a landed branch was cut for: CloseWorkWhenBranchLanded reacts.
-  subscribe "Delivery.LandedWorkFound"
-
-  # The Hecks domain's landing job refused a branch a coder can fix: RefuseWorkWhenLandingRefused reacts.
-  subscribe "Delivery.RefusedWorkFound"
-
-  # The Hecks domain's landing job died with nothing recorded: RefuseWorkWhenALandingJobFaulted reacts.
-  subscribe "Hecks.FaultedWorkFound"
-
-  # The Hecks domain declined a run: YieldWhenItsRunIsDeclined returns the run's started work item.
-  subscribe "Hecks.AgentRunDeclined"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

@@ -1,5 +1,9 @@
 # Lanes, the push train and releases
 
+<!-- dead-name-check: skip-file -->
+
+> This guide describes the development pipeline, which moved to Switchyard (ADR 0205). Its commands run from a Switchyard checkout, not from Hecks.
+
 Read this before you board the train, change a lane or a required check, or work on promotion
 or a release. `CLAUDE.md` holds the rules every session needs; this holds the detail. Nothing
 here widens them: an agent never pushes `main` but by the train, never sets `HECKS_OWNER_PUSH`,

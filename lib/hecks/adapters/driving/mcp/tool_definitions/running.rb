@@ -14,7 +14,8 @@ module Hecks
               {
                 name:        "run",
                 description: "Run a command by the name the launcher takes, in any of its spellings " \
-                             "(Work.revise!, SendTrain.board!, Hecks::SendTrain.Board, send_train.board!), an attached " \
+                             "(Work.revise!, ModelCheckRun.model_check!, Hecks::ModelCheckRun.ModelCheck, " \
+                             "model_check_run.model_check!), an attached " \
                              "bluebook's command unprefixed. The line is resolved and refused exactly as `exe/hecks` " \
                              "resolves and refuses it. A command that declares `confirm` is refused: it runs only on " \
                              "the command line. Answers the launcher's exit status and its answer, parsed when it is " \

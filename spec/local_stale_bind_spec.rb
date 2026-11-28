@@ -1,6 +1,6 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/hecks/adapters/main_integration/local_overlay"
+require "hecks/hecks/adapters/local_overlaying/local_overlay"
 
 # A checkout's gitignored local hecksagon outlives an aggregate the bluebook retires. A bind there
 # to an aggregate the bluebook does not declare is left out and said, so a stale overlay never
@@ -73,10 +73,10 @@ RSpec.describe "a stale bind in a local hecksagon" do
   end
 
   it "rewrites hecks.local.hecksagon from the rows, dropping a line the rows do not name" do
-    write(Hecks::Adapters::MainIntegration::LocalOverlay::PATH, "  Hecks::Retired.persisted_by(\"SqlitePersistence\")\n")
+    write(Hecks::Adapters::LocalOverlay::PATH, "  Hecks::Retired.persisted_by(\"SqlitePersistence\")\n")
     rows = [{ domain: "Hecks", aggregate: "Ticker", checkout: "main", reason: "kept" }]
-    Hecks::Adapters::MainIntegration::LocalOverlay.new(dir, rows, "main").write
-    expect(File.read(File.join(dir, Hecks::Adapters::MainIntegration::LocalOverlay::PATH))).not_to include("Retired")
+    Hecks::Adapters::LocalOverlay.new(dir, rows, "main").write
+    expect(File.read(File.join(dir, Hecks::Adapters::LocalOverlay::PATH))).not_to include("Retired")
   end
 
   def silence_stderr

@@ -10,7 +10,7 @@ require "hecks/hecks/adapters/local_overlaying"
 RSpec.describe Hecks::Adapters::Driving::KeptCheck do
   before(:all) do
     @registry = boot_hecks_in_memory.registry
-    @rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(@registry)
+    @rows = Hecks::Adapters::KeptRows.from_registry(@registry)
     @stores = Hecks::Adapters::Driving::LedgerStores.registry_rows(@registry)
   end
 
@@ -59,9 +59,9 @@ RSpec.describe Hecks::Adapters::Driving::KeptCheck do
   end
 
   it "names a kept aggregate in the warning for a saga that starts on it, once the domain keeps records" do
-    allow(@registry).to receive(:memory_only?).and_return(false)
+    allow(@registry).to receive_messages(memory_only?: false, kept_rows: [{ domain: "Hecks", aggregate: "PublishingRun" }])
 
-    expect { @registry.verify! }.to output(/Landing is on the dev pipeline's kept list/).to_stderr
+    expect { @registry.verify! }.to output(/PublishingRun is on the cross-call kept list/).to_stderr
   end
 
   it "refuses a copy that is neither main nor train" do

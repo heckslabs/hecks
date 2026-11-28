@@ -51,8 +51,8 @@ module Hecks
         # `:postgres_era` is the only mode that exercises era/lineage-bound SQL: Postgres with
         # `revisions true`, its revision layout. Plain `:postgres` never touches that machinery.
         # Unlike `:postgres`, there's no shared scratch constant here — `database:`/`schema:`
-        # are required keyword args because the caller (`hecks quality_control sweep.run
-        # --persistence-parity`) owns that database's lifecycle.
+        # are required keyword args because the caller (the QualityControl sweep's persistence
+        # parity, in Switchyard) owns that database's lifecycle.
         def rebind_to_postgres_era!(copy, database:, schema:, disposable: true)
           require "hecks/pg_options"
           require_owned_scratch!(database, schema)

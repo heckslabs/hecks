@@ -16,8 +16,8 @@ RSpec.describe Hecks::Doc::Pages do
   end
 
   it "declares each CLI guide with its generated commands as a projected region" do
-    deliver = described_class.live(root).find { |page| page[:path] == "docs/implemented/guides/cli/deliver.md" }
-    expect(deliver[:regions].map { |region| region.values_at(:kind, :source) }).to include(%w[projected cli:deliver])
+    release = described_class.live(root).find { |page| page[:path] == "docs/implemented/guides/cli/release.md" }
+    expect(release[:regions].map { |region| region.values_at(:kind, :source) }).to include(%w[projected cli:release])
   end
 
   it "declares the architecture map, the site routes page and the decision index as live pages" do

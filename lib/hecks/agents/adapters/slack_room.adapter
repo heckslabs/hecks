@@ -1,7 +1,0 @@
-# Binds the `RoomHearing` port to `SlackRoom`, which hears the Slack crew room and appends its posts to the spool.
-# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
-require "hecks/agents/adapters/slack_room"
-
-Hecks.adapter "SlackRoom" do
-  port "RoomHearing"
-end

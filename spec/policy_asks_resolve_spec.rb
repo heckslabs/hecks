@@ -6,11 +6,8 @@ require "spec_helper"
 # every event at run time.
 RSpec.describe "every policy's ask and trigger" do
   # Bluebook directories the walk leaves out, with the reason each one is left out.
-  DELIVERY_DIR = "lib/hecks/vendor/embryonaut_bluebooks/delivery/bluebook".freeze
   WALK_SKIPS = {
-    "lib/hecks/catcher"        => "its boot opens the live ledger, which no spec may do",
-    "lib/hecks/forms/examples" => "an example that needs Hecks::Forms configured, not a domain",
-    DELIVERY_DIR               => "vendored; the Hecks boot attaches it with Governance, so it is walked there"
+    "lib/hecks/forms/examples" => "an example that needs Hecks::Forms configured, not a domain"
   }.freeze
 
   before(:all) do
@@ -80,20 +77,20 @@ RSpec.describe "every policy's ask and trigger" do
     expect(registries.flat_map { |registry| problems(registry) }).to eq([])
   end
 
-  it "walks Delivery inside the Hecks boot, where its roles have Governance" do
-    expect(registries.first.bluebooks.keys).to include("Delivery")
+  it "walks Tickets inside the Hecks boot, which attaches it" do
+    expect(registries.first.bluebooks.keys).to include("Tickets")
   end
 
   it "finds a declared command for a trigger, so the check above is not vacuous" do
-    expect(declares?(registries.first, "Hecks", "Dispatch.Record")).to be(true)
+    expect(declares?(registries.first, "Hecks", "ModelCheckRun.ModelCheck")).to be(true)
   end
 
   it "finds no command for a verb the domain does not declare" do
-    expect(declares?(registries.first, "Hecks", "Dispatch.NoSuchCommand")).to be(false)
+    expect(declares?(registries.first, "Hecks", "ModelCheckRun.NoSuchCommand")).to be(false)
   end
 
-  it "resolves ChooseWhenFilling to the Dispatching port's Choose" do
-    expect(resolved("Hecks", "ChooseWhenFilling")).to eq("Dispatch::Dispatching.Choose")
+  it "resolves AnalyseWhenRequested to the DomainRuntime port's Check" do
+    expect(resolved("Hecks", "AnalyseWhenRequested")).to eq("ModelCheckRun::DomainRuntime.Check")
   end
 
   it "resolves OpenIssueWhenRunReported to the GitHubIssues port's OpenIssue" do

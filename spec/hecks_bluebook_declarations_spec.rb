@@ -3,7 +3,7 @@ require "hecks/hecks/adapters/landing/declarations"
 
 # A bluebook cut into its top-level declarations gives back its text byte for byte.
 RSpec.describe Hecks::Adapters::Landing::Declarations do
-  let(:source) { File.read(File.expand_path("../lib/hecks/hecks/stall_watch/stall_watch.bluebook", __dir__)) }
+  let(:source) { File.read(File.expand_path("../lib/hecks/tickets/bluebook/tickets.bluebook", __dir__)) }
   let(:cut) { described_class.new(source) }
 
   it "gives back a real bluebook byte for byte" do
@@ -11,11 +11,11 @@ RSpec.describe Hecks::Adapters::Landing::Declarations do
   end
 
   it "keys each declaration by its kind and name" do
-    expect(cut.parts.map(&:key)).to include("aggregate StallWatch", "aggregate Stall", "policy DetectOnHeartbeat")
+    expect(cut.parts.map(&:key)).to include("aggregate Finding", "aggregate Work", "policy ReleaseWorkWhenSprintClosed")
   end
 
   it "keeps a declaration's leading comment with it" do
-    expect(cut.by_key["aggregate StallWatch"].text).to start_with("\n    # One look at the event tap")
+    expect(cut.by_key["aggregate Adr"].text).to start_with("\n  # The decision records are their files")
   end
 
   it "holds text with no declaration as its head" do

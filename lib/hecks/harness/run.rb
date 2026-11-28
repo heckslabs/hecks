@@ -40,9 +40,12 @@ module Hecks
       def open(name, brief) = owner("Session.Open", name: { value: name }, brief: { value: brief })
 
       # Opens a session for one of the crew's roles, briefed from its role file (see {Roles}).
+      # The crew's role files live with the pipeline in Switchyard (ADR 0205), so its checkout
+      # names the root they are read from.
       #
+      # @param root [String] the checkout whose `.claude/agents` holds the role files
       # @return [void]
-      def open_role(role) = self.open(role, Roles.brief(role))
+      def open_role(role, root: Roles::ROOT) = self.open(role, Roles.brief(role, root: root))
 
       # Starts a run of one role under its own key, opening its session on the brief, as the Owner.
       # The run holds the session's last report and is finished only when the session ended.
@@ -55,8 +58,9 @@ module Hecks
       # Starts a run of one of the crew's roles under its own key, in a session named for the role
       # and briefed from its role file (see {Roles}).
       #
+      # @param root [String] the checkout whose `.claude/agents` holds the role files
       # @return [void]
-      def start_role(key, role) = start(key, role, Roles.brief(role))
+      def start_role(key, role, root: Roles::ROOT) = start(key, role, Roles.brief(role, root: root))
 
       # Starts a run in a standing seat whose session stopped, as the Owner: the session is reopened
       # on the brief, and its new child starts from the handover the seat's last session left.

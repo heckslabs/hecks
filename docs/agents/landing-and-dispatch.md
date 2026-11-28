@@ -1,5 +1,9 @@
 # Landing, the red flag and dispatch
 
+<!-- dead-name-check: skip-file -->
+
+> This guide describes the development pipeline, which moved to Switchyard (ADR 0205). Its commands run from a Switchyard checkout, not from Hecks.
+
 Read this before you land a branch, work while main is red, inspect an era or touch the QA
 dispatcher. `CLAUDE.md` holds the rules every session needs; this holds the detail.
 

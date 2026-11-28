@@ -141,8 +141,8 @@ module Hecks
           # A trailing `!` says the word is a command and is not part of the name; a name without
           # one reaches a query. `query` before a name reaches the query where a command shares the
           # name, the one case a bare name cannot say (see `BangRule#query_word_refusal`). The name
-          # may be written in the bluebook's verb form (`Hecks::SendTrain.board!`), which reaches
-          # the same command (see `VerbNames`).
+          # may be written in the bluebook's verb form (`Hecks::ModelCheckRun.model_check!`), which
+          # reaches the same command (see `VerbNames`).
           #
           # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent),
           #   `argv`

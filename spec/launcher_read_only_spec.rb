@@ -22,32 +22,31 @@ RSpec.describe Hecks::Adapters::Driving::ReadOnlyQuestion do
 
   # A line may begin with the domain's word, and spell a question with underscores or camel case.
   describe "a line that begins with a domain word" do
-    let(:launcher) { { reads_tap: %w[PipelineBoard.Snapshot] } }
+    let(:launcher) { { reads_tap: %w[Work.Undone] } }
 
     it "answers true for the question after the domain word" do
-      words = %w[pipeline_board PipelineBoard.snapshot width.value=120]
+      words = %w[tickets Work.undone limit.value=5]
       expect(described_class.read_only?(launcher, words)).to be(true)
     end
 
     it "answers true for the question spelled with an underscore" do
-      expect(described_class.read_only?(launcher, ["pipeline_board.snapshot"])).to be(true)
+      expect(described_class.read_only?(launcher, ["work.undone"])).to be(true)
     end
 
     it "answers false for another question of the same domain" do
-      expect(described_class.read_only?(launcher, %w[pipeline_board PipelineBoard.serve!])).to be(false)
+      expect(described_class.read_only?(launcher, %w[tickets Work.start!])).to be(false)
     end
   end
 
-  # The pipeline polls these thousands of times a day; listed, each boots without redriving the
-  # outbox and without opening the stores of aggregates it does not ask about.
+  # A poller asks these many times a day; listed, each boots without redriving the outbox and
+  # without opening the stores of aggregates it does not ask about.
   describe "the Hecks world's listing" do
     let(:described) { Hecks.describe(File.expand_path("../lib/hecks/hecks", __dir__)) }
     let(:polled) do
-      [%w[tickets Work.undone], %w[agent_run.running], %w[agent_run.tidyable], %w[agents PlanReview.reviews],
-       %w[agents Role.guard role.value=coder], %w[agents Role.server_env role.value=orchestrator]]
+      [%w[tickets Work.undone], %w[operation.feed limit=5]]
     end
 
-    it "lists the questions the pipeline polls", :aggregate_failures do
+    it "lists the polled questions", :aggregate_failures do
       polled.each do |line|
         expect(described_class.for_line?(described, line, "Hecks")).to be(true), line.join(" ")
       end
@@ -62,8 +61,8 @@ RSpec.describe Hecks::Adapters::Driving::ReadOnlyQuestion do
     it "reads the listing from the described domain's launcher setting" do
       described = instance_double(Hecks::Runtime::Loader::Described)
       allow(Hecks::Adapters::Driving::LauncherOptions).to receive(:settings).with(described, "Hecks")
-                                                                            .and_return(reads_tap: %w[PipelineBoard.Snapshot])
-      expect(described_class.for_line?(described, ["PipelineBoard.snapshot"], "Hecks")).to be(true)
+                                                                            .and_return(reads_tap: %w[Work.Undone])
+      expect(described_class.for_line?(described, ["work.undone"], "Hecks")).to be(true)
     end
   end
 end

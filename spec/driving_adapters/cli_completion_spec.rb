@@ -16,11 +16,11 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   it "completes a command's full call in zsh" do
-    expect(text("completion", "zsh")).to include("'Shipment.ship!'")
+    expect(text("completion", "zsh")).to include("'GateRun.gate!'")
   end
 
   it "writes a fish script that offers the everyday names" do
-    expect(text("completion", "fish")).to include("Shipment.ship!")
+    expect(text("completion", "fish")).to include("GateRun.gate!")
   end
 
   it "writes a bash script bash accepts" do

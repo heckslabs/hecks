@@ -1,6 +1,6 @@
 //! A role's session: the brief it is told, the tools it may use and the model it runs on.
 //!
-//! A role file (`.claude/agents/<role>.md`, generated from the Agents bluebook) opens with the
+//! A role file (`.claude/agents/<role>.md`, in the checkout whose crew it is) opens with the
 //! frontmatter Claude Code reads. A harness session takes two lines of it: `tools`, the tools the
 //! supervisor lets the session use (beside `send_message`, which every session has), and `model`.
 //! A role whose tools are `*` is started by hand by an owner, with no routing guard, so it is not

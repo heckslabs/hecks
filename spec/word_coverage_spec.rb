@@ -9,7 +9,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # `.bluebook` file could). Uses `InMemoryDomain::ROOT` directly, not
   # aliased to a local `ROOT` — a bare one collides with
   # another spec's own (see load_hygiene_spec.rb).
-  MEMBER_DIRS = %w[bulk ci_pipeline coder composer deploy fixer quality_control rails_app site tenancy tickets].freeze
+  MEMBER_DIRS = %w[bulk deploy rails_app site tenancy tickets].freeze
 
   CORPUS_GLOBS = [
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.bluebook"),
@@ -101,9 +101,9 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "start nothing the parity corpus checks. The word is exercised by " \
                                            "spec/driving_adapters/clock_spec.rb and clock_schedule_spec.rb.",
     "bluebook_from (Hecksagon)"         =>
-                                           "its one real use is qa/bluebook/quality_control.hecksagon, a directory that " \
-                                           "holds only wiring, which no example domain or framework member is. The word " \
-                                           "is exercised there by the QA ledger specs and by its reference doctest.",
+                                           "its one real use, the QA ledger's wiring-only directory, moved to Switchyard " \
+                                           "(ADR 0205); no example domain or framework member holds only wiring. The word " \
+                                           "is exercised by its reference doctest.",
     "inspect_query (Query)"             =>
                                            "a real declaration would be vacuous: no adapter in this codebase implements the " \
                                            "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \
@@ -215,10 +215,21 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "refused, the same structural-impossibility shape `inspect_query (Query)` above " \
                                            "already is, never to succeed and land in a corpus record.",
     "creates_or_acts (Command)"         =>
-                                           "its first real use is Interview.Record in lib/hecks/interviews/" \
-                                           "interviews.bluebook (ADR 0194, decision 5), outside the scanned corpus. " \
-                                           "Exercised by spec/creates_or_acts_spec.rb, the Interviews behaviors and " \
-                                           "the kernel's Hydrate::CreateOrAct guard tests."
+                                           "its first real use, Interview.Record in the Interviews bluebook (ADR 0194, " \
+                                           "decision 5), moved to Switchyard (ADR 0205). Exercised by " \
+                                           "spec/creates_or_acts_spec.rb and the kernel's Hydrate::CreateOrAct guard tests.",
+    "resumes (Saga)"                    =>
+                                           "its real uses were in the development pipeline's bluebooks, which moved to " \
+                                           "Switchyard (ADR 0205), and no example domain uses it yet. The word is " \
+                                           "exercised by its reference doctest.",
+    "cron (Clock)"                      =>
+                                           "its real uses were in the development pipeline's bluebooks, which moved to " \
+                                           "Switchyard (ADR 0205), and no example domain uses it yet. The word is " \
+                                           "exercised by its reference doctest.",
+    "split (TranslationAggregate)"      =>
+                                           "its real uses were in the development pipeline's bluebooks, which moved to " \
+                                           "Switchyard (ADR 0205), and no example domain uses it yet. The word is " \
+                                           "exercised by its reference doctest."
   }.freeze
 
   UNNAMED_WORDS_WHY = <<~WHY.freeze

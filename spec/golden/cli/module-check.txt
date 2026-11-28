@@ -51,14 +51,11 @@ queries (nothing here changes anything):
   StyleRun.report_rust_comments
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery
   deploy
   governance
   tenancy
   site
   tickets
-  composer
-  quality_control
   bluebook
   hecksagon
   world

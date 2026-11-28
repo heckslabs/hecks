@@ -1,7 +1,7 @@
 Hecks.behaviors "Hecks" do
   vision "A release moves tagged, published, verified; the grammar cache moves fresh, stale, fresh."
 
-  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "red_wake.hecksagon", "stable_roll.hecksagon","environments/memory.world", modules: :all
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "stable_roll.hecksagon","environments/memory.world", modules: :all
 
   test "Tag records a version as tagged" do
     tests "Tag", on: "Release"
@@ -10,7 +10,7 @@ Hecks.behaviors "Hecks" do
   end
 
   test "MarkPublished advances a tagged release" do
-    # The setup is spelled in full: the attached QualityControl bluebook also has a `Tag` command.
+    # The setup is spelled in full, naming the domain and aggregate the `Tag` command belongs to.
     tests "MarkPublished", on: "Release"
     setup  "Hecks::Release.Tag", version: { value: "3.0.0" }, ir_version: { value: "1.0.0" }, ships_from: { path: "/work/hecks" }
     input  version: { value: "3.0.0" }
@@ -40,20 +40,6 @@ Hecks.behaviors "Hecks" do
     setup  "Hecks::PromotionRun.Promote", run: { value: "rl-1" }, lane: { value: "stable" }
     input  run: { value: "rl-1" }, refusal: { value: "not promoted: rate limited" }
     expect refused: "Defer moves it only from"
-  end
-
-  # A revert of a named culprit: the episode refuses by name when the failure also reproduces on
-  # origin/main, since reverting the merge would not clear it; the fact is the port's, not a guess.
-  test "Revert of a culprit that reproduces on origin/main is refused" do
-    tests "Revert", on: "RedEpisode"
-    input run: { value: "rv-1" }, base: "b0", culprit: "m1", reproduced: true, now: { value: 100 }
-    expect refused: "origin/main does not share the failure"
-  end
-
-  test "Revert of a named culprit decides the episode is reverting" do
-    tests "Revert", on: "RedEpisode"
-    input run: { value: "rv-2" }, base: "b0", culprit: "m1", landed: "l1", now: { value: 100 }
-    expect emits: ["EpisodeReverting"]
   end
 
   # The ReleaseCut saga: a release is examined, accepted, approved, then carried out. The examiner
@@ -100,27 +86,4 @@ Hecks.behaviors "Hecks" do
     expect refused: "state"
   end
 
-  # A beat runs every policy that hears `Beaten`, so a scenario cannot set one up; the measure of a
-  # taken beat is specified in spec/hecks_heartbeat_measured_spec.rb.
-  test "Measure refuses a beat that was never taken" do
-    tests "Measure", on: "Heartbeat"
-    input  heartbeat: "never-beat", steps: []
-    expect refused: "never-beat"
-  end
-
-  # A beat's look cannot be set up here (see above); the beat's prune is specified in
-  # spec/hecks_rust_care_spec.rb.
-  test "Settle refuses a prune of a look that was never heard" do
-    tests "Settle", on: "RustCare"
-    input  rust_care: "never-look", outcome: { value: "freed 3 MB" }
-    expect refused: "never-look"
-  end
-
-  # The saga leg that parks the run (ci_running to needs_human) is held in
-  # spec/hecks_integration_release_by_landed_spec.rb.
-  test "Release records a run released by its landed commit alone" do
-    tests "Release", on: "Integration"
-    input run: { value: "release-1" }, landed: { value: "a1b2c3" }, report: { value: "train closed" }
-    expect emits: %w[RunReleased]
-  end
 end

@@ -1,9 +1,9 @@
 require "spec_helper"
-require "hecks/hecks/adapters/dispatching/shared_sections"
+require "hecks/hecks/adapters/shared_sections"
 
 # Two work items share a bluebook when both name it by sections and none is common to both; the
 # helper names the file and the other's sections, and says nothing of a real overlap or of none.
-RSpec.describe Hecks::Adapters::Dispatching::SharedSections do
+RSpec.describe Hecks::Adapters::SharedSections do
   it "names the file two work items share and the sections the other holds" do
     shared = described_class.between(["lib/x/x.bluebook#Coder"], ["lib/x/x.bluebook#Brief,Turn"])
     expect(shared.map(&:to_a)).to eq([["lib/x/x.bluebook", %w[Brief Turn]]])

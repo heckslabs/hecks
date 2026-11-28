@@ -28,8 +28,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     operation.run operation.refresh_projections operation.run_behaviors operation.open_console
     operation.smoke_test operation.smoke_http operation.outcome operation.failed
     operation.follow operation.abandon_outbox_row operation.redrive_outbox host.check_era host.recheck host.standing
-    host.drifted send_train.board send_train.outcome landing.land landing.train landing.retire landing.discard landing.outcome
-    landing.unlanded workspace.status workspace.changes workspace.history
+    host.drifted
     schema_revision.hold_first schema_revision.merge_tail schema_revision.reattest
     schema_revision.backfill_projections schema_revision.compact schema_revision.compact_heki
     schema_revision.settlement schema_revision.abandoned schema_revision.scaffold_translation schema_revision.audit_translation
@@ -40,7 +39,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     build.build_host build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
     fuzz_run.bench fuzz_run.conclusion fuzz_run.halted fuzz_run.generate_sequence
-    rehearsal_run.request agent_run.dispatch agent_run.check dispatch.fill dial.turn
+    rehearsal_run.request
   ].freeze
 
   SHELF_BLUEBOOK = <<~RUBY.freeze
@@ -157,8 +156,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
   end
 
-  # `send_train.board` as a command's help prints it: the aggregate as the bluebook spells it, then
-  # the command. A query's help keeps the snake-case name.
+  # `model_check_run.model_check` as a command's help prints it: the aggregate as the bluebook
+  # spells it, then the command. A query's help keeps the snake-case name.
   def verb_form(verb) = verb.sub(/\A[^.]+/) { |aggregate| aggregate.split("_").map(&:capitalize).join }
 
   describe "model_check" do

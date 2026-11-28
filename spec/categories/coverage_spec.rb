@@ -19,14 +19,13 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
   # behavior a domain shows; each is held where its table is projected and checked.
   VOCABULARIES_ELSEWHERE = {
     "CargoReservedName"     => "names the Rust build refuses; spec/rust_vocabulary_spec.rb",
-    "CiGate"                => "CI jobs, held by spec/tools_ci_gates_spec.rb",
     "Comparison"            => "expression operators, held by spec/operator_conformance_spec.rb",
     "DispatchStage"         => "the stages a refusal comes from, held by spec/runtime/refusal_classification_spec.rb",
     "FieldHint"             => "form field hints, held by spec/field_hint_conformance_spec.rb",
     "GateCheck"             => "the checks of a gate stage, held by spec/gate_spec.rb",
     "GateStage"             => "the stages of the gate, held by spec/gate_spec.rb",
     "IncludeHaystack"       => "grammar table, held by spec/vocabulary_conformance_spec.rb",
-    "Lane"                  => "release lanes, held by spec/tools_lanes_spec.rb",
+    "Lane"                  => "release lanes, held by spec/hecks_promotion_spec.rb",
     "LoadOrder"             => "grammar table, held by spec/vocabulary_conformance_spec.rb",
     "NormalisationStrategy" => "grammar table, held by spec/vocabulary_conformance_spec.rb",
     "PrebuiltBinary"        => "release artifacts, held by spec/rust_build_prebuilt_binary_spec.rb",
@@ -37,11 +36,8 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
     "RefusalKind"           => "the sorts of refusal, held by spec/runtime/refusal_classification_spec.rb",
     "RefusalSiteArgument"   => "refusal wording rows, pinned by the IR golden",
     "RefusalTemplate"       => "refusal wording rows, pinned by the IR golden",
-    "RehearsalScope"        => "the stages a push rehearsal runs, held by spec/adapters/driven/git_rehearsal_scope_spec.rb",
-    "RehearsalStage"        => "the gate or impacted-spec step of a rehearsal, held by " \
-                               "spec/adapters/driven/git_rehearsal_scope_spec.rb",
     "ReleaseFile"           => "release bookkeeping, held by spec/release/",
-    "RequiredCheck"         => "release checks, held by spec/tools_lanes_spec.rb",
+    "RequiredCheck"         => "release checks, held by spec/hecks_promotion_spec.rb",
     "RequiredTextName"      => "command result names, held by spec/hecks_model_check_blank_results_spec.rb",
     "CheckConclusion"       => "what a check conclusion means, held by spec/check_conclusion_spec.rb",
     "RetiredScript"         => "retired tooling, held by spec/bin_holds_no_script_spec.rb",
@@ -60,7 +56,7 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
   DOOR_NAMES = { "Ruby" => "ruby", "Cli" => "cli", "Json" => "json", "Mcp" => "mcp" }.freeze
 
   DOORS_ELSEWHERE = {
-    "Web"   => "the Composer's live editor, a development tool no domain is served through",
+    "Web"   => "a browser door no domain in this repository is served through",
     "Clock" => "a schedule, not a caller: spec/driving_adapters/clock_spec.rb fires its dispatches"
   }.freeze
 
