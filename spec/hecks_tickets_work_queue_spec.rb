@@ -93,7 +93,7 @@ RSpec.describe "the Work queue" do
   it "returns a started step to planned when its claim goes stale" do
     plan("work/stale")
     start("work/stale")
-    run_cli("work.release!", "to=work/stale")
+    run_cli("work.release!", "to=work/stale", "wrap_up.value=left the spec")
 
     expect(status_of("work/stale")).to eq("planned")
   end

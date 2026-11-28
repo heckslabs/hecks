@@ -875,6 +875,9 @@ Hecks.bluebook "Tickets" do
     attribute :detail, WorkText, optional: true
     attribute :step,   Step, optional: true
     attribute :reason, WorkText, optional: true
+    # What the coder who released the item did, left and watched: the next session reads it. A
+    # release sets it, a finish clears it, and a start leaves it.
+    attribute :wrap_up, WorkText, optional: true
     # Why the item is held: its area names nothing. Empty when it is not held. A held item stays
     # planned and in the undone list, but no session starts it until its area names something.
     attribute :held_reason, WorkText, optional: true
@@ -1450,12 +1453,16 @@ Hecks.bluebook "Tickets" do
       emits "WorkRefused"
     end
 
-    # A claim gone stale returns its work item to the plan, so the next session can claim it.
+    # A coder who lets go of a work item returns it to the plan, so the next session can claim it,
+    # and says what it did, left and watched: the wrap-up stays on the item for that session.
     command "Release" do
-      goal "Return a started work item to planned, releasing its claim and recording the pomodoros spent"
+      goal "Return a started work item to planned, releasing its claim and recording the pomodoros spent and the wrap-up"
 
       reference_to Work
       attribute :pomodoros_spent, Pomodoros, optional: true, sets: true
+      attribute :wrap_up, WorkText, sets: true
+
+      given("a released work item carries a wrap-up: what was done, left and watched") { !wrap_up.value.to_s.empty? }
 
       sets :claimed_by, to: ""
       sets :claimed_at, to: ""
@@ -1510,6 +1517,7 @@ Hecks.bluebook "Tickets" do
       sets :retry_at, to: ""
       sets :yield_count, to: 0
       sets :refusal, to: ""
+      sets :wrap_up, to: ""
 
       emits "WorkFinished"
     end

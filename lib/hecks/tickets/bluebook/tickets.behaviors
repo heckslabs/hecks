@@ -752,6 +752,24 @@ Hecks.behaviors "Tickets" do
     expect pomodoros_spent: { value: 4 }
   end
 
+  test "Release records the wrap-up and returns a started item to planned" do
+    tests "Release", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "rl1" }, title: { value: "Released" }
+    setup  "Tickets::Work.Start", work: { value: "rl1" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
+    input  work: { value: "rl1" }, wrap_up: { value: "did A; left B; watch C" }
+    expect status: "planned", wrap_up: { value: "did A; left B; watch C" }, emits: ["WorkReleased"]
+  end
+
+  test "Release refuses an empty wrap-up" do
+    tests "Release", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "rl2" }, title: { value: "Silent" }
+    setup  "Tickets::Work.Start", work: { value: "rl2" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
+    input  work: { value: "rl2" }, wrap_up: { value: "" }
+    expect refused: "a released work item carries a wrap-up: what was done, left and watched"
+  end
+
   test "Size refuses a done work item" do
     tests "Size", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "sz4" }, title: { value: "Over" }

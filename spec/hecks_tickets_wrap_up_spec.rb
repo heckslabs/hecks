@@ -28,7 +28,7 @@ RSpec.describe "a coder's wrap-up on a released work item" do
   it "refuses a release that carries no wrap-up" do
     started("wrap/none")
 
-    expect(release("wrap/none", nil)).to include("refused")
+    expect(release("wrap/none", nil)).to include("absent_argument")
   end
 
   it "refuses a release whose wrap-up is empty and leaves the item started" do
