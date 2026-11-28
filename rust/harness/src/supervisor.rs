@@ -534,7 +534,7 @@ impl<W: Write> Supervisor<W> {
                 self.write(session, &protocol::control_success(request_id, answer))?;
                 let mut fields = vec![
                     ("session", Value::text(session)),
-                    ("tool", Value::text(tool.clone())),
+                    ("tool", Value::text(tool)),
                 ];
                 if let Some(role) = role {
                     fields.push(("role", Value::text(role)));
@@ -687,8 +687,9 @@ fn control_success(request_id: &str, reply: Value) -> String {
 
 /// Why `tool` is refused, in the words the model is told: the role's name when the session has one.
 fn withheld(tool: &str, role: Option<&str>) -> String {
-    match role {
-        Some(role) => format!("{tool} is withheld from {role}: it holds send_message and the tools its role names."),
-        None => format!("{tool} is withheld in this session: it holds send_message and the tools its role names."),
-    }
+    let whose = role.map_or_else(
+        || "in this session".to_string(),
+        |role| format!("from {role}"),
+    );
+    format!("{tool} is withheld {whose}: it holds send_message and the tools its role names.")
 }
