@@ -628,10 +628,9 @@ Hecks.bluebook "Harness" do
     end
   end
 
-  # A sprint's baseline: the crew's tokens per minute, items finished per hour and cache hit rate over
-  # one hour of the sprint, read the same way every time so a later reading compares like for like.
-  # The day is held here as a plain ISO date, not a reference to the Tickets sprint: the
-  # `BaselineRecorded` event on the shared bus is what shows on the sprint record.
+  # A sprint's baseline: the crew's tokens per minute, items per hour and cache hit rate over one hour.
+  # The day is a plain ISO date, not a reference to the Tickets sprint: the `BaselineRecorded` event
+  # on the shared bus is what shows on the sprint record.
   aggregate "Baseline" do
     description "One reading of the crew over an hour of a sprint: tokens per minute, items per hour and cache hit rate, once per sprint and window."
 
@@ -647,8 +646,7 @@ Hecks.bluebook "Harness" do
     attribute :by_role,           RoleFigures
     created_by "Baseline.Record"
 
-    # The sprint day and the window it was read over, joined with a slash: a sprint has one reading
-    # of each window.
+    # The sprint day and the window, joined with a slash: a sprint has one reading of each window.
     value_object "BaselineKey" do
       attribute :value, String, pattern: '\A[0-9]{4}-[0-9]{2}-[0-9]{2}/(first_hour|hour_4)\z'
     end
@@ -687,15 +685,12 @@ Hecks.bluebook "Harness" do
       invariant("a rate is between 0 and 1") { value >= 0 && value <= 1 }
     end
 
-    # The same figures by crew role, one `role=tokens_per_minute/cache_hit_rate` entry per role, as
-    # the CrewUsage reading prints them.
+    # One `role=tokens_per_minute/cache_hit_rate` entry per crew role, as the reading prints them.
     value_object "RoleFigures" do
       attribute :value, String, default: ""
     end
 
-    # The reading of one window, for a day and the window's start, read and never written: the
-    # crew's tokens per minute and cache hit rate by role from the session transcripts, and the items
-    # finished per hour from the tap. The window is always sixty minutes.
+    # The text the Reading query returns: one `name: value` line per figure.
     value_object "Document" do
       attribute :text, String
     end
