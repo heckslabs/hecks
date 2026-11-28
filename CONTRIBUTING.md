@@ -10,8 +10,8 @@ it explains the four tools this project uses instead of trusting a
 green suite by itself, and a change that skips them is one someone else
 has to re-verify by hand.
 
-Agents land work on `main` with `hecks landing.land! --confirm` and then
-`hecks send_train.board! --confirm`; they do not open pull requests for it. A pull
+Agents land work on `main` through the development pipeline, which lives in Switchyard
+(ADR 0205): its `landing.land!` and then `send_train.board!`; they do not open pull requests for it. A pull
 request is for outside authors, and for a change that needs a reviewer's
 eyes before it lands.
 
@@ -84,7 +84,7 @@ codegen-drift checks, and rustfmt), concurrently, and reports the results in a f
 and say why in the push (or the PR).
 
 `main` takes pushes with no gate, so a push of only `main` skips the suite and runs only the `quick` checks (shape ledger, rubocop, the
-comment-style checks, secret output, adapter words; run them yourself with `hecks gate_run.gate! stage=quick --wait`); CI runs the rest after the push; `hecks send_train.board! --confirm full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
+comment-style checks, secret output, adapter words; run them yourself with `hecks gate_run.gate! stage=quick --wait`); CI runs the rest after the push; Switchyard's `send_train.board! --confirm full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
 lanes are unguarded is the `Lane` rows of the Vocabulary bluebook, not this file.
 
 ### Fast local iteration
@@ -184,11 +184,11 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   from one source shape, which the mint and CI refuse. The second to merge rebases, regenerates
   their edge from the merged shape, and moves the ledger again.
 - **The push train is optional.** `~/.claude/hecks-train` in the maintainer's setup is a detached
-  checkout that pushes through `hecks send_train.board! --confirm` so several agents' pushes run one at a
+  checkout that pushes through Switchyard's `send_train.board! --confirm` so several agents' pushes run one at a
   time. A person can push with plain `git push`; the hook runs the same gate. To run a train of
   your own, make a detached checkout of this repository, give it an `environments/local.world`
-  naming a database on your own Postgres, and push from it with
-  `exe/hecks send_train.board! --confirm checkout=<your clone> remote=origin branch=main --wait`. It merges
+  naming a database on your own Postgres, and push from it with Switchyard's
+  `send_train.board! --confirm checkout=<your clone> remote=origin branch=main --wait`. It merges
   commits that reached `origin/main` meanwhile and retries, as a plain push would not.
 
 ## Verification beyond the suite
@@ -322,7 +322,7 @@ shows it now.
   come from `stable`. `.github/workflows/lane-watch.yml` runs hourly and, through
   `hecks promotion_run.watch!`, fails the run (GitHub's failed-run email says so) when `stable` has stood
   behind `main` for longer than its `Lane` row's `alert_after` hours.
-  `hecks regeneration_run.project_lanes!` writes these
+  Switchyard's `regeneration_run.project_lanes!` writes these
   files from the rows, and with `--live` compares the rulesets GitHub holds
   with them.
 - **The repository's rulesets require no approving review.** The committed
@@ -330,7 +330,7 @@ shows it now.
   rule and the required status checks, and no pull-request review rule. There
   is no CODEOWNERS file. Branch protection and any review setting GitHub
   holds beyond these files are not in the repository; compare them with
-  `hecks regeneration_run.project_lanes! --live`.
+  Switchyard's `regeneration_run.project_lanes! --live`.
 - **Merged pull requests may carry no recorded reviews.** Check the recent
   ones with
   `gh pr list --state merged --limit 60 --json number,reviews,reviewDecision`.
@@ -373,7 +373,7 @@ above:
 ### What the pre-push hook is and is not
 
 `.githooks/pre-push` can be bypassed with `git push --no-verify`, and a push of
-only `main` skips it unless the push asks for the full gate (`hecks send_train.board! --confirm full_gate.value=true`). When it
+only `main` skips it unless the push asks for the full gate (Switchyard's `send_train.board! --confirm full_gate.value=true`). When it
 runs and a signing key is present in the keychain, it writes an HMAC
 attestation note keyed by the tree hash, and CI uses that note to skip the
 checks the note names. The note is evidence that someone holding the key

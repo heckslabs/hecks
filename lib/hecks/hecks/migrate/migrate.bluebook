@@ -256,10 +256,10 @@ Hecks.bluebook "Hecks" do
         emits ReconcileRequested
       end
 
-      # Mints the Hecks domain's next era when its shape moved, through the mint transaction the
-      # QualityControl mint uses. The journal store decides again at the live watermark: only a
+      # Mints the Hecks domain's next era when its shape moved, through the journal store's mint
+      # transaction. The journal store decides again at the live watermark: only a
       # `would_mint` decision mints, and a shape that did not move answers `no_change` and mints nothing.
-      # The rehearsal verdict and watermark are optional, since the push train asks with neither.
+      # The rehearsal verdict and watermark are optional.
       command "MintHeld" do
         role "Operator"
         goal "Mint the Hecks domain's next era when its shape moved, before the push train writes"

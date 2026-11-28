@@ -5,7 +5,7 @@ require "json"
 require "open3"
 require "stringio"
 require "hecks/tools"
-require "hecks/tools/ci_gate_decision"
+require "hecks/tools/release_only"
 
 # A release bump inherits its base's certification (ADR 0107). The rule is data, the `ReleaseFile`
 # and `RequiredCheck` rows; this spec pins how the rows are read: which diffs are a bump, when a

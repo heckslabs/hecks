@@ -4,7 +4,7 @@ module Hecks
       module CliRunner
         # Reads the spellings a line may give a command or query. The launcher indexes them by the
         # snake-case `aggregate.verb` the projection prints; the bluebook's own verb form, such as
-        # `Hecks::SendTrain.Board`, reaches the same one. Extended into `CliRunner`.
+        # `Hecks::ModelCheckRun.ModelCheck`, reaches the same one. Extended into `CliRunner`.
         module VerbNames
           # A realm written before the aggregate: `Hecks::`.
           REALM = /\A(?:[A-Z]\w*::)+/
@@ -21,7 +21,7 @@ module Hecks
           end
 
           # A typed name as the projection spells it, to match what was typed against the names it
-          # indexes: `Hecks::SendTrain.bord` as `send_train.bord`.
+          # indexes: `Hecks::ModelCheckRun.model_chek` as `model_check_run.model_chek`.
           #
           # @param typed [String] the word typed, without its `!`
           # @return [String] the realm dropped and each dotted segment in snake case
@@ -29,9 +29,9 @@ module Hecks
 
           private
 
-          # `Hecks::SendTrain.board` as `send_train.board`; a verb that names an entity's command,
-          # `SendTrain.Launcher.Refresh`, also as `send_train.refresh`, the way the projection
-          # exposes it.
+          # `Hecks::ModelCheckRun.model_check` as `model_check_run.model_check`; a verb that names
+          # an entity's command, `Operation.DomainRuntime.Refresh`, also as `operation.refresh`, the
+          # way the projection exposes it.
           def verb_form_names(typed)
             segments = snake_segments(typed)
             [segments.join("."), [segments.first, segments.last].join(".")].uniq

@@ -49,15 +49,12 @@ require_relative "hecks/framework"
 require_relative "hecks/vendoring"
 require_relative "hecks/embryonaut_bluebook"
 
-# The corpus table walks `examples/`, `qa/` and `spec/`, which only a checkout
+# The corpus table walks `examples/` and `spec/`, which only a checkout
 # has, so it loads on first use.
 Hecks.autoload(:Corpus, File.expand_path("hecks/corpus", __dir__))
 
 # The bluebooks a hecksagon can `attaches` by name (ADR 0080); loads on first use.
 Hecks.autoload(:FrameworkBluebooks, File.expand_path("hecks/framework_bluebooks", __dir__))
-
-# The Composer's staging, parse stage and check; loads on first use.
-Hecks.autoload(:Composer, File.expand_path("hecks/composer", __dir__))
 
 # Root namespace and public facade of the DSL/runtime: `Hecks.boot`/`.boot_files`
 # assemble a running domain from `.bluebook`/`.hecksagon`/`.world` files.

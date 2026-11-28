@@ -5,7 +5,7 @@ require_relative "mcp/loading"
 require_relative "mcp/call_boots"
 require_relative "mcp/home_boot"
 require_relative "mcp_scope"
-require_relative "mcp/roles"
+require_relative "mcp/scoping"
 
 module Hecks
   module Adapters
@@ -14,7 +14,7 @@ module Hecks
       # server per booted domain. All logic and the JSON shape answered with live in
       # `Storehouse`; this is plumbing only. A `role:`/`actor_id:` a caller sends is
       # asserted, not verified, unless Governance is attached. `Loading` holds what waits for
-      # the first call that needs it; `Roles` narrows the server to its session's role.
+      # the first call that needs it; `Scoping` reads what the server was spawned to serve.
       #
       # There is no authentication: `domain:` boots real Ruby confined to
       # `Storehouse::BOOT_ROOT`, so this is a code execution surface for anyone who
@@ -47,7 +47,7 @@ module Hecks
         extend Loading
         extend CallBoots
         extend HomeBoot
-        extend Roles
+        extend Scoping
 
         module_function
 

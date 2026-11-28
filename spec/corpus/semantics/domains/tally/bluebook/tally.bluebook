@@ -95,6 +95,18 @@ Hecks.bluebook "Tallying" do
       emits "CountLowered"
     end
 
+    # THE GIVEN READS THE RECORD THROUGH `old` (C2.2): `count` is both this
+    # command's argument and the tally's field. The bare name is the
+    # argument; `old.count` is the count the tally holds before the command.
+    command "Raise" do
+      goal "Set the count, only ever higher"
+      reference_to Tally
+      attribute :count, Count
+      given("the new count is above the one held") { count.value > old.count.value }
+      sets :count
+      emits "CountRaised"
+    end
+
     # THE RULE ADDS FLOATS (C3.4): a sum that is not finite is a FAULT.
     command "Weigh" do
       goal "Add weight, but only while there is some"

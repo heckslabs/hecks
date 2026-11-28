@@ -1,0 +1,62 @@
+name: Path gate
+description: >-
+  Decides whether a change reaches the files a gated job covers, with git alone, and sets the
+  step output `touched` to true or false. The base is the pull request's base, the merge queue's
+  merge base with its target branch, or (for a push, when `push` is `before_sha`) the commit
+  before the push. With no usable base, or when the diff itself fails, it answers true and says
+  why, so a gated job runs rather than being skipped on a guess.
+
+  `mode: touches` answers true when any changed path matches `pattern`; `mode: skips_unless`
+  answers true when any changed path does not match it (the pattern names what cannot matter).
+  The checkout needs full history (`fetch-depth: 0`) so both ends of the diff are real objects.
+inputs:
+  pattern:
+    description: An extended regular expression over repository-relative paths.
+    required: true
+  mode:
+    description: "`touches` or `skips_unless`."
+    required: true
+  push:
+    description: "`before_sha` diffs a push against the commit before it; `skip` answers true for a push."
+    required: false
+    default: before_sha
+outputs:
+  touched:
+    description: "`true` when the gated job should run."
+    value: ${{ steps.decide.outputs.touched }}
+runs:
+  using: composite
+  steps:
+    - id: decide
+      shell: bash
+      env:
+        PATTERN: ${{ inputs.pattern }}
+        MODE: ${{ inputs.mode }}
+        PUSH: ${{ inputs.push }}
+      run: |
+        set -uo pipefail
+        answer() { echo "touched=$1"; echo "touched=$1" >> "$GITHUB_OUTPUT"; exit 0; }
+        head="${GITHUB_SHA:-HEAD}"
+        base=""
+        case "${GITHUB_EVENT_NAME:-}" in
+          pull_request) base=$(jq -r '.pull_request.base.sha // ""' "$GITHUB_EVENT_PATH") ;;
+          merge_group)
+            target=$(jq -r '.merge_group.base_ref // ""' "$GITHUB_EVENT_PATH")
+            base=$(git merge-base "origin/${target#refs/heads/}" "$head" 2>/dev/null || true) ;;
+          push) [ "$PUSH" = "before_sha" ] && base=$(jq -r '.before // ""' "$GITHUB_EVENT_PATH") ;;
+        esac
+        if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+          echo "::warning::path gate: no usable base to diff against; running the gated job rather than guessing"
+          answer true
+        fi
+        if ! changed=$(git diff --name-only "$base" "$head"); then
+          echo "::warning::path gate: git diff itself failed; running the gated job rather than guessing"
+          answer true
+        fi
+        [ -z "$changed" ] && answer false
+        if [ "$MODE" = "touches" ]; then
+          printf '%s\n' "$changed" | grep -Eq -- "$PATTERN" && answer true
+          answer false
+        fi
+        printf '%s\n' "$changed" | grep -Evq -- "$PATTERN" && answer true
+        answer false

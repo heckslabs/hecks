@@ -3,7 +3,6 @@ require "tmpdir"
 require_relative "../lib/hecks/hecks/adapters/journal_store"
 require "hecks/tools/era_reattest"
 require "hecks/tools/era_projection_backfill"
-require "hecks/tools/tail_merge"
 require "hecks/hecks/adapters/journal_store"
 
 # A domain on Memory by default that a copy opts into PostgresEra with `*.local.hecksagon` and
@@ -51,7 +50,7 @@ RSpec.describe "the era tools and a local overlay" do
     end
   end
 
-  [Hecks::Tools::RevisionReattest, Hecks::Tools::RevisionProjectionBackfill, Hecks::Tools::TailMerge].each do |tool|
+  [Hecks::Tools::RevisionReattest, Hecks::Tools::RevisionProjectionBackfill].each do |tool|
     describe tool do
       it "sees the Postgres a local hecksagon names" do
         expect(adapter_after(tool, domain_dir(with_local: true))).to eq("Postgres")

@@ -8,7 +8,7 @@ module Hecks
   module Fuzzing
     # The declared forms an aggregate can exhibit, and the pairs it puts together.
     #
-    # Shared by the combination-coverage spec and `hecks quality_control target.judge_novelty` so
+    # Shared by the combination-coverage spec and the QualityControl novelty judge (Switchyard) so
     # they cannot drift. The unit is one aggregate: forms on one head meet at dispatch, forms in one
     # bluebook do not.
     module FormCensus

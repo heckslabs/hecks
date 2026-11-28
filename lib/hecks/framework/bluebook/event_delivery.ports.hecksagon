@@ -1,6 +1,6 @@
 # The port EventDelivery declares for every hecksagon that attaches it (`Framework.load!` loads it).
 # `Carry` runs one pump over the adapter's domains (ADR 0178); the adapter is the attacher's, and
-# QualityControl's `PumpTools` binds it for the QA ledger.
+# an attaching domain's hecksagon binds it.
 Hecks.hecksagon "EventDelivery" do
   # Its policies' reactions act as `System` (ADR 0216), a role Governance grants.
   attaches "Governance"

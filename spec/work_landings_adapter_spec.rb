@@ -4,8 +4,10 @@ require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/work_landings"
 
-# The WorkLandings port's adapter answers the first landed commit of a work item that `main`
-# contains, and refuses by name when none is: a landing on a branch main never took is no landing.
+# The WorkLandings port's adapter answers a commit of a work item that `main` contains, read from
+# git: the tip of the item's branch, a merge on main that names the branch, or a commit on main
+# with a `Work:` trailer naming the item. It refuses by name when none is: a landing on a branch
+# main never took is no landing, and a key written in prose names nothing.
 RSpec.describe Hecks::Adapters::WorkLandings do
   let(:repo) { File.realpath(Dir.mktmpdir("work-landings")) }
   let(:adapter) { described_class.new(settings: { root: repo }) }
@@ -13,37 +15,64 @@ RSpec.describe Hecks::Adapters::WorkLandings do
 
   def git(*args) = Open3.capture2e("git", "-C", repo, *args).first.strip
 
-  def commit(name)
+  def commit(name, message = name)
     File.write(File.join(repo, name), name)
     git("add", name)
-    git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", name)
+    git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", message)
     git("rev-parse", "HEAD")
   end
 
-  def landings(*shas)
-    items = instance_double(Hecks::Adapters::Dispatching::WorkItems, landed_commits: shas)
-    allow(Hecks::Adapters::Dispatching::WorkItems).to receive(:new).and_return(items)
+  before do
+    git("init", "-q", "-b", "main")
+    commit("base")
   end
-
-  before { git("init", "-q", "-b", "main") }
 
   after { FileUtils.remove_entry(repo) }
 
-  it "answers the landed commit main contains" do
-    landings(commit("a"))
-    expect(adapter.check_landing(work: { value: "w" })).to eq(landing: { value: git("rev-parse", "main") })
+  it "answers the tip of the item's branch once main contains it", :aggregate_failures do
+    git("checkout", "-qb", "fix-the-thing")
+    tip = commit("a")
+    git("checkout", "-q", "main")
+    git("merge", "-q", "--ff-only", "fix-the-thing")
+
+    expect(adapter.check_landing(work: { value: "fix-the-thing" })).to eq(landing: { value: tip })
   end
 
-  it "refuses a work item whose landing main does not contain" do
-    commit("a")
-    git("checkout", "-qb", "aside")
-    landings(commit("b"))
-    expect { adapter.check_landing(work: "w") }.to raise_error(failure, /w has no landing on main/)
+  it "answers a commit on main whose Work trailer names the item" do
+    landed = commit("b", "Fix the thing\n\nWork: fix-the-thing")
+    expect(adapter.check_landing(work: "fix-the-thing")).to eq(landing: { value: landed })
+  end
+
+  # Merges a branch with one commit into a main that has moved on, as a pull request does, and
+  # deletes the branch.
+  def merge_gone_branch(branch)
+    git("checkout", "-qb", branch)
+    commit("e")
+    git("checkout", "-q", "main")
+    commit("f")
+    git("-c", "user.name=t", "-c", "user.email=t@example.com", "merge", "-q", "--no-ff", branch,
+        "-m", "Merge pull request #7 from acme/#{branch}")
+    git("branch", "-qD", branch)
+  end
+
+  it "answers a merge on main that names the branch, after the branch is gone" do
+    merge_gone_branch("fix-the-thing")
+    expect(adapter.check_landing(work: "fix-the-thing")).to eq(landing: { value: git("rev-parse", "main") })
+  end
+
+  it "takes no commit that names the key only in prose, or a longer key in its trailer" do
+    commit("c", "Say fix-the-thing in passing\n\nWork: fix-the-thing-again")
+    expect { adapter.check_landing(work: "fix-the-thing") }.to raise_error(failure, /fix-the-thing has no landing on main/)
+  end
+
+  it "refuses a work item whose branch main does not contain" do
+    git("checkout", "-qb", "fix-the-thing")
+    commit("d")
+    git("checkout", "-q", "main")
+    expect { adapter.check_landing(work: "fix-the-thing") }.to raise_error(failure, /fix-the-thing has no landing on main/)
   end
 
   it "refuses a work item with no landing" do
-    commit("a")
-    landings
     expect { adapter.check_landing(work: "w") }.to raise_error(failure, /w has no landing on main/)
   end
 end

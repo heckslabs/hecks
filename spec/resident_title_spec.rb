@@ -2,7 +2,6 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/adapters/driving/resident/server"
 require "hecks/adapters/driving/resident/stuck"
-require "hecks/agents/adapters/sweeping/orphans/rules"
 
 # The names a resident and its lines show in the process table (ADR 0201), and the idle time a
 # linked worktree's resident takes. The readers of the process table still find what they look
@@ -43,11 +42,6 @@ RSpec.describe Hecks::Adapters::Driving::Resident::Title do
 
     it "holds the worktree's path, which a run's signs of life are read from" do
       expect(described_class.line(script, %w[Work.undone])).to include(root)
-    end
-
-    it "is a launcher to the sweep of leftover processes" do
-      title = described_class.line(script, %w[tickets Work.undone])
-      expect(title).to match(Hecks::Adapters::Sweeping::Orphans::Rules::LAUNCHER)
     end
   end
 

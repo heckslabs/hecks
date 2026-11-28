@@ -54,8 +54,9 @@ RSpec.describe "the resident cap the world declares" do
     expect(crowd.cap_for(@root)).to eq(5)
   end
 
-  it "leaves the cap to the machine's profile where the committed world declares none" do
+  it "leaves the cap to the default where the committed world declares none", :aggregate_failures do
     real = File.expand_path("..", __dir__)
-    expect([resident::WorldCap.for(real), resident::Crowd.derived_cap]).to match([nil, be_a(Integer)])
+    expect(resident::WorldCap.for(real)).to be_nil
+    expect(crowd.cap).to eq(resident::Crowd::DEFAULT_CAP)
   end
 end

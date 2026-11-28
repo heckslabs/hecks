@@ -22,13 +22,8 @@ commands:
   RegenerationRun:
     …
     regenerate_corpus!
-    project_ci_gates!
-    project_ci_pipeline!
-    project_lanes!
-    project_agent_roles!
     project_tools_doc!
     project_glossary!
-    decide_ci_gate!
   KernelRun:
     …
     project_kernel_capabilities!
@@ -49,14 +44,11 @@ queries (nothing here changes anything):
     ir_impact
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery
   deploy
   governance
   tenancy
   site
   tickets
-  composer
-  quality_control
   bluebook
   hecksagon
   world

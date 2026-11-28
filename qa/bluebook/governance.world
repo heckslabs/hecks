@@ -1,9 +1,0 @@
-# Governance's own connection: context_map.hecksagon binds its aggregates to Postgres (revisions),
-# and boot reads this world, named Governance, for the database. It is quality_control.world's
-# database, so one ledger holds both, disposable the same way.
-Hecks.world "Governance" do
-  persisted_by("Postgres") do
-    database "postgres://hecks_qa@localhost/hecks_quality_control"
-    disposable_ledger true
-  end
-end

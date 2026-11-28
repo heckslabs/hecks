@@ -16,18 +16,7 @@ Hecks.context_map "Hecks" do
   context "Deploy"
   context "Site"
   context "Tickets"
-  context "Composer"
-  context "QualityControl"
-  context "Coder"
-  context "Fixer"
-  context "PipelineBoard"
-  context "Pipeline"
-  context "Agents"
-  context "Triage"
-  context "Interviews"
   context "Protocols"
-  context "Delivery"
-  context "Signalbox"
   context "Clients"
 
   # Client material never enters the public repo: Clients (its own bluebook, each client's record
@@ -48,57 +37,9 @@ Hecks.context_map "Hecks" do
   separate_ways "Deploy", "Clients"
   separate_ways "Site", "Clients"
   separate_ways "Tickets", "Clients"
-  separate_ways "Composer", "Clients"
-  separate_ways "QualityControl", "Clients"
-  separate_ways "Coder", "Clients"
-  separate_ways "Fixer", "Clients"
-  separate_ways "PipelineBoard", "Clients"
-  separate_ways "Pipeline", "Clients"
-  separate_ways "Agents", "Clients"
-  separate_ways "Triage", "Clients"
-  separate_ways "Interviews", "Clients"
   separate_ways "Protocols", "Clients"
-  separate_ways "Delivery", "Clients"
-  separate_ways "Signalbox", "Clients"
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
   relate "Deploy" => "Tenancy", as: :anti_corruption_layer
-
-  # Hecks attaches QualityControl, so it conforms to it, and translates the migrate bluebook's
-  # `RehearsalAudited` into QualityControl's `RecordRehearsalVerdict` across that attach, as its
-  # customer: the audit's model stays out of QualityControl's Maintenance, and QualityControl hears
-  # nothing of Hecks. A declared relationship for the pair leaves the attach's conformist unimplied,
-  # so both are written.
-  relate "QualityControl" => "Hecks", as: :conformist
-  relate "QualityControl" => "Hecks", as: :customer_supplier
-
-  # Hecks attaches Agents, so it conforms to it: its delegate bluebook starts a session on Agents'
-  # request events. It also translates its own session events (a job read, a sweep, a declined or
-  # retired run, a heartbeat) into Agents' commands across that attach, as its customer, so Agents
-  # hears nothing of Hecks. A declared relationship for the pair leaves the attach's conformist
-  # unimplied, so both are written.
-  relate "Agents"   => "Hecks", as: :conformist
-  relate "Agents"   => "Hecks", as: :customer_supplier
-  # Agents' hecksagon translates a submitted change into its own commands, so Coder's model stays
-  # out of it.
-  relate "Coder"    => "Agents", as: :anti_corruption_layer
-  # Agents' hecksagon asks the architect when a decision is recorded, from the Tickets events.
-  relate "Tickets"  => "Agents", as: :anti_corruption_layer
-
-  # Hecks attaches Coder, so it conforms to it, and translates its own `JobRead` of a finished coder
-  # run into Coder's `Submission.Submit` across that attach, as its customer: Hecks' AgentRun model
-  # stays out of Coder's, and Coder hears nothing of Hecks. A declared relationship for the pair
-  # leaves the attach's conformist unimplied, so both are written.
-  relate "Coder"    => "Hecks", as: :conformist
-  relate "Coder"    => "Hecks", as: :customer_supplier
-
-  # Delivery's hecksagon block here translates a submitted change into its own landing.
-  relate "Coder"    => "Delivery", as: :anti_corruption_layer
-  # Hecks attaches Delivery, so it conforms to it, and translates its own seen merge and CI answer
-  # into Delivery's `LinkedTree.PullMain` across that attach, as its customer: Delivery hears
-  # nothing of Hecks. A declared relationship for the pair leaves the attach's conformist
-  # unimplied, so both are written.
-  relate "Delivery" => "Hecks", as: :conformist
-  relate "Delivery" => "Hecks", as: :customer_supplier
 end

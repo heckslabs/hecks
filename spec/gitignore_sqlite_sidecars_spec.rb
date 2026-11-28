@@ -6,7 +6,7 @@ require_relative "support/protocols_kept_store"
 # and the `-wal` and `-shm` files beside them are ignored by the repository's own `.gitignore`.
 RSpec.describe "the SQLite sidecar files of the Protocols stores" do
   let(:root) { Dir.mktmpdir("sidecars") }
-  let(:rows) { Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry) }
+  let(:rows) { Hecks::Adapters::KeptRows.from_registry(boot_hecks_in_memory.registry) }
 
   before do
     FileUtils.cp(File.join(InMemoryDomain::ROOT, ".gitignore"), root)

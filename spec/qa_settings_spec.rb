@@ -55,7 +55,7 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
       expect(tiers).to eq([{ upto: 4, seeds: 10, steps: 25 }, { upto: Float::INFINITY, seeds: 50, steps: 100 }])
     end
 
-    it "symbolizes modes' keys, matching what QualityControlDials::MODES has always been" do
+    it "symbolizes modes' keys, as the fuzzer's mode table names them" do
       expect(loaded_settings.modes).to eq(differential: true, ruby_only: true)
     end
 

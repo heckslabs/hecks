@@ -1,7 +1,0 @@
-# Binds the `PressurePosting` port to `ReplayedPressurePosting`, for `signalbox.behaviors`, which must not
-# write the machine's signal file.
-require "hecks/signalbox/adapters/replayed_pressure_posting"
-
-Hecks.adapter "ReplayedPressurePosting" do
-  port "PressurePosting"
-end

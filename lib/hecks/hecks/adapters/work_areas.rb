@@ -5,7 +5,7 @@ require_relative "area_names"
 require_relative "started_work"
 require_relative "wait_keys"
 require_relative "console_capture"
-require_relative "dispatching/shared_sections"
+require_relative "shared_sections"
 
 module Hecks
   module Adapters
@@ -91,7 +91,7 @@ module Hecks
 
       def sharers(key, mine)
         started.reject { |item| item[:key] == key }.flat_map do |item|
-          Dispatching::SharedSections.between(mine, item[:area]).map do |share|
+          SharedSections.between(mine, item[:area]).map do |share|
             "; shares #{share.path} with #{item[:key]} (#{share.theirs.join(", ")})"
           end
         end.join

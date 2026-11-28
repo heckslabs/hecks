@@ -76,18 +76,6 @@ RSpec.describe "the Work queue" do
     expect(cli_text("work.finish!", "to=work/none")).to include("not_found] no Work")
   end
 
-  def policy_named(name) = hecks.registry.bluebook("Tickets").policies.find { |pol| pol.hecks_name == name }
-
-  it "finishes a step when its branch lands, and not when its branch is submitted", :aggregate_failures do
-    expect(policy_named("FinishWhenWorkSubmitted")).to be_nil
-    expect(policy_named("CloseWorkWhenBranchLanded").trigger_command).to eq("Work.Close")
-  end
-
-  it "plans a refused landing's step again for the first two refusals and drops it on the third", :aggregate_failures do
-    expect(policy_named("RefuseWorkWhenLandingRefused").trigger_command).to eq("Work.Refuse")
-    expect(policy_named("DropWorkWhenLandingRefusedThrice").trigger_command).to eq("Work.Drop")
-  end
-
   it "returns a started step to planned with the refusal in its detail and its claim cleared", :aggregate_failures do
     plan("work/refused")
     start("work/refused")

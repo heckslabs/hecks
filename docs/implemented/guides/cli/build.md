@@ -57,13 +57,8 @@ One build of a domain for the Rust host, or a check of that build against Ruby.
 One regeneration of every corpus domain's committed Rust output, or the check that it is current.
 
 - `hecks RegenerationRun.regenerate_corpus! [domains=] [workers=] [--check] --confirm`: Regenerate the Rust output of every corpus domain or the ones named, or with check only compare it
-- `hecks RegenerationRun.project_ci_gates! [--check] --confirm`: Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them
-- `hecks RegenerationRun.project_ci_pipeline! [--check] --confirm`: Project the CiWorkflows rows into their workflow files, or with check only compare them
-- `hecks RegenerationRun.project_lanes! [--check] [--live] --confirm`: Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets
-- `hecks RegenerationRun.project_agent_roles! [--check] --confirm`: Write .claude/agents from the RoleFile rows of the Role aggregate, .claude/hooks/guarded_roles and .claude/hooks/guard_rules.json from its RoutingRule rows, or with check only compare them
 - `hecks RegenerationRun.project_tools_doc! [--check] --confirm`: Write the launcher forms of docs/tools.md from the RetiredScript rows and the command sections of the CLI guides from the module layout, or with check only compare them
 - `hecks RegenerationRun.project_glossary! <domain> bluebook= [--check] --confirm`: Write a bluebook's Ubiquitous Language glossary into its domain's glossary folder, or with check only compare it
-- `hecks RegenerationRun.decide_ci_gate! <gate>`: Say whether this run's change touches what a CiGate row guards, as the gated job's detector
 
 ### KernelRun
 

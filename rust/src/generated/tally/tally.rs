@@ -1729,6 +1729,203 @@ impl LowerArgs {
     }
 }
 
+impl crate::kernel::Fielded for RaiseArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+
+        match name {
+            "count" => Some(Field::Nested(&self.count)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RaiseArgs {
+    pub count: Count,
+}
+
+pub fn dispatch_raise(
+    repo: &mut impl crate::kernel::Repository<Tally>,
+    id: &str,
+    args: RaiseArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Tally> {
+    args.count.check_invariants()?;
+    let with_references = crate::kernel::WithReferences {
+        command_deref: &command_deref,
+        args: &args,
+        owner_deref: &owner_deref,
+    };
+    let seed_projections =
+        crate::kernel::seeded_projections(&with_references, TALLY_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Raise",
+        "Tallying::Tally",
+        "Tally",
+        "tag.value",
+        &with_references,
+        &[crate::kernel::GivenSpec {
+            description: "the new count is above the one held",
+            expr: Expr::Compare {
+                op: crate::kernel::Comparison {
+                    less_than: true,
+                    equal: true,
+                    negated: true,
+                },
+                left: Box::new(Expr::Lookup("count.value")),
+                right: Box::new(Expr::Lookup("old.count.value")),
+            },
+            corrects_event: None,
+        }],
+        None,
+        |record| {
+            record.count = Some(args.count.clone());
+            Ok(())
+        },
+        &[],
+        &tally_invariants(),
+        &["CountRaised"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl RaiseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![("count".to_string(), self.count.to_json())]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl RaiseArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "RaiseArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["count", "id", "tally", "tag"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Raise",
+                    unknown: &unknown,
+                    declared: &["count"],
+                }
+                .render_args(),
+            ));
+        }
+        let required: &[&str] = &["count"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "Raise",
+                    absent: &absent,
+                    declared: &["count"],
+                }
+                .render_args(),
+            ));
+        }
+        let count = Count::from_json(
+            &(match v.get("count").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Raise.count expects Count, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
+        count.check_invariants()?;
+        Ok(Self { count })
+    }
+}
+
+impl RaiseArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "RaiseArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        let unknown = v.unknown_keys(&["count", "id", "tally", "tag"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            crate::kernel::collecting::refuse_each(&unknown, |names| {
+                crate::kernel::Refusal::UnknownArgument(
+                    crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                        command: "Raise",
+                        unknown: names,
+                        declared: &["count"],
+                    }
+                    .render_args(),
+                )
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        let required: &[&str] = &["count"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            crate::kernel::collecting::refuse_each(&absent, |names| {
+                crate::kernel::Refusal::AbsentArgument(
+                    crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                        command: "Raise",
+                        absent: names,
+                        declared: &["count"],
+                    }
+                    .render_args(),
+                )
+            })?;
+        }
+        Ok(())
+    }
+}
+
 impl crate::kernel::Fielded for WeighArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;

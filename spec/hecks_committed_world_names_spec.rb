@@ -1,6 +1,6 @@
 require "hecks"
 
-# The Hecks domain keeps its renamed aggregates in the tables they were written to, and names its
+# The Hecks domain keeps its renamed aggregate in the table they were written to, and names its
 # mint command, in the world that is committed. A development checkout keeps its persistence in
 # local files, so these two facts cannot live there.
 RSpec.describe "the Hecks domain's committed world names" do
@@ -9,13 +9,8 @@ RSpec.describe "the Hecks domain's committed world names" do
   end
   let(:hecks) { registry.bluebook("Hecks") }
 
-  it "stores each renamed aggregate under the table its earlier name wrote" do
-    stored = %w[Workspace SendTrain ReviewRequest].to_h { |name| [name, hecks.aggregate(name).storage_name] }
-    expect(stored).to eq("Workspace" => "checkout", "SendTrain" => "push_train", "ReviewRequest" => "pull_request")
-  end
-
-  it "stores the delivery package's Revision under the table its earlier name wrote" do
-    expect(registry.bluebook("Delivery").aggregate("Revision").storage_name).to eq("commit")
+  it "stores the renamed Workspace under the table its earlier name wrote" do
+    expect(hecks.aggregate("Workspace").storage_name).to eq("checkout")
   end
 
   it "keeps formerly_known_as out of the Hecks bluebooks" do

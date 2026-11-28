@@ -10,7 +10,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   def status(*argv) = run(*argv).last
 
   it "lists a command whose call holds the word" do
-    expect(text("search", "ship")).to include("Shipment.ship!")
+    expect(text("search", "gate")).to include("GateRun.gate!")
   end
 
   it "lists a command found only by its description" do

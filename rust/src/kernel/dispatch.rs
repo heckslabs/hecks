@@ -408,7 +408,8 @@ where
     }
 }
 
-/// `enforce_givens` on an aggregate record.
+/// `enforce_givens` on an aggregate record. `old` names the record as it stands, so a given
+/// reads `old.<field>` even where an argument of the same name hides the bare field (C2.2).
 fn enforce_givens(
     record: &dyn Fielded,
     args: &dyn Fielded,
@@ -417,10 +418,11 @@ fn enforce_givens(
     aggregate_qualified_name: &str,
     id: &str,
 ) -> Result<(), Refusal> {
+    let with_old = WithOld { args, old: record };
     let stage = collecting::mark();
     for given in givens {
         let ctx = EvalContext {
-            args,
+            args: &with_old,
             instance: record,
         };
         if !interpret(&given.expr, &ctx)?.truthy() {
@@ -732,6 +734,11 @@ where
         } else {
             self.args
         };
+        // `old` names the element as it stands, as it does in the element's ensures.
+        let with_old = WithOld {
+            args: given_args,
+            old: element,
+        };
         let stage = collecting::mark();
         for given in self.givens {
             // Handled above; the `corrects` flag field lives on the parent, not the element.
@@ -739,7 +746,7 @@ where
                 continue;
             }
             let ctx = EvalContext {
-                args: given_args,
+                args: &with_old,
                 instance: element,
             };
             if !interpret(&given.expr, &ctx)?.truthy() {

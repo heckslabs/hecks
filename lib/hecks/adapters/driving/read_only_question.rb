@@ -18,7 +18,7 @@ module Hecks
 
         # @param launcher [Hash, nil] the bluebook's `launcher` setting
         # @param words [Array<String>] the command line's words; the question is the first, or the
-        #   second when the first names a domain (`pipeline_board PipelineBoard.snapshot`)
+        #   second when the first names a domain (`tickets Work.undone`)
         # @return [Boolean] true for a question the setting lists under `reads_tap`
         def read_only?(launcher, words)
           return false unless launcher && words.first
@@ -40,7 +40,7 @@ module Hecks
         end
 
         # A question's name as the command line spells it: lower case, dots for its separators,
-        # and no underscores, so `pipeline_board.snapshot` and `PipelineBoard.Snapshot` agree.
+        # and no underscores, so `operation.feed` and `Operation.Feed` agree.
         #
         # @param name [String] a question's name, bare or as the command line writes it
         # @return [String]

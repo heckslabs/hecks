@@ -78,6 +78,15 @@ Hecks.bluebook "CommandReference" do
       emits "MeterRecalled"
     end
 
+    command "Correct" do
+      # A GIVEN READS THE RECORD AS `old` where an argument hides the field it sets.
+      reference_to Meter
+      attribute :reading, Reading
+      given("the corrected reading is below the one held") { reading.units < old.reading.units }
+      sets :reading
+      emits "MeterCorrected"
+    end
+
     command "Log" do
       # OPENS THE METER its serial names, or writes on the one already there.
       creates_or_acts
@@ -324,9 +333,9 @@ persistence. A world's `persisted_by("Postgres")` block, for a hecksagon that se
 names the commands instead:
 
 ```text
-Hecks.world "QualityControl" do
+Hecks.world "Ledger" do
   persisted_by("Postgres") do
-    database "postgres://hecks_qa@localhost/hecks_quality_control"
+    database "postgres://hecks@localhost/ledger"
     mints_era "Maintenance.MintEra"   # one `Aggregate.Command` name, or a list
   end
 end
@@ -432,6 +441,21 @@ account.debit!(amount: { cents: 999 }, narrative: "nothing there")  # ~> GivenNo
 
 The description IS the message, verbatim — which is why a `given` is
 written as a sentence a caller can act on rather than a name.
+
+A bare name in a `given` reads the command's argument first, then the record, so an argument that
+shares a field's name hides that field. `old` names the record as it stands, as it does in an
+`ensures`, so the rule can read both: the argument by its bare name, the record as `old.<field>`.
+
+`Correct` takes a reading named like the field it sets, so its rule reads the argument bare and
+the record as `old.reading`:
+
+```ruby
+corrected = CommandReference::Meter.install!(serial: 11)
+corrected.advance!(units: 10, note: "read")
+corrected.correct!(reading: { units: 8 })
+corrected.reading.units  # => 8
+corrected.correct!(reading: { units: 9 })  # ~> GivenNotMet: the corrected reading is below the one held
+```
 
 ## sets
 

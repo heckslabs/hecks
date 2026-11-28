@@ -4,9 +4,8 @@ require "open3"
 require_relative "tree"
 require_relative "spec_files"
 require_relative "changed_specs"
-require_relative "../git_rehearsal/spec_map"
-require_relative "../git_rehearsal/impacted"
-require_relative "../git_rehearsal/impacted/skips"
+require_relative "spec_map"
+require_relative "spec_skips"
 
 module Hecks
   module Adapters
@@ -15,12 +14,12 @@ module Hecks
       # launcher boot.
       #
       # The changed files are those between the merge base with the base ref and the working tree
-      # (uncommitted and untracked files included). `GitRehearsal::SpecMap` names the specs, and
-      # `GitRehearsal::Impacted::Skips` leaves out those that need `cargo`, `gh` or the network, and
-      # the `:io` ones when no scratch Postgres answers, exactly as the rehearsal's stage does.
+      # (uncommitted and untracked files included). `SpecMap` names the specs, and
+      # `SpecSkips` leaves out those that need `cargo`, `gh` or the network, and
+      # the `:io` ones when no scratch Postgres answers.
       class ImpactedSpecs
-        # The most spec files a run takes, as the rehearsal's stage does.
-        DEFAULT_CAP = GitRehearsal::Impacted::DEFAULT_LIMIT
+        # The most spec files a run takes.
+        DEFAULT_CAP = 60
 
         DIGITS = /\d+/
         TOTALS = /\d+ examples?, \d+ failures?\z/
@@ -43,8 +42,8 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when git refuses or a spec fails
         def call(base:, cap: DEFAULT_CAP, dry: false, **run_options)
           changed = changed_files(base)
-          skips = GitRehearsal::Impacted::Skips.new(@tree.root, scratch: @scratch)
-          mapping = GitRehearsal::SpecMap.new(@tree.root).map(changed, limit: cap, skip: skips, since: since(base))
+          skips = SpecSkips.new(@tree.root, scratch: @scratch)
+          mapping = SpecMap.new(@tree.root).map(changed, limit: cap, skip: skips, since: since(base))
           head = describe(base, changed, mapping)
           return "#{head}\nnothing impacted; nothing run" if mapping.specs.empty?
           return "#{head}\ndry run: no spec run" if dry

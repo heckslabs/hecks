@@ -7,8 +7,8 @@ module Hecks
   module Adapters
     class LocalFiles
       # Writes a command-line launcher beside each domain, named after its bluebook, for
-      # `Launch.ProjectCli`: `Hecks.bluebook "QualityControl"` in `qa/` becomes
-      # `qa/quality_control`.
+      # `Launch.ProjectCli`: `Hecks.bluebook "Pizzas"` in `examples/pizzas` becomes
+      # `examples/pizzas/pizzas`.
       #
       # Each launcher is a dozen lines pinning one directory and handing over to
       # `Adapters::Driving::CliRunner`; the surface itself is projected at the moment it runs,
@@ -139,8 +139,7 @@ module Hecks
           executable = setting[:executable]
           label      = executable || "#{path}/#{snake}"
           text       = launcher(path, name, program, executable: executable,
-                                                     memory_commands: setting[:memory_commands], opted: !setting.empty?,
-                                                     ledgers: executable ? Corpus::ROTATION_LEDGER : {})
+                                                     memory_commands: setting[:memory_commands], opted: !setting.empty?)
           Target.new(name, label, File.join(root, label), text, snake, executable)
         end
 

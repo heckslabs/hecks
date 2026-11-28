@@ -2,9 +2,8 @@ require "hecks"
 require "tmpdir"
 require "fileutils"
 require_relative "../../../../lib/hecks/hecks/adapters/journal_store"
-require_relative "../../../../lib/hecks/hecks/adapters/git_train/mint_step"
 
-# The held mint, and the push train's mint step that asks it, for a world that declares
+# The held mint for a world that declares
 # `disposable_ledger true`: the boot brings the store to its shape, so the mint passes straight
 # through, refusing nothing and minting no era.
 RSpec.describe "the held mint of a disposable ledger" do
@@ -34,11 +33,6 @@ RSpec.describe "the held mint of a disposable ledger" do
     answer = held_mint({ disposable: true }).answer(run: "push-1", confirm: true)
     expect(answer[:outcome]).to eq({ value: "disposable" })
     expect(minter_calls).to be_empty
-  end
-
-  it "lets the mint step report that no mint is needed" do
-    step = Hecks::Adapters::GitTrain::MintStep.new(mint: held_mint({ disposable: true }))
-    expect(step.run(run: "push-1", confirm: true)).to eq("the Hecks ledger is disposable, so no mint is needed")
   end
 
   it "reads a world that declares the ledger disposable as disposable, before it reads any era" do

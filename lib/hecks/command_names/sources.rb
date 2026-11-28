@@ -8,7 +8,6 @@ module Hecks
         lib/hecks/language/bluebook/vocabulary.bluebook Makefile scripts/**/* spec/**/*.rb
         docs/implemented/**/*.md docs/agents/**/*.md CLAUDE.md
         lib/**/*.rb qa/**/*.rb qa/**/*.md qa/**/*.sh qa/**/*.yml
-        .claude/hooks/* .claude/settings.json .claude/skills/**/*.md .claude/agents/**/*.md
       ].freeze
 
       # Exact lines left unflagged. Each is a dead name kept on purpose until a person picks the

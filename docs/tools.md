@@ -8,8 +8,8 @@ in its tables, and `hecks` (or `hecks --all`, with the internal ones) is the ful
 `hecks <verb> name=value …` runs it. A verb that changes the tree, a database or a registry does nothing
 until it is given `--confirm`. The Custodian verbs ship in the installed gem; the Codebase verbs need a
 checkout of this repository and refuse without one. The `bin/` script named in the last column is the
-script the command replaced: `bin/` was removed in 3.0.0. The QualityControl scripts (`bin/qa_*`) are commands
-of the attached QualityControl bluebook, spelled `hecks quality_control <verb>`.
+script the command replaced: `bin/` was removed in 3.0.0.
+The QualityControl scripts (`bin/qa_*`) moved with the pipeline to Switchyard (ADR 0205).
 
 Each table below is written by `hecks regeneration_run.project_tools_doc` from the `RetiredScript` rows of
 `lib/hecks/language/bluebook/vocabulary.bluebook`, one row per command or query that answers a retired script. A form
@@ -167,26 +167,3 @@ local publish. One-time setup, either one: a `RUBYGEMS_API_KEY` secret whose key
 publisher at rubygems.org > hecks > Trusted publishers > GitHub Actions (organization `heckslabs`, repository
 `hecks`, workflow `release.yml`).
 
-## QualityControl, for maintaining Hecks
-
-<!-- generated:begin tools section=QualityControl -->
-| launcher | replaces |
-|---|---|
-| `hecks quality_control sweep.tick` | `bin/qa_tick` |
-| `hecks quality_control sweep.run [<target>] [arguments="--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"]`; `hecks quality_control target.release! <to> now= next_streak= capabilities= yield_score=` | `bin/qa_sweep` |
-| `hecks quality_control clearance.check_pull_requests` | `bin/qa_pr_check` |
-| `hecks quality_control patch.open! <bug> number= url= branch= commit= title= now=`; `hecks quality_control improvement.open! [<angle>] number= url= branch= title= now=` | `bin/qa_open_pr` |
-| `hecks quality_control bug.log! <sweep> reference= sequence= title= demonstration= symptom= expectation= submitter= [tags=] [name=] [reproduced=]` | `bin/qa_log_bug` |
-| `hecks quality_control angle.seed` | `bin/qa_seed_angles` |
-| `hecks quality_control target.seed` | `bin/qa_seed_targets` |
-| `hecks quality_control target.check_generated_domains [arguments="--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"]` | `bin/qa_generated_domains` |
-| `hecks quality_control target.mine_combinations [arguments="--candidates 3 --rust --seeds 5 --steps 25 --adversarial 0.3 --repair-rounds 1 --agent CMD --from DIR --against PATH --brief"]` | `bin/qa_mine_combinations` |
-| `hecks quality_control target.mutate [arguments="--file rust/src/… --from-dials"]` | (new: no `bin/` script) |
-| `hecks quality_control target.judge_novelty <domain> [arguments="--against PATH …"]` | `bin/qa_domain_novelty` |
-| `hecks quality_control target.discover_external_domains [arguments="--projects-dir ~/Projects --max-depth 3 --known-path PATH …"]` | `bin/qa_discover_external_domains` |
-| `hecks quality_control sweep.migrate_ledger_from_heki <domain> data= [arguments="[aggregate …] --force"] (a dry run without --force)` | `bin/qa_postgres_migrate` |
-| `hecks quality_control sweep.create_ledger_role <database> [role=]` | `bin/qa_postgres_role` |
-| `hecks quality_control main_check.check_main` | `bin/qa_main_gate` |
-| `hecks quality_control bug.fix_and_land [arguments="--bug BUG#n"]` | `bin/qa_fix_main_bug` |
-| `hecks quality_control sweep.race <domain> database= schema= verb= step_arguments= (not user-facing; ProcessPool starts it)` | `bin/qa_concurrency_racer` |
-<!-- generated:end tools -->

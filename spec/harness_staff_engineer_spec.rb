@@ -10,6 +10,9 @@ require_relative "support/hecks_harness_binary"
 # engineer is told, the relay is declined, and nothing reaches the asker as her words.
 module HarnessStaffEngineerWorld
   TAPES = File.join(HecksHarnessBinary::DIR, "tests/tapes")
+  # A checkout holding the one role file the scenes open; the crew's own role files moved with
+  # the pipeline to Switchyard (ADR 0205).
+  ROLES = File.expand_path("fixtures/harness_roles", __dir__)
 
   # One run: the sessions it opens (a role, or a name and its brief), the tape each plays, and
   # the turns each tape plays, so the run is over once every session has ended them all.
@@ -17,7 +20,7 @@ module HarnessStaffEngineerWorld
     # @return [Hecks::Harness::Run] the run, played to its end and closed, its ledger kept
     def play
       Hecks::Harness::Run.new(launch: Hecks::Harness::Launch.replay(TAPES, tapes: tapes)).tap do |run|
-        roles.each { |role| run.open_role(role) }
+        roles.each { |role| run.open_role(role, root: ROLES) }
         briefs.each { |name, brief| run.open(name, brief) }
         run.pump { |tells| over?(tells) }
         run.close

@@ -1,7 +1,6 @@
 require "json"
 require "tempfile"
 require_relative "../isolated_boot"
-require_relative "../../quality_control/cli/child"
 
 module Hecks
   module Fuzzing
@@ -45,10 +44,16 @@ module Hecks
           root = File.expand_path("../../../..", __dir__)
           args_json = JSON.generate(race_step["args"] || {})
           logs.map do |log|
-            racer = Hecks::QualityControlCli::Child.argv(root, "qa_concurrency_racer", domain_path, database, schema,
-                                                         race_step["verb"], args_json)
+            racer = racer_argv(root, domain_path, database, schema, race_step["verb"], args_json)
             Process.spawn(*racer, out: log, err: log, chdir: root)
           end
+        end
+
+        # The argv that runs one racer ({Racer}) under Bundler, from `root`'s `lib/`.
+        def racer_argv(root, *args)
+          code = "require #{"hecks/fuzzing/concurrent_dispatch/racer".inspect}; " \
+                 "exit(Hecks::Fuzzing::ConcurrentDispatch::Racer.call(ARGV, out: $stdout))"
+          ["bundle", "exec", "ruby", "-I", File.join(root, "lib"), "-e", code, "--", *args]
         end
 
         # The last line a racer wrote, or a crash outcome when it wrote nothing.

@@ -100,7 +100,7 @@ jobs:
       - name: "cargo build: rust/parser (hecks-parse)"
         run: cd rust/parser && cargo build
 
-      - name: "rspec: Rust parser parity + coverage + grammar corpus + the Composer's check"
+      - name: "rspec: Rust parser parity + coverage + grammar corpus"
         run: |
           bundle exec rspec --tag io \
             spec/declared_adapter_spec.rb \
@@ -110,11 +110,7 @@ jobs:
             spec/parser_world_parity_spec.rb \
             spec/parser_coverage_spec.rb \
             spec/attribute_sets_flag_spec.rb \
-            spec/grammar_corpus_spec.rb \
-            spec/composer_check_spec.rb \
-            spec/composer_web_spec.rb \
-            spec/composer_panels_spec.rb \
-            spec/composer_agent_spec.rb
+            spec/grammar_corpus_spec.rb
 
       # The crate's own unit and tests/gates.rs suite; reuses the target dir built above.
       - name: "cargo test: rust/parser (hecks-parse)"
