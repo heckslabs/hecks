@@ -28,6 +28,18 @@ module Hecks
       # @return [Array<String>] every role with a file under `.claude/agents`, sorted
       def names(root: ROOT) = Dir.glob(File.join(root, AGENTS, "*.md")).map { |path| File.basename(path, ".md") }.sort
 
+      # @param root [String] the checkout
+      # @param binary [String] the `hecks-harness` binary that reads the role files
+      # @return [Array<String>] the roles a harness run brings up: every role but the owners',
+      #   which are started by hand, sorted
+      # @raise [Unbriefed] when the binary cannot read the role files
+      def crew(root: ROOT, binary: Supervisor::BINARY)
+        text, error, status = Open3.capture3(binary, "crew", File.join(root, AGENTS))
+        raise Unbriefed, error.strip unless status.success?
+
+        text.lines(chomp: true)
+      end
+
       # @param role [String] a role with a file under `.claude/agents`, such as "staff-engineer"
       # @param root [String] the checkout
       # @param binary [String] the `hecks-harness` binary that reads it

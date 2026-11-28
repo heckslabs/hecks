@@ -122,6 +122,19 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The crew as Harness sessions: every role of a checkout opened on its brief and tools, under one
+  # supervisor, and served until it is stopped. It refuses to start when a role cannot be read or
+  # the supervisor binary is not built.
+  Hecks::Crew.port "Bringing" do
+    asks "BringUp", to: Crew do
+      attribute :checkout, CheckoutPath, optional: true
+      attribute :tapes,    TapeDirectory, optional: true
+      attribute :turns,    TurnCount, optional: true
+      answers "CrewStopped"
+      refuses "CrewNotBroughtUp"
+    end
+  end
+
   Hecks::Workspace.port "Settings" do
     answers_query "Settings"
   end

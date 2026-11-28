@@ -6,6 +6,9 @@
 //! A role whose tools are `*` is started by hand by an owner, with no routing guard, so it is not
 //! opened in a harness run.
 
+use std::fs;
+use std::path::Path;
+
 use crate::brief;
 use crate::json::Value;
 
@@ -87,6 +90,33 @@ pub fn permits(tools: &[String], tool: &str, input: &Value) -> bool {
             }
         }
     })
+}
+
+/// The crew a harness run brings up: every role with a file `<role>.md` in `agents`, by name,
+/// but the owners' roles, which are started by hand.
+///
+/// # Errors
+///
+/// When `agents` or a role file in it cannot be read.
+pub fn crew(agents: &Path) -> Result<Vec<String>, String> {
+    let unread = |error: std::io::Error| format!("cannot read {}: {error}", agents.display());
+    let mut names = Vec::new();
+    for entry in fs::read_dir(agents).map_err(unread)? {
+        let path = entry.map_err(unread)?.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+            continue;
+        }
+        let text = fs::read_to_string(&path)
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        if let (Ok(_), Some(name)) = (
+            Role::of_file(&text),
+            path.file_stem().and_then(|stem| stem.to_str()),
+        ) {
+            names.push(name.to_string());
+        }
+    }
+    names.sort();
+    Ok(names)
 }
 
 /// The value of a frontmatter line `<key>: <value>`, trimmed, when the file opens with frontmatter.
@@ -181,6 +211,29 @@ mod tests {
             ),
             (true, false)
         );
+    }
+
+    #[test]
+    fn brings_up_every_role_but_the_owners_by_name() {
+        let agents =
+            std::env::temp_dir().join(format!("hecks-harness-crew-{}", std::process::id()));
+        fs::create_dir_all(&agents).unwrap();
+        fs::write(agents.join("reviewer.md"), CODER).unwrap();
+        fs::write(agents.join("coder.md"), CODER).unwrap();
+        fs::write(
+            agents.join("owner.md"),
+            "---\nname: owner\ntools: *\n---\nx\n",
+        )
+        .unwrap();
+        fs::write(agents.join("notes.txt"), CODER).unwrap();
+        let crew = crew(&agents);
+        fs::remove_dir_all(&agents).unwrap();
+        assert_eq!(crew.unwrap(), vec!["coder".to_string(), "reviewer".into()]);
+    }
+
+    #[test]
+    fn refuses_a_crew_whose_roles_cannot_be_read() {
+        assert!(crew(Path::new("/nonexistent/hecks-harness-agents")).is_err());
     }
 
     #[test]

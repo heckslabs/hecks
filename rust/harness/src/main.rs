@@ -9,18 +9,20 @@
 //! - `hecks-harness brief ROLE_FILE`: the brief a session opened for that role is given.
 //! - `hecks-harness role ROLE_FILE`: that role as a session holds it (its brief, the tools it may
 //!   use and its model), as JSON.
+//! - `hecks-harness crew AGENTS_DIR`: the roles a harness run brings up from that directory of role
+//!   files, one a line: every role but the owners'.
 
 use std::fs;
 use std::io::{self, BufReader};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
 
-use hecks_harness::role::Role;
+use hecks_harness::role::{self, Role};
 use hecks_harness::{measure, replay, supervisor};
 
 const USAGE: &str =
-    "usage: hecks-harness serve [--record DIR] [--tick-ms MS] | replay TAPE | measure TELLS | tape RECORDING | brief ROLE_FILE | role ROLE_FILE";
+    "usage: hecks-harness serve [--record DIR] [--tick-ms MS] | replay TAPE | measure TELLS | tape RECORDING | brief ROLE_FILE | role ROLE_FILE | crew AGENTS_DIR";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -38,6 +40,8 @@ fn main() -> ExitCode {
         ["role", role_file] => read(role_file)
             .and_then(|text| Role::of_file(&text))
             .map(|role| print!("{}", role.to_json())),
+        ["crew", agents] => role::crew(Path::new(agents))
+            .map(|names| names.iter().for_each(|name| println!("{name}"))),
         _ => Err(USAGE.to_string()),
     };
     match outcome {
