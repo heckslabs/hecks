@@ -1992,7 +1992,7 @@ mod tests {
         };
         let invoker = crate::lambda_client::NeverInvoker;
 
-        let created = collection_create(&ir, "customers", r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#, dispatch::Caller::default(), false, Host::new(&client, &wasm, &lineage, &invoker))
+        let created = collection_create(&ir, "customers", r#"{"reference":{"value":"CUST-9001"},"name":{"given":"Ada","family":"Lovelace"},"email":{"address":"ada@example.com"}}"#, as_role("Branch clerk"), false, Host::new(&client, &wasm, &lineage, &invoker))
         .await;
 
         assert_eq!(created["statusCode"], 200, "{created}");
@@ -2015,7 +2015,7 @@ mod tests {
             "CUST-9001",
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
-            dispatch::Caller::default(),
+            as_role("Compliance officer"),
             false,
             Host::new(&client, &wasm, &lineage, &invoker),
         )
@@ -2033,7 +2033,7 @@ mod tests {
             "CUST-9001",
             "suspend",
             r#"{"standing":{"value":"watch"}}"#,
-            dispatch::Caller::default(),
+            as_role("Compliance officer"),
             false,
             Host::new(&client, &wasm, &lineage, &invoker),
         )
@@ -2078,7 +2078,7 @@ mod tests {
             "ghost",
             "suspend",
             "",
-            dispatch::Caller::default(),
+            as_role("Compliance officer"),
             false,
             Host::new(&client, &wasm, &lineage, &invoker),
         )
@@ -2088,6 +2088,15 @@ mod tests {
             body(&unknown_record)["message"],
             "no Customer found for id \"ghost\""
         );
+    }
+
+    // A caller stating `role` (ADR 0216), so a route answers for its command and not for a caller
+    // who stated no role.
+    fn as_role(role: &'static str) -> dispatch::Caller<'static> {
+        dispatch::Caller {
+            role: Some(role),
+            actor_id: None,
+        }
     }
 
     fn signed_in(role: &str) -> Session {
@@ -2258,7 +2267,7 @@ mod tests {
                 r#"{{"reference":{{"value":"{reference}"}},"name":{{"given":"Ada","family":"Lovelace"}},"email":{{"address":"ada@example.com"}}}}"#
             )
         };
-        let caller = dispatch::Caller::default;
+        let caller = || as_role("Branch clerk");
 
         collection_create(&ir, "customers", &ada("CUST-9101"), caller(), false, host()).await;
 
@@ -2285,7 +2294,7 @@ mod tests {
             "CUST-9101",
             "suspend",
             suspend,
-            caller(),
+            as_role("Compliance officer"),
             true,
             host(),
         )

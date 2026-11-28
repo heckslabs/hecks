@@ -342,33 +342,39 @@ Hecks.bluebook "Protocols" do
 
   policy "CountTheYes" do
     on      "Vote.VoteCast"
+    acts_as "System"
     where   { gesture.value == "yes" }
     trigger Agreement::Agree, with: { agreement: :agreement }
   end
 
   policy "CountTheNo" do
     on      "Vote.VoteCast"
+    acts_as "System"
     where   { gesture.value == "no" }
     trigger Agreement::Oppose, with: { agreement: :agreement }
   end
 
   policy "WithdrawTheReplacedNo" do
     on      "Vote.VoteReplaced"
+    acts_as "System"
     trigger Agreement::Withdraw, with: { agreement: :held_against }
   end
 
   policy "AcceptWhenTheLastObjectionIsWithdrawn" do
     on      "Agreement.ObjectionWithdrawn"
+    acts_as "System"
     trigger Agreement::Accept, with: { agreement: :reference }
   end
 
   policy "AcceptWhenEveryRoleAgreed" do
     on      "Agreement.AgreementAgreed"
+    acts_as "System"
     trigger Agreement::Accept, with: { agreement: :reference }
   end
 
   policy "EscalateWhatTouchesTheOwner" do
     on      "Agreement.AgreementProposed"
+    acts_as "System"
     trigger Agreement::Escalate, with: { agreement: :reference }
   end
 end

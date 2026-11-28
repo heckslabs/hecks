@@ -20,10 +20,12 @@ RSpec.describe "red specs on main" do
   def ok_status = instance_double(Process::Status, success?: true)
 
   # Answers `gh run view <id> --json ...` with the jobs, and `--log-failed` with the RSpec summary.
+  # Any other command runs for real, as the parser the boot reads each declaration file with does.
   def fake_run(jobs:, failed: [], branch: "main", event: "push", log: nil)
     log ||= failed.map { |path, text| "rspec ./#{path}:12 # #{text}" }.join("\n")
     view = { headSha: sha, headBranch: branch, event: event, conclusion: "x", jobs: jobs }.to_json
-    allow(Open3).to receive(:capture3) do |*argv, **|
+    allow(Open3).to receive(:capture3).and_call_original
+    allow(Open3).to receive(:capture3).with("gh", any_args) do |*argv, **|
       [argv.include?("--log-failed") ? log : view, "", ok_status]
     end
   end

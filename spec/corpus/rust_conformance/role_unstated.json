@@ -1,0 +1,158 @@
+{
+  "domain": "examples/banking",
+  "note": "ADR 0216: a caller who states no role is dispatched as the role Anonymous, which no command declares (Ruby's Runtime::Caller.unstated, the host's and the kernel's ANONYMOUS_ROLE). Account.Open declares the role \"Branch clerk\", so the unstated caller is refused in the role_unstated wording on both runtimes, before the account is created; the same command as a Branch clerk opens it.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "role": "Branch clerk",
+      "args": {
+        "reference": {
+          "value": "CUST-0001"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Anonymous",
+      "args": {
+        "number": {
+          "value": "acct-unstated-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "customer": "CUST-0001"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "Branch clerk",
+      "args": {
+        "number": {
+          "value": "acct-unstated-2"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "customer": "CUST-0001"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.Open",
+        "error": "Open refused — role: Branch clerk, and the caller stated no role",
+        "kind": "Unauthorized"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#CUST-0001": {
+        "reference": {
+          "value": "CUST-0001"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-unstated-2": {
+        "customer": "CUST-0001",
+        "number": {
+          "value": "acct-unstated-2"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "CUST-0001",
+        "payload": {
+          "reference": {
+            "value": "CUST-0001"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-unstated-2",
+        "payload": {
+          "number": {
+            "value": "acct-unstated-2"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 1000
+          },
+          "customer": "CUST-0001"
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

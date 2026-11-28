@@ -84,6 +84,7 @@ Hecks.bluebook "Hecks" do
     # A root, like the ledger's look, so each beat's look begins its own chain.
     policy "LookAfterTheCatcherOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "System"
       root
       trigger CatcherCare::Look, with: { run: :beat }
     end
@@ -95,11 +96,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordWhyTheCatcherIsDue" do
       on      "CatcherCare.CatcherCareDue"
+      acts_as "System"
       trigger CatcherCare::Hear, with: { reason: :reason }
     end
 
     policy "RecordWhyTheCatcherWaits" do
       on      "CatcherCare.CatcherCareDeferred"
+      acts_as "System"
       trigger CatcherCare::Decline, with: { refusal: :refusal }
     end
 
@@ -111,11 +114,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheCatcherRun" do
       on      "CatcherCare.CatcherCareRan"
+      acts_as "System"
       trigger CatcherCare::Settle, with: { outcome: :outcome }
     end
 
     policy "RecordWhyTheCatcherWasNotRun" do
       on      "CatcherCare.CatcherCareRunRefused"
+      acts_as "System"
       trigger CatcherCare::Refuse, with: { refusal: :refusal }
     end
   end

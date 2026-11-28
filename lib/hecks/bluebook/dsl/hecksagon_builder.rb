@@ -1,5 +1,6 @@
 require_relative "word_gate"
 require_relative "hecksagon_builder/bluebook_scope"
+require_relative "hecksagon_builder/attaching"
 require_relative "hecksagon_builder/gem_bluebook"
 require_relative "clock_builder"
 module Hecks
@@ -11,6 +12,7 @@ module Hecks
         GRAMMAR_CONTEXT = "Hecksagon".freeze
 
         include WordGate
+        include Attaching
         include GemBluebook
         extend BluebookScope
 
@@ -109,14 +111,16 @@ module Hecks
         #
         # @param name [String, Symbol] a gem bluebook's name or a vendored package's directory name
         # @param from [Symbol, nil] `:vendor` for a vendored package, nil for a gem bluebook
+        # @param acts_as [String, nil] the role the attached bluebook's policies that declare no
+        #   `acts_as` run their reactions as (ADR 0216)
         # @raise [Runtime::WiringError] if the name is unknown, or `from:` names another source
-        def attaches(name, from: nil)
+        def attaches(name, from: nil, acts_as: nil)
           unless [nil, :vendor].include?(from)
             raise Runtime::WiringError,
                   "attaches #{name.to_s.inspect}, from: #{from.inspect} — `from:` takes only :vendor"
           end
 
-          from == :vendor ? attach_vendored(name) : attach_gem(name)
+          from == :vendor ? attach_vendored(name, acts_as) : attach_gem(name, acts_as)
         end
 
         # Declares a port at the hecksagon's root — the bluebook as a whole, not one aggregate.
@@ -158,24 +162,6 @@ module Hecks
                         driving: @driving, clocks: @clocks, revisions: @revisions, inline_reactions: @inline_reactions,
                         bluebook_from: @bluebook_from)
         end
-
-        # Loads a bluebook the gem carries and records it as attached from the gem.
-        def attach_gem(name)
-          require_relative "../../framework_bluebooks"
-          @attachments << Attachment.new(name: name.to_s, source: :gem)
-          self.class.with_real_modules { Hecks::FrameworkBluebooks.attach!(name) }
-          Hecks.current_registry&.mark_bounded(name.to_s)
-        end
-        private :attach_gem
-
-        # Loads a vendored package and records it as attached from `vendor/`, under the bluebook
-        # its bluebook declares: `"document"` attaches `Documents`.
-        def attach_vendored(name)
-          declaration = Hecks::EmbryonautBluebook.load!(name)
-          @attachments << Attachment.new(name: name.to_s, source: :vendor, declaration: declaration)
-          Hecks.current_registry&.mark_bounded(declaration)
-        end
-        private :attach_vendored
 
         # Records any verb the grammar doesn't own as a domain-wide default bind, e.g. bare
         # `persisted_by "Heki"` at the top of a block, applied unless an aggregate overrides it.

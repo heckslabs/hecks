@@ -21,34 +21,44 @@ pub struct Caller<'a> {
     pub actor_id: Option<&'a str>,
 }
 
-/// The role an unidentified caller is dispatched under when roles are enforced: no command declares
-/// it, so a command that declares any role refuses it.
+/// The role an unidentified caller is dispatched under when roles are checked: no command declares
+/// it, so the kernel refuses a command that declares any role in the `role_unstated` wording
+/// (ADR 0216). The kernel's `caller_rule::ANONYMOUS_ROLE` and Ruby's `Runtime::Caller::ANONYMOUS`
+/// are the same word.
 pub const ANONYMOUS_ROLE: &str = "Anonymous";
 
+/// The step key that tells the kernel the mode when it is not `Enforce`, so a reaction that
+/// declares no `acts_as` runs unchecked under `Shadow` and `Off` (the kernel's
+/// `caller_rule::ENFORCEMENT_KEY`).
+pub const ENFORCEMENT_KEY: &str = "role_enforcement";
+
 /// What the host does about the role a command declares (`HECKS_ROLE_ENFORCEMENT`). Unset, the
-/// mode is `Shadow`: the migration mode, which logs what `Enforce` would refuse and refuses
-/// nothing `Off` accepts.
+/// mode is `Enforce` (ADR 0216): an outside caller that states no role is refused. `Shadow` is
+/// the explicit opt-out for a migration: it logs what `Enforce` would refuse and refuses nothing
+/// `Off` accepts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Enforcement {
     /// A caller with no role is unchecked, and nothing is logged.
     Off,
     /// An unidentified or unassigned caller is let through and logged as `would_refuse_role`; a
     /// caller that states a role is checked exactly as under `Enforce`, so shadow never accepts
-    /// what `Off` would not. The default.
+    /// what `Off` would not. A reaction that declares no `acts_as` runs unchecked.
     Shadow,
-    /// An unidentified or unassigned caller is refused.
+    /// An unidentified or unassigned caller is refused, and so is a reaction that declares no
+    /// `acts_as` in the cascade of a caller that stated one. The default.
     Enforce,
 }
 
 static ENFORCEMENT: std::sync::OnceLock<Enforcement> = std::sync::OnceLock::new();
 
 impl Enforcement {
-    /// Reads `off`, `shadow` or `enforce`; unset or anything else is `Shadow`, the default.
+    /// Reads `off`, `shadow` or `enforce`; unset or anything else is `Enforce`, the default, so a
+    /// mistyped opt-out refuses rather than lets through.
     pub fn parse(value: Option<&str>) -> Self {
         match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
             Some("off") => Self::Off,
-            Some("enforce") => Self::Enforce,
-            _ => Self::Shadow,
+            Some("shadow") => Self::Shadow,
+            _ => Self::Enforce,
         }
     }
 
@@ -58,9 +68,19 @@ impl Enforcement {
         let _ = ENFORCEMENT.set(mode);
     }
 
-    /// The mode boot installed, or `Shadow` when none was.
+    /// The mode boot installed, or `Enforce` when none was.
     pub fn configured() -> Self {
-        ENFORCEMENT.get().copied().unwrap_or(Self::Shadow)
+        ENFORCEMENT.get().copied().unwrap_or(Self::Enforce)
+    }
+
+    /// The word a step carries for the kernel under this mode; `None` under `Enforce`, which the
+    /// kernel assumes.
+    pub const fn step_word(self) -> Option<&'static str> {
+        match self {
+            Self::Off => Some("off"),
+            Self::Shadow => Some("shadow"),
+            Self::Enforce => None,
+        }
     }
 
     /// The caller the kernel is asked to check: an unidentified caller becomes the anonymous role
@@ -410,7 +430,7 @@ async fn dispatch_with(
     } else {
         mode.effective(caller)
     };
-    let outcome = run(origin, effect, host, verb, args.clone(), checked).await?;
+    let outcome = run(mode, origin, effect, host, verb, args.clone(), checked).await?;
     // Only a caller that stated no role (unidentified, or an actor Governance holds no grant for)
     // is let through; a stated role that does not match stays refused, as it is under `Off`.
     if mode == Enforcement::Shadow
@@ -425,7 +445,7 @@ async fn dispatch_with(
                 "refusals": outcome.result.get("refusals"),
             }),
         );
-        return run(origin, effect, host, verb, args, Caller::default()).await;
+        return run(mode, origin, effect, host, verb, args, Caller::default()).await;
     }
     Ok(outcome)
 }
@@ -456,6 +476,7 @@ pub fn host_internal_role_gap(
 }
 
 async fn run(
+    mode: Enforcement,
     origin: Origin,
     effect: Effect,
     host: Host<'_>,
@@ -505,6 +526,9 @@ async fn run(
     }
     if let Some(actor_id) = caller.actor_id {
         step["actor_id"] = serde_json::Value::String(actor_id.to_string());
+    }
+    if let Some(word) = mode.step_word() {
+        step[ENFORCEMENT_KEY] = serde_json::Value::String(word.to_string());
     }
     // Stamped only on this live step. The journal keeps a command's verb and arguments alone, so a
     // replayed step carries no role, actor or timestamp of its own.

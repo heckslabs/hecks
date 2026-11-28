@@ -349,6 +349,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
         ("refund_label", ":label"),
     ],
     where_expr: None,
+    acts_as: None,
 }];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];

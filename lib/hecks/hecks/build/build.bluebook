@@ -327,11 +327,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheBuild" do
       on      "Build.BuildAnswered"
+      acts_as "System"
       trigger Build::Complete, with: { output: :output }
     end
 
     policy "RecordTheFault" do
       on      "Build.BuildRefused"
+      acts_as "System"
       trigger Build::Fault, with: { refusal: :refusal }
     end
 

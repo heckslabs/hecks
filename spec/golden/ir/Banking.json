@@ -10486,6 +10486,7 @@
   "namespace": null,
   "policies": [
     {
+      "acts_as": "System",
       "expect_undelivered": false,
       "for_each": null,
       "name": "ReviewOnFreeze",
@@ -10507,6 +10508,7 @@
       ]
     },
     {
+      "acts_as": "System",
       "expect_undelivered": false,
       "for_each": null,
       "name": "RetryOnPaymentFailure",
@@ -10521,6 +10523,7 @@
       ]
     },
     {
+      "acts_as": "Back office",
       "expect_undelivered": false,
       "for_each": "ATMCard.LiveForAccount",
       "name": "RetireCardsOnAccountClosure",
@@ -10538,6 +10541,7 @@
       ]
     },
     {
+      "acts_as": "Compliance officer",
       "expect_undelivered": false,
       "for_each": "Account.OpenForCustomer",
       "name": "FreezeAccountsOnSuspension",
@@ -10569,6 +10573,7 @@
       ]
     },
     {
+      "acts_as": "System",
       "expect_undelivered": false,
       "for_each": null,
       "name": "ReviewOnBoxSurrender",

@@ -1,7 +1,8 @@
-# Admitted: bind verbs, aggregate receivers, a port and the Postgres layout flag, as wiring is written.
+# Admitted: bind verbs, attachments, aggregate receivers, a port and the Postgres layout flag, as wiring is written.
 Hecks.hecksagon "Probe" do
   persisted_by "Memory"
   attaches "Governance"
+  attaches "delivery", from: :vendor, acts_as: "System"
   Probe::Order.persisted_by "Heki"
   revisions true
   Probe::Order.port "Feed" do

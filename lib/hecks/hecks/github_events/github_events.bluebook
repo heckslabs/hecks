@@ -245,11 +245,13 @@ Hecks.bluebook "Hecks" do
 
     policy "CloseGithubWebhookWhenEnded" do
       on      "GithubWebhook.GithubWebhookEnded"
+      acts_as "System"
       trigger GithubWebhook::Close, with: { last: :last }
     end
 
     policy "RefuseGithubWebhookWhenRefused" do
       on      "GithubWebhook.GithubWebhookListenRefused"
+      acts_as "System"
       trigger GithubWebhook::Refuse, with: { last: :refusal }
     end
   end

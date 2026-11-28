@@ -235,21 +235,25 @@ Hecks.bluebook "Interviews" do
 
   policy "CountProposedPoint" do
     on      "Interview.PointProposed"
+    acts_as "System"
     trigger Interview::CountOpened, with: { interview: :reference }
   end
 
   policy "CountAcceptedPoint" do
     on      "Interview.PointAccepted"
+    acts_as "System"
     trigger Interview::CountSettled, with: { interview: :reference }
   end
 
   policy "CountRejectedPoint" do
     on      "Interview.PointRejected"
+    acts_as "System"
     trigger Interview::CountSettled, with: { interview: :reference }
   end
 
   policy "CountSupersededPoint" do
     on      "Interview.PointSuperseded"
+    acts_as "System"
     trigger Interview::CountSettled, with: { interview: :reference }
   end
 end

@@ -227,42 +227,49 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRaisedFlag" do
       on      "RedFlag.FlagAnswered"
+      acts_as "System"
       where   { outcome.value == "raised" }
       trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs, work_items: :work_items }
     end
 
     policy "RecordTheNotedRun" do
       on      "RedFlag.FlagAnswered"
+      acts_as "System"
       where   { outcome.value == "noted" }
       trigger RedFlag::Note, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs }
     end
 
     policy "RecordTheCheckIn" do
       on      "RedFlag.FlagAnswered"
+      acts_as "System"
       where   { outcome.value == "checked_in" }
       trigger RedFlag::Welcome, with: { flag: :flag, session: :session, taking: :taking }
     end
 
     policy "RecordTheClearedFlag" do
       on      "RedFlag.FlagAnswered"
+      acts_as "System"
       where   { outcome.value == "cleared" }
       trigger RedFlag::Lift, with: { flag: :flag, commit: :commit }
     end
 
     policy "RecordTheAdmittedRevert" do
       on      "RedFlag.FlagAnswered"
+      acts_as "System"
       where   { outcome.value == "admitted" }
       trigger RedFlag::Accept, with: { flag: :flag, commit: :commit }
     end
 
     policy "RecordTheUnchangedFlag" do
       on      "RedFlag.FlagAnswered"
+      acts_as "System"
       where   { outcome.value == "idle" }
       trigger RedFlag::Settle, with: { output: :output }
     end
 
     policy "RecordTheRefusedFlag" do
       on      "RedFlag.FlagRefused"
+      acts_as "System"
       trigger RedFlag::Decline, with: { refusal: :refusal }
     end
 
@@ -271,12 +278,14 @@ Hecks.bluebook "Hecks" do
     # reaction depth bound. The landed commit keys the request.
     policy "RaiseTheFlagWhenCiFails" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "failed" }
       trigger RedFlag::Raise, with: { run: :landed, commit: :landed, detail: :report, checkout: :checkout }
     end
 
     policy "LowerTheFlagWhenCiPasses" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "passed" }
       trigger RedFlag::Clear, with: { run: :landed, commit: :landed, checkout: :checkout }
     end

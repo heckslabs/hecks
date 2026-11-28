@@ -60,6 +60,8 @@ pub struct CommandEntry {
     pub role: Option<String>,
     /// Every role that may run the command, when more than one may; `role` is then the first.
     pub roles: Vec<String>,
+    /// `policy_only`: only a policy reaction may dispatch the command (ADR 0216).
+    pub policy_only: bool,
 }
 
 pub struct EntityCommandEntry {
@@ -77,6 +79,8 @@ pub struct EntityCommandEntry {
     pub role: Option<String>,
     /// Every role that may run the command, when more than one may; `role` is then the first.
     pub roles: Vec<String>,
+    /// `policy_only`: only a policy reaction may dispatch the command (ADR 0216).
+    pub policy_only: bool,
     /// Carried for shape parity with `domain_generator.rb`'s `entity_commands`; unread here.
     pub entity_name: String,
     pub entity_identity_reading: String,
@@ -97,6 +101,8 @@ pub struct NestedEntityCommandEntry {
     pub role: Option<String>,
     /// Every role that may run the command, when more than one may; `role` is then the first.
     pub roles: Vec<String>,
+    /// `policy_only`: only a policy reaction may dispatch the command (ADR 0216).
+    pub policy_only: bool,
     pub entity_name: String,
     pub entity_identity_reading: String,
     pub nested_name: String,
@@ -141,9 +147,32 @@ pub struct AggregateEntry {
     pub entities: Vec<EntityIdentityEntry>,
 }
 
-/// The call that refuses a caller who may not run the command: against its one `role`, or, when
-/// `roles` lists several, against all of them at once (any one lets the caller through).
+/// The calls that refuse a caller who may not run the command: a `policy_only` command first
+/// refuses any caller that is not a reaction, then the command's one `role` is checked, or, when
+/// `roles` lists several, all of them at once (any one lets the caller through).
 pub fn emit_role_check(
+    exemplar: &Exemplar,
+    role: Option<&str>,
+    roles: &[String],
+    command_name: &str,
+    policy_only: bool,
+) -> Option<String> {
+    let roles_check = emit_roles_check(exemplar, role, roles, command_name);
+    if !policy_only {
+        return roles_check;
+    }
+    let only = exemplar.render(
+        "policy_only_check",
+        &[(
+            "\"TmplCommandName\"",
+            naming::ruby_inspect_string(command_name),
+        )],
+    );
+    Some(roles_check.map_or_else(|| only.clone(), |check| format!("{only} {check}")))
+}
+
+/// The role half of `emit_role_check`.
+fn emit_roles_check(
     exemplar: &Exemplar,
     role: Option<&str>,
     roles: &[String],
@@ -517,7 +546,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 emit_argument_gates_literal(
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
-                    emit_role_check(exemplar, c.role.as_deref(), &c.roles, &c.name),
+                    emit_role_check(
+                        exemplar,
+                        c.role.as_deref(),
+                        &c.roles,
+                        &c.name,
+                        c.policy_only
+                    ),
                     &c.reference_checks
                         .iter()
                         .filter(|check| !check.settled)
@@ -607,7 +642,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 emit_argument_gates_literal(
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
-                    emit_role_check(exemplar, c.role.as_deref(), &c.roles, &c.name),
+                    emit_role_check(
+                        exemplar,
+                        c.role.as_deref(),
+                        &c.roles,
+                        &c.name,
+                        c.policy_only
+                    ),
                     &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
@@ -695,7 +736,13 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 emit_argument_gates_literal(
                     &format!("{mod_path}::{}", c.args_struct),
                     &c.invariant_check_lines,
-                    emit_role_check(exemplar, c.role.as_deref(), &c.roles, &c.name),
+                    emit_role_check(
+                        exemplar,
+                        c.role.as_deref(),
+                        &c.roles,
+                        &c.name,
+                        c.policy_only
+                    ),
                     &c.reference_checks
                         .iter()
                         .map(|check| emit_reference_check(exemplar, check))
@@ -905,20 +952,37 @@ mod tests {
     #[test]
     fn a_command_with_one_role_checks_that_role_and_one_with_several_checks_any_of_them() {
         let exemplar = crate::exemplar::Exemplar::load();
-        let one = emit_role_check(&exemplar, Some("Chef"), &[], "AddTopping").unwrap_or_default();
+        let one =
+            emit_role_check(&exemplar, Some("Chef"), &[], "AddTopping", false).unwrap_or_default();
         assert!(
             one.contains("check_role_via(Some(\"Chef\"), \"AddTopping\""),
             "{one}"
         );
 
         let roles = vec!["Customer".to_string(), "Sales Rep".to_string()];
-        let any = emit_role_check(&exemplar, Some("Customer"), &roles, "Open").unwrap_or_default();
+        let any =
+            emit_role_check(&exemplar, Some("Customer"), &roles, "Open", false).unwrap_or_default();
         assert!(
             any.contains("check_roles_via(&[\"Customer\", \"Sales Rep\"], \"Open\""),
             "{any}"
         );
 
-        assert!(emit_role_check(&exemplar, None, &[], "Open").is_none());
+        assert!(emit_role_check(&exemplar, None, &[], "Open", false).is_none());
+    }
+
+    #[test]
+    fn a_policy_only_command_refuses_a_caller_before_its_role_is_checked() {
+        let exemplar = Exemplar::load();
+        let check =
+            emit_role_check(&exemplar, Some("System"), &[], "Water", true).unwrap_or_default();
+        assert!(check.starts_with("crate::kernel::check_policy_only(\"Water\", caller_role, caller_actor_id)?; crate::kernel::check_role_via(Some(\"System\")"));
+    }
+
+    #[test]
+    fn a_policy_only_command_with_no_role_still_refuses_a_caller() {
+        let exemplar = Exemplar::load();
+        let check = emit_role_check(&exemplar, None, &[], "Water", true).unwrap_or_default();
+        assert!(check.contains("check_policy_only(\"Water\""));
     }
 
     #[test]
@@ -947,6 +1011,7 @@ mod tests {
                     invariant_check_lines: Vec::new(),
                     role: None,
                     roles: Vec::new(),
+                    policy_only: false,
                 },
                 CommandEntry {
                     verb: "Banking::SafeDepositBox.Close".to_string(),
@@ -964,6 +1029,7 @@ mod tests {
                     invariant_check_lines: Vec::new(),
                     role: None,
                     roles: Vec::new(),
+                    policy_only: false,
                 },
             ],
             entity_commands: vec![EntityCommandEntry {
@@ -978,6 +1044,7 @@ mod tests {
                 invariant_check_lines: Vec::new(),
                 role: None,
                 roles: Vec::new(),
+                policy_only: false,
                 entity_name: "Visit".to_string(),
                 entity_identity_reading: "date, sequence".to_string(),
             }],
@@ -1059,6 +1126,7 @@ mod tests {
                 invariant_check_lines: Vec::new(),
                 role: None,
                 roles: Vec::new(),
+                policy_only: false,
             }],
             entity_commands: Vec::new(),
             nested_entity_commands: Vec::new(),
@@ -1101,6 +1169,7 @@ mod tests {
                 invariant_check_lines: Vec::new(),
                 role: None,
                 roles: Vec::new(),
+                policy_only: false,
             }],
             entity_commands: Vec::new(),
             nested_entity_commands: Vec::new(),
@@ -1148,6 +1217,7 @@ mod tests {
                 invariant_check_lines: Vec::new(),
                 role: None,
                 roles: Vec::new(),
+                policy_only: false,
                 entity_name: "Handler".to_string(),
                 entity_identity_reading: "event_type.value".to_string(),
                 nested_name: "Dispatch".to_string(),

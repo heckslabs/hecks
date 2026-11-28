@@ -2429,6 +2429,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "acts_as",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "emits": [
@@ -2447,6 +2457,7 @@
           "mutations": [
             {
               "fields": {
+                "acts_as": ":acts_as",
                 "source": ":source",
                 "value": ":bluebook"
               },
@@ -2820,6 +2831,16 @@
               "list": false,
               "name": "source",
               "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "acts_as",
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -3652,6 +3673,36 @@
               [
                 "fills",
                 "source"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attaches"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "acts_as"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "acts_as"
               ]
             ],
             [

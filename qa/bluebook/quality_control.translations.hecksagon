@@ -10,11 +10,13 @@ Hecks.hecksagon "Coder" do
 
   translates "OfferLoggedBug" do
     on Bug::BugLogged
+    acts_as "Coder"
     trigger Assignment::Offer, with: { bug: :reference }
   end
 
   translates "ReturnRegressedBug" do
     on Bug::BugRegressed
+    acts_as "Coder"
     trigger Assignment::Release, with: { assignment: :reference, held_by: { value: "nobody" } }
   end
 end

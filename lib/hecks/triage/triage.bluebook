@@ -355,30 +355,35 @@ Hecks.bluebook "Triage" do
   # with Incident.Join, since only it knows which incident stands.
   policy "OpenWhenCiFails" do
     on      "Integration.CiFailed"
+    acts_as "System"
     trigger Incident::Open, with: { incident: :landed, ci_run: :landed }
   end
 
   # A cause named with a lesson's key cites it; one named with none is a gap reported to the owner.
   policy "CiteTheLesson" do
     on      "Cause.CauseNamed"
+    acts_as "System"
     where   { lesson.value != "" }
     trigger Cause::MatchLesson, with: { cause: :cause, lesson: :lesson }
   end
 
   policy "ReportTheGap" do
     on      "Cause.CauseNamed"
+    acts_as "System"
     where   { lesson.value == "" }
     trigger Cause::ReportGap, with: { cause: :cause }
   end
 
   policy "MendWhenAssigned" do
     on      "Cause.CauseAssigned"
+    acts_as "System"
     trigger Incident::Mend, with: { incident: :incident }
   end
 
   # The last cause fixed with CI green on the fix closes the incident.
   policy "CloseWhenFixed" do
     on      "Cause.CauseFixed"
+    acts_as "System"
     where   { conclusion.value == "success" }
     trigger Incident::Close, with: { incident: :incident, unfixed: :unfixed, conclusion: :conclusion }
   end

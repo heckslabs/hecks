@@ -3,15 +3,19 @@ require "stringio"
 
 # The statuses a launcher exits with (`ExitStatus`): one set, pinned where each is produced, so a
 # script can branch on them. The runner runs against pizzas in-process;
-# neither prints or exits.
+# neither prints or exits. A line that dispatches states its command's role (`--as`).
 RSpec.describe Hecks::Adapters::Driving::ExitStatus do
   let(:runtime) { boot_in_memory }
   let(:runner) { Hecks::Adapters::Driving::CliRunner }
 
   def answer(*argv) = runner.call(runtime: runtime, argv: argv, program: "hecks")
   def status(*argv) = answer(*argv).last
-  def create(name) = status("order.create_pizza!", "name=#{name}", "pizza.price_cents.cents=900", "pizza.size.value=large")
-  def purchase(id) = status("order.purchase!", "id=#{id}", "customer_name=Chris", "amount.cents=900")
+
+  def create(name)
+    status("order.create_pizza!", "--as", "Chef", "name=#{name}", "pizza.price_cents.cents=900", "pizza.size.value=large")
+  end
+
+  def purchase(id) = status("order.purchase!", "--as", "Customer", "id=#{id}", "customer_name=Chris", "amount.cents=900")
   def usage_of(*argv) = status(*argv)
 
   describe "answered" do

@@ -133,12 +133,14 @@ Hecks.bluebook "Hecks" do
     # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
     policy "LookAtCiOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "System"
       root
       trigger CiLook::Look, with: { run: :beat }
     end
 
     policy "NoteEveryCiRunNotRecorded" do
       on       "CiLook.CiLookRequested"
+      acts_as "System"
       for_each "CiLook.Unrecorded"
       trigger  CiRunRecord::Note, with: { look: :id, sighting: :sighting, ci_run: :ci_run, lane: :lane, commit: :commit,
                                          branch: :branch, state: :state, conclusion: :conclusion, attempt: :attempt,

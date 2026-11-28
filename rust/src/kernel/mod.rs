@@ -1,5 +1,7 @@
 //! Hand-written, domain-agnostic floor that every generated per-command function calls into.
 
+/// Who may dispatch a command that declares a role or `policy_only` (ADR 0216).
+pub mod caller_rule;
 pub mod cli;
 pub mod collecting;
 pub mod dispatch;
@@ -36,6 +38,7 @@ pub use expr::{
 pub use json::Json;
 // The expression evaluator, its operators and the refusal type are their own crate, shared with
 // the host; the kernel re-exports them so every `crate::kernel::expr::…` path keeps working.
+pub use caller_rule::{check_policy_only, ANONYMOUS_ROLE};
 pub use hecks_expr::{attribute_shapes, expr, expression_operators, ruby_float, Refusal};
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{

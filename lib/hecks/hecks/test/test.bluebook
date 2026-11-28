@@ -624,11 +624,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheSweep" do
       on      "FuzzRun.FuzzAnswered"
+      acts_as "System"
       trigger FuzzRun::Conclude, with: { report: :report }
     end
 
     policy "RecordTheFinding" do
       on      "FuzzRun.FuzzRefused"
+      acts_as "System"
       trigger FuzzRun::Halt, with: { refusal: :refusal }
     end
   end

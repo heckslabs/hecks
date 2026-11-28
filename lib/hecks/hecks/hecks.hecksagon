@@ -29,8 +29,9 @@ Hecks.hecksagon "Hecks" do
   # and the settled pressure is posted as the machine's one signal. It persists in Memory, as the
   # overlay's default; its beats are each one launcher call's own.
   attaches "Signalbox"
-  # The repository verbs, vendored from Switchyard (ADR 0205).
-  attaches "delivery", from: :vendor
+  # The repository verbs, vendored from Switchyard (ADR 0205). Its lock pins its files, so the
+  # reactions of its policies that declare no role run as the system by this attachment (ADR 0216).
+  attaches "delivery", from: :vendor, acts_as: "System"
   # An architect review asked for by event starts a session through AgentRun, keyed by the review
   # (see StartTheRoleOnReviewRequest in the delegate bluebook).
   subscribe "Agents.PlanReviewRequested"
@@ -1699,6 +1700,7 @@ end
 Hecks.hecksagon "Hecks" do
   translates "RecordVerdictWhenNothingWouldStopTheMint" do
     on RehearsalRun::RehearsalAudited
+    acts_as "QA engineer"
     where do
       (minting.value != "next" || edge_present.value) && refusal_total.value == 0
     end
@@ -1720,6 +1722,7 @@ Hecks.hecksagon "Agents" do
   # it changed and asks the architect when a bluebook, hecksagon or decision file is among them.
   translates "ConsiderTheChangeWhenWorkIsSubmitted" do
     on Submission::WorkSubmitted
+    acts_as "System"
     trigger ChangeReview::Consider, with: { review: :sha, work: :branch, checkout: :checkout }
   end
 
@@ -1727,16 +1730,19 @@ Hecks.hecksagon "Agents" do
   # reviewed once, keyed by its number: a later event on a reviewed decision is refused by name.
   translates "AskTheArchitectWhenADecisionIsDrafted" do
     on Adr::AdrDrafted
+    acts_as "System"
     trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
   end
 
   translates "AskTheArchitectWhenADecisionIsAccepted" do
     on Adr::AdrAccepted
+    acts_as "System"
     trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
   end
 
   translates "AskTheArchitectWhenADecisionIsSuperseded" do
     on Adr::AdrSuperseded
+    acts_as "System"
     trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
   end
 
@@ -1744,6 +1750,7 @@ Hecks.hecksagon "Agents" do
   # the review is keyed by the commit, and the session works in the coder's checkout, which the event names.
   translates "AskTheReviewerWhenWorkIsSubmitted" do
     on Submission::WorkSubmitted
+    acts_as "System"
     trigger SubmissionReview::Request, with: { submission: :sha, work: :branch, brief: :branch, hops: 1,
                                                role: "reviewer", repo: :checkout }
   end
@@ -1758,6 +1765,7 @@ end
 Hecks.hecksagon "Hecks" do
   translates "SubmitWhenTheCoderSaysSubmitted" do
     on AgentRun::JobRead
+    acts_as "Coder"
     root
     where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
     across  "Coder"
@@ -1773,6 +1781,7 @@ Hecks.hecksagon "Hecks" do
   # refuses by its given, so a sweep ends only the reviews that are late.
   translates "LapseTheOverdueReview" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::PlanReview.Open"
     across   "Agents"
     trigger  PlanReview::Lapse,
@@ -1790,6 +1799,7 @@ Hecks.hecksagon "Hecks" do
   # already asked again, refuses by its given.
   translates "ReaskTheOverdueReview" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::PlanReview.Open"
     across   "Agents"
     trigger  PlanReview::Reask,
@@ -1801,6 +1811,7 @@ Hecks.hecksagon "Hecks" do
   # since the decline sits at the end of a dispatch's chain and the wake after it is four steps long.
   translates "UnstartTheDeclinedReview" do
     on       "AgentRun.AgentRunDeclined"
+    acts_as "System"
     root
     for_each "Agents::PlanReview.OfRun"
     across   "Agents"
@@ -1812,6 +1823,7 @@ Hecks.hecksagon "Hecks" do
   # verdict refuses, and a run no review keys finds no row.
   translates "UnstartTheFailedReview" do
     on       "AgentRun.SessionFailed"
+    acts_as "System"
     root
     for_each "Agents::PlanReview.OfRun"
     across   "Agents"
@@ -1821,6 +1833,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "UnstartTheRetiredReview" do
     on       "AgentRun.AgentRunRetired"
+    acts_as "System"
     root
     for_each "Agents::PlanReview.OfRun"
     across   "Agents"
@@ -1833,6 +1846,7 @@ Hecks.hecksagon "Hecks" do
   # verdict is gone. A review that already holds a verdict refuses.
   translates "UnstartTheReviewOfAGoneSession" do
     on       "AgentRun.SessionReviewed"
+    acts_as "System"
     root
     where    { listed == false }
     for_each "Agents::PlanReview.OfRun"
@@ -1844,6 +1858,7 @@ Hecks.hecksagon "Hecks" do
   # A run with no Work item is a change review's, recorded by `RecordTheChangeVerdict` instead.
   translates "RecordTheVerdictWhenNoReviewWasAsked" do
     on      "AgentRun.JobRead"
+    acts_as "System"
     root
     where   { agent == "architect" && work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
     across  "Agents"
@@ -1854,6 +1869,7 @@ Hecks.hecksagon "Hecks" do
   # One that ended earlier, was asked again, or holds a verdict refuses by its given.
   translates "RemindTheCoderWhoWaitsAfterTheEnd" do
     on       "AgentRun.ReviewAwaited"
+    acts_as "System"
     root
     for_each "Agents::PlanReview.OfWork"
     across   "Agents"
@@ -1864,6 +1880,7 @@ Hecks.hecksagon "Hecks" do
   # read apart from a plan review's; a run no change review names finds no row.
   translates "RecordTheChangeVerdict" do
     on       "AgentRun.JobRead"
+    acts_as "System"
     root
     where    { agent == "architect" && work == "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
     for_each "Agents::ChangeReview.OfRun"
@@ -1876,6 +1893,7 @@ Hecks.hecksagon "Hecks" do
   # `undeliverable` and stays so. Of the two policies one passes its given, the other refuses.
   translates "RedeliverTheUnresumedVerdict" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::Verdict.Unresumed"
     across   "Agents"
     trigger  Verdict::Redeliver, with: { verdict: :verdict, work: :work, answer: :answer, word: :word }
@@ -1883,6 +1901,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "AbandonTheUnresumedVerdict" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::Verdict.Unresumed"
     across   "Agents"
     trigger  Verdict::Abandon, with: { verdict: :verdict, work: :work,
@@ -1892,6 +1911,7 @@ Hecks.hecksagon "Hecks" do
   # The reviewer's closing text is the job's detail; its judgment word is in it.
   translates "JudgeTheReviewersJudgment" do
     on      "AgentRun.JobRead"
+    acts_as "System"
     root
     where   { agent == "reviewer" && judgment != "" && previous != state }
     across  "Agents"
@@ -1903,6 +1923,7 @@ Hecks.hecksagon "Hecks" do
   # (`reviewing`) closes nothing. The open is refused, and benign, once the record is there.
   translates "OpenTheResultOfAClosedCoderRun" do
     on      "AgentRun.JobRead"
+    acts_as "System"
     root
     where   do
       agent == "coder" && resuming != true && reviewing != true &&
@@ -1915,6 +1936,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "HearTheClosingOfACoderRun" do
     on      "AgentRun.JobRead"
+    acts_as "System"
     root
     where   do
       agent == "coder" && resuming != true && reviewing != true &&
@@ -1929,6 +1951,7 @@ Hecks.hecksagon "Hecks" do
   # one inside its window refuses by its given.
   translates "EscalateWhatTheScrumMasterLeft" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::Message.Unsettled"
     across   "Agents"
     trigger  Message::Escalate, with: { message: :message }
@@ -1937,6 +1960,7 @@ Hecks.hecksagon "Hecks" do
   # Each sweep falls back on every sent message nobody heard; one inside its window refuses by its given.
   translates "FallBackOnWhatWentUnread" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::Message.Unread"
     across   "Agents"
     trigger  Message::FallBack, with: { message: :message }
@@ -1945,6 +1969,7 @@ Hecks.hecksagon "Hecks" do
   # Each beat of the clock reads the spool once, keyed by the beat. A root, so it starts its own chain.
   translates "IngestOnHeartbeat" do
     on      "Heartbeat.Beaten"
+    acts_as "Operator"
     root
     across  "Agents"
     trigger MailSpool::Ingest, with: { pass: :beat }
@@ -1952,6 +1977,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "WatchTheHandRunsOnHeartbeat" do
     on      "Heartbeat.Beaten"
+    acts_as "System"
     root
     across  "Agents"
     trigger HandRunWatch::Watch, with: { pass: :beat }
@@ -1960,6 +1986,7 @@ Hecks.hecksagon "Hecks" do
   # Each clean verdict of the reverted work item is a miss; a work item never reviewed records none.
   translates "RecordTheMissedReview" do
     on       "RedEpisode.EpisodeReverting"
+    acts_as "System"
     root
     where    { work.value.to_s != "" }
     for_each "Agents::SubmissionReview.CleanOfWork"
@@ -1971,6 +1998,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "TickTheCadenceOnSweep" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     root
     for_each "Agents::CanaryCadence.Cadences"
     across   "Agents"
@@ -1980,6 +2008,7 @@ Hecks.hecksagon "Hecks" do
   # The brief is the stall's own detail, its subject and move filled in, so the run reads nothing to start.
   translates "WakeWhenAStallIsFiled" do
     on      "Stall.StallFiled"
+    acts_as "System"
     where   { fixer.value == "orchestrator" }
     across  "Agents"
     trigger Escalation::Raise, with: { escalation: :stall, event: "StallFiled", rule: "rely-on-events", role: "orchestrator", repo: ".",
@@ -1990,6 +2019,7 @@ Hecks.hecksagon "Hecks" do
   # revert made: the owner hears it through the orchestrator. The episode's run keys the wake.
   translates "WakeWhenAnEpisodeParks" do
     on      "RedEpisode.EpisodeParked"
+    acts_as "System"
     across  "Agents"
     trigger Escalation::Raise, with: { escalation: :run, event: "EpisodeParked", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
                                        brief: "A red main's episode parked: its range already holds a revert, so nothing was reverted and the red flag stands. Report it to the owner with the culprit and spec on the event, under your standing rule all-hands-on-red." }
@@ -1997,6 +2027,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "WakeWhenARevertIsRefused" do
     on      "SendTrain.RevertRefused"
+    acts_as "System"
     across  "Agents"
     trigger Escalation::Raise, with: { escalation: :run, event: "RevertRefused", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
                                        brief: "A red main's revert was refused (a dirty or off-main checkout, or a failed git revert), so the red flag stands with no revert. Report the refusal on the event to the owner, under your standing rule all-hands-on-red." }
@@ -2004,6 +2035,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "OpenTheSeatOnSweep" do
     on      "SessionSweep.SweepRequested"
+    acts_as "System"
     root
     across  "Agents"
     trigger Coordinator::Open, with: { role: "orchestrator", run: :run }
@@ -2011,6 +2043,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "StartTheEmptySeatOnSweep" do
     on      "SessionSweep.SweepRequested"
+    acts_as "System"
     root
     across  "Agents"
     trigger Coordinator::Start, with: { coordinator: "orchestrator", run: :run }
@@ -2018,6 +2051,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "LoseTheSeatWhenItsSessionEnds" do
     on       "AgentRun.JobRead"
+    acts_as "System"
     root
     where    { (state == "stopped" || state == "failed") && previous != state && resuming != true }
     for_each "Agents::Coordinator.OfRun"
@@ -2027,6 +2061,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "LoseTheSeatWhenItsStartIsDeclined" do
     on       "AgentRun.AgentRunDeclined"
+    acts_as "System"
     root
     for_each "Agents::Coordinator.OfRun"
     across   "Agents"
@@ -2035,6 +2070,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "LoseTheSeatWhenItsRunIsRetired" do
     on       "AgentRun.AgentRunRetired"
+    acts_as "System"
     root
     for_each "Agents::Coordinator.OfRun"
     across   "Agents"
@@ -2043,6 +2079,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "LoseTheSeatWhenItsSessionIsGone" do
     on       "AgentRun.SessionReviewed"
+    acts_as "System"
     root
     where    { listed == false }
     for_each "Agents::Coordinator.OfRun"
@@ -2052,6 +2089,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "RestThePrunerWhenItsRunEnds" do
     on      "AgentRun.JobRead"
+    acts_as "System"
     root
     where   { (state == "done" || state == "stopped" || state == "failed") && previous != state && agent == "pruner" }
     across  "Agents"
@@ -2062,6 +2100,7 @@ Hecks.hecksagon "Hecks" do
   # watcher inside its window, or one with no attempt left, refuses by its given.
   translates "LapseTheOverdueWatcher" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::Watcher.Open"
     across   "Agents"
     trigger  Watcher::Lapse, with: { watcher: :watcher }
@@ -2069,6 +2108,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "GiveUpTheExhaustedWatcher" do
     on       "SessionSweep.SweepRequested"
+    acts_as "System"
     for_each "Agents::Watcher.Open"
     across   "Agents"
     trigger  Watcher::GiveUp, with: { watcher: :watcher }
@@ -2079,6 +2119,7 @@ Hecks.hecksagon "Hecks" do
   # so it names the review.
   translates "RecordTheReviewersJudgment" do
     on AgentRun::JobRead
+    acts_as "System"
     where { judgment != "" && previous != state }
     across "Agents"
     trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment, findings: :findings }
@@ -2089,6 +2130,7 @@ Hecks.hecksagon "Hecks" do
   # (`ForwardTheAnsweredReview`); one no request made is recorded by `RecordTheVerdictWhenNoReviewWasAsked`.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
+    acts_as "System"
     where { work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
     across "Agents"
     trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
@@ -2097,6 +2139,7 @@ Hecks.hecksagon "Hecks" do
   # The coder's session was resumed with the verdict.
   translates "RecordTheVerdictDelivered" do
     on AgentRun::AgentRunAnswered
+    acts_as "System"
     where { verdict != "" }
     across "Agents"
     trigger Verdict::Deliver, with: { run: :verdict }
@@ -2106,6 +2149,7 @@ Hecks.hecksagon "Hecks" do
   # (`RedeliverTheUnresumedVerdict`, above), with the reason, not settled as undeliverable.
   translates "RecordTheVerdictUnresumed" do
     on AgentRun::AgentRunUnresumed
+    acts_as "System"
     across "Agents"
     trigger Verdict::Unresume, with: { run: :verdict, reason: :refusal }
   end
@@ -2113,6 +2157,7 @@ Hecks.hecksagon "Hecks" do
   # The verdict came after the coder's run had finished: the reason is the same kind of finding.
   translates "RecordTheVerdictOfAFinishedRun" do
     on AgentRun::AgentRunUnreached
+    acts_as "System"
     across "Agents"
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
@@ -2121,6 +2166,7 @@ Hecks.hecksagon "Hecks" do
   # undeliverable with the refusal, so the sweep does not send it again.
   translates "RecordTheVerdictOfAnEndedRun" do
     on AgentRun::AnswerRefused
+    acts_as "System"
     across "Agents"
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
@@ -2182,6 +2228,7 @@ Hecks.hecksagon "Delivery" do
   # A root: the job's start sits past the reaction depth limit, counted from the job's read.
   translates "LandWhenWorkIsSubmitted" do
     on      Submission::WorkSubmitted
+    acts_as "Operator"
     root
     trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
   end
@@ -2193,6 +2240,7 @@ end
 Hecks.hecksagon "Hecks" do
   translates "PullMainWhenMerged" do
     on      Integration::TrainMergeSeen
+    acts_as "Operator"
     root
     across  "Delivery"
     trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
@@ -2200,6 +2248,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "PullMainWhenCiPasses" do
     on      Integration::ObserveAnswered
+    acts_as "Operator"
     root
     where   { outcome.value == "passed" && pulled.value == false }
     across  "Delivery"
@@ -2208,6 +2257,7 @@ Hecks.hecksagon "Hecks" do
 
   translates "PullMainWhenCiFails" do
     on      Integration::ObserveAnswered
+    acts_as "Operator"
     root
     where   { outcome.value == "failed" && pulled.value == false }
     across  "Delivery"

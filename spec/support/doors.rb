@@ -10,11 +10,11 @@ require "hecks/projections/site/role_probe"
 # `[:ok]`, or `[:refused, message]`. A door that resolves a command's name before dispatch
 # words an unknown verb or argument its own way, so those refusals compare by outcome alone.
 module Doors
-  # The doors a step can be sent through; Ruby and MCP also carry the step's role.
+  # The doors a step can be sent through; Ruby, the CLI (`--as`) and MCP also carry the step's role.
   NAMES = %i[ruby cli mcp json].freeze
 
   # The doors whose request takes a caller's role.
-  ROLE_DOORS = %i[ruby mcp].freeze
+  ROLE_DOORS = %i[ruby cli mcp].freeze
 
   # The forms app name the JSON door serves every domain under.
   FORMS_APP = "DoorEquivalence".freeze
@@ -71,10 +71,13 @@ module Doors
   end
 
   def through_cli(runtime, step)
-    argv = ["#{cli_name(step["verb"])}!", *argv_pairs(request(runtime, step))]
+    argv = ["#{cli_name(step["verb"])}!", *cli_caller(step), *argv_pairs(request(runtime, step))]
     output, status = Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv)
     status.zero? ? [:ok] : [:refused, output.lines.first.to_s.strip.sub(/\A\[\w+\] /, "")]
   end
+
+  # `["--as", role]` for a step that states a role, so the line dispatches as it; none otherwise.
+  def cli_caller(step) = step["role"] ? ["--as", step["role"]] : []
 
   def through_mcp(runtime, step)
     answer = Hecks::Storehouse.dispatch(runtime: runtime, command: cli_name(step["verb"]), summary: "door equivalence",

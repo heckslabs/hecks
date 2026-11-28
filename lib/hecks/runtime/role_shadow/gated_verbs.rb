@@ -11,11 +11,13 @@ module Hecks
       class GatedVerbs
         # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks a domain loads
         def initialize(bluebooks)
+          @policy_only = []
           @roles = bluebooks.flat_map { |bluebook| verbs_of(bluebook) }.to_h
         end
 
-        # @return [Hash{String => Array<String>}] each role-gated verb and the roles it declares
-        def gated = @roles.reject { |_verb, roles| roles.empty? }
+        # @return [Hash{String => Array<String>}] each role-gated verb a caller may dispatch and the
+        #   roles it declares; a `policy_only` command takes no caller and is left out
+        def gated = @roles.reject { |verb, roles| roles.empty? || @policy_only.include?(verb) }
 
         # What a target names: `:gated` with its roles, `:open` for a command that declares no
         # role or a port operation (no port operation declares a role), `:unresolved` for a verb
@@ -39,16 +41,22 @@ module Hecks
         def verbs_of(bluebook)
           bluebook.aggregates.flat_map do |aggregate|
             aggregate.commands.map do |command|
-              [RoleShadow.verb_for(bluebook.name, aggregate.hecks_name, command.hecks_name), command.role_set]
+              verb_row(RoleShadow.verb_for(bluebook.name, aggregate.hecks_name, command.hecks_name), command)
             end + entity_verbs(bluebook.name, aggregate)
           end
+        end
+
+        # One verb and its roles, noting a `policy_only` command.
+        def verb_row(verb, command)
+          @policy_only << verb if command.policy_only?
+          [verb, command.role_set]
         end
 
         def entity_verbs(domain, aggregate)
           aggregate.entities.flat_map do |entity|
             entity.commands.map do |command|
               names = [aggregate.hecks_name, entity.hecks_name, command.hecks_name]
-              [RoleShadow.verb_for(domain, *names), command.role_set]
+              verb_row(RoleShadow.verb_for(domain, *names), command)
             end
           end
         end

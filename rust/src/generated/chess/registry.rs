@@ -1085,6 +1085,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("turn", "\"black\"")],
         where_expr: Some(where_on_white_moved_advance_turn),
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "OnBlackMovedAdvanceTurn",
@@ -1096,6 +1097,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("turn", "\"white\"")],
         where_expr: Some(where_on_black_moved_advance_turn),
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "OnCheckDeclaredAfterMove",
@@ -1107,6 +1109,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("by", ":by")],
         where_expr: Some(where_on_check_declared_after_move),
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "OnCheckmateDeclaredAfterMove",
@@ -1118,6 +1121,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("by", ":by")],
         where_expr: Some(where_on_checkmate_declared_after_move),
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "OnStalemateDeclaredAfterMove",
@@ -1129,6 +1133,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[("by", ":by")],
         where_expr: Some(where_on_stalemate_declared_after_move),
+        acts_as: None,
     },
 ];
 

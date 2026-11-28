@@ -1098,6 +1098,7 @@ Hecks.bluebook "CiSpeed" do
   # measured. A slower or inconclusive result says nothing to the backlog, so the estimate stands.
   policy "ReestimateFromAConclusiveExperiment" do
     on      "Experiment.ExperimentMeasured"
+    acts_as "CI engineer"
     where   { verdict.value == "faster" && reestimates.value != "" }
     trigger Lever::Reestimate, with: { lever: :reestimates, new_expected_seconds: :expected_seconds, new_basis: :basis }
   end
@@ -1106,21 +1107,25 @@ Hecks.bluebook "CiSpeed" do
   # witnessed too: the latest run decides, not the best one.
   policy "WitnessWarmUnderBudget" do
     on      "Run.WarmRunUnderBudget"
+    acts_as "CI engineer"
     trigger Budget::WitnessWarm, with: { budget: "main", seconds: :seconds }
   end
 
   policy "WitnessWarmOverBudget" do
     on      "Run.WarmRunOverBudget"
+    acts_as "CI engineer"
     trigger Budget::WitnessWarm, with: { budget: "main", seconds: :seconds }
   end
 
   policy "WitnessMissUnderBudget" do
     on      "Run.MissRunUnderBudget"
+    acts_as "CI engineer"
     trigger Budget::WitnessMiss, with: { budget: "main", seconds: :seconds }
   end
 
   policy "WitnessMissOverBudget" do
     on      "Run.MissRunOverBudget"
+    acts_as "CI engineer"
     trigger Budget::WitnessMiss, with: { budget: "main", seconds: :seconds }
   end
 
@@ -1128,6 +1133,7 @@ Hecks.bluebook "CiSpeed" do
   # file is refused as already existing; see `Lever::Propose`.
   policy "ProposeLeverForWarmPole" do
     on      "Run.WarmRunOverBudget"
+    acts_as "CI engineer"
     trigger Lever::Propose, with: {
       name: :pole,
       change: { value: "a change to the slowest job of a warm run" },
@@ -1141,6 +1147,7 @@ Hecks.bluebook "CiSpeed" do
 
   policy "ProposeLeverForMissPole" do
     on      "Run.MissRunOverBudget"
+    acts_as "CI engineer"
     trigger Lever::Propose, with: {
       name: :pole,
       change: { value: "a change to the slowest job of a cache-miss run" },
@@ -1156,11 +1163,13 @@ Hecks.bluebook "CiSpeed" do
   # the Complete given refuses, which is the "not yet" answer.
   policy "CompleteOnWarmWitness" do
     on      "Budget.WarmRunWitnessed"
+    acts_as "CI engineer"
     trigger Budget::Complete, with: { budget: :name }
   end
 
   policy "CompleteOnMissWitness" do
     on      "Budget.MissRunWitnessed"
+    acts_as "CI engineer"
     trigger Budget::Complete, with: { budget: :name }
   end
 

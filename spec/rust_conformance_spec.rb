@@ -131,4 +131,57 @@ RSpec.describe "Rust conformance (native binary)", :io do
     expect(gaps.not_generated(RUST_CONFORMANCE_UNCOVERED_QUERY)).to be_nil
     expect(uncovered_query_output(binary)["queries"]).to eq([])
   end
+
+  # bluebook.bluebook's commands declare `role "Language"`, the role the Ruby judge states when it
+  # loads a bluebook through them (ADR 0216). The generated `meta` crate runs the same commands, so
+  # its kernel answers each caller as Ruby does: the stated role runs, the caller who stated no role
+  # is refused, and a step with no caller is the process's own and runs.
+  LANGUAGE_ROLE_STEPS = [
+    { "verb" => "Bluebook::Bluebook.Declare", "role" => "Language", "args" => { "name" => { "value" => "Stated" } } },
+    { "verb" => "Bluebook::Bluebook.Declare", "role" => "Anonymous", "args" => { "name" => { "value" => "Unstated" } } },
+    { "verb" => "Bluebook::Bluebook.Declare", "args" => { "name" => { "value" => "Internal" } } }
+  ].freeze
+
+  LANGUAGE_UNSTATED_REFUSAL = { "verb" => "Bluebook::Bluebook.Declare", "kind" => "Unauthorized",
+                                "error" => "Declare refused — role: Language, and the caller stated no role" }.freeze
+
+  def meta_output
+    binary = build_rust_for("meta") || skip("rust/Cargo.toml has no meta feature")
+    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => LANGUAGE_ROLE_STEPS }))
+    expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
+    JSON.parse(stdout)
+  end
+
+  # The same steps dispatched into the Ruby runtime's bluebook.bluebook, each as its step's caller.
+  def ruby_language_refusals
+    runtime = Hecks::Bluebook::MetaValidator.fresh_runtime
+    LANGUAGE_ROLE_STEPS.filter_map do |step|
+      as_step_caller(step) { runtime.dispatch(step["verb"], with: { name: { value: step.dig("args", "name", "value") } }) }
+      nil
+    rescue Hecks::Runtime::Unauthorized => e
+      { "verb" => step["verb"], "kind" => "Unauthorized", "error" => e.message }
+    end
+  end
+
+  def as_step_caller(step, &)
+    return Hecks::Runtime::Caller.without(&) unless step["role"]
+
+    Hecks::Runtime::Caller.as(role: step["role"], &)
+  end
+
+  it "refuses bluebook.bluebook's Declare to a caller who stated no role, in the generated meta crate" do
+    expect(meta_output["refusals"]).to eq([LANGUAGE_UNSTATED_REFUSAL])
+  end
+
+  it "runs bluebook.bluebook's Declare as the Language role and as the process's own step, in the meta crate" do
+    expect(meta_output["instances"].keys).to contain_exactly("Bluebook::Bluebook#Stated", "Bluebook::Bluebook#Internal")
+  end
+
+  it "answers bluebook.bluebook's callers in the Ruby runtime as the meta crate does" do
+    mode = Hecks::Runtime::RoleShadow.mode
+    Hecks::Runtime::RoleShadow.install(:enforce)
+    expect(ruby_language_refusals).to eq([LANGUAGE_UNSTATED_REFUSAL])
+  ensure
+    Hecks::Runtime::RoleShadow.install(mode)
+  end
 end

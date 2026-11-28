@@ -26,6 +26,10 @@ Hecks.world "QualityControl" do
   # What the board calls healthy CI on main: the median wall time it aims for in minutes, and the
   # success rate, in percent, at which a CI tile is good and at which it is fair before it is poor.
   ci_health "PipelineBoard", wall_goal_minutes: 3, success_good: 80, success_fair: 50
+  # The roles whoever runs `exe/hecks quality_control …` holds (ADR 0216): a line that states no
+  # `--as <Role>` dispatches as the first of them its command declares. The owner's roles
+  # (`Release owner`, `Governance administrator`) are not listed: a line states them with `--as`.
+  launcher "Launcher", caller_roles: ["QA engineer", "CI engineer", "Coder", "Fixer", "Maintainer", "System"]
   # The rehearsal reads a throwaway copy of the ledger, named by an environment variable so the
   # file holds no connection string; the copy is made beforehand and is never this database.
   rehearsed_by("Postgres") do

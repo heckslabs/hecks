@@ -1129,13 +1129,22 @@ pub mod tests {
     }
 
     #[test]
-    fn enforcement_reads_off_shadow_and_enforce_and_defaults_to_shadow() {
-        assert_eq!(Enforcement::parse(None), Enforcement::Shadow);
-        assert_eq!(Enforcement::parse(Some("")), Enforcement::Shadow);
-        assert_eq!(Enforcement::parse(Some("nonsense")), Enforcement::Shadow);
+    fn enforcement_reads_off_shadow_and_enforce_and_defaults_to_enforce() {
+        assert_eq!(Enforcement::parse(None), Enforcement::Enforce);
+        assert_eq!(Enforcement::parse(Some("")), Enforcement::Enforce);
+        assert_eq!(Enforcement::parse(Some("nonsense")), Enforcement::Enforce);
         assert_eq!(Enforcement::parse(Some(" off ")), Enforcement::Off);
         assert_eq!(Enforcement::parse(Some("Shadow")), Enforcement::Shadow);
         assert_eq!(Enforcement::parse(Some(" enforce ")), Enforcement::Enforce);
+    }
+
+    // The kernel runs a reaction that declares no `acts_as` unchecked unless the step says the
+    // mode is `enforce`, which it assumes when the step says nothing.
+    #[test]
+    fn only_shadow_and_off_are_written_on_the_step() {
+        assert_eq!(Enforcement::Enforce.step_word(), None);
+        assert_eq!(Enforcement::Shadow.step_word(), Some("shadow"));
+        assert_eq!(Enforcement::Off.step_word(), Some("off"));
     }
 
     #[test]
@@ -1310,7 +1319,7 @@ pub mod tests {
         assert!(refused_for_role(&enforced.result), "{:?}", enforced.result);
         let error = enforced.result["refusals"][0]["error"].as_str().unwrap();
         assert!(
-            error.contains("Branch clerk") && error.contains(ANONYMOUS_ROLE),
+            error.contains("Branch clerk") && error.ends_with("and the caller stated no role"),
             "{error}"
         );
 
@@ -2039,6 +2048,13 @@ mod preview_tests {
     use rust_host_core::dispatch::*;
     use std::path::Path;
 
+    // The caller a preview states: the branch clerk Register and Close declare (ADR 0216), so a
+    // preview answers for the command and not for a caller who stated no role.
+    const CLERK: Caller<'static> = Caller {
+        role: Some("Branch clerk"),
+        actor_id: None,
+    };
+
     // The client envelope a preview of `verb` answers for `invocation`.
     async fn preview_of(
         client: &Store,
@@ -2048,9 +2064,7 @@ mod preview_tests {
         let config = memory_config("Banking");
         let wasm = wasm_path();
         let host = Host::new(client, &wasm, &config, &lambda_client::NeverInvoker);
-        let outcome = preview_as(host, verb, invocation, Caller::default())
-            .await
-            .unwrap();
+        let outcome = preview_as(host, verb, invocation, CLERK).await.unwrap();
         crate::validation::answer(&outcome.result)
     }
 
@@ -2140,7 +2154,7 @@ mod preview_tests {
         let host = Host::new(&client, &wasm, &config, &lambda_client::NeverInvoker);
         let body = serde_json::json!({
             "verb": "Banking::Customer.Register", "with": register("CUST-P5"),
-            "dry_run": true, "bare": true,
+            "role": "Branch clerk", "dry_run": true, "bare": true,
         });
         let answer = crate::server::dispatch_body(body, host).await.unwrap();
         assert_eq!(answer, serde_json::json!({ "ok": true, "refusals": [] }));

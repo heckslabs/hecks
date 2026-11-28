@@ -32,13 +32,25 @@ pub fn emit_policy_table(
     let rows = local_policy_rows(domain_name, policies, aggregates);
     let table = exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, root: false, with_spec: &[], where_expr: None },", rows.join("\n"))],
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, root: false, with_spec: &[], where_expr: None, acts_as: None },", rows.join("\n"))],
     );
     if fns.is_empty() {
         table
     } else {
         format!("{table}\n\n{}", fns.join("\n\n"))
     }
+}
+
+// The role a policy's reaction runs as (`acts_as`, ADR 0216); the IR carries it only when declared.
+fn acts_as_expr(policy: &Json) -> String {
+    policy
+        .get("acts_as")
+        .map(Json::to_s)
+        .filter(|role| !role.is_empty())
+        .map_or_else(
+            || "None".to_string(),
+            |role| format!("Some({})", naming::ruby_inspect_string(&role)),
+        )
 }
 
 // A policy's `where { … }` becomes a generated function the kernel calls.
@@ -101,7 +113,7 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, root: {}, with_spec: {}, where_expr: {} }},",
+                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, root: {}, with_spec: {}, where_expr: {}, acts_as: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
                 naming::ruby_inspect_string(&target_verb),
@@ -109,7 +121,8 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
                 fan_out_key_expr(policy, aggregates),
                 root_expr(policy),
                 with_spec_expr(policy),
-                where_expr(policy)
+                where_expr(policy),
+                acts_as_expr(policy)
             ))
         })
         .collect()
@@ -191,7 +204,7 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
 
     let table = exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, root: false, with_spec: &[], where_expr: None },", rows.join("\n"))],
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, root: false, with_spec: &[], where_expr: None, acts_as: None },", rows.join("\n"))],
     );
     if fns.is_empty() {
         table

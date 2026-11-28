@@ -396,11 +396,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheOutput" do
       on      "Operation.OperationAnswered"
+      acts_as "System"
       trigger Operation::Succeed, with: { output: :output }
     end
 
     policy "RecordTheFailure" do
       on      "Operation.OperationRefused"
+      acts_as "System"
       trigger Operation::Fail, with: { refusal: :refusal }
     end
 
@@ -508,11 +510,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheClockStop" do
       on      "Clock.ClockRan"
+      acts_as "System"
       trigger Clock::Stop, with: { output: :output }
     end
 
     policy "RecordTheClockRefusal" do
       on      "Clock.ClockRefused"
+      acts_as "System"
       trigger Clock::Fail, with: { refusal: :refusal }
     end
 
@@ -662,18 +666,21 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheEra" do
         on      "Host.EraReported"
+        acts_as "System"
         where   { verdict.value != "mismatch" }
         trigger Host::Observe, with: { era: :era, version: :version, report: :report }
       end
 
     policy "RecordTheDrift" do
       on      "Host.EraReported"
+      acts_as "System"
       where   { verdict.value == "mismatch" }
       trigger Host::Drift, with: { era: :era, version: :version, report: :report }
     end
 
     policy "RecordTheLostHost" do
       on      "Host.HostRefused"
+      acts_as "System"
       trigger Host::Lose, with: { refusal: :refusal }
     end
 

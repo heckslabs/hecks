@@ -109,6 +109,9 @@ Hecks.world "Hecks" do
   # world declares no `event_tap`, so a client writes no file. The file rotates at `max_bytes`.
   event_tap "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
   launcher "Launcher", run_keys: true,
+                       caller_roles: ["Maintainer", "Operator", "QA engineer", "Language", "Language designer",
+                                      "Deployment", "Coder", "Fixer", "Author", "CI engineer", "Auditor",
+                                      "Orchestrator", "System"],
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin operation.abandon_outbox_row
                                   operation.redrive_outbox smoke_run.run

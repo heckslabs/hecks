@@ -206,11 +206,13 @@ Hecks.bluebook "Pipeline" do
 
   policy "PlanWhenWorkPlanned" do
     on      "Work.WorkPlanned"
+    acts_as "System"
     trigger Passage::Plan, with: { change: :work, title: :title }
   end
 
   policy "PlanWhenWorkReopened" do
     on      "Work.WorkReopened"
+    acts_as "System"
     trigger Passage::Plan, with: { change: :work, title: :title }
   end
 
@@ -219,11 +221,13 @@ Hecks.bluebook "Pipeline" do
   # already exists, which a reaction treats as benign.
   policy "PlanWhenWorkStarted" do
     on      "Work.WorkStarted"
+    acts_as "System"
     trigger Passage::Plan, with: { change: :work }
   end
 
   policy "DispatchWhenWorkStarted" do
     on      "Work.WorkStarted"
+    acts_as "System"
     trigger Passage::Dispatch, with: { change: :work, session: :claimed_by }
   end
 
@@ -232,29 +236,34 @@ Hecks.bluebook "Pipeline" do
   # passage (an adopted tip, a train branch) is refused as no passage, which a reaction treats as benign.
   policy "LandWhenBranchLanded" do
     on      "Landing.BranchLanded"
+    acts_as "System"
     trigger Passage::Land, with: { change: :branch }
   end
 
   policy "PushEveryLandedWhenMainPushed" do
     on       "Integration.MainPushed"
+    acts_as "System"
     for_each "Passage.Landed"
     trigger  Passage::Push, with: { change: :change, pushed: :pushed }
   end
 
   policy "HoldEveryPushedWhenMainRed" do
     on       "RedFlag.RedFlagRaised"
+    acts_as "System"
     for_each "Passage.Pushed"
     trigger  Passage::Hold, with: { change: :change, flag: :flag }
   end
 
   policy "VerifyEveryPushedWhenMainGreen" do
     on       "RedFlag.RedFlagCleared"
+    acts_as "System"
     for_each "Passage.Pushed"
     trigger  Passage::Verify, with: { change: :change }
   end
 
   policy "PromoteEveryVerifiedWhenStableMoves" do
     on       "PromotionRun.PromotionCompleted"
+    acts_as "System"
     where    { promoted.value == true }
     for_each "Passage.Verified"
     trigger  Passage::Promote, with: { change: :change }
@@ -262,6 +271,7 @@ Hecks.bluebook "Pipeline" do
 
   policy "ReleaseEveryPromotedWhenPublished" do
     on       "Release.Published"
+    acts_as "System"
     for_each "Passage.Promoted"
     trigger  Passage::Release, with: { change: :change }
   end
