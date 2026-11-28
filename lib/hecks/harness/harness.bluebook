@@ -37,6 +37,16 @@ Hecks.bluebook "Harness" do
       attribute :value, String, matches: :present
     end
 
+    # The role a session was opened for, the one whose tools it holds.
+    value_object "RoleName" do
+      attribute :value, String, matches: :present
+    end
+
+    # Why a tool was refused, in the words the model was told.
+    value_object "Reason" do
+      attribute :value, String, matches: :present
+    end
+
     # What the model said last in a turn; an empty turn says nothing.
     value_object "TurnText" do
       attribute :value, String, default: ""
@@ -168,6 +178,7 @@ Hecks.bluebook "Harness" do
 
       reference_to Session
       attribute :tool, ToolName
+      attribute :role, RoleName, optional: true
 
       emits "ToolAllowed"
     end
@@ -177,7 +188,9 @@ Hecks.bluebook "Harness" do
       goal "Record a tool the session asked for and was refused"
 
       reference_to Session
-      attribute :tool, ToolName
+      attribute :tool,   ToolName
+      attribute :role,   RoleName, optional: true
+      attribute :reason, Reason, optional: true
 
       emits "ToolWithheld"
     end
