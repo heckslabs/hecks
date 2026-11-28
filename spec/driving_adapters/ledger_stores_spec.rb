@@ -84,4 +84,12 @@ RSpec.describe Hecks::Adapters::Driving::LedgerStores do
     expect(stores.call("/wt")).to eq([["store Tickets", "Memory", "x"]])
     expect(stores.call(main).map(&:first)).to include("store Tickets::Work")
   end
+
+  it "answers the runtime's rows for a launcher's own repository too" do
+    allow(described_class).to receive(:registry_rows).and_return([["store Agents", "Sqlite", "x"]])
+    runtime = instance_double(Hecks::Runtime::Dispatcher, registry: :registry)
+    stores = described_class.for_runtime(runtime, "/wt", "/yard", cache: cache, launch: launch)
+
+    expect(stores.call("/yard")).to eq([["store Agents", "Sqlite", "x"]])
+  end
 end

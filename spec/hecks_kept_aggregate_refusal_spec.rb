@@ -37,6 +37,33 @@ RSpec.describe Hecks::Adapters::Driving::KeptCheck do
     expect(refusal("Epic")).to include("refused: Tickets::Epic is kept", command)
   end
 
+  context "when a launcher from another repository boots the domain" do
+    let(:env) { { "HECKS_LAUNCHER" => File.join(@yard, "exe/switchyard") } }
+
+    around do |example|
+      Dir.mktmpdir("kept-yard") do |yard|
+        @yard = yard
+        FileUtils.mkdir_p([File.join(yard, ".git"), File.join(yard, "exe"), File.join(yard, "lib/hecks/hecks")])
+        example.run
+      end
+    end
+
+    def yard_opt_in
+      File.write(File.join(@yard, described_class::OVERLAY), %(Tickets::Work.persisted_by("SqlitePersistence")\n))
+    end
+
+    it "names its own launcher and repository in the refusal", :aggregate_failures do
+      yard_opt_in
+      command = "#{@yard}/exe/switchyard LocalOverlay.write! root.value=#{@yard} copy.value=main"
+      expect(refusal("Epic", env: env)).to include("refused: Tickets::Epic is kept", command)
+    end
+
+    it "judges the launcher's repository, not the checkout the command works on" do
+      opt_in
+      expect(refusal("Epic", env: env)).to be_nil
+    end
+  end
+
   it "lets a checkout with no local overlay keep its records in Memory" do
     expect(refusal("Epic")).to be_nil
   end

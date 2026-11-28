@@ -37,6 +37,8 @@ RSpec.describe "the Tickets Sprint" do
 
   def sprint_of(key) = plain(stored("Work").find { |row| plain(row.work) == key }.sprint)
 
+  def planned?(key) = plain(stored("Work").find { |row| plain(row.work) == key }.sprint_planned)
+
   def board
     stored("Sprint").map { |row| [plain(row.sprint), plain(row.goal), items_in(plain(row.sprint))] }
   end
@@ -79,5 +81,18 @@ RSpec.describe "the Tickets Sprint" do
     item("a1")
     schedule("a1", "2026-11-23")
     expect(sprint_of("a1").to_s).to eq("")
+  end
+
+  it "keeps an item planned for the sprint after the sprint closes" do
+    sprints("2026-11-23")
+    item("a1")
+    schedule("a1", "2026-11-23")
+    close("2026-11-23")
+    expect([sprint_of("a1"), planned?("a1")]).to eq(["", true])
+  end
+
+  it "reads an item never scheduled as not planned for the sprint" do
+    item("a1")
+    expect(planned?("a1")).not_to be(true)
   end
 end

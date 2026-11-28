@@ -39,11 +39,14 @@ module Hecks
 
         # @param runtime [#registry] the booted domain or the described one the line runs in
         # @param worktree [String] the root of the worktree the line runs in
+        # @param own [Array<String>] further roots the registry's own rows answer for: the
+        #   repository of a launcher that boots a domain from elsewhere ({Launcher})
         # @param seams [Hash] `:cache` (a directory) and `:launch` (runs a launcher), for specs
         # @return [#call] answers the store rows of a checkout root
-        def for_runtime(runtime, worktree, **seams)
+        def for_runtime(runtime, worktree, *own, **seams)
+          held = [worktree, *own]
           lambda do |root|
-            root == worktree ? registry_rows(runtime.registry) : main_rows(root, **seams)
+            held.include?(root) ? registry_rows(runtime.registry) : main_rows(root, **seams)
           end
         end
 

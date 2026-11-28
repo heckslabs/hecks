@@ -893,6 +893,9 @@ Hecks.bluebook "Tickets" do
     attribute :pomodoros_spent, Pomodoros, optional: true
     # Work planned outside the day's plan: it is sized like any other item, and finishing it is overage.
     attribute :unplanned,       Unplanned, optional: true
+    # Whether sprint planning scheduled it: set by Schedule and kept when the sprint closes, so an item
+    # started or finished without it reads not planned. Apart from `unplanned`, the interrupt flag.
+    attribute :sprint_planned,  SprintPlanned, optional: true
     attribute :category, Category, optional: true
     # The batch work item a batched item waits in: a sweep batch, or the lead of a group one coder
     # builds on the lead's branch. Empty once it is returned.
@@ -997,6 +1000,9 @@ Hecks.bluebook "Tickets" do
 
     # Whether a work item came in outside the plan; its finishing counts as overage.
     value_object "Unplanned", Boolean
+
+    # Whether sprint planning scheduled a work item into a sprint; empty when it never did.
+    value_object "SprintPlanned", Boolean
 
     # How many times a work item has been sent back to the plan; its backoff grows with it.
     value_object "YieldCount" do
@@ -1233,6 +1239,7 @@ Hecks.bluebook "Tickets" do
       reference_to Sprint, as: :into
 
       sets :sprint, to: :into
+      sets :sprint_planned, to: true
 
       given("a done work item is not scheduled") { status != "done" }
       given("a dropped work item is not scheduled") { status != "dropped" }
@@ -2560,6 +2567,15 @@ Hecks.bluebook "Tickets" do
     description "How many work items are scheduled into each sprint."
     include Work
     group_by :sprint
+    count
+  end
+
+  # Planned against not planned: the items sprint planning scheduled, apart from those that were never
+  # scheduled, which group under no value.
+  read_model "WorkBySprintPlanning" do
+    description "How many work items sprint planning scheduled, and how many it never did."
+    include Work
+    group_by :sprint_planned
     count
   end
 
