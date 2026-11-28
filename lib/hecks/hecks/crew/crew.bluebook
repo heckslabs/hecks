@@ -1,9 +1,9 @@
 Hecks.bluebook "Hecks" do
   domain_module "Crew" do
-    vision "One command brings up the crew: every role opened as a Harness session on its own brief and tools, served until it is stopped."
+    vision "One command brings up the crew: every role opened as a Harness session on its own brief and tools, served until it is stopped. A run's journal replays through the harness with the checkout's crew, held act by act to what the run did."
 
-    # With `tapes`, each role's child is played from `<tapes>/<role>.jsonl`, so it runs with no model;
-    # with `turns`, the crew stops once every session has ended that many turns.
+    # `tapes` plays each role from `<tapes>/<role>.jsonl`, `turns` stops the crew after that many
+    # turns of each session, `journal` writes the run's journal, which `Crew.replay!` replays.
     #   exe/hecks Crew.up! --wait
     aggregate "Crew" do
       description "One bringing-up of the crew as Harness sessions, from its request until it was stopped or refused: every role with a role file under the checkout's .claude/agents (the command's own checkout unless checkout names another) but the owner's orchestrator, each a Claude Code child of the supervisor."
@@ -14,6 +14,7 @@ Hecks.bluebook "Hecks" do
       attribute :checkout, CheckoutPath, optional: true
       attribute :tapes,    TapeDirectory, optional: true
       attribute :turns,    TurnCount, optional: true
+      attribute :journal,  JournalDirectory, optional: true
       attribute :last,     Reason, optional: true
 
       value_object "RunKey" do
@@ -27,6 +28,11 @@ Hecks.bluebook "Hecks" do
 
       # A directory of replay tapes, one a role, named for the role.
       value_object "TapeDirectory" do
+        attribute :value, String, matches: :present
+      end
+
+      # A crew run's journal: one recording a session, every line to and from its child.
+      value_object "JournalDirectory" do
         attribute :value, String, matches: :present
       end
 
@@ -57,8 +63,20 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, CheckoutPath, optional: true, sets: true
         attribute :tapes,    TapeDirectory, optional: true, sets: true
         attribute :turns,    TurnCount, optional: true, sets: true
+        attribute :journal,  JournalDirectory, optional: true, sets: true
 
         emits CrewUpRequested
+      end
+
+      command "Replay" do
+        role "Maintainer"
+        goal "Replay a crew run's journal through the harness with the checkout's crew, and hold every act the replay does to the one the journal has"
+
+        attribute :run,      RunKey, sets: true
+        attribute :journal,  JournalDirectory, sets: true
+        attribute :checkout, CheckoutPath, optional: true, sets: true
+
+        emits CrewReplayRequested
       end
 
       command "End" do
@@ -89,6 +107,11 @@ Hecks.bluebook "Hecks" do
       ask :bring_up, with: { run: :run }
     end
 
+    policy "ReplayTheJournalWhenAsked" do
+      on  "Crew.CrewReplayRequested"
+      ask :replay_journal, with: { run: :run }
+    end
+
     policy "EndTheCrewWhenItStopped" do
       on      "Crew.CrewStopped"
       acts_as "System"
@@ -97,6 +120,18 @@ Hecks.bluebook "Hecks" do
 
     policy "RefuseTheCrewWhenNotBroughtUp" do
       on      "Crew.CrewNotBroughtUp"
+      acts_as "System"
+      trigger Crew::Refuse, with: { last: :refusal }
+    end
+
+    policy "EndTheReplayWhenItHeld" do
+      on      "Crew.CrewReplayed"
+      acts_as "System"
+      trigger Crew::End, with: { last: :last }
+    end
+
+    policy "RefuseTheReplayWhenItDidOtherwise" do
+      on      "Crew.CrewNotReplayed"
       acts_as "System"
       trigger Crew::Refuse, with: { last: :refusal }
     end

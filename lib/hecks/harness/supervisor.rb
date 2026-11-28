@@ -26,9 +26,12 @@ module Hecks
       #   `model` and `cwd` (see {Launch})
       # @param binary [String] the `hecks-harness` binary
       # @param tick_ms [Integer, nil] how often the supervisor's clock ticks; a minute when nil
-      def initialize(launch:, binary: BINARY, tick_ms: nil)
+      # @param record [String, nil] the directory the run's journal is written to, one recording a
+      #   session (see `hecks-harness journal`); none when nil
+      def initialize(launch:, binary: BINARY, tick_ms: nil, record: nil)
         @launch = launch
-        @stdin, @stdout, @process = Open3.popen2(binary, "serve", *(tick_ms ? ["--tick-ms", tick_ms.to_s] : []))
+        flags = [*(tick_ms ? ["--tick-ms", tick_ms.to_s] : []), *(record ? ["--record", record] : [])]
+        @stdin, @stdout, @process = Open3.popen2(binary, "serve", *flags)
         @tells = Queue.new
         @waiters = {}
         @lock = Mutex.new

@@ -6,6 +6,10 @@
 //! - `hecks-harness measure TELLS`: the mail measured against the baseline, as JSON; exits 1 when
 //!   it is not within the baseline.
 //! - `hecks-harness tape RECORDING`: a recording `serve --record` wrote, turned into a tape.
+//! - `hecks-harness journal DIR`: each session's turns and acts in a journal `serve --record DIR`
+//!   wrote, as JSON.
+//! - `hecks-harness compare JOURNAL REPLAY`: a replay's journal held to the run's, as JSON; exits 1
+//!   when the replay did otherwise.
 //! - `hecks-harness brief ROLE_FILE`: the brief a session opened for that role is given.
 //! - `hecks-harness role ROLE_FILE`: that role as a session holds it (its brief, the tools it may
 //!   use and its model), as JSON.
@@ -19,10 +23,10 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use hecks_harness::role::{self, Role};
-use hecks_harness::{measure, replay, supervisor};
+use hecks_harness::{journal, measure, replay, supervisor};
 
 const USAGE: &str =
-    "usage: hecks-harness serve [--record DIR] [--tick-ms MS] | replay TAPE | measure TELLS | tape RECORDING | brief ROLE_FILE | role ROLE_FILE | crew AGENTS_DIR";
+    "usage: hecks-harness serve [--record DIR] [--tick-ms MS] | replay TAPE | measure TELLS | tape RECORDING | journal DIR | compare JOURNAL REPLAY | brief ROLE_FILE | role ROLE_FILE | crew AGENTS_DIR";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -34,6 +38,9 @@ fn main() -> ExitCode {
         ["tape", recording] => read(recording)
             .and_then(|text| replay::tape_from_recording(&text))
             .map(|tape| print!("{tape}")),
+        ["journal", dir] => journal::read(Path::new(dir))
+            .map(|sessions| println!("{}", journal::outline(&sessions).to_json())),
+        ["compare", wanted, done] => return compared(wanted, done),
         ["brief", role_file] => read(role_file)
             .and_then(|text| Role::of_file(&text))
             .map(|role| print!("{}", role.brief)),
@@ -96,6 +103,25 @@ fn measured(tells: &str) -> ExitCode {
             let measured = measure::measure(&text);
             println!("{}", measured.to_value().to_json());
             if measured.within_baseline() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Err(error) => {
+            eprintln!("hecks-harness: {error}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn compared(wanted: &str, done: &str) -> ExitCode {
+    match journal::read(Path::new(wanted)).and_then(|journal| {
+        journal::read(Path::new(done)).map(|replay| journal::compare(&journal, &replay))
+    }) {
+        Ok(compared) => {
+            println!("{}", compared.to_value().to_json());
+            if compared.held() {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::FAILURE

@@ -3,11 +3,14 @@
 //! [`supervisor`] holds each session's Claude Code child and speaks its stream-json protocol
 //! ([`protocol`]), serving the one in-process MCP tool `send_message` ([`mcp`]). [`replay`] plays a
 //! child from a tape, so the whole exchange is proven with no model, and [`measure`] reads the
-//! supervisor's tells against the mail's baseline. [`brief`] turns a role file into a session's
+//! supervisor's tells against the mail's baseline. [`journal`] reads a recorded run back as each session's acts and holds a replay to
+//! them. [`brief`] turns a role file into a session's
 //! brief, [`role`] reads the tools and model it holds, and [`json`] is the std-only reader and writer the wire needs.
 
 /// A role file turned into a session's brief.
 pub mod brief;
+/// A crew run's journal, and a replay held to it.
+pub mod journal;
 /// The std-only JSON reader and writer.
 pub mod json;
 /// The in-process MCP server and its one tool, `send_message`.
