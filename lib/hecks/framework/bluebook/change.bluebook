@@ -137,6 +137,7 @@ Hecks.bluebook "Change" do
 
   policy "RecordThePlanWhenExamined" do
     on      "Change.ChangeExamined"
+    acts_as "System"
     trigger Change::Plan, with: { plan: :plan, digest: :digest }
   end
 
@@ -147,11 +148,13 @@ Hecks.bluebook "Change" do
 
   policy "RecordTheOutcomeWhenPerformed" do
     on      "Change.ChangeAnswered"
+    acts_as "System"
     trigger Change::Complete, with: { report: :report }
   end
 
   policy "RecordTheRefusal" do
     on      "Change.ChangeRefused"
+    acts_as "System"
     trigger Change::Fault, with: { refusal: :refusal }
   end
 end

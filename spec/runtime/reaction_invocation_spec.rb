@@ -1,15 +1,18 @@
 require "spec_helper"
 
 RSpec.describe "reaction invocation routing" do
+  # Records each reaction's verb and facts, and apart from them the policy it reacts for.
   class RecordingReactionDispatcher
-    attr_reader :calls
+    attr_reader :calls, :reactions
 
     def initialize
       @calls = []
+      @reactions = []
     end
 
-    def reenter(verb, **arguments)
+    def reenter(verb, reaction: nil, **arguments)
       @calls << [verb, arguments]
+      @reactions << reaction
     end
 
     def reaction_depth_reached? = false
@@ -103,14 +106,16 @@ RSpec.describe "reaction invocation routing" do
     dispatcher.calls
   end
 
-  def permit_flagged_calls
+  def permit_flagged_dispatcher
     dispatcher = RecordingReactionDispatcher.new
     event = Hecks::Runtime::Event.new(
       name: "PermitFlagged", aggregate: "Signal", id: "signal-1", payload: { permit: "permit-1" }
     )
     Hecks::Runtime::PolicyInterpreter.new(reaction_registry, dispatcher: dispatcher).react(event, "ReactionRouting")
-    dispatcher.calls
+    dispatcher
   end
+
+  def permit_flagged_calls = permit_flagged_dispatcher.calls
 
   def review_annotation_invocation
     Hecks::Runtime::ReactionInvocation.build(
@@ -127,6 +132,10 @@ RSpec.describe "reaction invocation routing" do
 
   it "keeps an explicitly projected aggregate receiver out of command facts" do
     expect(permit_flagged_calls).to eq([["ReactionRouting::Permit.Revoke", { to: "permit-1", with: {} }]])
+  end
+
+  it "hands the dispatcher the policy it reacts for, so the reaction is bound as its acts_as" do
+    expect(permit_flagged_dispatcher.reactions.map(&:name)).to eq(["RevokeFlaggedPermit"])
   end
 
   it "orders aggregate and entity identities outside an entity command's facts" do

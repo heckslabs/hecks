@@ -1,9 +1,14 @@
+require_relative "judging_caller"
+
 module Hecks
   module Bluebook
     module MetaValidator
       # Offers a built .port to the self-hosted port language (port.bluebook).
       # Refusals are collected in `refusals`.
       class PortJudge
+        # The role the judge dispatches as: every role-gated command of its language declares it.
+        ROLE = JudgingCaller::DEPLOYMENT
+
         attr_reader :refusals
 
         # @param port [Bluebook::Port] the built port to judge

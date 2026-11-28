@@ -28,6 +28,7 @@ require_relative "cli_runner/verb_names"
 require_relative "cli_runner/verbosity"
 require_relative "cli_runner/since"
 require_relative "cli_runner/name_index"
+require_relative "cli_runner/caller_line"
 
 module Hecks
   module Adapters
@@ -39,6 +40,7 @@ module Hecks
         include ExitStatus
         extend Verbosity
         extend Since
+        extend CallerLine
 
         # The class an adapter raises when the tool it wraps refuses.
         TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze
@@ -79,7 +81,11 @@ module Hecks
           return [Verbosity::CONFLICT, USAGE] if level == :conflict
 
           since, argv = split_since(argv)
-          with_verbosity(level) { answer_line(runtime, argv, program, { usage_log: usage_log, since: since }, err) }
+          stated, argv = split_caller(argv)
+          return [CallerLine::MISSING, USAGE] if stated == :missing
+
+          options = { usage_log: usage_log, since: since, caller: stated }
+          with_verbosity(level) { answer_line(runtime, argv, program, options, err) }
         rescue Interrupt
           [interrupted(argv), ExitStatus::REFUSED]
         end
@@ -93,12 +99,20 @@ module Hecks
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
 
-          guarded = guard_command(plan, argv, err, runtime)
+          guarded = guard_command(plan, stating_caller(argv, options[:caller]), err, runtime)
           return guarded if guarded
 
-          answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
-                            bluebook: plan[:bluebook], launcher: plan[:launcher])
+          answer = as_line_caller(runtime, plan[:spec], options[:caller]) { dispatch_plan(runtime, plan) }
           finish_line(answer, plan, started, options.merge(argv: argv, err: err))
+        end
+
+        # Dispatches a resolved line.
+        #
+        # @api private
+        # @return [Array(String, Integer)] the text and the `ExitStatus`
+        def dispatch_plan(runtime, plan)
+          dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
+                   bluebook: plan[:bluebook], launcher: plan[:launcher])
         end
 
         # Records a line that ran and prints its details when `-v` asked for them.

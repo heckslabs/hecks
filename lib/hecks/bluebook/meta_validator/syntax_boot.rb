@@ -1,6 +1,7 @@
 require "digest"
 require "fileutils"
 require_relative "../../cache_dir"
+require_relative "judging_caller"
 require_relative "syntax_boot/disk_cache"
 
 module Hecks
@@ -45,11 +46,11 @@ module Hecks
         end
 
         # Dispatches every seed row into a fresh "Bluebook" instance and
-        # reads the result back. The table is memoized for the process, so it is built with no
-        # ambient caller: an enclosing `Hecks.as_caller` would have the language's own
-        # `Language`-role commands refused.
+        # reads the result back. The table is memoized for the process, so it is built as the
+        # `Language` role the Syntax commands declare (`JudgingCaller`): an enclosing
+        # `Hecks.as_caller`, or a caller who stated no role, would have them refused.
         def boot
-          Runtime::Caller.without do
+          JudgingCaller.as_language do
             bluebook = MetaValidator.grammar_registry.bluebook("Bluebook")
             # `fresh_runtime`, not a new `Runtime::Registry` — the grammar
             # registry already has "Bluebook" registered and its adapter

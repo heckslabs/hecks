@@ -6,18 +6,17 @@ require_relative "gated_verbs"
 module Hecks
   module Runtime
     module RoleShadow
-      # The shadow report of a domain: each dispatch that runs today with no stated caller and would
-      # be refused once a role-gated command refuses an unstated caller, read from the declarations
-      # alone, so a domain is migrated from a list before refusal is turned on anywhere.
+      # The shadow report of a domain: each dispatch a caller that states no role would be refused
+      # under `HECKS_ROLE_ENFORCEMENT=enforce`, read from the declarations alone, so a domain is
+      # migrated from a list.
       #
-      # It lists every role-gated command (the launcher, the MCP door and specs dispatch with no
-      # caller bound) and every policy and saga leg whose target is one (a reaction runs with the
-      # caller cleared, `Caller.without(reacting: true)`). A target no loaded bluebook declares is
-      # listed as unresolved, never dropped. It lives beside `RoleShadow` because it reads the rule
-      # the runtime applies: the roles `CommandRules::Authorization` checks and the verbs the
-      # dispatcher routes. A policy's `acts_as` and a command's `policy_only` are not read, because
-      # the runtime does not apply them yet; the heading says so. The report lists; it never
-      # refuses.
+      # It lists every role-gated command a caller may dispatch (a `policy_only` one takes no
+      # caller and is left out), every policy whose target is one and that declares no `acts_as`
+      # (the unstated caller in a cascade a caller began), every policy whose `acts_as` its target
+      # does not declare (a role mismatch), and every saga leg whose target is one (it runs
+      # unchecked, as the system). A target no loaded bluebook declares is listed as unresolved.
+      # It reads the rule `CommandRules::Authorization` and the dispatcher's re-entry apply, and
+      # never refuses.
       module Report
         # One line of the report.
         Row = Struct.new(:kind, :source, :verb, :roles, keyword_init: true) do
@@ -29,9 +28,10 @@ module Hecks
           end
         end
 
-        # The heading's second line: the declarations the runtime's rule does not read yet.
-        UNREAD_WORDS = "acts_as and policy_only are not read yet: the runtime does not apply them, " \
-                       "so a reaction or command that declares them is listed like any other"
+        # The heading's second line: how to clear each kind of row.
+        HOW_TO_CLEAR = "a command row needs its caller to state a role (--as on the launcher, role: over MCP); " \
+                       "a reaction row needs acts_as on its policy; a mismatch row needs an acts_as its target " \
+                       "declares; a saga row runs unchecked"
 
         module_function
 
@@ -62,25 +62,33 @@ module Hecks
         def render(directory, rows)
           counts = rows.group_by(&:kind).transform_values(&:size)
           heading = "role shadow report for #{directory}: #{counts.fetch(:command, 0)} role-gated commands, " \
-                    "#{counts.fetch(:reaction, 0) + counts.fetch(:saga, 0)} reactions to one, " \
+                    "#{counts.fetch(:reaction, 0) + counts.fetch(:mismatch, 0) + counts.fetch(:saga, 0)} reactions to one, " \
                     "#{counts.fetch(:unresolved, 0)} unresolved targets"
-          [heading, UNREAD_WORDS, *rows.map(&:to_s)].join("\n")
+          [heading, HOW_TO_CLEAR, *rows.map(&:to_s)].join("\n")
         end
 
         def reaction_rows(bluebook, verbs)
           targets = policy_targets(bluebook) + saga_targets(bluebook)
-          targets.filter_map do |kind, source, verb|
+          targets.filter_map do |kind, source, verb, acts_as|
             found, roles = verbs.classify(verb)
-            next if found == :open
+            next if found == :open || (acts_as && roles.include?(acts_as))
 
-            Row.new(kind: found == :gated ? kind : :unresolved, source: source, verb: verb, roles: roles)
+            Row.new(kind: row_kind(found, kind, acts_as), source: source, verb: verb, roles: roles)
           end
+        end
+
+        # A gated target's row is a reaction, a saga leg, or a mismatch when its `acts_as` is not
+        # among the target's roles.
+        def row_kind(found, kind, acts_as)
+          return :unresolved unless found == :gated
+
+          acts_as ? :mismatch : kind
         end
 
         def policy_targets(bluebook)
           bluebook.policies.select(&:trigger_command).map do |policy|
             [:reaction, "#{bluebook.name}::#{policy.name} on #{policy.on_event}",
-             "#{policy.target_domain || bluebook.name}::#{policy.trigger_command}"]
+             "#{policy.target_domain || bluebook.name}::#{policy.trigger_command}", policy.acts_as]
           end
         end
 

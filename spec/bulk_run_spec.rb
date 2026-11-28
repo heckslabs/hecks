@@ -82,8 +82,8 @@ RSpec.describe "a bulk run" do
   describe "through the CLI" do
     it "requests a run of the attached bluebook by its word, as `banking bulk bulk_run.request!`" do
       boot
-      argv = %w[bulk bulk_run.request! run.value=c1 verb.value=Banking::Account.FreezeAccount
-                over.value=Banking::Account.Open]
+      argv = ["bulk", "bulk_run.request!", "--as", "Compliance officer", "run.value=c1",
+              "verb.value=Banking::Account.FreezeAccount", "over.value=Banking::Account.Open"]
       Hecks::Adapters::Driving::CliRunner.call(runtime: @runtime, argv: argv, program: "banking")
       expect(statuses.values.uniq).to eq(["frozen"])
     end
@@ -94,7 +94,8 @@ RSpec.describe "a bulk run" do
     def mcp_request(run)
       args = { run: { value: run }, verb: { value: "Banking::Account.FreezeAccount" },
                over: { value: "Banking::Account.Open" } }
-      Hecks::Storehouse.dispatch(runtime: @runtime, command: "bulk bulk_run.request", summary: "spec", args: args)
+      Hecks::Storehouse.dispatch(runtime: @runtime, command: "bulk bulk_run.request", summary: "spec", args: args,
+                                 role: "Compliance officer")
     end
 
     it "requests a run of the attached bluebook and answers it as every row left it", :aggregate_failures do

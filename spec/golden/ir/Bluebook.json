@@ -29652,6 +29652,20 @@
               ],
               [
                 "site",
+                "policy_only"
+              ],
+              [
+                "template",
+                "{command} refused — only a policy reaction may dispatch it, and a caller did"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
                 "cross_tenant_reference"
               ],
               [
@@ -33870,6 +33884,40 @@
               [
                 "argument",
                 "role"
+              ],
+              [
+                "shape",
+                "scalar"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ""
+              ],
+              [
+                "sorted",
+                "false"
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "policy_only"
+              ],
+              [
+                "argument",
+                "command"
               ],
               [
                 "shape",

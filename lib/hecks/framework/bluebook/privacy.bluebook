@@ -218,11 +218,13 @@ Hecks.bluebook "Privacy" do
 
   policy "RecordTheKey" do
     on      "SubjectKey.SubjectKeyIssued"
+    acts_as "System"
     trigger SubjectKey::RecordKey, with: { key_reference: :key_reference }
   end
 
   policy "RecordTheIssueRefusal" do
     on      "SubjectKey.SubjectKeyIssueRefused"
+    acts_as "System"
     trigger SubjectKey::FailIssue, with: { refusal: :refusal }
   end
 
@@ -235,11 +237,13 @@ Hecks.bluebook "Privacy" do
 
   policy "RecordTheDestruction" do
     on      "SubjectKey.SubjectKeyDestroyed"
+    acts_as "System"
     trigger SubjectKey::MarkShredded, with: { key_reference: :key_reference }
   end
 
   policy "RecordTheRefusal" do
     on      "SubjectKey.SubjectKeyDestructionRefused"
+    acts_as "System"
     trigger SubjectKey::FailShred, with: { refusal: :refusal }
   end
 end

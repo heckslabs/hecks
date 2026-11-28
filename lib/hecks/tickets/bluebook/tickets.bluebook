@@ -1241,6 +1241,24 @@ Hecks.bluebook "Tickets" do
       emits "WorkScheduled"
     end
 
+    # A done item is put into a sprint: the sprint keeps what it finished, so velocity read from it
+    # counts that work. The Maintainer names the sprint; the domain holds no finish day, so it cannot
+    # tell which day the item finished on. A done item sits in at most one sprint.
+    command "Record" do
+      role "Maintainer"
+      goal "Put a done work item into a sprint"
+
+      reference_to Work
+      reference_to Sprint, as: :into
+
+      sets :sprint, to: :into
+
+      given("a work item not done is not recorded") { status == "done" }
+      given("a work item in a sprint is not recorded again") { sprint.to_s.empty? }
+
+      emits "WorkRecorded"
+    end
+
     # Frees an item from its sprint. It has no status guard: a closing sprint frees done items too.
     command "Unschedule" do
       goal "Take a work item out of its sprint"
@@ -1678,6 +1696,7 @@ Hecks.bluebook "Tickets" do
   # member stays planned. A member's close finds no batch of its own key, and is a root.
   policy "CloseMembersWhenBatchFinished" do
     on       "Work.WorkFinished"
+    acts_as "System"
     root
     for_each "Work.InBatch"
     trigger  Work::Close, with: { work: :work, landing: :landing, no_change: :no_change }
@@ -1698,6 +1717,13 @@ Hecks.bluebook "Tickets" do
     trigger  Work::Unschedule, with: { work: :work, from: :into }
   end
 
+  # The same for a done item recorded into a closed sprint: nothing else would free it.
+  policy "UnscheduleWorkRecordedIntoClosedSprint" do
+    on       "Work.WorkRecorded"
+    for_each "Sprint.ClosedOf"
+    trigger  Work::Unschedule, with: { work: :work, from: :into }
+  end
+
   # A finished item asks the WorkSpend port for the pomodoros its runs spent, 25 minutes a round. An
   # unreadable spend (SpendUnread) fails open, deliberately: `pomodoros_spent` stays as it was.
   policy "ReadSpendWhenWorkFinished" do
@@ -1707,6 +1733,7 @@ Hecks.bluebook "Tickets" do
 
   policy "RecordSpendWhenSpendRead" do
     on      "Work.SpendRead"
+    acts_as "System"
     trigger Work::RecordSpend, with: { work: :work, pomodoros_spent: :pomodoros_spent }
   end
 
@@ -1753,6 +1780,7 @@ Hecks.bluebook "Tickets" do
   # epic that was complete returns to open (an open one refuses the reopen and stays open).
   policy "PlanEvidenceWhenOutcomeMissed" do
     on      "Epic.EpicOutcomeMissed"
+    acts_as "Maintainer"
     trigger Work::Plan, with: { work: :finding, title: "An epic's outcome was measured and not met",
                                 detail: :evidence, epic: :epic }
   end
@@ -1798,6 +1826,7 @@ Hecks.bluebook "Tickets" do
   # is planned twice; a finished cause that fails again is reopened by ReopenWorkWhenGateFaultedAgain.
   policy "PlanWorkWhenRunFindingReported" do
     on      "Finding.RunFindingReported"
+    acts_as "Maintainer"
     trigger Work::Plan, with: { work: :finding, title: :title, detail: :body }
   end
 
@@ -1902,6 +1931,7 @@ Hecks.bluebook "Tickets" do
 
   policy "UnexpediteWhenExpediteRead" do
     on      "Work.ExpediteRead"
+    acts_as "System"
     trigger Work::Unexpedite, with: { work: :work, holders: :holders, held: :held, limit: 2,
       expedite_refusal: :holders }
   end
@@ -1917,12 +1947,14 @@ Hecks.bluebook "Tickets" do
   # member stays in the batch, whose branch holds its commit, so a restart never builds it twice.
   policy "ReleaseBatchWhenLeadYielded" do
     on       "Work.WorkYielded"
+    acts_as "Maintainer"
     for_each "Work.UncommittedIn"
     trigger  Work::Return, with: { work: :work, reason: "its batch yielded" }
   end
 
   policy "ReleaseBatchWhenLeadRefused" do
     on       "Work.WorkRefused"
+    acts_as "Maintainer"
     for_each "Work.UncommittedIn"
     trigger  Work::Return, with: { work: :work, reason: "its batch's landing was refused" }
   end
@@ -1930,6 +1962,7 @@ Hecks.bluebook "Tickets" do
   # A batch set aside takes its branch with it, so every member goes back to the plan.
   policy "ReleaseBatchWhenLeadDropped" do
     on       "Work.WorkDropped"
+    acts_as "Maintainer"
     for_each "Work.InBatch"
     trigger  Work::Return, with: { work: :work, reason: "its batch was dropped" }
   end
@@ -1939,6 +1972,7 @@ Hecks.bluebook "Tickets" do
   # a close starts counts from the close, as it does from a landing, not from the hand finish.
   policy "CloseWorkWhenFinishedWithNoChange" do
     on      "Work.FinishRequested"
+    acts_as "System"
     root
     where   { no_change.value != nil && !no_change.value.to_s.empty? }
     trigger Work::Close, with: { work: :work, no_change: :no_change }
@@ -1951,6 +1985,7 @@ Hecks.bluebook "Tickets" do
 
   policy "AnnotateWorkWhenNoteComposed" do
     on      "Work.NoteComposed"
+    acts_as "System"
     trigger Work::Annotate, with: { work: :work, detail: :detail }
   end
 
@@ -1962,11 +1997,13 @@ Hecks.bluebook "Tickets" do
 
   policy "KeepWorkOpenWhenNoLandingOnMain" do
     on      "Work.NoLandingOnMain"
+    acts_as "System"
     trigger Work::KeepOpen, with: { refusal: :refusal }
   end
 
   policy "CloseWorkWhenLandingOnMain" do
     on      "Work.LandingOnMain"
+    acts_as "System"
     root
     trigger Work::Close, with: { work: :work, landing: :landing }
   end
@@ -2008,6 +2045,7 @@ Hecks.bluebook "Tickets" do
   # The item is red by its key (`red-*`, which the fill starts first and over budget) and wanted now.
   policy "PrioritizeTheRedTrainWork" do
     on      "Work.WorkPlanned"
+    acts_as "Maintainer"
     where   { work.value.start_with?("red-train-") }
     trigger Work::Prioritize, with: { work: :work, priority: "now" }
   end
@@ -2160,6 +2198,7 @@ Hecks.bluebook "Tickets" do
   # caller sets.
   policy "RecordSightingWhenLessonSighted" do
     on      "Lesson.LessonSighted"
+    acts_as "Maintainer"
     trigger Sighting::Record, with: { sighting: :sighting, kind: :kind, run: :run, commit: :commit }
   end
 
@@ -2465,40 +2504,47 @@ Hecks.bluebook "Tickets" do
 
   policy "OweReviewWhenRetroOpened" do
     on       "Retro.RetroOpened"
+    acts_as "System"
     for_each "WorkingAgreement.InForce"
     trigger  WorkingAgreement::Present, with: { agreement: :agreement, retro: :retro }
   end
 
   policy "OweReviewWhenAgreementPresented" do
     on      "WorkingAgreement.AgreementPresented"
+    acts_as "System"
     trigger Retro::Owe, with: { retro: :retro }
   end
 
   policy "AnswerAgreementWhenMarkedFolded" do
     on      "AgreementReview.AgreementReviewed"
+    acts_as "System"
     where   { mark.value == "folded" }
     trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark, principle: :principle }
   end
 
   policy "AnswerAgreementWhenMarkedKeptOrDropped" do
     on      "AgreementReview.AgreementReviewed"
+    acts_as "System"
     where   { mark.value != "folded" }
     trigger WorkingAgreement::Answer, with: { agreement: :agreement, retro: :retro, mark: :mark }
   end
 
   policy "CountReviewWhenAgreementAnswered" do
     on      "WorkingAgreement.AgreementAnswered"
+    acts_as "System"
     trigger Retro::CountReview, with: { retro: :retro }
   end
 
   policy "FoldAgreementWhenReviewedFolded" do
     on      "WorkingAgreement.AgreementAnswered"
+    acts_as "Maintainer"
     where   { mark.value == "folded" }
     trigger WorkingAgreement::Fold, with: { agreement: :agreement, principle: :principle }
   end
 
   policy "DropAgreementWhenReviewedDropped" do
     on      "WorkingAgreement.AgreementAnswered"
+    acts_as "Maintainer"
     where   { mark.value == "dropped" }
     trigger WorkingAgreement::Drop, with: { agreement: :agreement }
   end

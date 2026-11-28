@@ -30,12 +30,13 @@ module Hecks
 
         private
 
-        # @return [Hash{String => String}] the bound caller's role and actor, as a step carries them
+        # @return [Hash{String => String}] the bound caller's role and actor, and the role mode when
+        #   it is not `enforce`, as a step carries them for the kernel (the Rust host's own step)
         def caller_fields
           bound = Caller.current
           return {} unless bound
 
-          { "role" => bound.role, "actor_id" => bound.actor_id }.compact
+          { "role" => bound.role, "actor_id" => bound.actor_id, "role_enforcement" => RoleShadow.step_word }.compact
         end
       end
     end

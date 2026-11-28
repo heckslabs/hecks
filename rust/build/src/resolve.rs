@@ -105,6 +105,54 @@ pub fn resolve_vendored_packages(
     )
 }
 
+/// Each attachment's name and the role its `acts_as:` names (ADR 0216).
+pub fn resolve_attachment_roles(
+    parser_bin: &Path,
+    declaration_name: &str,
+    hecksagon_path: &Path,
+) -> Result<Vec<(String, String)>, String> {
+    let json = resolve_output(parser_bin, declaration_name, hecksagon_path)?;
+    let roles = match json.get("acts_as") {
+        Some(Json::Object(pairs)) => pairs
+            .iter()
+            .filter_map(|(name, role)| role.as_str().map(|role| (name.clone(), role.to_string())))
+            .collect(),
+        _ => Vec::new(),
+    };
+    Ok(roles)
+}
+
+/// Gives each policy of an attached bluebook's IR that declares no `acts_as` the attachment's
+/// role, placed after `root` as the parser places a declared one; `Attaching` does the same in Ruby.
+pub fn acts_as_by_default(ir_text: &str, role: &str) -> Result<String, String> {
+    let mut ir =
+        Json::parse(ir_text).map_err(|e| format!("re-parsing ir.json for acts_as: {e}"))?;
+    if let Some(Json::Array(policies)) = ir.get_mut("policies") {
+        for policy in policies.iter_mut() {
+            give_role(policy, role);
+        }
+    }
+    Ok(crate::json::write(&ir))
+}
+
+// Sets one policy's `acts_as` to `role` unless it names one already.
+fn give_role(policy: &mut Json, role: &str) {
+    let Json::Object(pairs) = policy else {
+        return;
+    };
+    if let Some((_, declared)) = pairs.iter_mut().find(|(key, _)| key == "acts_as") {
+        if declared.as_str().is_none_or(str::is_empty) {
+            *declared = Json::String(role.to_string());
+        }
+        return;
+    }
+    let at = pairs
+        .iter()
+        .position(|(key, _)| key == "root")
+        .map_or(pairs.len(), |index| index + 1);
+    pairs.insert(at, ("acts_as".to_string(), Json::String(role.to_string())));
+}
+
 // Where the gem keeps the bluebooks other than framework members, relative to `lib/hecks`; the
 // same places `Hecks::Bluebooks::GLOBS` lists.
 const OTHER_GEM_BLUEBOOK_DIRS: &[&str] = &[
@@ -204,20 +252,28 @@ fn resolve_json(
     hecksagon_path: &Path,
     key: &str,
 ) -> Result<Vec<String>, String> {
-    let parser_bin_str = parser_bin.to_string_lossy().to_string();
-    let hecksagon_str = hecksagon_path.to_string_lossy().to_string();
-    let out = subprocess::run_capture(
-        &parser_bin_str,
-        &["resolve", "--bluebook", declaration_name, &hecksagon_str],
-    )?;
-    let json = Json::parse(&out)
-        .map_err(|e| format!("parsing 'hecks-parse resolve' output: {e}\n{out}"))?;
+    let json = resolve_output(parser_bin, declaration_name, hecksagon_path)?;
     let names = json.get(key).map_or(&[][..], Json::each);
     Ok(names
         .iter()
         .filter_map(Json::as_str)
         .map(str::to_string)
         .collect())
+}
+
+// What `hecks-parse resolve` prints for one hecksagon block.
+fn resolve_output(
+    parser_bin: &Path,
+    declaration_name: &str,
+    hecksagon_path: &Path,
+) -> Result<Json, String> {
+    let parser_bin_str = parser_bin.to_string_lossy().to_string();
+    let hecksagon_str = hecksagon_path.to_string_lossy().to_string();
+    let out = subprocess::run_capture(
+        &parser_bin_str,
+        &["resolve", "--bluebook", declaration_name, &hecksagon_str],
+    )?;
+    Json::parse(&out).map_err(|e| format!("parsing 'hecks-parse resolve' output: {e}\n{out}"))
 }
 
 /// `/\A[a-z][a-z0-9_]*\z/` — the shape `hecks vendor` accepts for a package directory name.
@@ -281,6 +337,30 @@ mod tests {
         assert_eq!(
             extract_quoted(r#" "Console Settings" do"#),
             Some("Console Settings".to_string())
+        );
+    }
+
+    // A policy that declares no `acts_as` takes the attachment's role, after `root`.
+    #[test]
+    fn an_undeclared_policy_takes_the_attachments_role_after_root() {
+        let ir = r#"{"policies":[{"name":"P","root":false,"where":null}]}"#;
+        let given = Json::parse(&acts_as_by_default(ir, "System").unwrap()).unwrap();
+        let policy = &given.get("policies").unwrap().each()[0];
+        let Json::Object(pairs) = policy else {
+            panic!("{policy:?}")
+        };
+        let keys: Vec<&str> = pairs.iter().map(|(key, _)| key.as_str()).collect();
+        assert_eq!(keys, ["name", "root", "acts_as", "where"]);
+    }
+
+    #[test]
+    fn a_declared_acts_as_is_kept() {
+        let ir = r#"{"policies":[{"name":"P","root":false,"acts_as":"Operator"}]}"#;
+        let given = Json::parse(&acts_as_by_default(ir, "System").unwrap()).unwrap();
+        let policy = &given.get("policies").unwrap().each()[0];
+        assert_eq!(
+            policy.get("acts_as").and_then(Json::as_str),
+            Some("Operator")
         );
     }
 }

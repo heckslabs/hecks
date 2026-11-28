@@ -549,6 +549,53 @@ Hecks.behaviors "Tickets" do
     expect refused: "Sprint"
   end
 
+  test "Schedule refuses a done work item" do
+    tests "Schedule", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "r0" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    setup  "Tickets::Work.Close", work: { value: "r0" }, no_change: { value: "a verify" }
+    input  work: { value: "r0" }, into: "2026-11-23"
+    expect refused: "a done work item is not scheduled"
+  end
+
+  test "Record puts a done work item in a sprint" do
+    tests "Record", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "r1" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    setup  "Tickets::Work.Close", work: { value: "r1" }, no_change: { value: "a verify" }
+    input  work: { value: "r1" }, into: "2026-11-23"
+    expect status: "done", sprint: "2026-11-23"
+  end
+
+  test "Record refuses a work item not done" do
+    tests "Record", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "r2" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    input  work: { value: "r2" }, into: "2026-11-23"
+    expect refused: "a work item not done is not recorded"
+  end
+
+  test "Record refuses a done work item already in a sprint" do
+    tests "Record", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "r3" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-24" }, goal: { value: "Another" }
+    setup  "Tickets::Work.Close", work: { value: "r3" }, no_change: { value: "a verify" }
+    setup  "Tickets::Work.Record", work: { value: "r3" }, into: "2026-11-23"
+    input  work: { value: "r3" }, into: "2026-11-24"
+    expect refused: "a work item in a sprint is not recorded again"
+  end
+
+  test "Record into a closed sprint leaves the work item in none" do
+    tests "Record", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "r4" }, title: { value: "An item" }
+    setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }
+    setup  "Tickets::Sprint.Close", sprint: "2026-11-23"
+    setup  "Tickets::Work.Close", work: { value: "r4" }, no_change: { value: "a verify" }
+    input  work: { value: "r4" }, into: "2026-11-23"
+    expect status: "done", sprint: ""
+  end
+
   test "Close ends a sprint" do
     tests "Close", on: "Sprint"
     setup  "Tickets::Sprint.Open", sprint: { value: "2026-11-23" }, goal: { value: "A goal" }

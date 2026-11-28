@@ -1,0 +1,8 @@
+# Refused: `acts_as` names the role a policy's reaction runs as, so a command cannot declare it.
+Hecks.bluebook "Probe" do
+  aggregate "Order" do
+    command "Place" do
+      acts_as "System"
+    end
+  end
+end

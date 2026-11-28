@@ -53,11 +53,11 @@ RSpec.describe "every role-gated command, at every door that takes a role", :agg
     expect(self.class.ungated.map { |_, ruby, _| ruby.first }.uniq).to eq([:refused])
   end
 
-  # A role-gated command dispatched with no caller at all: MCP refuses it, while the Ruby API,
-  # an in-process caller, checks a role only once one is bound. Pinned so a change to either
-  # side is a decision, not a drift.
-  it "refuses a role-gated command with no role through MCP, and runs it through Ruby with no caller bound" do
-    expect(Doors::ROLE_DOORS.to_h { |door| [door, bare_open(door)] }).to eq(ruby: :ok, mcp: :refused)
+  # A role-gated command dispatched with no caller at all: the CLI and MCP refuse it, while the
+  # Ruby API, an in-process caller, checks a role only once one is bound. Pinned so a change to
+  # either side is a decision, not a drift.
+  it "refuses a role-gated command with no role through the CLI and MCP, and runs it through Ruby with no caller bound" do
+    expect(Doors::ROLE_DOORS.to_h { |door| [door, bare_open(door)] }).to eq(ruby: :ok, cli: :refused, mcp: :refused)
   end
 
   # The outcome of opening a fixture box through `door` with no role stated.

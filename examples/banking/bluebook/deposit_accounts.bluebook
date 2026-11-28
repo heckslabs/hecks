@@ -360,6 +360,7 @@ Hecks.bluebook "Banking" do
     policy "ReviewOnFreeze" do
       # Bare event constant, matching FreezeAccount's `emits AccountFrozen`.
       on      Account::AccountFrozen
+      acts_as "System"
       # Banking says what it froze and under which identity; Compliance names neither (ADR 0143).
       trigger Review::Open, with: { subject_kind: "account_freeze", subject_key: :id }
       across  "Compliance"
@@ -376,6 +377,7 @@ Hecks.bluebook "Banking" do
   # The parser does not yet build `where` on a policy (it is a block, not a positional text).
   policy "FreezeAccountsOnSuspension" do
     on       Customer::CustomerSuspended
+    acts_as "Compliance officer"
     for_each "Account.OpenForCustomer"
     # `account` is the key the fan-out merges per row; naming it keeps `standing` off the payload.
     trigger  Account::FreezeAccount, with: { account: :account }

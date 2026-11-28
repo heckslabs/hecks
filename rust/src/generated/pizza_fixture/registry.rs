@@ -324,6 +324,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
     root: false,
     with_spec: &[],
     where_expr: None,
+    acts_as: None,
 }];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];

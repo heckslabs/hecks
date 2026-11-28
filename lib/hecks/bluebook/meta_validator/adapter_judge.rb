@@ -1,8 +1,13 @@
+require_relative "judging_caller"
+
 module Hecks
   module Bluebook
     module MetaValidator
       # Offers a built .adapter to the self-hosted adapter language (adapter.bluebook).
       class AdapterJudge
+        # The role the judge dispatches as: every role-gated command of its language declares it.
+        ROLE = JudgingCaller::DEPLOYMENT
+
         # Marks a field with no declared default; `nil` and `false` are defaults too.
         NONE = Object.new.freeze
 

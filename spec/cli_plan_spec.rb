@@ -2,12 +2,13 @@ require "spec_helper"
 
 # `--plan` lists what a command would write and announce, and writes nothing. It runs the same
 # in-memory pipeline as `dry_run?`, so a refusal the real run would give is the refusal it shows.
+# The line states the chef's role (`--as`), as a create that acts must.
 RSpec.describe "--plan" do
   let(:runtime) { boot_in_memory }
   let(:runner) { Hecks::Adapters::Driving::CliRunner }
 
   def answer(*argv) = runner.call(runtime: runtime, argv: argv, program: "hecks")
-  def create = ["order.create_pizza!", "name=C", "pizza.price_cents.cents=900", "pizza.size.value=large"]
+  def create = ["order.create_pizza!", "--as", "Chef", "name=C", "pizza.price_cents.cents=900", "pizza.size.value=large"]
 
   it("lists the write and the event") do
     text, status = answer(*create, "--plan")

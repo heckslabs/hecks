@@ -21,6 +21,13 @@ fn tmpl_role_check_any_host(store: &TmplStore2, caller_role: Option<&str>, calle
     Ok(())
 }
 
+fn tmpl_policy_only_check_host(caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:policy_only_check BEGIN
+    crate::kernel::check_policy_only("TmplCommandName", caller_role, caller_actor_id)?;
+    // TMPL:policy_only_check END
+    Ok(())
+}
+
 struct TmplStore {
     tmpl_target_mod: crate::kernel::InMemoryRepository<i64>,
 }

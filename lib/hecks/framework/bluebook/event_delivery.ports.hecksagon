@@ -2,6 +2,8 @@
 # `Carry` runs one pump over the adapter's domains (ADR 0178); the adapter is the attacher's, and
 # an attaching domain's hecksagon binds it.
 Hecks.hecksagon "EventDelivery" do
+  # Its policies' reactions act as `System` (ADR 0216), a role Governance grants.
+  attaches "Governance"
   EventDelivery::Pump.port "Pumping" do
     asks "Carry", to: Pump do
       attribute :run, PumpRun

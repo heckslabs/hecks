@@ -49,6 +49,7 @@ pub enum RefusalSite {
     UnauthorizedTenantRequired,
     UnauthorizedRoleMismatch,
     UnauthorizedRoleUnstated,
+    UnauthorizedPolicyOnly,
     UnauthorizedCrossTenantReference,
     AttributeAbsentAbsentRead,
     ProjectionAbsentAbsentRead,
@@ -101,6 +102,7 @@ impl RefusalSite {
         Self::UnauthorizedTenantRequired,
         Self::UnauthorizedRoleMismatch,
         Self::UnauthorizedRoleUnstated,
+        Self::UnauthorizedPolicyOnly,
         Self::UnauthorizedCrossTenantReference,
         Self::AttributeAbsentAbsentRead,
         Self::ProjectionAbsentAbsentRead,
@@ -153,6 +155,7 @@ impl RefusalSite {
             Self::UnauthorizedTenantRequired => "Unauthorized",
             Self::UnauthorizedRoleMismatch => "Unauthorized",
             Self::UnauthorizedRoleUnstated => "Unauthorized",
+            Self::UnauthorizedPolicyOnly => "Unauthorized",
             Self::UnauthorizedCrossTenantReference => "Unauthorized",
             Self::AttributeAbsentAbsentRead => "AttributeAbsent",
             Self::ProjectionAbsentAbsentRead => "ProjectionAbsent",
@@ -206,6 +209,7 @@ impl RefusalSite {
             Self::UnauthorizedTenantRequired => "tenant_required",
             Self::UnauthorizedRoleMismatch => "role_mismatch",
             Self::UnauthorizedRoleUnstated => "role_unstated",
+            Self::UnauthorizedPolicyOnly => "policy_only",
             Self::UnauthorizedCrossTenantReference => "cross_tenant_reference",
             Self::AttributeAbsentAbsentRead => "absent_read",
             Self::ProjectionAbsentAbsentRead => "absent_read",
@@ -259,6 +263,7 @@ impl RefusalSite {
             Self::UnauthorizedTenantRequired => "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to",
             Self::UnauthorizedRoleMismatch => "{command} refused — role: {role}, and the caller stated {caller_role}",
             Self::UnauthorizedRoleUnstated => "{command} refused — role: {role}, and the caller stated no role",
+            Self::UnauthorizedPolicyOnly => "{command} refused — only a policy reaction may dispatch it, and a caller did",
             Self::UnauthorizedCrossTenantReference => "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} is {other} — a cross-tenant reference",
             Self::AttributeAbsentAbsentRead => "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true",
             Self::ProjectionAbsentAbsentRead => "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait",
@@ -1237,6 +1242,20 @@ impl UnauthorizedRoleUnstatedArgs<'_> {
     }
 }
 
+/// `RefusalSite::UnauthorizedPolicyOnly`'s arguments — `RefusalWording.render_site("Unauthorized", "policy_only", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnauthorizedPolicyOnlyArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+}
+
+impl UnauthorizedPolicyOnlyArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::UnauthorizedPolicyOnly.render(&[("command", self.command)])
+    }
+}
+
 /// `RefusalSite::UnauthorizedCrossTenantReference`'s arguments — `RefusalWording.render_site("Unauthorized", "cross_tenant_reference", ...)`.
 #[derive(Debug, Clone, Copy)]
 pub struct UnauthorizedCrossTenantReferenceArgs<'a> {
@@ -1809,6 +1828,13 @@ mod tests {
             }
             .render_args(),
             "command \"x\" refused — role: role \"x\", and the caller stated no role"
+        );
+        assert_eq!(
+            UnauthorizedPolicyOnlyArgs {
+                command: "command \"x\""
+            }
+            .render_args(),
+            "command \"x\" refused — only a policy reaction may dispatch it, and a caller did"
         );
         assert_eq!(
             UnauthorizedCrossTenantReferenceArgs { aggregate: "aggregate \"x\"", field: "field \"x\"", tenant: "tenant \"x\"", attribute: "attribute \"x\"", target: "target \"x\"", target_field: "target_field \"x\"", other: "other \"x\"" }.render_args(),

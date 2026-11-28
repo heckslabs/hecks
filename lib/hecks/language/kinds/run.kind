@@ -107,11 +107,13 @@ end
 
 policy "Accept{Stem}WhenExamined" do
   on      "{Name}.{Stem}Examined"
+  acts_as "System"
   trigger {Name}::Accept, with: { checkout: :checkout, linked: :linked, on_branch: :on_branch, check_name: :check_name }
 end
 
 policy "Fault{Stem}WhenNotAccepted" do
   on      "{Name}.{Stem}Examined"
+  acts_as "System"
   where   { !checkout.value }
   trigger {Name}::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/", linked: :linked, on_branch: :on_branch, check_name: :check_name }
 end
@@ -123,6 +125,7 @@ end
 
 policy "Record{Stem}Outcome" do
   on      "{Name}.{Stem}Answered"
+  acts_as "System"
   where   { !report.value.to_s.strip.empty? }
   trigger {Name}::Complete, with: { report: :report }
 end
@@ -130,12 +133,14 @@ end
 # An answer that says nothing is not a completed run: it ends faulted, saying so.
 policy "Fault{Stem}WhenAnsweredBlank" do
   on      "{Name}.{Stem}Answered"
+  acts_as "System"
   where   { report.value.to_s.strip.empty? }
   trigger {Name}::Fault, with: { refusal: "{Stem} answered with no report: it said nothing about what it did", linked: :linked, on_branch: :on_branch, check_name: :check_name }
 end
 
 policy "Record{Stem}Fault" do
   on      "{Name}.{Stem}Refused"
+  acts_as "System"
   where   { !refusal.value.to_s.strip.empty? }
   trigger {Name}::Fault, with: { refusal: :refusal, linked: :linked, on_branch: :on_branch, check_name: :check_name }
 end
@@ -143,6 +148,7 @@ end
 # A refusal that gives no reason still ends the run faulted, saying that no reason was given.
 policy "Fault{Stem}WhenRefusedBlank" do
   on      "{Name}.{Stem}Refused"
+  acts_as "System"
   where   { refusal.value.to_s.strip.empty? }
   trigger {Name}::Fault, with: { refusal: "{Stem} was refused and gave no reason", linked: :linked, on_branch: :on_branch, check_name: :check_name }
 end

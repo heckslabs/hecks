@@ -21,5 +21,16 @@ Hecks.bluebook "Probe" do
       attribute :amount, Integer
       sets :total, to: total + amount * 2
     end
+
+    command "Settle" do
+      role "System"
+      policy_only
+    end
+  end
+
+  policy "SettleOnAdd" do
+    on      "Order.Added"
+    acts_as "System"
+    trigger Order::Settle
   end
 end

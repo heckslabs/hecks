@@ -111,11 +111,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheOverlay" do
       on      "LocalOverlay.OverlayAnswered"
+      acts_as "System"
       trigger LocalOverlay::Settle, with: { output: :output }
     end
 
     policy "RecordTheRefusedOverlay" do
       on      "LocalOverlay.OverlayRefused"
+      acts_as "System"
       trigger LocalOverlay::Decline, with: { refusal: :refusal }
     end
   end

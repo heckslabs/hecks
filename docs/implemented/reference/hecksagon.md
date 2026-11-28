@@ -111,12 +111,13 @@ says why this needs no new keyword at all.
 ## attaches
 
 <!-- generated:begin word=attaches -->
-`attaches attachments, from:` — fills `attachments`
+`attaches attachments, from:, acts_as:` — fills `attachments`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | attachments |
 | `from:` | symbol | false | source |
+| `acts_as:` | text | false | acts_as |
 <!-- generated:end -->
 
 Attaches a bluebook to this domain by name, from one of two places. It marks the bluebook a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that bluebook, and persistence is bound there as for any other bluebook. It records the name and its source on the hecksagon that asked for it. Persistence is never part of what it loads: a bluebook's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever attaches it, the same as any other binding decision.
@@ -128,6 +129,8 @@ Hecks::FrameworkBluebooks.table.keys.sort  # => ["Adapter", "Bluebook", "Bulk", 
 ```
 
 With `from: :vendor`, the name is a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout*: `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. It loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same bluebook loads in a stable order. `from: :vendor` is never a fallback: a vendored name written without it is not found among the bluebooks the gem carries and refuses, so a typo cannot silently pick a vendored package over a gem bluebook.
+
+With `acts_as:`, every policy of the attached bluebook that declares no `acts_as` of its own runs its reaction as that role (ADR 0216); a policy that declares one keeps it. It is for a bluebook whose files the attaching domain does not edit, such as a vendored package pinned by its lock: the Hecks domain says `attaches "delivery", from: :vendor, acts_as: "System"`. Both runtimes apply it: the Ruby builder as the bluebook is attached, and the Rust build to the IR of the attached bluebook before it is generated.
 
 The attachment is recorded on the hecksagon that asked for it, with its source:
 

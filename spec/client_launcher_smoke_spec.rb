@@ -11,8 +11,10 @@ require "fileutils"
 # would run it, in three forms.
 #
 # - **plain**: a domain that did not opt in keeps today's `command name=value` calls, refusals
-#   that print their reason and exit 1, and `--help`.
-# - **opted in**: a `launcher` world setting adds aliases, `--wait`, `--confirm` and run keys.
+#   that print their reason and exit 1, and `--help`. A line that acts states its caller's role
+#   with `--as` (ADR 0216); one that states none is refused.
+# - **opted in**: a `launcher` world setting adds aliases, `--wait`, `--confirm` and run keys,
+#   and lists `caller_roles`, so its lines run as the chef without `--as`.
 # - **2.9**: the text the 2.9 generator wrote names `Hecks::Adapters::Driving::CliRunner` and
 #   `install_driving: false`, and runs unchanged against the current runtime.
 RSpec.describe "client launcher smoke" do
@@ -70,7 +72,7 @@ RSpec.describe "client launcher smoke" do
     status.zero? ? puts(text) : abort(text)
   RUBY
 
-  CREATE = %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large].freeze
+  CREATE = %w[order.create_pizza! --as Chef name=Margherita pizza.price_cents=900 pizza.size=large].freeze
 
   # Every call the plain and the pre-3.0 launcher answer alike.
   CALLS = {
@@ -79,12 +81,13 @@ RSpec.describe "client launcher smoke" do
     verb_help:     %w[order.create_pizza! --help],
     refusal_help:  %w[order.purchase! --help],
     short:         CREATE,
-    long:          %w[order.create_pizza! name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
-    qualified:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large],
+    long:          %w[order.create_pizza! --as Chef name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
+    qualified:     %w[order.create_pizza! --as=Chef name=Margherita pizza.price_cents=900 pizza.size=large],
+    unstated:      %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large],
     queried:       %w[query order.available],
     bare_question: %w[order.available],
     invariant:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=huge],
-    missing:       %w[order.purchase! to=nope amount=5],
+    missing:       %w[order.purchase! --as Customer to=nope amount=5],
     unknown:       %w[order.create_piza],
     bare:          %w[create_pizza name=Margherita pizza.price_cents=900 pizza.size=large],
     bad_word:      %w[order.create_pizza! nonsense=1],
@@ -170,7 +173,7 @@ RSpec.describe "client launcher smoke" do
 
     @opted_root = self.class.client(
       "opted_in",
-      world:    'launcher "Launcher", run_keys: true, names: { "make" => "order.create_pizza" }',
+      world:    'launcher "Launcher", run_keys: true, names: { "make" => "order.create_pizza" }, caller_roles: ["Chef"]',
       bluebook: self.class.method(:add_run_and_confirm)
     )
     self.class.generate(@opted_root)
@@ -238,6 +241,11 @@ RSpec.describe "client launcher smoke" do
       expect(results[:invariant][:status]).to eq(1)
       expect(results[:invariant][:err]).to include('Size admits "small", "large" — got "huge"')
       expect(results[:invariant][:out]).to be_empty
+    end
+
+    it "refuses a line that acts with no role stated, naming the command and its role", :aggregate_failures do
+      expect(results[:unstated][:status]).to eq(1)
+      expect(results[:unstated][:err]).to eq("[unauthorized] CreatePizza refused — role: Chef, and the caller stated no role\n")
     end
 
     it "points at --help and exits 1 for a record that is not there", :aggregate_failures do

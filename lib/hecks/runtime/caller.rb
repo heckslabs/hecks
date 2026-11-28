@@ -11,6 +11,15 @@ module Hecks
       # exists for it, not that it matches the command's target data.
       Current = Struct.new(:role, :actor_id, :as_of, :scope, keyword_init: true)
 
+      # The role an outside caller that stated none is bound as (ADR 0216): no command declares it,
+      # so a role-gated command refuses it in the `role_unstated` wording. The Rust host and kernel
+      # dispatch the same caller under the same word (`ANONYMOUS_ROLE`).
+      ANONYMOUS = "Anonymous".freeze
+
+      # What `without` keeps of the caller a cascade began under, so a cascade begun with none is
+      # told apart from no cascade at all.
+      Origin = Struct.new(:caller)
+
       module_function
 
       # The ambient caller bound by the innermost enclosing `as` block on this thread.
@@ -41,16 +50,31 @@ module Hecks
         Thread.current[:hecks_caller] = previous
       end
 
+      # Binds the outside caller who stated no role for the duration of the block: a door (the
+      # launcher, the Storehouse) calls it when its caller named neither a role nor an actor.
+      #
+      # @yield the code that sees the unstated caller as the ambient caller
+      # @return [Object] the block's result
+      def unstated(&) = as(role: ANONYMOUS, &)
+
+      # Whether `caller` is the outside caller who stated no role.
+      #
+      # @param caller [Runtime::Caller::Current, nil] a bound caller; the ambient one by default
+      # @return [Boolean] true for the anonymous role with no actor
+      def unstated?(caller = current) = !caller.nil? && caller.role == ANONYMOUS && caller.actor_id.nil?
+
       # Clears the ambient caller for the duration of the block, restoring the previous one.
       # A reaction is the system acting, so `Dispatcher#reenter` clears the caller around it and
-      # says so with `reacting: true`, which `reacting?` answers inside the block.
+      # says so with `reacting: true`, which `reacting?` answers inside the block; it keeps the
+      # caller its cascade began under as `origin`. Without `reacting`, the block is the process
+      # acting for itself, so a cascade begun inside it begins under no caller.
       #
       # @param reacting [Boolean] whether the block is a policy or saga reaction's dispatch
       # @yield the code that should see no ambient caller bound
       # @return [Object] the block's result
       def without(reacting: false)
         saved = saved_binding
-        Thread.current[:hecks_caller_origin] = origin
+        Thread.current[:hecks_caller_origin] = reacting ? saved[:origin] || Origin.new(current) : Origin.new(nil)
         Thread.current[:hecks_caller] = nil
         Thread.current[:hecks_reacting] = reacting
         yield
@@ -82,7 +106,25 @@ module Hecks
       #
       # @return [Runtime::Caller::Current, nil] the cascade's first caller, the current one
       #   outside a cascade, or nil when neither is bound
-      def origin = Thread.current[:hecks_caller_origin] || current
+      def origin
+        kept = Thread.current[:hecks_caller_origin]
+        kept ? kept.caller : current
+      end
+
+      # The caller a policy's reaction is bound as (ADR 0216): the role its policy declares with
+      # `acts_as`, or, when it declares none, the unstated caller in a cascade a caller began while
+      # refusal is on, or no caller at all (the reaction runs unchecked, as the system).
+      #
+      # @param acts_as [String, nil] the policy's `acts_as` role
+      # @param enforcing [Boolean] whether `HECKS_ROLE_ENFORCEMENT` is `enforce`
+      # @yield the reaction's dispatch
+      # @return [Object] the block's result
+      def reacting_as(acts_as, enforcing:, &)
+        return as(role: acts_as, &) if acts_as
+        return unstated(&) if enforcing && origin
+
+        yield
+      end
 
       # Binds `bound` as the ambient caller for the block, or none when it is nil.
       #

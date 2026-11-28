@@ -218,11 +218,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "its first real use, Interview.Record in the Interviews bluebook (ADR 0194, " \
                                            "decision 5), moved to Switchyard (ADR 0205). Exercised by " \
                                            "spec/creates_or_acts_spec.rb and the kernel's Hydrate::CreateOrAct guard tests.",
-    "acts_as (Policy)"                  =>
-                                           "the same as policy_only: the role a reaction runs as is read by the dispatch " \
-                                           "check still to come, and hecks' own reactions take it in role-migrate-hecks. " \
-                                           "Exercised by spec/role_unstated_vocabulary_spec.rb and " \
-                                           "spec/model_check_acts_as_spec.rb.",
     "resumes (Saga)"                    =>
                                            "its real uses were in the development pipeline's bluebooks, which moved to " \
                                            "Switchyard (ADR 0205), and no example domain uses it yet. The word is " \

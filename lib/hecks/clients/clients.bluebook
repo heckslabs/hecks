@@ -164,6 +164,7 @@ Hecks.bluebook "Clients" do
 
   policy "RequestTheRepoOnOpening" do
     on      "Client.ClientOpened"
+    acts_as "System"
     trigger Client::RequestRepo, with: { client: :name }
   end
 
@@ -174,6 +175,7 @@ Hecks.bluebook "Clients" do
 
   policy "RefuseTheRepoNotMade" do
     on      "Client.RepoNotMade"
+    acts_as "System"
     trigger Client::RefuseRepo, with: { client: :name }
   end
 
@@ -184,11 +186,13 @@ Hecks.bluebook "Clients" do
 
   policy "RecordThePrivateRepo" do
     on      "Client.RepoChecked"
+    acts_as "System"
     trigger Client::RecordRepoCreated, with: { client: :name }
   end
 
   policy "RefuseTheRepoNotPrivate" do
     on      "Client.RepoUnchecked"
+    acts_as "System"
     trigger Client::RefuseRepo, with: { client: :name }
   end
 
@@ -204,16 +208,19 @@ Hecks.bluebook "Clients" do
 
   policy "RecordTheFileWritten" do
     on      "Client.FileWritten"
+    acts_as "System"
     trigger Client::RecordRepoFileWritten, with: { client: :name, path: :path }
   end
 
   policy "RecordTheFileRefused" do
     on      "Client.FileRefused"
+    acts_as "System"
     trigger Client::RecordRepoFileRefused, with: { client: :name, path: :path }
   end
 
   policy "RecordTheFindingWhenPublic" do
     on      "Client.WriteUnchecked"
+    acts_as "System"
     trigger Client::RecordRepoFoundPublic, with: { client: :name }
   end
 

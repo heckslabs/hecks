@@ -1715,6 +1715,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "FlickerAgain",
@@ -1726,6 +1727,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "SparkOnStrike",
@@ -1737,6 +1739,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "HissOnSpark",
@@ -1748,6 +1751,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "GlowOnHiss",
@@ -1759,6 +1763,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
     crate::kernel::PolicyRule {
         policy_name: "BurnOnGlow",
@@ -1770,6 +1775,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
         root: false,
         with_spec: &[],
         where_expr: None,
+        acts_as: None,
     },
 ];
 

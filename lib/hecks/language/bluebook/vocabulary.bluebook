@@ -359,10 +359,13 @@ Hecks.bluebook "Bluebook" do
                        "{field} this ask is scoped to"
       member refusal: "Unauthorized", site: "role_mismatch",
              template: "{command} refused — role: {role}, and the caller stated {caller_role}"
-      # ADR 0216: a role-gated command whose caller states no role. The runtime check is shadow-only
-      # (the Rust host's `Shadow`); the Storehouse door refuses with this wording today.
+      # ADR 0216: a role-gated command whose caller states no role: an outside caller that names
+      # none, or a policy reaction that declares no `acts_as`, in a cascade an outside caller began.
       member refusal: "Unauthorized", site: "role_unstated",
              template: "{command} refused — role: {role}, and the caller stated no role"
+      # ADR 0216: a command marked `policy_only`, dispatched by a caller rather than a reaction.
+      member refusal: "Unauthorized", site: "policy_only",
+             template: "{command} refused — only a policy reaction may dispatch it, and a caller did"
       member refusal: "Unauthorized", site: "cross_tenant_reference",
              template: "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own " \
                        "{target_field} is {other} — a cross-tenant reference"
@@ -646,6 +649,8 @@ Hecks.bluebook "Bluebook" do
       member refusal: "Unauthorized", site: "role_unstated", argument: "command",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
       member refusal: "Unauthorized", site: "role_unstated", argument: "role",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "policy_only", argument: "command",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
       member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "aggregate",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""

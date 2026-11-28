@@ -188,11 +188,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheLaunch" do
       on      "Launch.LaunchAnswered"
+      acts_as "System"
       trigger Launch::Finish, with: { output: :output }
     end
 
     policy "RecordTheStoppedLaunch" do
       on      "Launch.LaunchRefused"
+      acts_as "System"
       trigger Launch::Stop, with: { refusal: :refusal }
     end
   end
