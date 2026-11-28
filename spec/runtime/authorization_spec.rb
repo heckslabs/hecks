@@ -63,6 +63,7 @@ RSpec.describe "role-based command rejections" do
 
     policy "StartPrep" do
       on      "OrderPlaced"
+      acts_as "Chef"
       trigger Order::Prepare
     end
   end
@@ -94,7 +95,7 @@ RSpec.describe "role-based command rejections" do
     expect(nested_caller_roles).to eq(["Chef", "Customer", nil])
   end
 
-  it "does not carry the triggering caller's role into a policy's reaction command", :aggregate_failures do
+  it "runs a policy's reaction as its acts_as role, not the triggering caller's", :aggregate_failures do
     runtime = build(&CAFETERIA_DOMAIN)
     Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
 

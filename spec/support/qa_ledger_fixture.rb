@@ -51,13 +51,23 @@ module QaLedgerFixture
     File.write(File.join(dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
     # PostgresEra refuses to boot as a superuser; connect as the role `QaLedgerRole` provisions.
     url = QaLedgerRole.url(database)
-    File.write(File.join(dir, "quality_control.world"), <<~RUBY)
+    File.write(File.join(dir, "quality_control.world"), world(url))
+    File.write(File.join(dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+  end
+
+  # The ledger's world, bound to `url`; its launcher's caller holds the roles the real ledger's
+  # world lists (ADR 0216).
+  #
+  # @param url [String] the ledger database's connection string
+  # @return [String] the `.world` file's text
+  def self.world(url)
+    <<~RUBY
       Hecks.world "QualityControl" do
         realm "QA"
         persisted_by("Postgres") { database "#{url}" }
+        launcher "Launcher", caller_roles: ["QA engineer", "CI engineer", "Coder", "Fixer", "Maintainer", "System"]
       end
     RUBY
-    File.write(File.join(dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
   end
 
   # A real Postgres database plus a fixture domain directory that symlinks the real bluebook.

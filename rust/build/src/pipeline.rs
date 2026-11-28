@@ -91,13 +91,29 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // loads every one of them: a second file may attach a bluebook (banking's `bulk.hecksagon`).
     let mut gem_bluebook_names: Vec<String> = Vec::new();
     let mut vendored_package_names: Vec<String> = Vec::new();
+    // The role each attachment's `acts_as:` names for its bluebook's undeclared policies.
+    let mut attachment_roles: Vec<(String, String)> = Vec::new();
     for path in resolve::hecksagon_files(&bluebook_directory)? {
         let gem = resolve::resolve_gem_bluebooks(&parser_bin, &target_bluebook_name, &path)?;
         let vendored =
             resolve::resolve_vendored_packages(&parser_bin, &target_bluebook_name, &path)?;
         push_new(&mut gem_bluebook_names, gem);
         push_new(&mut vendored_package_names, vendored);
+        attachment_roles.extend(resolve::resolve_attachment_roles(
+            &parser_bin,
+            &target_bluebook_name,
+            &path,
+        )?);
     }
+    let attached_ir = |name: &str, ir_text: String| -> Result<String, String> {
+        match attachment_roles
+            .iter()
+            .find(|(attached, _)| attached == name)
+        {
+            Some((_, role)) => resolve::acts_as_by_default(&ir_text, role),
+            None => Ok(ir_text),
+        }
+    };
 
     let source_files = target_files.clone();
     if let Some(p) = &hecksagon_path {
@@ -157,7 +173,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             declarations.push(Declaration {
                 mod_name: fw_name.to_lowercase(),
                 source_label: fw_name.clone(),
-                ir_text: parse_bluebook(&parser_bin, fw_name, &files)?,
+                ir_text: attached_ir(fw_name, parse_bluebook(&parser_bin, fw_name, &files)?)?,
             });
             continue;
         }
@@ -186,7 +202,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         declarations.push(Declaration {
             mod_name: fw_name.to_lowercase(),
             source_label: fw_name.clone(),
-            ir_text: fw_ir_text,
+            ir_text: attached_ir(fw_name, fw_ir_text)?,
         });
     }
 
@@ -217,7 +233,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             // would diverge the moment a package name has an underscore.
             mod_name: expected_bluebook_name.to_lowercase(),
             source_label: pkg_bluebook_name,
-            ir_text: pkg_ir_text,
+            ir_text: attached_ir(pkg_name, pkg_ir_text)?,
         });
     }
 

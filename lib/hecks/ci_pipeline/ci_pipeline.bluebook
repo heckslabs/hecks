@@ -866,12 +866,14 @@ Hecks.bluebook "CiPipeline" do
   # source of `needs:` for that job. The attestation edge is met by a pass or by a skip.
   policy "SatisfyRspecShardOnAttestationPassed" do
     on      "Job.Passed"
+    acts_as "CI engineer"
     where   { of_job.value == "ci_attestation_rspec" }
     trigger Job::Satisfy, with: { job: "rspec_shard" }
   end
 
   policy "SatisfyRspecShardOnAttestationSkipped" do
     on      "Job.Skipped"
+    acts_as "CI engineer"
     where   { of_job.value == "ci_attestation_rspec" }
     trigger Job::Satisfy, with: { job: "rspec_shard" }
   end
@@ -879,35 +881,41 @@ Hecks.bluebook "CiPipeline" do
   # The corpus edge is met by a hit, or by a regeneration after a miss.
   policy "SatisfyRspecShardOnCorpusHit" do
     on      "Corpus.Hit"
+    acts_as "CI engineer"
     trigger Job::Satisfy, with: { job: "rspec_shard" }
   end
 
   policy "SatisfyRspecShardOnCorpusMaterialized" do
     on      "Corpus.Materialized"
+    acts_as "CI engineer"
     trigger Job::Satisfy, with: { job: "rspec_shard" }
   end
 
   # A miss regenerates the corpus once; the jobs that share it wait on that one regeneration.
   policy "MaterializeOnCorpusMiss" do
     on      "Corpus.Miss"
+    acts_as "CI engineer"
     trigger Corpus::Materialize, with: { corpus: :build }
   end
 
   # Only required jobs are counted toward their build.
   policy "CountRequiredPass" do
     on      "Job.Passed"
+    acts_as "CI engineer"
     where   { was_required.value }
     trigger CiRun::CountPass, with: { build: :of_build }
   end
 
   policy "CountRequiredSkip" do
     on      "Job.Skipped"
+    acts_as "CI engineer"
     where   { was_required.value }
     trigger CiRun::CountSkip, with: { build: :of_build }
   end
 
   policy "CountRequiredFailure" do
     on      "Job.Failed"
+    acts_as "CI engineer"
     where   { was_required.value }
     trigger CiRun::CountFailure, with: { build: :of_build }
   end
@@ -915,16 +923,19 @@ Hecks.bluebook "CiPipeline" do
   # Refused until every required job is settled, which is the "not yet" answer.
   policy "PassBuildOnPassCounted" do
     on      "CiRun.PassCounted"
+    acts_as "CI engineer"
     trigger CiRun::Pass, with: { build: :build }
   end
 
   policy "PassBuildOnSkipCounted" do
     on      "CiRun.SkipCounted"
+    acts_as "CI engineer"
     trigger CiRun::Pass, with: { build: :build }
   end
 
   policy "FailBuildOnFailureCounted" do
     on      "CiRun.FailureCounted"
+    acts_as "CI engineer"
     trigger CiRun::Fail, with: { build: :build }
   end
 

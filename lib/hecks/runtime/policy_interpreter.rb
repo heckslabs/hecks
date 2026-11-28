@@ -127,9 +127,9 @@ module Hecks
       end
 
       def reenter(policy, target, invocation)
-        return @dispatcher.reenter_root(target, **invocation) if policy.root
+        return @dispatcher.reenter_root(target, reaction: policy, **invocation) if policy.root
 
-        @dispatcher.reenter(target, **invocation)
+        @dispatcher.reenter(target, reaction: policy, **invocation)
       end
 
       # What an `across` policy hands the other domain, noted before the delivery is attempted.

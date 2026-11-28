@@ -822,6 +822,7 @@ Hecks.bluebook "Hecks" do
     # helper's report closes it.
     policy "CloseEveryHelpWantedWhenItsBlockLeavesTheView" do
       on       "StallWatch.StallDetectRequested"
+      acts_as "System"
       for_each "StallWatch.Relieved"
       trigger  HelpWanted::Close, with: { watch: :id, help: :help, reason: :reason }
     end
@@ -829,6 +830,7 @@ Hecks.bluebook "Hecks" do
     # An assigned call says what it needs of its helper, read from its own record.
     policy "BriefTheHelperWhenAssigned" do
       on       "HelpWanted.HelpWantedAssigned"
+      acts_as "System"
       for_each "HelpWanted.AssignedOfHelp"
       trigger  HelpWanted::Brief, with: { help: :help, helper: :helper, how: :how, needs: :needs, role: :role }
     end
@@ -837,6 +839,7 @@ Hecks.bluebook "Hecks" do
     # A root, as the dispatch below is: answering or starting a session is a chain of its own.
     policy "AnswerTheIdleHelperWhenBriefed" do
       on      "HelpWanted.HelperBriefed"
+      acts_as "Operator"
       root
       where   { how.value == "idle" }
       trigger AgentRun::Answer, with: { run: :helper, answer: :needs }
@@ -846,6 +849,7 @@ Hecks.bluebook "Hecks" do
     # so a second dispatch is refused by name while that run stands.
     policy "DispatchAHelperWhenBriefed" do
       on      "HelpWanted.HelperBriefed"
+      acts_as "Operator"
       root
       where   { how.value == "dispatch" }
       trigger AgentRun::Dispatch, with: { run: :help, agent: :role, brief: :needs }
@@ -856,6 +860,7 @@ Hecks.bluebook "Hecks" do
     # run raises the call for help with its evidence.
     policy "CallTheScrumMasterForEveryNewImpediment" do
       on       "StallWatch.StallDetectRequested"
+      acts_as "System"
       for_each "StallWatch.Unraised"
       trigger  ScrumWake::Call, with: { watch: :id, wake: :impediment, detail: :detail }
     end
@@ -863,6 +868,7 @@ Hecks.bluebook "Hecks" do
     # A root, as the helper's dispatch is: starting a session is a chain of its own.
     policy "WakeTheScrumMasterWhenCalled" do
       on      "ScrumWake.ScrumMasterCalled"
+      acts_as "Operator"
       root
       trigger AgentRun::Dispatch, with: { run: :wake, agent: "scrum-master", brief: :detail }
     end
@@ -870,6 +876,7 @@ Hecks.bluebook "Hecks" do
     # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
     policy "DetectOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "System"
       root
       trigger StallWatch::Detect, with: { run: :beat }
     end
@@ -878,6 +885,7 @@ Hecks.bluebook "Hecks" do
     # already filed) is recorded per line and the rest go on.
     policy "FileEveryStallWhenDetected" do
       on       "StallWatch.StallDetectRequested"
+      acts_as "System"
       for_each "StallWatch.Unclosed"
       trigger  Stall::File, with: { watch: :id, stall: :stall, kind: :stall_kind, subject: :subject, opened_at: :opened_at,
                                     waited: :waited, minutes: :minutes, forgets: :forgets, fixer: :fixer,
@@ -888,6 +896,7 @@ Hecks.bluebook "Hecks" do
     # shows it abandoned afterwards.
     policy "AbandonEveryStallWhenDetected" do
       on       "StallWatch.StallDetectRequested"
+      acts_as "System"
       for_each "StallWatch.Abandoned"
       trigger  Stall::Abandon, with: { watch: :id, stall: :stall, reason: :reason }
     end
@@ -897,6 +906,7 @@ Hecks.bluebook "Hecks" do
     # since the abandon already sits several reactions deep.
     policy "EndTheStallSessionWhenAbandoned" do
       on      "Stall.StallAbandoned"
+      acts_as "Operator"
       root
       trigger AgentRun::Answer,
               with: { run: :stall,

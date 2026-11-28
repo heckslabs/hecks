@@ -61,6 +61,7 @@ Hecks.bluebook "Hecks" do
     # A root, like the sampling and the sweep, so each beat's look begins its own chain.
     policy "LookAfterTheLedgerOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "System"
       root
       trigger LedgerCare::Look, with: { run: :beat }
     end
@@ -72,11 +73,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordWhyTheLedgerIsDue" do
       on      "LedgerCare.LedgerCareDue"
+      acts_as "System"
       trigger LedgerCare::Hear, with: { reason: :reason }
     end
 
     policy "RecordWhyTheLedgerWaits" do
       on      "LedgerCare.LedgerCareDeferred"
+      acts_as "System"
       trigger LedgerCare::Decline, with: { refusal: :refusal }
     end
 
@@ -84,6 +87,7 @@ Hecks.bluebook "Hecks" do
     # the beat it was found due on.
     policy "CompactWhenTheLedgerIsDue" do
       on      "LedgerCare.LedgerCareDue"
+      acts_as "Operator"
       root
       trigger SchemaRevision::Compact, with: { domain: :domain, aggregates: :aggregates, run: :compaction, confirm: true }
     end
@@ -147,6 +151,7 @@ Hecks.bluebook "Hecks" do
     # A root, like the journal's look, so each beat's look begins its own chain.
     policy "LookAfterTheOutboxOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "System"
       root
       trigger OutboxCare::Look, with: { run: :beat }
     end
@@ -158,11 +163,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordThePurgedOutbox" do
       on      "OutboxCare.OutboxPurged"
+      acts_as "System"
       trigger OutboxCare::Hear, with: { reason: :reason }
     end
 
     policy "RecordWhyTheOutboxWaits" do
       on      "OutboxCare.OutboxHeld"
+      acts_as "System"
       trigger OutboxCare::Decline, with: { refusal: :refusal }
     end
 
@@ -170,6 +177,7 @@ Hecks.bluebook "Hecks" do
     # `Reclaiming` port refuses by name unless the file is quiet.
     policy "ReclaimAfterThePurge" do
       on      "OutboxCare.OutboxPurged"
+      acts_as "Operator"
       root
       trigger LedgerFile::Reclaim, with: { run: :reclaim, confirm: true }
     end
@@ -243,11 +251,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheReclaim" do
       on      "LedgerFile.LedgerFileVacuumed"
+      acts_as "System"
       trigger LedgerFile::Settle, with: { report: :report }
     end
 
     policy "RecordWhyTheFileWasHeld" do
       on      "LedgerFile.LedgerFileBusy"
+      acts_as "System"
       trigger LedgerFile::Decline, with: { refusal: :refusal }
     end
   end

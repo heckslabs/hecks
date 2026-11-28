@@ -53,3 +53,38 @@ Ruby builder and the Rust parser), then the check, the identity port and its ada
 - Corpus bluebooks whose commands run from policies or cron-like callers must declare `acts_as` or the open marker
   before 7.0.0; shadow mode lists them first.
 - Specs keep passing a bare role string.
+
+## As built
+
+Built for 8.0.0. Decisions 1 and 2 stand; the identity port of decision 1, decision 3 and the Governance event of
+decision 4 are not built. Where the build differs from the text above or adds to it:
+
+- **Refusing is the default from 8.0.0.** 7.x shipped the shadow. `HECKS_ROLE_ENFORCEMENT` is `enforce` when it is
+  unset or holds a word it does not know, in the Ruby runtime (`Runtime::RoleShadow`) and in the Rust host
+  (`Enforcement`); `shadow` and `off` are the opt-outs. The refusal reads "Approve refused — role: Owner, and the
+  caller stated no role" (`Unauthorized`/`role_unstated`) on both.
+- **An outside caller who stated no role is not the process acting for itself.** A door that hears a caller who
+  named neither a role nor an actor binds it as the role `Anonymous`, which no command declares (`Caller.unstated`
+  in Ruby, `ANONYMOUS_ROLE` in the host and the kernel), and that caller is refused. A dispatch with no caller bound
+  at all (an adapter's own dispatch, a spec, the host's internal dispatches) is counted in `unstated_caller_log` as
+  `internal` and runs.
+- **A command line states a role with `--as <Role>`, or its world's `caller_roles`.** With no identity port yet the
+  role is a bare string. A launcher's `launcher` world setting may list `caller_roles`, the roles whoever runs it
+  holds, and a line that states none runs as the first of them its command declares. The Hecks and QualityControl
+  worlds list every role their pipeline runs except the owner's (`Release owner`, `Governance administrator`), which
+  a line states with `--as`. The MCP door takes `role:`, as before.
+- **A policy's reaction runs as its `acts_as`.** One that declares none is the unstated caller in a cascade an
+  outside caller began, and runs unchecked in a cascade the process began for itself; a saga leg runs unchecked. A
+  hecksagon may give every undeclared policy of a bluebook it attaches one role, `attaches "delivery", from: :vendor,
+  acts_as: "System"`, for a package whose files its lock pins. Every policy under `lib/`, `examples/` and `qa/`
+  whose command declares a role declares one or takes its attachment's; spec fixtures keep undeclared ones on
+  purpose, to exercise the rule.
+- **The language's own load states the language's role.** Every role-gated command of bluebook.bluebook declares
+  `Language`, and every one of the world, port, adapter and translation languages declares `Deployment`. The judge
+  that offers a loaded file to its language dispatches as that role (`MetaValidator::JudgingCaller`), so a load is
+  never refused for the caller around it; dispatched as a caller who states no role, the same load is refused
+  ("Declare refused — role: Language, and the caller stated no role").
+- **`policy_only` refuses any caller that is not a reaction** ("Water refused — only a policy reaction may dispatch
+  it, and a caller did", `Unauthorized`/`policy_only`); a dispatch with no caller runs it.
+- **The record stays where 7.x kept it**: the registry's `unstated_caller_log` and the `would_refuse_role` line under
+  `shadow`. The open marker of decision 1 is not a separate word: a command that declares no `role` is open.

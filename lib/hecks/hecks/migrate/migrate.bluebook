@@ -564,6 +564,7 @@ Hecks.bluebook "Hecks" do
 
     policy "PermitWhenExamined" do
       on      "SchemaRevision.SchemaRevisionExamined"
+      acts_as "System"
       trigger SchemaRevision::Permit, with: {
         capable: :capable, held: :held, forks: :forks, contested: :contested,
         bound: :bound, candidates: :candidates,
@@ -576,6 +577,7 @@ Hecks.bluebook "Hecks" do
     # rather than left `requested`.
     policy "AbandonWhenNotPermitted" do
       on      "SchemaRevision.SchemaRevisionExamined"
+      acts_as "System"
       where do
         (!capable.value && operation.value != "compact" && operation.value != "compact_heki" && operation.value != "compact_events") ||
           (operation.value == "hold_first" && held.value != 0) ||
@@ -591,6 +593,7 @@ Hecks.bluebook "Hecks" do
     # is abandoned once, by the one policy that names why.
     policy "AbandonACompactionThatFindsNothing" do
       on      "SchemaRevision.SchemaRevisionExamined"
+      acts_as "System"
       where do
         (operation.value == "compact" || operation.value == "compact_heki") && candidates.value <= 0
       end
@@ -601,6 +604,7 @@ Hecks.bluebook "Hecks" do
 
     policy "AbandonACompactionAProjectionReads" do
       on      "SchemaRevision.SchemaRevisionExamined"
+      acts_as "System"
       where do
         (operation.value == "compact" || operation.value == "compact_heki") && candidates.value > 0 && bound.value != 0
       end
@@ -611,6 +615,7 @@ Hecks.bluebook "Hecks" do
 
     policy "AbandonAnEventCompactionThatFindsNothing" do
       on      "SchemaRevision.SchemaRevisionExamined"
+      acts_as "System"
       where do
         operation.value == "compact_events" && candidates.value <= 0
       end
@@ -621,6 +626,7 @@ Hecks.bluebook "Hecks" do
 
     policy "AbandonAnEventCompactionAProjectionLags" do
       on      "SchemaRevision.SchemaRevisionExamined"
+      acts_as "System"
       where do
         operation.value == "compact_events" && candidates.value > 0 && bound.value != 0
       end
@@ -640,11 +646,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheChange" do
       on      "SchemaRevision.SchemaRevisionChanged"
+      acts_as "System"
       trigger SchemaRevision::Settle, with: { report: :report }
     end
 
     policy "RecordTheRefusedChange" do
       on      "SchemaRevision.SchemaRevisionRefused"
+      acts_as "System"
       trigger SchemaRevision::Abandon, with: { refusal: :refusal }
     end
 
@@ -1072,11 +1080,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RefuseWhenStoreNotAdmitted" do
       on      "RehearsalRun.StoreRefused"
+      acts_as "System"
       trigger RehearsalRun::Refuse, with: { refusal: :refusal }
     end
 
     policy "RecordBootWhenStoreSurveyed" do
       on      "RehearsalRun.StoreSurveyed"
+      acts_as "System"
       where   { booted.value }
       trigger RehearsalRun::Boot, with: { booted: :booted, host_version: :host_version, store: :store, mode: :mode,
                                            before: :before, after: :after, minting: :minting,
@@ -1090,6 +1100,7 @@ Hecks.bluebook "Hecks" do
     # clean answer over it would be a confident wrong one. The survey has already dropped it.
     policy "WithholdWhenTheCopyHoldsNothing" do
       on      "RehearsalRun.RehearsalBooted"
+      acts_as "System"
       where   { copy_empty.value }
       trigger RehearsalRun::Withhold, with: { verdict: "empty_copy", refusal: :copy_note }
     end
@@ -1098,12 +1109,14 @@ Hecks.bluebook "Hecks" do
     # stopped by, so it is judged, not failed.
     policy "WithholdWhenSubjectDoesNotBoot" do
       on      "RehearsalRun.StoreSurveyed"
+      acts_as "System"
       where   { !booted.value }
       trigger RehearsalRun::Withhold, with: { verdict: "cannot_boot", refusal: :boot_error }
     end
 
     policy "FailWhenExaminationRefused" do
       on      "RehearsalRun.ExamineRefused"
+      acts_as "System"
       trigger RehearsalRun::Fail, with: { refusal: :refusal }
     end
 
@@ -1115,6 +1128,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordAuditWhenStoreExamined" do
       on      "RehearsalRun.StoreExamined"
+      acts_as "System"
       trigger RehearsalRun::Audit, with: { minting: :minting, edge_present: :edge_present,
                                             refused_rows: :refused_rows, refusal_total: :refusal_total,
                                             audited: :audited, rows_examined: :rows_examined,
@@ -1127,6 +1141,7 @@ Hecks.bluebook "Hecks" do
 
     policy "JudgeWhenNothingWouldStopTheMint" do
       on      "RehearsalRun.RehearsalAudited"
+      acts_as "System"
       where do
         (minting.value != "next" || edge_present.value) && refusal_total.value == 0
       end
@@ -1136,6 +1151,7 @@ Hecks.bluebook "Hecks" do
 
     policy "WithholdWhenNoEdgeLeadsOn" do
       on      "RehearsalRun.RehearsalAudited"
+      acts_as "System"
       where   { minting.value == "next" && !edge_present.value }
       trigger RehearsalRun::Withhold, with: { verdict: "needs_edge",
                                                refusal: "no translation edge leads the held era to this shape" }
@@ -1143,6 +1159,7 @@ Hecks.bluebook "Hecks" do
 
     policy "WithholdWhenTheMintWouldRefuse" do
       on      "RehearsalRun.RehearsalAudited"
+      acts_as "System"
       where do
         (minting.value != "next" || edge_present.value) && refusal_total.value > 0
       end

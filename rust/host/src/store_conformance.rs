@@ -101,9 +101,24 @@ trait Backend: Sized + Sync {
     async fn release_domain_lock(&self, held: Self::Held);
 }
 
+/// The caller a case dispatches `verb` as: the role Banking declares for it (ADR 0216), so the
+/// cases pin what the store does and not the role check, which refuses a caller stating none.
+fn stated(verb: &str) -> Caller<'static> {
+    let role = match verb {
+        REGISTER | "Banking::Account.Open" | "Banking::Account.Credit" => "Branch clerk",
+        "Banking::Account.FreezeAccount" => "Compliance officer",
+        "Banking::Transfer.Request" => "Customer",
+        other => panic!("no role is listed for {other}"),
+    };
+    Caller {
+        role: Some(role),
+        actor_id: None,
+    }
+}
+
 async fn dispatch<B: Backend>(backend: &B, verb: &str, args: Value) -> Outcome {
     backend
-        .dispatch_as(verb, args, Caller::default())
+        .dispatch_as(verb, args, stated(verb))
         .await
         .unwrap_or_else(|e| panic!("{verb} should not fail: {e:#}"))
 }
@@ -141,7 +156,11 @@ async fn request_transfer<B: Backend>(backend: &B, tag: &str) -> anyhow::Result<
         "source": format!("src-{tag}"), "destination": format!("dst-{tag}"),
     });
     backend
-        .dispatch_as("Banking::Transfer.Request", args, Caller::default())
+        .dispatch_as(
+            "Banking::Transfer.Request",
+            args,
+            stated("Banking::Transfer.Request"),
+        )
         .await
 }
 
@@ -300,7 +319,7 @@ mod cases {
         let before = backend.observe().await;
 
         let failure = backend
-            .dispatch_as(REGISTER, register("CUST-0090"), Caller::default())
+            .dispatch_as(REGISTER, register("CUST-0090"), stated(REGISTER))
             .await;
 
         let message = format!("{:#}", failure.err().expect("a kernel failure is an error"));
@@ -321,7 +340,7 @@ mod cases {
 
         backend.inject(Fault::SnapshotWrite).await;
         let failure = backend
-            .dispatch_as(REGISTER, register("CUST-0011"), Caller::default())
+            .dispatch_as(REGISTER, register("CUST-0011"), stated(REGISTER))
             .await;
 
         assert!(failure.is_err(), "the failed write fails the command");
@@ -471,7 +490,7 @@ mod cases {
 
         let held = backend.hold_domain_lock().await;
         let mut pending =
-            Box::pin(other.dispatch_as(REGISTER, register("CUST-0021"), Caller::default()));
+            Box::pin(other.dispatch_as(REGISTER, register("CUST-0021"), stated(REGISTER)));
         let waited = tokio::time::timeout(Duration::from_millis(400), &mut pending).await;
         assert!(
             waited.is_err(),
@@ -499,8 +518,8 @@ mod cases {
         for round in 0..4 {
             let reference = format!("CUST-RACE-{round}");
             let (a, b) = tokio::join!(
-                first.dispatch_as(REGISTER, register(&reference), Caller::default()),
-                second.dispatch_as(REGISTER, register(&reference), Caller::default()),
+                first.dispatch_as(REGISTER, register(&reference), stated(REGISTER)),
+                second.dispatch_as(REGISTER, register(&reference), stated(REGISTER)),
             );
             let (a, b) = (a.unwrap(), b.unwrap());
             assert_ne!(
@@ -526,7 +545,7 @@ mod cases {
             before,
             "a unit never committed wrote nothing"
         );
-        let next = other.dispatch_as(REGISTER, register("CUST-0040"), Caller::default());
+        let next = other.dispatch_as(REGISTER, register("CUST-0040"), stated(REGISTER));
         let outcome = tokio::time::timeout(Duration::from_secs(10), next)
             .await
             .expect("the dropped unit must have released the domain lock")

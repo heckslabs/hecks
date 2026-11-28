@@ -12,12 +12,25 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Hecksagon.{word}"))
 }
 
+/// What a hecksagon's `attaches` words name: each bluebook the gem carries, each vendored package,
+/// and the role an attachment's `acts_as:` gives the attached bluebook's policies that declare none
+/// (ADR 0216), keyed by the name `attaches` gave.
+#[derive(Debug, Default)]
+pub struct Attached {
+    /// `attaches "Name"`: a bluebook the gem carries.
+    pub gem: Vec<String>,
+    /// `attaches "name", from: :vendor`: a vendored package.
+    pub vendored: Vec<String>,
+    /// `attaches "name", acts_as: "Role"`: the attachment's name and its role.
+    pub acts_as: Vec<(String, String)>,
+}
+
 /// Applies a `.hecksagon` body onto an already-built `ir::Bluebook`, attaching
 /// aggregate-scoped ports to the aggregates the sibling `.bluebook` registered.
 ///
-/// `gem_bluebook_names` collects each `attaches "Name"` and
-/// `vendored_bluebook_names` each `attaches "name", from: :vendor`, in file order, for `hecks-parse resolve`; `ir.json` itself
-/// carries neither.
+/// `attached` collects each `attaches "Name"`, each `attaches "name", from: :vendor` and each
+/// attachment's `acts_as:` role, in file order, for `hecks-parse resolve`; `ir.json` itself carries
+/// none of them.
 ///
 /// `require_matching_aggregate` is `false` for resolve, which never sees a `.bluebook`, so an
 /// aggregate-scoped `port` skips the attach step instead of failing the lookup.
@@ -26,8 +39,7 @@ pub fn apply(
     lines: &[SourceLine],
     pos: &mut usize,
     bluebook: &mut ir::Bluebook,
-    gem_bluebook_names: &mut Vec<String>,
-    vendored_bluebook_names: &mut Vec<String>,
+    attached: &mut Attached,
     require_matching_aggregate: bool,
 ) -> ParseResult<()> {
     loop {
@@ -132,9 +144,12 @@ pub fn apply(
                         &gated.args,
                         1,
                     )?;
+                    if let Some(role) = super::named_text(&gated.args, "acts_as") {
+                        attached.acts_as.push((name.clone(), role));
+                    }
                     match super::named_symbol(&gated.args, "from").as_deref() {
-                        None => gem_bluebook_names.push(name),
-                        Some("vendor") => vendored_bluebook_names.push(name),
+                        None => attached.gem.push(name),
+                        Some("vendor") => attached.vendored.push(name),
                         Some(other) => {
                             return Err(Diagnostic::new(
                                 file,

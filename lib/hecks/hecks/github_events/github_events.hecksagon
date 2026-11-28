@@ -4,6 +4,7 @@ Hecks.hecksagon "Hecks" do
   # An open pull request, or a closed one that was not merged.
   translates "RecordAPullRequestRead" do
     on GithubRest::PullRead
+    acts_as "System"
     where { merged_at == "" }
     trigger GithubEvent::Record, with: { delivery: :key, kind: "pull_request", action: :state, pr: :number,
                                          commit: :head_sha, branch: :head_ref, conclusion: :state,
@@ -13,6 +14,7 @@ Hecks.hecksagon "Hecks" do
   # A pull request GitHub says was merged.
   translates "RecordAMergedPullRequestRead" do
     on GithubRest::PullRead
+    acts_as "System"
     where { merged_at != "" }
     trigger GithubEvent::Record, with: { delivery: :key, kind: "pull_request", action: "closed", pr: :number,
                                          commit: :head_sha, branch: :head_ref, conclusion: "merged",
@@ -22,6 +24,7 @@ Hecks.hecksagon "Hecks" do
   # A check run that has ended, green or red: its conclusion.
   translates "RecordACompletedCheckRunRead" do
     on GithubRest::CheckRunRead
+    acts_as "System"
     where { status == "completed" }
     trigger GithubEvent::Record, with: { delivery: :key, kind: "check_run", action: "completed",
                                          commit: :head_sha, check: :name, conclusion: :conclusion,
@@ -31,6 +34,7 @@ Hecks.hecksagon "Hecks" do
   # A check run that has not ended: its status stands where a conclusion would.
   translates "RecordAPendingCheckRunRead" do
     on GithubRest::CheckRunRead
+    acts_as "System"
     where { status != "completed" }
     trigger GithubEvent::Record, with: { delivery: :key, kind: "check_run", action: :status,
                                          commit: :head_sha, check: :name, conclusion: :status,
@@ -40,6 +44,7 @@ Hecks.hecksagon "Hecks" do
   # A refused call with no budget left: the rate limit is exhausted.
   translates "RecordAnExhaustedRateLimit" do
     on GithubRest::RateLimitRead
+    acts_as "System"
     where { http_status == 403 && remaining == 0 }
     trigger GithubEvent::Record, with: { delivery: :key, kind: "rate_limit", action: "exhausted",
                                          received: :observed }

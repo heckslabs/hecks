@@ -477,6 +477,7 @@ Hecks.bluebook "Hecks" do
     # starts no early CI.
     policy "StartEarlyCiWhenBranchLanded" do
       on      "Landing.BranchLanded"
+      acts_as "System"
       where   { branch.value != "main" }
       trigger EarlyCi::Start, with: { run: :run, branch: :branch }
     end
@@ -486,6 +487,7 @@ Hecks.bluebook "Hecks" do
     # landing does not share.
     policy "WithdrawEarlyCiWhenStarted" do
       on      "EarlyCi.EarlyCiStarted"
+      acts_as "System"
       trigger EarlyCi::Withdraw, with: { early_ci: :run }
     end
 
@@ -496,6 +498,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheClose" do
       on      "EarlyCi.BranchCiClosed"
+      acts_as "System"
       trigger EarlyCi::Close, with: { report: :report }
     end
 
@@ -515,6 +518,7 @@ Hecks.bluebook "Hecks" do
     # so when the two are the same only a red main failed and the coder hands off, naming them.
     policy "RecordTheGreenRun" do
       on      "EarlyCi.BranchCiAnswered"
+      acts_as "System"
       where   { failing.nil? || failing.value.to_s.empty? || (!inherited.nil? && inherited.value == failing.value) }
       trigger EarlyCi::Observe, with: { outcome: "passed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
@@ -522,6 +526,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRedRun" do
       on      "EarlyCi.BranchCiAnswered"
+      acts_as "System"
       where   { !failing.nil? && !failing.value.to_s.empty? && (inherited.nil? || inherited.value != failing.value) }
       trigger EarlyCi::Observe, with: { outcome: "failed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
@@ -529,12 +534,14 @@ Hecks.bluebook "Hecks" do
 
     policy "DeclineWhenCiCouldNotRun" do
       on      "EarlyCi.BranchCiRefused"
+      acts_as "System"
       trigger EarlyCi::Decline, with: { refusal: :refusal }
     end
 
     # The failing specs go back to the coder run that cut the branch, resuming it under the same session.
     policy "TellTheCoderWhenCiFailed" do
       on      "EarlyCi.EarlyCiObserved"
+      acts_as "Operator"
       where   { outcome.value == "failed" }
       trigger AgentRun::Answer, with: { run: :agent_run, answer: :report }
     end
@@ -547,11 +554,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRestoration" do
       on      "Restoration.RestoreAnswered"
+      acts_as "System"
       trigger Restoration::Record, with: { report: :report }
     end
 
     policy "DeclineTheRestoration" do
       on      "Restoration.RestoreRefused"
+      acts_as "System"
       trigger Restoration::Decline, with: { refusal: :refusal }
     end
 
@@ -567,21 +576,25 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheShallowPass" do
       on      "ShallowCheck.ShallowCheckAnswered"
+      acts_as "System"
       trigger ShallowCheck::Pass, with: { report: :report, unrun: :unrun }
     end
 
     policy "RecordTheShallowSwitch" do
       on      "ShallowCheck.ShallowSwitchAnswered"
+      acts_as "System"
       trigger ShallowCheck::Pass, with: { report: :report }
     end
 
     policy "RecordTheShallowRefusal" do
       on      "ShallowCheck.ShallowCheckRefused"
+      acts_as "System"
       trigger ShallowCheck::Refuse, with: { refusal: :refusal }
     end
 
     policy "RecordTheRefusedShallowSwitch" do
       on      "ShallowCheck.ShallowSwitchRefused"
+      acts_as "System"
       trigger ShallowCheck::Refuse, with: { refusal: :refusal }
     end
 
@@ -867,6 +880,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordThePush" do
       on      "SendTrain.TrainAnswered"
+      acts_as "System"
       where   { outcome.value == "pushed" }
       trigger SendTrain::Send, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, commits: :commits,
                                        report: :report }
@@ -874,12 +888,14 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRide" do
       on      "SendTrain.TrainAnswered"
+      acts_as "System"
       where   { outcome.value == "carried" }
       trigger SendTrain::Ride, with: { checkout: :checkout, boarded: :boarded, report: :report }
     end
 
     policy "RecordTheQueuedBoarding" do
       on      "SendTrain.TrainAnswered"
+      acts_as "System"
       where   { outcome.value == "queued" }
       trigger SendTrain::Queue, with: { checkout: :checkout, boarded: :boarded, commits: :commits, report: :report }
     end
@@ -890,12 +906,14 @@ Hecks.bluebook "Hecks" do
     # override is used.
     policy "RecordTheFailedChecks" do
       on      "SendTrain.TrainAnswered"
+      acts_as "System"
       where   { outcome.value == "checks_failed" }
       trigger SendTrain::Fault, with: { refusal: :report }
     end
 
     policy "RecordTheRefusedPush" do
       on      "SendTrain.TrainRefused"
+      acts_as "System"
       trigger SendTrain::Fault, with: { refusal: :refusal }
     end
 
@@ -906,11 +924,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheReversal" do
       on      "SendTrain.RevertAnswered"
+      acts_as "System"
       trigger SendTrain::Reverse, with: { checkout: :checkout, local: :local, reverted: :reverted, report: :report }
     end
 
     policy "RecordTheRefusedRevert" do
       on      "SendTrain.RevertRefused"
+      acts_as "System"
       trigger SendTrain::Fault, with: { refusal: :refusal }
     end
 
@@ -921,11 +941,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheSurvey" do
       on      "SendTrain.SurveyAnswered"
+      acts_as "System"
       trigger SendTrain::Summarize, with: { report: :report }
     end
 
     policy "RecordTheRefusedSurvey" do
       on      "SendTrain.SurveyRefused"
+      acts_as "System"
       trigger SendTrain::Fault, with: { refusal: :refusal }
     end
 
@@ -936,6 +958,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheMerge" do
       on      "SendTrain.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "merged" }
       trigger SendTrain::Merge, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
     end
@@ -943,6 +966,7 @@ Hecks.bluebook "Hecks" do
     # A queued boarding whose required checks failed: the answer's report names the failed jobs.
     policy "RecordTheFailedChecksOfAQueuedBoarding" do
       on      "SendTrain.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "checks_failed" }
       trigger SendTrain::Fail, with: { report: :report }
     end
@@ -950,6 +974,7 @@ Hecks.bluebook "Hecks" do
     # A queued boarding whose pull request closed unmerged: the answer's report says so.
     policy "RecordTheClosedBoarding" do
       on      "SendTrain.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "closed" }
       trigger SendTrain::Close, with: { report: :report }
     end
@@ -1568,6 +1593,7 @@ Hecks.bluebook "Hecks" do
     # (delegate.bluebook) owns the period. A beat with nothing open does nothing.
     policy "AdvanceOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "Operator"
       root
       trigger Integration::Advance, with: { run: :beat, confirm: true }
     end
@@ -1590,6 +1616,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheAdvance" do
       on      "Integration.AdvanceAnswered"
+      acts_as "System"
       trigger Integration::Summarize, with: { report: :report }
     end
 
@@ -1601,24 +1628,28 @@ Hecks.bluebook "Hecks" do
     # order rule is the port's: an advance boards nothing while another run is pushed or watched.
     policy "AdvanceWhenCiPasses" do
       on      "Integration.CiPassed"
+      acts_as "Operator"
       root
       trigger Integration::Advance, with: { run: :landed, confirm: true }
     end
 
     policy "AdvanceWhenCiFails" do
       on      "Integration.CiFailed"
+      acts_as "Operator"
       root
       trigger Integration::Advance, with: { run: :landed, confirm: true }
     end
 
     policy "AdvanceWhenTrainPrClosed" do
       on      "Integration.PullRequestClosed"
+      acts_as "Operator"
       root
       trigger Integration::Advance, with: { run: :landed, confirm: true }
     end
 
     policy "RecordTheRefusedAdvance" do
       on      "Integration.AdvanceRefused"
+      acts_as "System"
       trigger Integration::Summarize, with: { report: :refusal }
     end
 
@@ -1629,12 +1660,14 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheVerification" do
       on      "Integration.VerifyAnswered"
+      acts_as "System"
       where   { outcome.value == "verified" }
       trigger Integration::Pass, with: { landed: :landed, report: :report }
     end
 
     policy "RecordTheSupersededVerification" do
       on      "Integration.VerifyAnswered"
+      acts_as "System"
       where   { outcome.value == "superseded" }
       trigger Integration::Supersede, with: { landed: :landed, report: :report }
     end
@@ -1644,12 +1677,14 @@ Hecks.bluebook "Hecks" do
     # first, MainVerificationFailed the second.
     policy "RetryTheFailedVerification" do
       on      "Integration.VerifyRefused"
+      acts_as "System"
       where   { retried.value == false }
       trigger Integration::FailOnce, with: { landed: :landed, refusal: :refusal }
     end
 
     policy "RecordTheFailedVerification" do
       on      "Integration.VerifyRefused"
+      acts_as "System"
       where   { retried.value == true }
       trigger Integration::Fail, with: { landed: :landed, checkout: :checkout, refusal: :refusal }
     end
@@ -1676,6 +1711,7 @@ Hecks.bluebook "Hecks" do
     # spec red at the base too reverts nothing.
     policy "RevertWhenAMergeIsRed" do
       on      "Integration.BisectAnswered"
+      acts_as "System"
       root
       where   { culprit.value != "" && base_red.value == false && already_reverted.value == false && revert_count.value < 3 }
       trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
@@ -1685,6 +1721,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ParkWhenTheRangeHoldsTheMostReverts" do
       on      "Integration.BisectAnswered"
+      acts_as "System"
       root
       where   { culprit.value != "" && base_red.value == false && already_reverted.value == false && revert_count.value >= 3 }
       trigger RedEpisode::Park, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
@@ -1693,6 +1730,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ParkWhenTheEpisodeAlreadyReverted" do
       on      "Integration.BisectAnswered"
+      acts_as "System"
       root
       where   { culprit.value != "" && already_reverted.value == true }
       trigger RedEpisode::Park, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
@@ -1704,6 +1742,7 @@ Hecks.bluebook "Hecks" do
     # acquitted as before; a revert already standing in the range parks it instead.
     policy "AcquitWhenNoMergeIsRed" do
       on      "Integration.BisectAnswered"
+      acts_as "System"
       root
       where   { (culprit.value == "" && (base_red.value == true || searched.value == false)) || (culprit.value != "" && base_red.value == true && already_reverted.value == false) }
       trigger RedEpisode::Acquit, with: { run: :run, base: :base, culprit: :culprit, reason: :reason, spec: :spec }
@@ -1714,6 +1753,7 @@ Hecks.bluebook "Hecks" do
     # train's search (its answer names `examples`) is the next rule's: `origin/main` may be green.
     policy "UnfoundWhenNoMergeIsFound" do
       on      "Integration.BisectAnswered"
+      acts_as "System"
       root
       where   { searched.value == true && culprit.value == "" && base_red.value == false && examples.value == "" }
       trigger RedEpisode::Unfound, with: { run: :run, landed: :landed, base: :base, reason: :reason, checkout: :checkout }
@@ -1723,6 +1763,7 @@ Hecks.bluebook "Hecks" do
     # the red train to a coder as before the search existed. The search's run is the attempt's key.
     policy "ReturnTheTrainWhenNoMergeIsFound" do
       on      "Integration.BisectAnswered"
+      acts_as "System"
       root
       where   { searched.value == true && culprit.value == "" && base_red.value == false && examples.value != "" }
       trigger TrainPr::Exhaust, with: { key: :run, landed: :landed, detail: :reason, work: :work_key, title: :title, cause: :cause }
@@ -1735,18 +1776,21 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheBoarding" do
       on      "Integration.BoardAnswered"
+      acts_as "System"
       where   { outcome.value == "pushed" }
       trigger Integration::Send, with: { landed: :landed, pushed: :pushed, report: :report }
     end
 
     policy "RecordTheSupersededBoarding" do
       on      "Integration.BoardAnswered"
+      acts_as "System"
       where   { outcome.value == "superseded" }
       trigger Integration::Supersede, with: { landed: :landed, report: :report }
     end
 
     policy "RecordTheRefusedBoarding" do
       on      "Integration.BoardRefused"
+      acts_as "System"
       trigger Integration::Reject, with: { landed: :landed, refusal: :refusal }
     end
 
@@ -1757,6 +1801,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheTrainMergeSeen" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "merged" && pulled.value == false }
       trigger Integration::Merge, with: { landed: :landed, checkout: :checkout, report: :report }
     end
@@ -1765,18 +1810,21 @@ Hecks.bluebook "Hecks" do
     # it again.
     policy "RecordThePassedCi" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "passed" }
       trigger Integration::Green, with: { landed: :landed, report: :report }
     end
 
     policy "RecordTheFailedCi" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "failed" }
       trigger Integration::Red, with: { landed: :landed, report: :report }
     end
 
     policy "RecordTheClosedPullRequest" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "closed" }
       trigger Integration::Close, with: { landed: :landed, report: :report }
     end
@@ -1785,6 +1833,7 @@ Hecks.bluebook "Hecks" do
     # stays watched (`ci_running`), since the pull request is still open and a rerun may clear it.
     policy "RecordTheFailedTrainPr" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "pr_failed" }
       trigger TrainPr::Record, with: { key: :failure_key, landed: :landed, pr: :pr, ci_run: :ci_run, attempt: :attempt,
                                        specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report,
@@ -2022,6 +2071,7 @@ Hecks.bluebook "Hecks" do
     # The flag is raised with the words the owner reads: main is red and no single merge was found.
     policy "RaiseTheFlagWhenNoMergeIsFound" do
       on      "RedEpisode.EpisodeUnfound"
+      acts_as "System"
       root
       trigger RedFlag::Raise, with: { run: :run, commit: :landed, detail: :reason, checkout: :checkout }
     end
@@ -2031,6 +2081,7 @@ Hecks.bluebook "Hecks" do
     # one of a pushed merge is admitted for boarding and leaves the flag to CI.
     policy "RaiseTheFlagWhenReverting" do
       on      "RedEpisode.EpisodeReverting"
+      acts_as "System"
       root
       trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
     end
@@ -2039,6 +2090,7 @@ Hecks.bluebook "Hecks" do
     # red main: the park holds them too. `RedEpisode` owns the `checkout` fact, as for a revert.
     policy "RaiseTheFlagWhenParked" do
       on      "RedEpisode.EpisodeParked"
+      acts_as "System"
       root
       trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
     end
@@ -2048,6 +2100,7 @@ Hecks.bluebook "Hecks" do
     # commit. The Work item the episode reopens (Tickets) redoes the reverted work; it is not the fix.
     policy "RevertTheCulprit" do
       on      "RedEpisode.EpisodeReverting"
+      acts_as "System"
       root
       trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local,
                                          reason: :finding, spec: :spec, example: :example }
@@ -2058,6 +2111,7 @@ Hecks.bluebook "Hecks" do
     # Work item and the finding are the episode's own, read from the row the query answers.
     policy "RecordTheRevertOnTheEpisode" do
       on       "SendTrain.LandingReverted"
+      acts_as "System"
       root
       for_each "RedEpisode.Reverting"
       trigger  RedEpisode::Undo, with: { run: :run, revert: :reverted, work: :work, finding: :finding,
@@ -2068,6 +2122,7 @@ Hecks.bluebook "Hecks" do
     # its run parks for a person, which frees the line for the green train that follows.
     policy "CloseTheTrainOfARevertedCulprit" do
       on      "RedEpisode.EpisodeReverting"
+      acts_as "System"
       root
       where   { landed.value.to_s != "" }
       trigger Integration::Close, with: { landed: :landed, report: :subject }
@@ -2075,6 +2130,7 @@ Hecks.bluebook "Hecks" do
 
     policy "AdmitTheRevertOfAPushedMerge" do
       on      "SendTrain.LandingReverted"
+      acts_as "System"
       root
       where   { local.value == false }
       trigger RedFlag::Admit, with: { run: :reverted, commit: :reverted, checkout: :checkout }
@@ -2082,6 +2138,7 @@ Hecks.bluebook "Hecks" do
 
     policy "VerifyTheRevert" do
       on      "SendTrain.LandingReverted"
+      acts_as "Operator"
       root
       where   { local.value == true }
       trigger Integration::Verify, with: { run: :reverted, landed: :reverted, checkout: :checkout, retried: true, revert: :local }
@@ -2089,6 +2146,7 @@ Hecks.bluebook "Hecks" do
 
     policy "LowerTheFlagWhenTheRevertIsVerified" do
       on      "Integration.VerifyAnswered"
+      acts_as "System"
       where   { outcome.value == "verified" && revert.value == true }
       trigger RedFlag::Clear, with: { run: :landed, commit: :landed, checkout: :checkout }
     end
@@ -2098,6 +2156,7 @@ Hecks.bluebook "Hecks" do
     # `:id` is the row's own key; `:run` here would read the flag's.
     policy "EndTheRevertedEpisodeWhenTheFlagIsLowered" do
       on       "RedFlag.RedFlagCleared"
+      acts_as "System"
       root
       for_each "RedEpisode.Standing"
       trigger  RedEpisode::Restore, with: { run: :id }
@@ -2105,6 +2164,7 @@ Hecks.bluebook "Hecks" do
 
     policy "EndTheUnrevertedEpisodeWhenTheFlagIsLowered" do
       on       "RedFlag.RedFlagCleared"
+      acts_as "System"
       root
       for_each "RedEpisode.Standing"
       trigger  RedEpisode::Mend, with: { run: :id }
@@ -2245,12 +2305,14 @@ Hecks.bluebook "Hecks" do
     # in that order, so a search that finds no landing can still give the attempt to a coder.
     policy "RecordTheTrainPrSearched" do
       on      "TrainPr.TrainPrFailed"
+      acts_as "System"
       where   { cause.value == "spec" && !examples.nil? && !examples.value.to_s.empty? && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no") }
       trigger TrainPr::Search, with: { key: :key }
     end
 
     policy "ProbeTheRedTrainPr" do
       on      "TrainPr.TrainPrFailed"
+      acts_as "System"
       root
       where   { cause.value == "spec" && !examples.nil? && !examples.value.to_s.empty? && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no") }
       trigger Integration::Probe, with: { run: :key, landed: :landed, checkout: :checkout, examples: :examples,
@@ -2262,27 +2324,32 @@ Hecks.bluebook "Hecks" do
     # one-unrelated-job rerun. Its `where` is the exact complement of the three rules above.
     policy "ExhaustTheFailedTrainPr" do
       on      "TrainPr.TrainPrFailed"
+      acts_as "System"
       where   { (cause.value == "setup" && attempt.value >= 2) || (cause.value == "spec" && (examples.nil? || examples.value.to_s.empty?) && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no")) }
       trigger TrainPr::Exhaust, with: { landed: :landed, detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
     policy "RecordTheRerun" do
       on      "TrainPr.RestartAnswered"
+      acts_as "System"
       trigger TrainPr::Rerun, with: { report: :report }
     end
 
     policy "ExhaustTheRefusedRerun" do
       on      "TrainPr.RestartRefused"
+      acts_as "System"
       trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
     policy "RecordTheJobRerun" do
       on      "TrainPr.RestartJobAnswered"
+      acts_as "System"
       trigger TrainPr::Rerun, with: { report: :report }
     end
 
     policy "ExhaustTheRefusedJobRerun" do
       on      "TrainPr.RestartJobRefused"
+      acts_as "System"
       trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
@@ -2290,6 +2357,7 @@ Hecks.bluebook "Hecks" do
     # whose red checks a newer train pull request supersedes, is closed with a comment saying why.
     policy "SweepTrainPullRequestsOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "System"
       root
       trigger ReviewRequest::Sweep, with: { run: :beat }
     end
@@ -2298,6 +2366,7 @@ Hecks.bluebook "Hecks" do
     # at once: the boarding asks the sweep the beat asks, keyed by its own run, a step sooner.
     policy "SweepTrainPullRequestsWhenQueued" do
       on      "SendTrain.BoardingQueued"
+      acts_as "System"
       root
       trigger ReviewRequest::Sweep, with: { run: :run }
     end
@@ -2309,11 +2378,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheTrainPullRequestSweep" do
       on      "ReviewRequest.TidyAnswered"
+      acts_as "System"
       trigger ReviewRequest::Swept, with: { report: :report }
     end
 
     policy "RecordTheRefusedSweep" do
       on      "ReviewRequest.TidyRefused"
+      acts_as "System"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
@@ -2375,12 +2446,14 @@ Hecks.bluebook "Hecks" do
 
     policy "AwaitTheUnstartedTrainPrCi" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "awaiting_ci" && waited.value >= 10 }
       trigger TrainPrCi::Await, with: { pr: :pr, landed: :landed, waited: :waited, ci_status: :ci_status, report: :report }
     end
 
     policy "StartTheAwaitedTrainPrCi" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "checking" && waited.value >= 10 }
       trigger TrainPrCi::Start, with: { pr: :pr, report: :report }
     end
@@ -2465,6 +2538,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ReopenTheUnstartedTrainPr" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "awaiting_ci" && waited.value >= 20 && reopened.value == false }
       trigger TrainPrReopen::Request, with: { pr: :pr, landed: :landed, checks: :checks, reopened: :reopened }
     end
@@ -2476,11 +2550,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheReopen" do
       on      "TrainPrReopen.CycleAnswered"
+      acts_as "System"
       trigger TrainPrReopen::Reopen, with: { report: :report }
     end
 
     policy "RecordTheDeclinedReopen" do
       on      "TrainPrReopen.CycleRefused"
+      acts_as "System"
       trigger TrainPrReopen::Decline, with: { refusal: :refusal }
     end
 
@@ -2549,6 +2625,7 @@ Hecks.bluebook "Hecks" do
 
     policy "EnqueueTheDroppedTrainPr" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "dropped" }
       trigger TrainPrEnqueue::Request, with: { run: :run, pr: :pr, landed: :landed }
     end
@@ -2560,17 +2637,20 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheEnqueue" do
       on      "TrainPrEnqueue.ArmAnswered"
+      acts_as "System"
       trigger TrainPrEnqueue::Enqueue, with: { report: :report }
     end
 
     policy "RecordTheDeclinedEnqueue" do
       on      "TrainPrEnqueue.ArmRefused"
+      acts_as "System"
       trigger TrainPrEnqueue::Decline, with: { refusal: :refusal }
     end
 
     # A train pull request that does not merge cleanly now is closed out of the run, which parks it.
     policy "ParkTheConflictedTrainPr" do
       on      "Integration.ObserveAnswered"
+      acts_as "System"
       where   { outcome.value == "conflicted" }
       trigger Integration::Close, with: { landed: :landed, report: :report }
     end
@@ -2815,11 +2895,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheOpenedPullRequest" do
       on      "ReviewRequest.OpenAnswered"
+      acts_as "System"
       trigger ReviewRequest::Record, with: { number: :number, url: :url, report: :report }
     end
 
     policy "RecordTheRefusedOpen" do
       on      "ReviewRequest.OpenRefused"
+      acts_as "System"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
@@ -2830,6 +2912,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheMergedPullRequest" do
       on      "ReviewRequest.MergeAnswered"
+      acts_as "System"
       where   { outcome.value == "merged" }
       trigger ReviewRequest::Confirm, with: { number: :number, report: :report }
     end
@@ -2838,12 +2921,14 @@ Hecks.bluebook "Hecks" do
     # so and does not claim `merged`. `ReviewRequest.status` reads the actual merge later.
     policy "RecordTheQueuedPullRequest" do
       on      "ReviewRequest.MergeAnswered"
+      acts_as "System"
       where   { outcome.value == "queued" }
       trigger ReviewRequest::Queue, with: { number: :number, report: :report }
     end
 
     policy "RecordTheRefusedMerge" do
       on      "ReviewRequest.MergeRefused"
+      acts_as "System"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
@@ -2854,11 +2939,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheEditedPullRequest" do
       on      "ReviewRequest.AmendAnswered"
+      acts_as "System"
       trigger ReviewRequest::Revise, with: { number: :number, report: :report }
     end
 
     policy "RecordTheRefusedEdit" do
       on      "ReviewRequest.AmendRefused"
+      acts_as "System"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
@@ -2869,11 +2956,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheShutPullRequest" do
       on      "ReviewRequest.ShutAnswered"
+      acts_as "System"
       trigger ReviewRequest::Swept, with: { report: :report }
     end
 
     policy "RecordTheRefusedShut" do
       on      "ReviewRequest.ShutRefused"
+      acts_as "System"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
@@ -3024,27 +3113,32 @@ Hecks.bluebook "Hecks" do
 
     policy "HoldWhenRehearsingDeep" do
       on      "PushRehearsal.PushRehearsalRequested"
+      acts_as "Operator"
       where   { scope.value == "deep" }
       trigger BoardingHold::Hold, with: { run: :run, reason: { value: "deep rehearsal, then the train" } }
     end
 
     policy "ReleaseWhenRehearsalRed" do
       on      "PushRehearsal.PushRehearsalFailed"
+      acts_as "Operator"
       trigger BoardingRelease::Release, with: { run: :run }
     end
 
     policy "ReleaseWhenRehearsalRefused" do
       on      "PushRehearsal.PushRehearsalDeclined"
+      acts_as "Operator"
       trigger BoardingRelease::Release, with: { run: :run }
     end
 
     policy "ReleaseWhenBoarded" do
       on      "SendTrain.TrainAnswered"
+      acts_as "Operator"
       trigger BoardingRelease::Release, with: { run: :run, checkout: :checkout }
     end
 
     policy "ReleaseWhenBoardingRefused" do
       on      "SendTrain.TrainRefused"
+      acts_as "Operator"
       trigger BoardingRelease::Release, with: { run: :run }
     end
 
@@ -3060,21 +3154,25 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheHold" do
       on      "BoardingHold.HoldAnswered"
+      acts_as "System"
       trigger BoardingHold::Settle, with: { output: :output }
     end
 
     policy "RecordTheRefusedHold" do
       on      "BoardingHold.HoldRefused"
+      acts_as "System"
       trigger BoardingHold::Decline, with: { refusal: :refusal }
     end
 
     policy "RecordTheRelease" do
       on      "BoardingRelease.ReleaseAnswered"
+      acts_as "System"
       trigger BoardingRelease::Settle, with: { output: :output }
     end
 
     policy "RecordTheRefusedRelease" do
       on      "BoardingRelease.ReleaseRefused"
+      acts_as "System"
       trigger BoardingRelease::Decline, with: { refusal: :refusal }
     end
 
@@ -3156,17 +3254,20 @@ Hecks.bluebook "Hecks" do
 
     policy "SettleTheLog" do
       on      "BisectLog.LogAnswered"
+      acts_as "System"
       trigger BisectLog::Settle, with: { output: :output }
     end
 
     policy "DeclineTheLog" do
       on      "BisectLog.LogRefused"
+      acts_as "System"
       trigger BisectLog::Decline, with: { refusal: :refusal }
     end
 
     # A train's search that ran to an answer is its red's bisect log; one that could not run is none.
     policy "LogTheBisectOfARedTrain" do
       on      "Integration.BisectAnswered"
+      acts_as "Operator"
       root
       where   { searched.value == true && examples.value != "" && work_key.value != "" && !reason.value.include?("could not run") }
       trigger BisectLog::Log, with: { run: :run, work: :work_key, kind: "bisect", finding: :reason, checkout: :checkout }
@@ -3282,18 +3383,21 @@ Hecks.bluebook "Hecks" do
     # so each command's own given reads it and the one that does not match the mode refuses.
     policy "ClearTheLandingWhenTheReviewIsClean" do
       on      "LandingReview.LandingReviewJudged"
+      acts_as "System"
       where   { verdict.value == "clean" }
       trigger LandingReview::Clear, with: { tip: :tip }
     end
 
     policy "RefuseTheLandingWhenTheReviewIsNotClean" do
       on      "LandingReview.LandingReviewJudged"
+      acts_as "System"
       where   { verdict.value != "clean" }
       trigger LandingReview::Refuse, with: { tip: :tip }
     end
 
     policy "LandTheShadowedLandingAnyway" do
       on      "LandingReview.LandingReviewJudged"
+      acts_as "System"
       where   { verdict.value != "clean" }
       trigger LandingReview::Shadow, with: { tip: :tip }
     end
@@ -3303,6 +3407,7 @@ Hecks.bluebook "Hecks" do
     # says how to read that through its door.
     policy "StartTheArchitectOnChangeReview" do
       on      "ChangeReview.ChangeReviewRequested"
+      acts_as "Operator"
       root
       trigger AgentRun::Dispatch, with: { run: :run, repo: :checkout, agent: "architect", brief: :review }
     end

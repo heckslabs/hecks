@@ -8,7 +8,8 @@ require_relative "engine_choice"
 module DrivingTwin
   PIZZAS = File.expand_path("../../examples/pizzas", __dir__)
   PIZZA = { name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } } }.freeze
-  CREATE_ARGV = %w[order.create_pizza! name=Margherita pizza.price_cents.cents=1200 pizza.size.value=large].freeze
+  # A launcher line that creates the pizza, stating the chef's role as a line that acts must.
+  CREATE_ARGV = %w[order.create_pizza! --as Chef name=Margherita pizza.price_cents.cents=1200 pizza.size.value=large].freeze
 
   # Includes the twin helpers and keeps the storehouse's trace off the owner's cache.
   def self.included(group)

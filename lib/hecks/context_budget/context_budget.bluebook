@@ -213,12 +213,14 @@ Hecks.bluebook "ContextBudget" do
   # Only a measure past the ceiling asks, and only once: a second ask is refused by the lifecycle.
   policy "AskHandoffWhenOverCeiling" do
     on      "ContextBudget.ContextMeasured"
+    acts_as "System"
     where   { tokens.value > ceiling.value }
     trigger ContextBudget::AskHandoff, with: { context_budget: :session }
   end
 
   policy "StopWhenPastBudget" do
     on      "SpendBudget.SpendRecorded"
+    acts_as "System"
     where   { spent_cents.value > limit_cents.value }
     trigger SpendBudget::Stop, with: { spend_budget: :budget }
   end
@@ -232,6 +234,7 @@ Hecks.bluebook "ContextBudget" do
 
   policy "RecordTheHandoff" do
     on      "ContextBudget.HandoffWritten"
+    acts_as "System"
     trigger ContextBudget::HandOff, with: { context_budget: :session, note: :note }
   end
 
@@ -242,6 +245,7 @@ Hecks.bluebook "ContextBudget" do
 
   policy "RecordTheLeadsChoice" do
     on      "SpendBudget.LeadChose"
+    acts_as "Operator"
     trigger SpendBudget::Decide, with: { spend_budget: :budget, choice: :choice }
   end
 end

@@ -760,11 +760,13 @@ Hecks.bluebook "Agents" do
 
     policy "RunTheScript" do
       on      "Script.ScriptAttempted"
+      acts_as "System"
       trigger Script::Run, with: { script: :session, command: :asked }
     end
 
     policy "HoldTheScript" do
       on      "Script.ScriptAttempted"
+      acts_as "System"
       trigger Script::Hold, with: { script: :session, command: :asked }
     end
   end
@@ -1051,6 +1053,7 @@ Hecks.bluebook "Agents" do
     # the first run; its dispatch and the coder's wait are those of any request.
     policy "RequestTheReviewAgain" do
       on      "PlanReview.VerdictOverdue"
+      acts_as "System"
       trigger PlanReview::Request, with: { work: :work, hops: :hops, role: :role, repo: :repo, plan: :plan, asks: 1 }
     end
 
@@ -1058,6 +1061,7 @@ Hecks.bluebook "Agents" do
     # An answered review reads its own row back, so what goes on to the coder is what the row holds.
     policy "ForwardTheAnsweredReview" do
       on       "PlanReview.PlanReviewed"
+      acts_as "System"
       root
       for_each "PlanReview.OfRun"
       trigger  PlanReview::Forward, with: { plan_review: :plan_review, work: :work, verdict: :verdict,
@@ -1067,6 +1071,7 @@ Hecks.bluebook "Agents" do
     # The verdict of the review is sent to the coder again, with what to do about it.
     policy "TellTheRemindedCoder" do
       on      "PlanReview.ReviewReminded"
+      acts_as "System"
       trigger Verdict::Remind,
               with: { verdict: :run, answer: "Your plan review ended with no verdict: no architect ran. If you have " \
                       "not already, create your worktree first (exe/hecks LinkedTree.add! branch.value=<work item>), " \
@@ -1466,34 +1471,40 @@ Hecks.bluebook "Agents" do
     # Retiring the decision files removes only the `docs/decisions/` clause.
     policy "AskTheArchitectWhenTheDesignChanged" do
       on      "ChangeReview.PathsRead"
+      acts_as "System"
       where   { paths.value.include?(".bluebook|") || paths.value.include?(".hecksagon|") || paths.value.include?("|docs/decisions/") }
       trigger ChangeReview::Request, with: { review: :review, run: :tree, paths: :paths, checkout: :checkout }
     end
 
     policy "PassTheChangeThatTouchesNoDesign" do
       on      "ChangeReview.PathsRead"
+      acts_as "System"
       where   { !paths.value.include?(".bluebook|") && !paths.value.include?(".hecksagon|") && !paths.value.include?("|docs/decisions/") }
       trigger ChangeReview::Pass, with: { review: :review, paths: :paths }
     end
 
     policy "RecordTheUnreadChange" do
       on      "ChangeReview.PathsUnread"
+      acts_as "System"
       trigger ChangeReview::Unread, with: { review: :review, reason: :refusal }
     end
 
     policy "AskTheArchitectOnTheDecision" do
       on      "ChangeReview.DecisionConsidered"
+      acts_as "System"
       trigger ChangeReview::RequestDecision, with: { review: :review, run: :review, checkout: :checkout }
     end
 
     policy "ClearTheSoundChange" do
       on      "ChangeReview.ChangeReviewed"
+      acts_as "System"
       where   { verdict.value == "sound" }
       trigger ChangeReview::Clear, with: { review: :review }
     end
 
     policy "SendBackTheUnsoundChange" do
       on       "ChangeReview.ChangeReviewed"
+      acts_as "System"
       where    { verdict.value == "changes" || verdict.value == "rethink" }
       for_each "ChangeReview.OfReview"
       trigger  ChangeReview::SendBack, with: { review: :review, run: :run, work: :work, findings: :findings }
@@ -1501,6 +1512,7 @@ Hecks.bluebook "Agents" do
 
     policy "HoldTheUnverifiedChange" do
       on       "ChangeReview.ChangeReviewed"
+      acts_as "System"
       where    { verdict.value == "unverified" }
       for_each "ChangeReview.OfReview"
       trigger  ChangeReview::Hold, with: { review: :review, run: :run, work: :work }
@@ -1508,6 +1520,7 @@ Hecks.bluebook "Agents" do
 
     policy "TellTheCoderTheChangeIsHeld" do
       on      "ChangeReview.ChangeHeld"
+      acts_as "System"
       where   { work.to_s != "" }
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", word: "unverified",
                                       answer: "Your change's design review is unverified: the architect checked nothing, so it " \
@@ -1520,6 +1533,7 @@ Hecks.bluebook "Agents" do
     # findings stay on its `Reviews` row, for the orchestrator to read.
     policy "TellTheCoderTheChangeWasSentBack" do
       on      "ChangeReview.ChangeSentBack"
+      acts_as "System"
       where   { work.to_s != "" }
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings }
     end
@@ -1708,12 +1722,14 @@ Hecks.bluebook "Agents" do
     # forwards nothing, so no coder is told a verdict the ledger lacks.
     policy "JudgeTheForwardedVerdict" do
       on      "PlanReview.VerdictForwarded"
+      acts_as "System"
       root
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings, word: :verdict }
     end
 
     policy "JudgeTheRecordedReview" do
       on      "PlanReview.PlanReviewRecorded"
+      acts_as "System"
       root
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings, word: :verdict }
     end
@@ -1722,6 +1738,7 @@ Hecks.bluebook "Agents" do
     # coder as the verdict would. The event carries the run; the Work item is read off the review's row.
     policy "JudgeTheUnstartedReview" do
       on      "PlanReview.ReviewUnstarted"
+      acts_as "System"
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :reason }
     end
   end
@@ -1795,6 +1812,7 @@ Hecks.bluebook "Agents" do
     # closing naming two codes (one quoting the instruction line) states none.
     policy "StateAVerifiedRun" do
       on      "RunResult.ClosingHeard"
+      acts_as "System"
       where   do
         !closing.nil? && closing.value.to_s.include?("Result: verified") &&
           !closing.value.to_s.include?("Result: unverified") && !closing.value.to_s.include?("Result: blocked")
@@ -1804,6 +1822,7 @@ Hecks.bluebook "Agents" do
 
     policy "StateAnUnverifiedRun" do
       on      "RunResult.ClosingHeard"
+      acts_as "System"
       where   do
         !closing.nil? && closing.value.to_s.include?("Result: unverified") &&
           !closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: blocked")
@@ -1813,6 +1832,7 @@ Hecks.bluebook "Agents" do
 
     policy "StateABlockedRun" do
       on      "RunResult.ClosingHeard"
+      acts_as "System"
       where   do
         !closing.nil? && closing.value.to_s.include?("Result: blocked") &&
           !closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: unverified")
@@ -1823,6 +1843,7 @@ Hecks.bluebook "Agents" do
     # A closing word alone (`stopped`, `blocked`, `submitted`), or two codes at once, states no result.
     policy "StateAnUnstatedRun" do
       on      "RunResult.ClosingHeard"
+      acts_as "System"
       where   do
         closing.nil? ||
           (!closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: unverified") &&
@@ -2299,6 +2320,7 @@ Hecks.bluebook "Agents" do
 
     policy "StampTheSender" do
       on      "Message.SenderChecked"
+      acts_as "System"
       trigger Message::Stamp, with: { message: :message, verified: :verified, recipient: :recipient,
                                       asker_role: :asker_role, kind: :kind }
     end
@@ -2307,6 +2329,7 @@ Hecks.bluebook "Agents" do
     # stated here and negated in `CheckTheRecipient`, and a behavior covers both sides.
     policy "RouteACoderQuestionToTheScrumMaster" do
       on      "Message.MessageStamped"
+      acts_as "System"
       where   { asker_role.value == "coder" && recipient.value == "orchestrator" && (kind.value == "question" || kind.value == "help") }
       trigger Message::Route, with: { message: :message }
     end
@@ -2319,6 +2342,7 @@ Hecks.bluebook "Agents" do
     # The scrum master's answer to a question settles it, so its window never hands it on.
     policy "SettleWhatTheScrumMasterAnswered" do
       on      "Message.MessageAddressed"
+      acts_as "System"
       where   { sender.value == "scrum-master" && kind.value == "answer" && !in_reply_to.value.to_s.empty? }
       trigger Message::Settle, with: { message: :in_reply_to }
     end
@@ -2347,6 +2371,7 @@ Hecks.bluebook "Agents" do
     # A read refused leaves the message delivered, handed over once and still in the inbox.
     policy "ReadWhatWasHandedOver" do
       on      "Message.MessageDelivered"
+      acts_as "Operator"
       trigger Message::Read, with: { message: :message, reader: :reader }
     end
 
@@ -2359,6 +2384,7 @@ Hecks.bluebook "Agents" do
     # A role no session holds is spent at once; a working holder is left to try again next sweep.
     policy "GiveUpOnARoleNobodyHolds" do
       on      "Message.RoleUnheld"
+      acts_as "System"
       trigger Message::GiveUpFallBack, with: { message: :message, now: :now }
     end
 
@@ -2369,29 +2395,34 @@ Hecks.bluebook "Agents" do
 
     policy "RecordTheFallBack" do
       on      "Message.MessageResumed"
+      acts_as "System"
       trigger Message::Resumed, with: { message: :message, now: :now }
     end
 
     policy "SendToTheRun" do
       on      "Message.RecipientFound"
+      acts_as "System"
       trigger Message::Deliver, with: { message: :message }
     end
 
     # The seats a hand starts and registers by name: a message to one before it registers waits.
     policy "HoldForTheStandingSeat" do
       on      "Message.RecipientMissing"
+      acts_as "System"
       where   { recipient.value == "miette" || recipient.value == "orchestrator" || recipient.value == "orchestrator-owner" || recipient.value == "staff-engineer" || recipient.value == "scrum-master" }
       trigger Message::Hold, with: { message: :message, held_for: :refusal }
     end
 
     policy "ReleaseOnRegistration" do
       on       "HandRun.HandRunRegistered"
+      acts_as "System"
       for_each "Message.HeldFor"
       trigger  Message::Release, with: { message: :message }
     end
 
     policy "RefuseTheRecipient" do
       on      "Message.RecipientMissing"
+      acts_as "System"
       where   { !(recipient.value == "miette" || recipient.value == "orchestrator" || recipient.value == "orchestrator-owner" || recipient.value == "staff-engineer" || recipient.value == "scrum-master") }
       trigger Message::Decline, with: { message: :message, refusal: :refusal }
     end
@@ -2515,11 +2546,13 @@ Hecks.bluebook "Agents" do
 
     policy "CloseWhenSilent" do
       on      "CrewRoom.RoomHeard"
+      acts_as "System"
       trigger CrewRoom::Close, with: { room: :room }
     end
 
     policy "RefuseWhenUnheard" do
       on      "CrewRoom.RoomUnheard"
+      acts_as "System"
       trigger CrewRoom::Refuse, with: { room: :room, refusal: :refusal }
     end
   end
@@ -2615,12 +2648,14 @@ Hecks.bluebook "Agents" do
 
     policy "FinishWhenNoLine" do
       on      "MailSpool.MailLineRead"
+      acts_as "System"
       where   { message.value.to_s.empty? }
       trigger MailSpool::Finish, with: { pass: :pass }
     end
 
     policy "TakeTheLine" do
       on      "MailSpool.MailLineRead"
+      acts_as "System"
       where   { !message.value.to_s.empty? }
       trigger MailSpool::Take, with: { pass: :pass, line: :line }
     end
@@ -2628,6 +2663,7 @@ Hecks.bluebook "Agents" do
     # The line is sent as written; a duplicate key is refused by `Send`, so a replay adds nothing.
     policy "SendTheLine" do
       on      "MailSpool.MailLineRead"
+      acts_as "Operator"
       where   { !message.value.to_s.empty? && advance.value.to_s.empty? && open.value.to_s.empty? }
       trigger Message::Send, with: { message: :message, recipient: :recipient, sender: :sender,
                                      kind: :kind, body: :body, in_reply_to: :in_reply_to,
@@ -2637,6 +2673,7 @@ Hecks.bluebook "Agents" do
     # A mark line moves a seat's cursor; one the cursor already stands past is refused by `Advance`, a no-op.
     policy "AdvanceTheSeat" do
       on      "MailSpool.MailLineRead"
+      acts_as "System"
       where   { !advance.value.to_s.empty? }
       trigger SeatCursor::Advance, with: { seat: :advance, to: :to }
     end
@@ -2644,6 +2681,7 @@ Hecks.bluebook "Agents" do
     # A seat that had no cursor starts at the newest event its first mark names.
     policy "OpenTheSeat" do
       on      "MailSpool.MailLineRead"
+      acts_as "System"
       where   { !open.value.to_s.empty? }
       trigger SeatCursor::Open, with: { seat: :open, to: :to }
     end
@@ -2656,17 +2694,20 @@ Hecks.bluebook "Agents" do
 
     policy "SettleWhenAcknowledged" do
       on      "MailSpool.LineAcknowledged"
+      acts_as "System"
       trigger MailSpool::Settle, with: { pass: :pass }
     end
 
     # The next line is asked for under a pass named by the line it follows.
     policy "ReadTheNextLine" do
       on      "MailSpool.LineAcknowledged"
+      acts_as "Operator"
       trigger MailSpool::Ingest, with: { pass: :next_pass }
     end
 
     policy "DeclineWhenSpoolRefused" do
       on      "MailSpool.SpoolRefused"
+      acts_as "System"
       trigger MailSpool::Decline, with: { pass: :pass, refusal: :refusal }
     end
   end
@@ -2743,6 +2784,7 @@ Hecks.bluebook "Agents" do
 
     policy "RecordTheRegistration" do
       on      "HandRun.HandRunRequested"
+      acts_as "System"
       trigger HandRun::Record, with: { run: :run }
     end
 
@@ -2829,12 +2871,14 @@ Hecks.bluebook "Agents" do
     # session that is working, busy or idle between turns is never read as dead.
     policy "LookAtTheStandingHandRuns" do
       on       "HandRunWatch.HandRunsWatched"
+      acts_as "System"
       for_each "HandRun.Standing"
       trigger  HandRun::Look, with: { run: :run, seen: :session, role: :role, checkout: :checkout }
     end
 
     policy "SeekTheLostHandRuns" do
       on       "HandRunWatch.HandRunsWatched"
+      acts_as "System"
       for_each "HandRun.Lost"
       trigger  HandRun::Seek, with: { run: :run, session: :session, role: :role, checkout: :checkout }
     end
@@ -2851,6 +2895,7 @@ Hecks.bluebook "Agents" do
 
     policy "LoseTheHandRunWhoseSessionEnded" do
       on      "HandRun.HandRunExamined"
+      acts_as "System"
       root
       where   { state == "stopped" || state == "failed" || state == "unlisted" }
       trigger HandRun::Lose, with: { run: :run, session: :session, role: :role, reason: :state }
@@ -2860,6 +2905,7 @@ Hecks.bluebook "Agents" do
     # run key, which lists the new session by that name for the next beat to find.
     policy "RestartThePinnedLostRun" do
       on      "HandRun.HandRunLost"
+      acts_as "Operator"
       root
       where   { reason != "unlisted" && (role.value == "lead" || role.value == "orchestrator" || role.value == "orchestrator-owner" || role.value == "staff-engineer" || role.value == "scrum-master") }
       trigger Fleet::Resume, with: { session: :session, name: :run }
@@ -2869,6 +2915,7 @@ Hecks.bluebook "Agents" do
     # impediment view shows its loss once, naming the run.
     policy "EndTheLostRunNothingResumes" do
       on      "HandRun.HandRunLost"
+      acts_as "Operator"
       root
       where   { reason == "unlisted" || !(role.value == "lead" || role.value == "orchestrator" || role.value == "orchestrator-owner" || role.value == "staff-engineer" || role.value == "scrum-master") }
       trigger HandRun::End, with: { run: :run }
@@ -2876,6 +2923,7 @@ Hecks.bluebook "Agents" do
 
     policy "RestartTheLostRunItsNewSession" do
       on      "HandRun.HandRunSought"
+      acts_as "System"
       root
       where   { state != "unlisted" && state != "stopped" && state != "failed" }
       trigger HandRun::Restart, with: { run: :run, session: :found, role: :role, checkout: :checkout }
@@ -2883,6 +2931,7 @@ Hecks.bluebook "Agents" do
 
     policy "RegisterTheRestartedRun" do
       on      "HandRun.HandRunRestarted"
+      acts_as "Operator"
       trigger HandRun::Register, with: { run: :run, session: :session, role: :role }
     end
   end
@@ -2976,6 +3025,7 @@ Hecks.bluebook "Agents" do
     # needs nothing.
     policy "RegisterTheSightedSeat" do
       on      "SeatSighting.SeatSighted"
+      acts_as "Operator"
       where   { launched_by.value == "" && registered.value != session.value }
       trigger HandRun::Register, with: { run: :name, session: :session, role: :name }
     end
@@ -2983,6 +3033,7 @@ Hecks.bluebook "Agents" do
     # A seat whose id changed is told the new one; a first registration has nothing to tell.
     policy "TellTheSeatItsSessionChanged" do
       on      "SeatSighting.SeatSighted"
+      acts_as "Operator"
       where   { launched_by.value == "" && registered.value != "" && registered.value != session.value }
       trigger Message::Send, with: { message: :message, recipient: :name, sender: :sender, kind: :kind, body: :notice }
     end
@@ -3308,11 +3359,13 @@ Hecks.bluebook "Agents" do
 
     policy "RecordTheSubmissionScope" do
       on      "SubmissionReview.ScopeRead"
+      acts_as "System"
       trigger SubmissionReview::Scope, with: { submission: :submission, tier: :tier, domains: :domains, bluebooks: :bluebooks }
     end
 
     policy "RecordTheUnreadScope" do
       on      "SubmissionReview.ScopeUnread"
+      acts_as "System"
       trigger SubmissionReview::Unscope, with: { submission: :submission, reason: :refusal }
     end
 
@@ -3324,12 +3377,14 @@ Hecks.bluebook "Agents" do
 
     policy "CountTheCitedRun" do
       on      "SubmissionReview.RunRead"
+      acts_as "System"
       trigger SubmissionReview::Count, with: { submission: :submission, kind: :kind, run: :run, subject: :subject,
                                                status: :status, scenarios: :scenarios }
     end
 
     policy "RaiseTheFinding" do
       on       "SubmissionReview.SpecFailureJudged"
+      acts_as "System"
       where    { judgment.value == "real_bug" || judgment.value == "missing_behavior" || judgment.value == "stale_expectation" }
       for_each "SubmissionReview.OfSubmission"
       trigger  SubmissionReview::Raise, with: { submission: :submission, work: :work, repo: :repo, judgment: :judgment }
@@ -3343,11 +3398,13 @@ Hecks.bluebook "Agents" do
 
     policy "AttestTheAcceptanceRun" do
       on      "SubmissionReview.AcceptanceRead"
+      acts_as "System"
       trigger SubmissionReview::Attest, with: { submission: :submission, ref: :ref, run: :run, result: :result }
     end
 
     policy "DeclineTheUnkeptRun" do
       on      "SubmissionReview.RunUnkept"
+      acts_as "System"
       trigger SubmissionReview::Decline, with: { submission: :submission, reason: :refusal }
     end
 
@@ -3647,18 +3704,21 @@ Hecks.bluebook "Agents" do
 
     policy "OpenThePlant" do
       on      "Canary.ScratchCut"
+      acts_as "System"
       trigger CanaryPlant::Open, with: { submission: :submission, canary: :canary, checkout: :checkout,
                                          branch: :branch, expected: :finding }
     end
 
     policy "SpoilTheRottenCanary" do
       on      "Canary.ScratchUncut"
+      acts_as "System"
       where   { refusal.start_with?("the patch does not apply") }
       trigger Canary::Spoil, with: { canary: :canary, reason: :refusal }
     end
 
     policy "CountTheFaultedCut" do
       on      "Canary.ScratchUncut"
+      acts_as "System"
       where   { !refusal.start_with?("the patch does not apply") }
       trigger Canary::Fault, with: { canary: :canary, reason: :refusal }
     end
@@ -3666,6 +3726,7 @@ Hecks.bluebook "Agents" do
     # The open cadence row is the one gate: the first canary added opens it.
     policy "OpenTheCadence" do
       on      "Canary.CanaryAdded"
+      acts_as "System"
       root
       trigger CanaryCadence::Open, with: { cadence: "canary" }
     end
@@ -3738,6 +3799,7 @@ Hecks.bluebook "Agents" do
     # The plant is stamped with the tick's own time, so the cadence and the canary agree.
     policy "PlantTheNextCanary" do
       on       "CanaryCadence.CanaryDue"
+      acts_as "System"
       for_each "Canary.NextDue"
       trigger  Canary::Plant, with: { canary: :canary, base: :base, patch: :patch, finding: :finding,
                                       branch: :branch, message: :message, round: :plants, now: :now }
@@ -3895,18 +3957,21 @@ Hecks.bluebook "Agents" do
     # the reviewer starts with no parent and its finding raises nothing (`Raise` needs a work item).
     policy "AskTheReviewerOfThePlant" do
       on      "CanaryPlant.CanaryPlantOpened"
+      acts_as "System"
       trigger SubmissionReview::Request, with: { submission: :submission, work: "", brief: :branch, hops: 1,
                                                  role: "reviewer", repo: :checkout }
     end
 
     policy "ScopeThePlant" do
       on       "SubmissionReview.SubmissionScoped"
+      acts_as "System"
       for_each "CanaryPlant.OfSubmission"
       trigger  CanaryPlant::Scope, with: { canary_plant: :canary_plant, tier: :tier }
     end
 
     policy "SetAsideTheUnfitPlant" do
       on       "CanaryPlant.PlantScoped"
+      acts_as "System"
       where    { tier != "full" }
       for_each "CanaryPlant.OfSubmission"
       trigger  CanaryPlant::Unfit, with: { canary_plant: :canary_plant, canary: :canary }
@@ -3914,6 +3979,7 @@ Hecks.bluebook "Agents" do
 
     policy "CatchThePlant" do
       on       "SubmissionReview.SpecFailureJudged"
+      acts_as "System"
       where    { judgment != "clean" }
       for_each "CanaryPlant.OfSubmission"
       trigger  CanaryPlant::Catch, with: { canary_plant: :canary_plant, canary: :canary, judgment: :judgment,
@@ -3922,6 +3988,7 @@ Hecks.bluebook "Agents" do
 
     policy "MissThePlant" do
       on       "SubmissionReview.SpecFailureJudged"
+      acts_as "System"
       where    { judgment == "clean" }
       for_each "CanaryPlant.OfSubmission"
       trigger  CanaryPlant::Miss, with: { canary_plant: :canary_plant, canary: :canary, judgment: :judgment,
@@ -3930,6 +3997,7 @@ Hecks.bluebook "Agents" do
 
     policy "MistakeThePlant" do
       on       "SubmissionReview.SpecFailureJudged"
+      acts_as "System"
       where    { judgment != "clean" }
       for_each "CanaryPlant.OfSubmission"
       trigger  CanaryPlant::Mistake, with: { canary_plant: :canary_plant, canary: :canary, judgment: :judgment,
@@ -3938,21 +4006,25 @@ Hecks.bluebook "Agents" do
 
     policy "TallyTheCatch" do
       on      "CanaryPlant.CanaryCaught"
+      acts_as "System"
       trigger Canary::TallyCatch, with: { canary: :canary }
     end
 
     policy "TallyTheMiss" do
       on      "CanaryPlant.CanaryMissed"
+      acts_as "System"
       trigger Canary::TallyMiss, with: { canary: :canary }
     end
 
     policy "TallyTheMistake" do
       on      "CanaryPlant.CanaryMistaken"
+      acts_as "System"
       trigger Canary::TallyMistake, with: { canary: :canary }
     end
 
     policy "TallyTheUnfit" do
       on      "CanaryPlant.CanaryUnfit"
+      acts_as "System"
       trigger Canary::TallyUnfit, with: { canary: :canary }
     end
   end
@@ -4087,6 +4159,7 @@ Hecks.bluebook "Agents" do
     # only the next one exhausts it; a first finding finds no route and is refused.
     policy "ExhaustTheRoute" do
       on       "SubmissionReview.FindingRaised"
+      acts_as "System"
       trigger  FindingRoute::Exhaust,
                with: { work: :work,
                        reason: "review loop: the reviewer's findings on this branch reached the hop limit after three " \
@@ -4098,22 +4171,26 @@ Hecks.bluebook "Agents" do
     # `RouteOpened`; a later one is counted here and the open refused.
     policy "CountTheFinding" do
       on       "SubmissionReview.FindingRaised"
+      acts_as "System"
       trigger  FindingRoute::Count, with: { work: :work, judgment: :judgment, submission: :submission, repo: :repo }
     end
 
     policy "OpenTheRoute" do
       on       "SubmissionReview.FindingRaised"
+      acts_as "System"
       trigger  FindingRoute::Open, with: { work: :work, judgment: :judgment, submission: :submission, repo: :repo }
     end
 
     policy "CountTheFirstFinding" do
       on      "FindingRoute.RouteOpened"
+      acts_as "System"
       trigger FindingRoute::Count, with: { work: :work, judgment: :judgment, submission: :submission, repo: :repo }
     end
 
     # A real bug: a coder fixes it on the same branch, reading the reviewer's findings.
     policy "SendARealBugToACoder" do
       on      "FindingRoute.RouteCounted"
+      acts_as "System"
       where   { judgment.value == "real_bug" }
       trigger FindingRoute::Send,
               with: { work: :work, judgment: :judgment, repo: :repo,
@@ -4127,6 +4204,7 @@ Hecks.bluebook "Agents" do
     # A missing behavior: the coder's one step is to write the scenario, which lands with the change.
     policy "SendAMissingBehaviorToACoder" do
       on      "FindingRoute.RouteCounted"
+      acts_as "System"
       where   { judgment.value == "missing_behavior" }
       trigger FindingRoute::Send,
               with: { work: :work, judgment: :judgment, repo: :repo,
@@ -4142,6 +4220,7 @@ Hecks.bluebook "Agents" do
     # A stale expectation: the coder edits only the stale spec, in place.
     policy "SendAStaleExpectationToACoder" do
       on      "FindingRoute.RouteCounted"
+      acts_as "System"
       where   { judgment.value == "stale_expectation" }
       trigger FindingRoute::Send,
               with: { work: :work, judgment: :judgment, repo: :repo,
@@ -4285,6 +4364,7 @@ Hecks.bluebook "Agents" do
     # A Work item that spans one area and meets no started item's claim is routed by rule.
     policy "RouteWhenNoConflict" do
       on      "Routing.WorkChecked"
+      acts_as "System"
       where   { areas.value <= 1 && overlaps.value == 0 }
       trigger Routing::Route, with: { hops: :hops }
     end
@@ -4292,6 +4372,7 @@ Hecks.bluebook "Agents" do
     # One that spans several areas, or meets a started item's claim, asks the orchestrator.
     policy "AskAdviceWhenConflict" do
       on      "Routing.WorkChecked"
+      acts_as "System"
       where   { areas.value > 1 || overlaps.value > 0 }
       trigger Routing::AskAdvice, with: {}
     end
@@ -4344,12 +4425,14 @@ Hecks.bluebook "Agents" do
 
     policy "WakeWhenACauseMatchesNoLesson" do
       on      "Cause.CauseGapReported"
+      acts_as "System"
       trigger Escalation::Raise, with: { escalation: :cause, event: "CauseGapReported", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
                                          brief: "A cause of a red main matches no known lesson. Record it as a lesson and see that one coder holds the cause, under your standing rule all-hands-on-red." }
     end
 
     policy "WakeWhenABatchHoldsARelease" do
       on      "Incident.IncidentOpened"
+      acts_as "System"
       where   { releases.value > 0 }
       trigger Escalation::Raise, with: { escalation: :incident, event: "IncidentOpened", rule: "release-is-the-owners", role: "orchestrator", repo: ".",
                                          brief: "A red main's batch holds a release commit, so no restore ran. Report it as the owner's decision, under your standing rule release-is-the-owners." }
@@ -4455,11 +4538,13 @@ Hecks.bluebook "Agents" do
 
     policy "StartTheOpenedSeat" do
       on      "Coordinator.CoordinatorOpened"
+      acts_as "System"
       trigger Coordinator::Start, with: { coordinator: :role, run: :run }
     end
 
     policy "WakeTheStandingCoordinator" do
       on      "Coordinator.StandingCoordinatorStarted"
+      acts_as "System"
       trigger Escalation::Raise, with: { escalation: :run, event: "StandingCoordinatorStarted", rule: "rely-on-events", role: "orchestrator", repo: ".",
                                          brief: "You hold the orchestrator's standing seat. First run `exe/hecks HandRun.register! run=orchestrator session=$CLAUDE_CODE_SESSION_ID role=orchestrator --wait`, so a message to `orchestrator` reaches you. Then read `exe/hecks Question.open` and the board, and answer each blocked run within its brief, under your standing rule rely-on-events. End your turn with the word waiting; a message or a wake resumes you." }
     end
@@ -4681,11 +4766,13 @@ Hecks.bluebook "Agents" do
 
     policy "PauseTheHeldPruner" do
       on      "Pruning.PrunerHeld"
+      acts_as "Maintainer"
       trigger Pruning::Pause, with: { pruning: :role }
     end
 
     policy "WakeTheSummonedPruner" do
       on      "Pruning.PrunerSummoned"
+      acts_as "System"
       trigger Pruning::Wake, with: { pruning: :role, repo: :repo, brief: :brief }
     end
   end
@@ -4846,6 +4933,7 @@ Hecks.bluebook "Agents" do
     # policy of the Tickets bluebook, which owns `Finding` (`Finding::ReportStoppedRun`).
     policy "WakeWhenAWatcherGivesUp" do
       on      "Watcher.WatcherGaveUp"
+      acts_as "System"
       trigger Escalation::Raise, with: { escalation: :watcher, event: "WatcherGaveUp", rule: "rely-on-events", role: "orchestrator", repo: ".",
                                          brief: "A watch of a pipeline component ran out of attempts (see its Finding). Act on it by the move it names, under your standing rule rely-on-events." }
     end
@@ -4937,11 +5025,13 @@ Hecks.bluebook "Agents" do
 
     policy "RecordTheSweep" do
       on      "Sweep.SweepReported"
+      acts_as "System"
       trigger Sweep::Record, with: { report: :report }
     end
 
     policy "RecordTheDeclinedSweep" do
       on      "Sweep.SweepRefused"
+      acts_as "System"
       trigger Sweep::Decline, with: { refusal: :refusal }
     end
   end
@@ -5161,6 +5251,7 @@ Hecks.bluebook "Agents" do
 
     policy "RefuseToStopAPinnedRole" do
       on      "Fleet.StopExamined"
+      acts_as "System"
       where   { pinned == true }
       trigger Fleet::Decline, with: { refusal: :note }
     end
@@ -5178,6 +5269,7 @@ Hecks.bluebook "Agents" do
 
     policy "RefuseToResumeAWorkingSession" do
       on      "Fleet.ResumeExamined"
+      acts_as "System"
       where   { working == true }
       trigger Fleet::Decline, with: { refusal: :note }
     end
@@ -5196,6 +5288,7 @@ Hecks.bluebook "Agents" do
 
     policy "RefuseToWakeAWorkingSeat" do
       on      "Fleet.WakeExamined"
+      acts_as "System"
       where   { working == true }
       trigger Fleet::Decline, with: { refusal: :note }
     end
@@ -5208,32 +5301,38 @@ Hecks.bluebook "Agents" do
 
     policy "RecordTheWake" do
       on      "Fleet.SessionWoken"
+      acts_as "System"
       trigger Fleet::RecordWake, with: { report: :report, run: :run }
     end
 
     policy "RecordTheRefusedWake" do
       on      "Fleet.SessionWakeRefused"
+      acts_as "System"
       trigger Fleet::Decline, with: { refusal: :refusal }
     end
 
     policy "RecordTheStop" do
       on      "Fleet.SessionHalted"
+      acts_as "System"
       trigger Fleet::RecordStop, with: { report: :report, run: :run }
     end
 
     policy "RecordTheResume" do
       on      "Fleet.SessionRevived"
+      acts_as "System"
       trigger Fleet::RecordResume, with: { report: :report, run: :run }
     end
 
     # A session the port could not read or `claude` refused is declined with the reason.
     policy "RecordTheRefusedStop" do
       on      "Fleet.SessionHaltRefused"
+      acts_as "System"
       trigger Fleet::Decline, with: { refusal: :refusal }
     end
 
     policy "RecordTheRefusedResume" do
       on      "Fleet.SessionReviveRefused"
+      acts_as "System"
       trigger Fleet::Decline, with: { refusal: :refusal }
     end
   end

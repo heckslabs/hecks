@@ -297,8 +297,9 @@ fn run_complete(args: &[String]) -> Result<(), RunError> {
 }
 
 /// `hecks-parse resolve --bluebook <Name> <file.hecksagon>`: prints that bluebook's
-/// `attaches` names as JSON, in file order: `gem_bluebooks` for a bluebook the gem carries and
-/// `vendored_packages` for `from: :vendor`.
+/// `attaches` names as JSON, in file order: `gem_bluebooks` for a bluebook the gem carries,
+/// `vendored_packages` for `from: :vendor`, and `acts_as`, each attachment's name and the role its
+/// `acts_as:` names (ADR 0216).
 ///
 /// `--bluebook` is required because one file can hold several `Hecks.hecksagon` blocks.
 fn run_resolve(args: &[String]) -> Result<(), RunError> {
@@ -321,33 +322,26 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 
     let source = fs::read_to_string(path)
         .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
-    let (framework_names, vendored_names) =
+    let attached =
         parse::declaration::resolve_hecksagon_dependencies(&declaration_name, path, &source)?;
-
-    let gem_bluebooks = || {
-        emit::JsonValue::Array(
-            framework_names
-                .iter()
-                .cloned()
-                .map(emit::JsonValue::String)
-                .collect(),
-        )
+    let names = |names: Vec<String>| {
+        emit::JsonValue::Array(names.into_iter().map(emit::JsonValue::String).collect())
     };
+    let roles = emit::JsonValue::Object(
+        attached
+            .acts_as
+            .into_iter()
+            .map(|(name, role)| (name, emit::JsonValue::String(role)))
+            .collect(),
+    );
     let value = emit::JsonValue::Object(vec![
         (
             "domain".to_string(),
             emit::JsonValue::String(declaration_name),
         ),
-        ("gem_bluebooks".to_string(), gem_bluebooks()),
-        (
-            "vendored_packages".to_string(),
-            emit::JsonValue::Array(
-                vendored_names
-                    .into_iter()
-                    .map(emit::JsonValue::String)
-                    .collect(),
-            ),
-        ),
+        ("gem_bluebooks".to_string(), names(attached.gem)),
+        ("vendored_packages".to_string(), names(attached.vendored)),
+        ("acts_as".to_string(), roles),
     ]);
     println!("{}", emit::write(&value));
     Ok(())

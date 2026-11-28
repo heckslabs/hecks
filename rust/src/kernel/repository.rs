@@ -230,7 +230,9 @@ pub fn holds_role_via(
 /// held through `holds_role_via`; otherwise the caller's stated role is compared as a string.
 /// Governance's own commands get no exemption: the running Ruby checks them like any other,
 /// despite the comment above `governance_attached?` saying otherwise.
-/// Only the outermost dispatch carries a caller; reactions pass `None`, as in Ruby.
+/// The unstated caller (`caller_rule::ANONYMOUS_ROLE` with no actor) is refused in the
+/// `role_unstated` wording. A reaction carries its policy's `acts_as` role, the unstated caller, or
+/// none (`caller_rule::ReactionCallers`), as in Ruby.
 pub fn check_role_via(
     command_role: Option<&str>,
     command_name: &str,
@@ -240,6 +242,13 @@ pub fn check_role_via(
     queries: &[super::QueryDef],
     assignments: Option<&str>,
 ) -> Result<(), super::Refusal> {
+    // An outside caller that stated no role is refused by name (ADR 0216), whatever the command
+    // declares; a dispatch with no caller at all is the host's own and is not checked.
+    if let Some(role) = command_role {
+        if super::caller_rule::unstated(caller_role, caller_actor_id) {
+            return Err(super::caller_rule::unstated_refusal(command_name, role));
+        }
+    }
     let attached = assignments
         .and_then(|verb| super::named_query::find(queries, verb))
         .is_some();
@@ -312,6 +321,9 @@ pub fn check_roles_via(
         return Ok(());
     }
     let joined = command_roles.join(" or ");
+    if super::caller_rule::unstated(caller_role, caller_actor_id) {
+        return Err(super::caller_rule::unstated_refusal(command_name, &joined));
+    }
     Err(super::Refusal::Unauthorized(
         super::refusal_wording::UnauthorizedRoleMismatchArgs {
             command: command_name,
@@ -352,8 +364,39 @@ mod check_roles_via_tests {
     }
 
     #[test]
-    fn a_caller_who_states_no_role_is_not_checked_as_ever() {
+    fn a_dispatch_with_no_caller_at_all_is_not_checked() {
         assert_eq!(check(&["Customer", "Sales Rep"], None), Ok(()));
+    }
+
+    #[test]
+    fn the_unstated_caller_is_refused_with_every_role_named() {
+        assert_eq!(
+            check(
+                &["Customer", "Sales Rep"],
+                Some(crate::kernel::ANONYMOUS_ROLE)
+            ),
+            Err(
+                "Open refused — role: Customer or Sales Rep, and the caller stated no role"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn the_unstated_caller_of_a_one_role_command_is_refused_in_the_role_unstated_wording() {
+        let refusal = super::check_role_via(
+            Some("Owner"),
+            "Approve",
+            Some(crate::kernel::ANONYMOUS_ROLE),
+            None,
+            &NoStore,
+            &[],
+            None,
+        );
+        assert_eq!(
+            refusal.map_err(|r| r.to_string()),
+            Err("Approve refused — role: Owner, and the caller stated no role".to_string())
+        );
     }
 
     #[test]

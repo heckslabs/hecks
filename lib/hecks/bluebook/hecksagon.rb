@@ -85,7 +85,8 @@ module Hecks
     # or a language bluebook such as Deploy) and `:vendor` for a package vendored into the
     # consuming project, whose `name` is the package's directory name (`"membership"`) and whose
     # `bluebook` is the name its bluebook declares, which the directory name need not spell.
-    Attachment = Struct.new(:name, :source, :declaration, keyword_init: true) do
+    # `acts_as` is the role the attached bluebook's policies that declare none run as (ADR 0216).
+    Attachment = Struct.new(:name, :source, :declaration, :acts_as, keyword_init: true) do
       # @return [Boolean] whether the bluebook is a vendored package
       def vendor? = source == :vendor
 
@@ -94,7 +95,7 @@ module Hecks
       def declaration_name = declaration || (vendor? ? Naming.pascal(name) : name)
 
       # @return [Hash{Symbol => String}] the attachment as plain data
-      def to_h = { name: name.to_s, source: source.to_s }
+      def to_h = { name: name.to_s, source: source.to_s, **(acts_as ? { acts_as: acts_as.to_s } : {}) }
     end
 
     # The built form of a `.hecksagon` file, produced by `DSL::HecksagonBuilder`.

@@ -36,6 +36,11 @@ fn node_name(node: &Json) -> &str {
 
 /// Every role that may run a command when its IR lists several under `roles`; empty otherwise,
 /// when `role` alone says it.
+/// Whether the command says `policy_only` (ADR 0216); the IR carries the key only when it does.
+fn policy_only_of(command: &Json) -> bool {
+    matches!(command.get("policy_only"), Some(Json::Bool(true)))
+}
+
 fn roles_of(command: &Json) -> Vec<String> {
     match command.get("roles") {
         Some(Json::Array(roles)) => roles.iter().map(Json::to_s).collect(),
@@ -734,6 +739,7 @@ pub fn generate(
                         ),
                         role: command.get("role").map(Json::to_s),
                         roles: roles_of(command),
+                        policy_only: policy_only_of(command),
                         entity_name: entity_name_str.to_string(),
                         entity_identity_reading: entity
                             .get("identified_by")
@@ -849,6 +855,7 @@ pub fn generate(
                     ),
                     role: command.get("role").map(Json::to_s),
                     roles: roles_of(command),
+                    policy_only: policy_only_of(command),
                     entity_name: entity
                         .get("name")
                         .and_then(Json::as_str)
@@ -1060,6 +1067,7 @@ pub fn generate(
                 ),
                 role: command.get("role").map(Json::to_s),
                 roles: roles_of(command),
+                policy_only: policy_only_of(command),
             });
         }
 

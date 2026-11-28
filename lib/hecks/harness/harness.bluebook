@@ -190,11 +190,13 @@ Hecks.bluebook "Harness" do
 
   policy "RecordTheSessionRunning" do
     on      "Session.SessionSpawned"
+    acts_as "System"
     trigger Session::RecordRunning, with: { session: :name }
   end
 
   policy "RecordTheSessionNotOpened" do
     on      "Session.SessionNotSpawned"
+    acts_as "System"
     trigger Session::RecordNotOpened, with: { session: :name }
   end
 
@@ -212,6 +214,7 @@ Hecks.bluebook "Harness" do
   # A turn that said nothing leaves the last handover as it was.
   policy "LeaveTheSessionsHandover" do
     on      "Session.TurnEnded"
+    acts_as "System"
     where   { said.value != "" }
     trigger Session::RecordHandover, with: { session: :session, handover: :said }
   end
@@ -357,22 +360,26 @@ Hecks.bluebook "Harness" do
 
   policy "OpenTheRunsSession" do
     on      "AgentRun.RunRequested"
+    acts_as "Owner"
     trigger Session::Open, with: { name: :session, brief: :brief }
   end
 
   policy "ReopenTheRunsSeat" do
     on      "AgentRun.SeatRunRequested"
+    acts_as "Owner"
     trigger Session::Reopen, with: { session: :session, brief: :brief }
   end
 
   policy "BeginTheRunOfTheRunningSession" do
     on       "Session.SessionRunning"
+    acts_as  "System"
     for_each "AgentRun.Waiting"
     trigger  AgentRun::Begin, with: { agent_run: :agent_run }
   end
 
   policy "DeclineTheRunOfTheUnopenedSession" do
     on       "Session.SessionNotOpened"
+    acts_as  "System"
     for_each "AgentRun.Waiting"
     trigger  AgentRun::Decline, with: { agent_run: :agent_run }
   end
@@ -380,6 +387,7 @@ Hecks.bluebook "Harness" do
   # A turn that said nothing leaves the run's last report as it was.
   policy "RecordTheRunsReport" do
     on       "Session.TurnEnded"
+    acts_as  "System"
     where    { said.value != "" }
     for_each "AgentRun.Working"
     trigger  AgentRun::RecordReport, with: { agent_run: :agent_run, report: :said }
@@ -387,6 +395,7 @@ Hecks.bluebook "Harness" do
 
   policy "FinishTheRunDone" do
     on       "Session.SessionStopped"
+    acts_as  "System"
     where    { code.value == "0" }
     for_each "AgentRun.Working"
     trigger  AgentRun::Finish, with: { agent_run: :agent_run, condition: { value: "done" }, code: :code }
@@ -394,6 +403,7 @@ Hecks.bluebook "Harness" do
 
   policy "FinishTheRunFailed" do
     on       "Session.SessionStopped"
+    acts_as  "System"
     where    { code.value != "0" }
     for_each "AgentRun.Working"
     trigger  AgentRun::Finish, with: { agent_run: :agent_run, condition: { value: "failed" }, code: :code }
@@ -613,6 +623,7 @@ Hecks.bluebook "Harness" do
   # delivered, and a question handed on reaches the lead before the findings sent with it.
   policy "HoldACoderQuestionForTheScrumMaster" do
     on      "Message.MessagePosted"
+    acts_as "System"
     where   { sender.value.start_with?("coder") && addressee.value == "scrum-master" && about.unset? }
     trigger Message::Hold, with: { message: :key }
   end
@@ -620,18 +631,21 @@ Hecks.bluebook "Harness" do
   # One stated here and negated in DeliverEachMessage; a spec covers both sides.
   policy "RouteACoderQuestionToTheScrumMaster" do
     on      "Message.MessagePosted"
+    acts_as "System"
     where   { sender.value.start_with?("coder") && addressee.value == "orchestrator" && about.unset? }
     trigger Message::Route, with: { message: :key }
   end
 
   policy "SettleWhatTheScrumMasterAnswered" do
     on      "Message.MessagePosted"
+    acts_as "System"
     where   { sender.value == "scrum-master" && addressee.value != "orchestrator" && about.set? }
     trigger Message::Settle, with: { message: :about, asker: :addressee }
   end
 
   policy "HandOnWhatTheScrumMasterNoted" do
     on      "Message.MessagePosted"
+    acts_as "System"
     where   { sender.value == "scrum-master" && addressee.value == "orchestrator" && about.set? }
     trigger Message::HandOn, with: { message: :about, findings: :key, now: :sent_at }
   end
@@ -656,23 +670,27 @@ Hecks.bluebook "Harness" do
   # A question the scrum master cannot be handed goes on to the lead at once.
   policy "HandOnWhatTheScrumMasterCannotTake" do
     on      "Message.MessageUndeliverable"
+    acts_as "System"
     trigger Message::HandOn, with: { message: :key }
   end
 
   # Each tick hands on every question held past its window; one inside it refuses by its given.
   policy "HandOnWhatTheScrumMasterLeft" do
     on       "Clock.ClockTicked"
+    acts_as "System"
     for_each "Message.Unsettled"
     trigger  Message::HandOn, with: { message: :message, now: :now }
   end
 
   policy "RecordTheUndeliverable" do
     on      "Message.DeliveryRefused"
+    acts_as "System"
     trigger Message::RecordUndeliverable, with: { message: :key }
   end
 
   policy "RecordTheRecordedUndeliverable" do
     on      "Message.RecordedDeliveryRefused"
+    acts_as "System"
     trigger Message::RecordUndeliverable, with: { message: :key }
   end
 
@@ -681,6 +699,7 @@ Hecks.bluebook "Harness" do
   # and a send to her that is refused declines it, so nothing is said in her place.
   policy "AskMietteThroughTheStaffEngineer" do
     on      "Message.MessagePosted"
+    acts_as "Operator"
     where   { addressee.value == "staff-engineer" && sender.value != "miette" }
     across  "StaffEngineer"
     trigger Relay::Ask, with: { relay: :key, question: :text, run: :sender }
@@ -688,6 +707,7 @@ Hecks.bluebook "Harness" do
 
   policy "ReceiveMiettesAnswer" do
     on      "Message.MessagePosted"
+    acts_as "Operator"
     where   { sender.value == "miette" && addressee.value == "staff-engineer" }
     across  "StaffEngineer"
     trigger Relay::Receive, with: { relay: :about, received: :text }
@@ -695,6 +715,7 @@ Hecks.bluebook "Harness" do
 
   policy "ForwardMiettesAnswer" do
     on      "Message.MessagePosted"
+    acts_as "Operator"
     where   { sender.value == "staff-engineer" && addressee.value != "miette" }
     across  "StaffEngineer"
     trigger Relay::Forward, with: { relay: :about, words: :text, author: "miette" }
@@ -702,6 +723,7 @@ Hecks.bluebook "Harness" do
 
   policy "DeclineWhenMietteIsNotReached" do
     on      "Message.DeliveryRefused"
+    acts_as "System"
     where   { sender.value == "staff-engineer" && addressee.value == "miette" }
     across  "StaffEngineer"
     trigger Relay::Decline, with: { relay: :about }

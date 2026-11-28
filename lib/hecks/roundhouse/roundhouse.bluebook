@@ -604,6 +604,7 @@ Hecks.bluebook "Roundhouse" do
 
   policy "BlowTheFuseWhenOverdrawn" do
     on      "Session.SessionMetered"
+    acts_as "System"
     where   { drawn.value > rated.value || minutes.value > rated_minutes.value }
     trigger Session::Blow, with: { session: :session }
   end
@@ -611,6 +612,7 @@ Hecks.bluebook "Roundhouse" do
   # What Signalbox decided, carried out. These fire once the two bluebooks share a bus (phase 2).
   policy "StartWhatSignalboxAdmitted" do
     on      "Admission.SessionAdmitted"
+    acts_as "System"
     trigger Session::Start, with: { session: :admission, admission: :admission, role: :role, owner: :owner,
                                     purpose: :purpose, ends_when: :ends_when, fuse: :fuse,
                                     fuse_minutes: :fuse_minutes }
@@ -618,22 +620,26 @@ Hecks.bluebook "Roundhouse" do
 
   policy "RestWhatSignalboxDeferred" do
     on      "Response.ResponseDeferred"
+    acts_as "System"
     trigger Session::Rest, with: { session: :session }
   end
 
   policy "FinishWhatSignalboxSentHome" do
     on      "Response.ResponseLeft"
+    acts_as "System"
     trigger Session::Finish, with: { session: :session }
   end
 
   policy "RestWhatSignalboxShed" do
     on      "Breaker.BreakerShed"
+    acts_as "System"
     trigger Session::Rest, with: { session: :shed }
   end
 
   # A pressure beat Signalbox cleared is the machine's reading: Roundhouse records it.
   policy "TakeTheClearedBeatsReading" do
     on      "Beat.BeatPublished"
+    acts_as "System"
     trigger Reading::Take, with: {
       reading: :beat, machine: { value: "this-machine" }, capacity: :capacity, drawn: :used,
       reserve: :reserve, headroom: :headroom

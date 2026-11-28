@@ -97,6 +97,16 @@ module Hecks
           [default_domain.to_s, aggregate, query_name]
         end
 
+        # Gives a policy that declares no `acts_as` the role a hecksagon's `attaches ... acts_as:`
+        # names for the bluebook it attaches (ADR 0216); a declared one stays.
+        #
+        # @param role [String] the role the attachment's reactions run as
+        # @return [String] the policy's `acts_as`
+        def act_as_by_default(role)
+          @acts_as = role if @acts_as.nil?
+          @acts_as
+        end
+
         # The argument name for each fan-out row's id is not minted here: it depends on the
         # target command's declared shape, so it lives on `Behaviour::Command#addressing_key_for`.
       end

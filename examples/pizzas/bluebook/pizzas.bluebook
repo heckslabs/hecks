@@ -163,6 +163,7 @@ Hecks.bluebook "Pizzas" do
   # A payment arriving is an external fact; the business rules stay on Purchase.
   policy "OnPizzaPaymentReceived" do
     on Order::PizzaPaymentReceived
+    acts_as "Customer"
     trigger Order::Purchase
   end
 end

@@ -102,25 +102,27 @@ RSpec.describe "policy and process lexical visibility" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
+  # Records each reaction's verb and facts; the policy it reacts for (`reaction:`) is left out.
   def recording_dispatcher
     Class.new do
       attr_reader :calls
 
       def initialize = @calls = []
-      def reenter(verb, **arguments) = @calls << [verb, arguments]
+      def reenter(verb, reaction: nil, **arguments) = @calls << [verb, arguments]
       def reaction_depth_reached? = false
       def max_reaction_depth = 16
     end.new
   end
 
-  # An installed meter whose reentered reactions are recorded, still running the real dispatch.
+  # An installed meter whose reentered reactions are recorded (less the policy each reacts for),
+  # still running the real dispatch.
   def spied_meter_runtime
     runtime = boot_visibility_reaction
     runtime.dispatch("ReactionVisibility::Meter.Install", with: { code: { value: "meter-1" }, reading: { value: 10 } })
     calls = []
     real_reenter = runtime.method(:reenter)
     runtime.define_singleton_method(:reenter) do |verb, **arguments|
-      calls << [verb, arguments]
+      calls << [verb, arguments.except(:reaction)]
       real_reenter.call(verb, **arguments)
     end
     [runtime, calls]

@@ -261,6 +261,7 @@ Hecks.bluebook "LocalLayer" do
 
   policy "NoteWhenJournaled" do
     on      "Edit.EditJournaled"
+    acts_as "System"
     trigger Edit::Journal, with: { run: :run }
   end
 end

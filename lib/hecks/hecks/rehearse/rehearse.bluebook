@@ -106,6 +106,7 @@ Hecks.bluebook "Hecks" do
     # so the landing's record is untouched and a red rehearsal leaves the land standing.
     policy "RehearseWhenLanded" do
       on      "Landing.BranchLanded"
+      acts_as "Operator"
       trigger PushRehearsal::Rehearse, with: { run: :run, checkout: :checkout, scope: { value: "quick" } }
     end
 
@@ -116,18 +117,21 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheGreenRehearsal" do
       on      "PushRehearsal.PushRehearsalAnswered"
+      acts_as "System"
       where   { outcome.value == "green" }
       trigger PushRehearsal::Pass, with: { rehearsed: :rehearsed, report: :report }
     end
 
     policy "RecordTheRedRehearsal" do
       on      "PushRehearsal.PushRehearsalAnswered"
+      acts_as "System"
       where   { outcome.value == "red" }
       trigger PushRehearsal::Fail, with: { rehearsed: :rehearsed, report: :report }
     end
 
     policy "RecordTheUnrunRehearsal" do
       on      "PushRehearsal.PushRehearsalRefused"
+      acts_as "System"
       trigger PushRehearsal::Decline, with: { refusal: :refusal }
     end
   end

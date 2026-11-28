@@ -1,0 +1,6 @@
+# `attaches ..., acts_as:` (ADR 0216): the role the attached bluebook's policies that declare no
+# `acts_as` run their reactions as. `resolve` reports it beside the attachment's name.
+Hecks.hecksagon "FixtureActsAs" do
+  attaches "Governance"
+  attaches "delivery", from: :vendor, acts_as: "System"
+end

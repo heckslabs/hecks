@@ -86,6 +86,7 @@ Hecks.bluebook "Hecks" do
     # A root, like the ledger's look, so each beat's look begins its own chain.
     policy "LookAfterTheRustBuildsOnHeartbeat" do
       on      "Heartbeat.Beaten"
+      acts_as "System"
       root
       trigger RustCare::Look, with: { run: :beat }
     end
@@ -97,11 +98,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordWhyTheRustBuildsAreDue" do
       on      "RustCare.RustCareDue"
+      acts_as "System"
       trigger RustCare::Hear, with: { reason: :reason, mode: :mode }
     end
 
     policy "RecordWhyTheRustBuildsWait" do
       on      "RustCare.RustCareDeferred"
+      acts_as "System"
       trigger RustCare::Decline, with: { refusal: :refusal }
     end
 
@@ -112,11 +115,13 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordThePrunedRustBuilds" do
       on      "RustCare.RustPruned"
+      acts_as "System"
       trigger RustCare::Settle, with: { outcome: :outcome }
     end
 
     policy "RecordWhyTheRustBuildsWereNotPruned" do
       on      "RustCare.RustPruneRefused"
+      acts_as "System"
       trigger RustCare::Refuse, with: { refusal: :refusal }
     end
   end

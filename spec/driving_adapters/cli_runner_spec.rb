@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   def status(*argv) = run(*argv).last
 
   def a_pizza(name = "Margherita")
-    run("order.create_pizza!", "name=#{name}", "pizza.price_cents.cents=1200", "pizza.size.value=large")
+    run("order.create_pizza!", "--as", "Chef", "name=#{name}", "pizza.price_cents.cents=1200", "pizza.size.value=large")
   end
 
   def banking_runtime
@@ -48,7 +48,8 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   def annotate_argv
-    ["safe_deposit_box.visit.annotate!", "to.aggregate=DOWNTOWN:12", "to.entity=2026-01-05:1", "note.text=Flagged"]
+    ["safe_deposit_box.visit.annotate!", "--as", "Vault officer", "to.aggregate=DOWNTOWN:12", "to.entity=2026-01-05:1",
+     "note.text=Flagged"]
   end
 
   describe "the usage" do
@@ -97,7 +98,8 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     end
 
     it "takes a trailing `!` on a qualified command" do
-      expect(run("order.create_pizza!", "name=Z", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
+      expect(run("order.create_pizza!", "--as", "Chef", "name=Z", "pizza.price_cents.cents=900",
+                 "pizza.size.value=small").last).to eq(0)
     end
 
     it "refuses a bare command name even with a trailing `!`" do
@@ -121,7 +123,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
 
     it "reaches an existing record through a bare word, the command's first argument", :aggregate_failures do
       a_pizza
-      output, code = run("order.add_topping!", "Margherita", "topping=Basil", "amount=3")
+      output, code = run("order.add_topping!", "--as", "Chef", "Margherita", "topping=Basil", "amount=3")
 
       expect(code).to eq(0)
       expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
@@ -129,7 +131,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
 
     it "reaches an existing record through id", :aggregate_failures do
       a_pizza
-      output, code = run("order.add_topping!", "id=Margherita", "topping=Basil", "amount=3")
+      output, code = run("order.add_topping!", "--as", "Chef", "id=Margherita", "topping=Basil", "amount=3")
 
       expect(code).to eq(0)
       expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
@@ -211,6 +213,46 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     end
   end
 
+  # A role-gated command refuses a line that states no role (ADR 0216); `--as` states one.
+  describe "the caller" do
+    def margherita = ["name=Margherita", "pizza.price_cents.cents=1200", "pizza.size.value=large"]
+
+    it "refuses a line that states no role, naming the command and its role", :aggregate_failures do
+      output, code = run("order.create_pizza!", *margherita)
+
+      expect(code).to eq(1)
+      expect(output).to eq("[unauthorized] CreatePizza refused — role: Chef, and the caller stated no role")
+    end
+
+    it "answers usage for an --as that names no role" do
+      expect(run("order.create_pizza!", "--as", *margherita)).to eq([described_class::CallerLine::MISSING, 2])
+    end
+
+    it "keeps a caller an enclosing block bound" do
+      expect(Hecks.as_caller(role: "Chef") { run("order.create_pizza!", *margherita) }.last).to eq(0)
+    end
+
+    it "puts the stated role back at the end of a line another process runs" do
+      expect(described_class.stating_caller(%w[order.create_pizza! name=M], "Chef"))
+        .to eq(["order.create_pizza!", "name=M", "--as", "Chef"])
+    end
+
+    it "states the role an enclosing block bound on a line another process runs" do
+      expect(Hecks.as_caller(role: "Chef") { described_class.stating_caller(%w[order.create_pizza!], nil) })
+        .to eq(["order.create_pizza!", "--as", "Chef"])
+    end
+
+    it "states no role for the caller who stated none" do
+      expect(Hecks::Runtime::Caller.unstated { described_class.stating_caller(%w[order.create_pizza!], nil) })
+        .to eq(["order.create_pizza!"])
+    end
+
+    it "dispatches as the first role the launcher's caller_roles lists that the command declares" do
+      allow(Hecks::Adapters::Driving::LauncherOptions).to receive(:settings).and_return({ caller_roles: %w[Customer Chef] })
+      expect(run("order.create_pizza!", *margherita).last).to eq(0)
+    end
+  end
+
   describe "text_answer" do
     it "prints one row raw only for a query declared to return a Document", :aggregate_failures do
       expect(described_class.text_answer({ returns: "Document" }, [{ text: "# Title" }])).to eq("# Title")
@@ -264,7 +306,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   describe "refusing" do
     it "hands back the domain's own wording, and a non-zero status", :aggregate_failures do
       a_pizza
-      output, code = run("order.purchase!", "id=Margherita", "customer_name=Chris", "amount.cents=1200")
+      output, code = run("order.purchase!", "--as=Customer", "id=Margherita", "customer_name=Chris", "amount.cents=1200")
 
       expect(code).to eq(1)
       expect(output).to match(/topping/i)

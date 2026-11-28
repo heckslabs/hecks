@@ -1,10 +1,10 @@
 require "spec_helper"
 
-# ADR 0216 in shadow: a role-gated command whose caller states no role still runs in the
-# runtime, and the would-refuse is recorded; the Storehouse door refuses it, in the same words
-# the runtime will use once refusing is the default. The domain is shaped like miette_tools,
-# where `Proposal.Approve` ran from the CLI with no role. Shadow says nothing on stderr: every
-# meta-domain reaction would print a line at each boot, so the count is what is checked.
+# ADR 0216: a role-gated command refuses the outside caller who states no role (`Caller.unstated`,
+# which a door binds), in the same words at the Storehouse door, and a policy's reaction that
+# declares no `acts_as` is that caller too in a cascade a caller began. A dispatch with no caller
+# bound is the process acting for itself and runs, counted. The domain is shaped like
+# miette_tools, where `Proposal.Approve` ran from the CLI with no role.
 RSpec.describe "a role-gated command dispatched by a caller who states no role" do
   ROLE_UNSTATED_DOMAIN = proc do
     vision "A proposal, submitted, reviewed by the system and approved by the owner."
@@ -71,17 +71,37 @@ RSpec.describe "a role-gated command dispatched by a caller who states no role" 
     Hecks::Storehouse.dispatch(runtime: runtime, command: "proposal.approve", summary: "spec", args: { proposal: "p1" })
   end
 
-  it "lets an unbound Proposal.Approve run in shadow and counts the would-refuse", :aggregate_failures do
+  def unstated_approve = Hecks::Runtime::Caller.unstated { submitted.approve! }
+
+  def in_mode(mode)
+    Hecks::Runtime::RoleShadow.install(mode)
+    yield
+  ensure
+    Hecks::Runtime::RoleShadow.install(Hecks::Runtime::RoleShadow::DEFAULT)
+  end
+
+  it "refuses Proposal.Approve from a caller who states no role, naming the command and its role" do
+    build
+    expect { unstated_approve }
+      .to raise_error(Hecks::Runtime::Unauthorized, "Approve refused — role: Owner, and the caller stated no role")
+  end
+
+  it "lets the unstated caller through under shadow and counts the would-refuse" do
     runtime = build
-    approve_unbound
-    expect(MietteTools::Proposal.find("p1").events.map(&:name)).to include("ProposalApproved")
+    in_mode(:shadow) { unstated_approve }
     expect(unstated_log(runtime)).to include(%w[MietteTools Approve unstated] => 1)
   end
 
-  it "counts each unbound run of the same command under one key" do
+  it "runs a dispatch with no caller bound, as the process acting for itself, and counts it" do
     runtime = build
     [approve_unbound, submitted("p2").approve!]
-    expect(unstated_log(runtime)).to include(%w[MietteTools Approve unstated] => 2)
+    expect(unstated_log(runtime)).to include(%w[MietteTools Approve internal] => 2)
+  end
+
+  it "refuses an undeclared policy's reaction in a cascade a caller began, in the role_unstated wording" do
+    runtime = build
+    Hecks.as_caller(role: "Owner") { submitted }
+    expect(runtime.reactions.first[:reason]).to include("Review refused — role: Reviewer, and the caller stated no role")
   end
 
   it "records a policy's unbound dispatch of a role-gated command as a reaction" do

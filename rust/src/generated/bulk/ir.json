@@ -605,6 +605,7 @@
       "target_domain": null,
       "expect_undelivered": false,
       "root": false,
+      "acts_as": "System",
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -622,6 +623,7 @@
       "target_domain": null,
       "expect_undelivered": false,
       "root": false,
+      "acts_as": "System",
       "where": null,
       "for_each": null,
       "with_spec": [

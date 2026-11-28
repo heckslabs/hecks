@@ -1586,6 +1586,7 @@ Hecks.bluebook "Signalbox" do
   # stands in only while no coder is metered. Exactly one of the two records each look.
   policy "RecordTheLookWithTheMeteredDraw" do
     on      "Beat.BeatLooked"
+    acts_as "System"
     where   { metered_draw.value.positive? }
     trigger Beat::Record, with: {
       beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
@@ -1600,6 +1601,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RecordTheLookWithTheWorldsDraw" do
     on      "Beat.BeatLooked"
+    acts_as "System"
     where   { metered_draw.value.zero? }
     trigger Beat::Record, with: {
       beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
@@ -1615,11 +1617,13 @@ Hecks.bluebook "Signalbox" do
   # The disk and the day's writes ride the same look, so no second port reads them.
   policy "RecordTheDiskOnTheLook" do
     on      "Beat.BeatLooked"
+    acts_as "System"
     trigger Beat::RecordDisk, with: { beat: :beat, disk_free: :disk_free, disk_total: :disk_total }
   end
 
   policy "RecordTheDaysWritesOnTheLook" do
     on      "Beat.BeatLooked"
+    acts_as "System"
     trigger DiskWrites::Record, with: {
       day: :writes_day, step_hundredths: :step_hundredths, ruby_steps: :ruby_steps, git_steps: :git_steps,
       rustc_steps: :rustc_steps, postgres_steps: :postgres_steps
@@ -1628,6 +1632,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "JudgeRubyWritesOnTheDay" do
     on      "DiskWrites.DiskWritesRecorded"
+    acts_as "System"
     trigger DiskWrites::Overrun, with: {
       day: :day, process: { value: "ruby" }, steps: :ruby_steps, step_hundredths: :step_hundredths, budget: { value: 300000 },
       cause: { value: "cold boots until a resident answers every command" }
@@ -1636,6 +1641,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "JudgeGitWritesOnTheDay" do
     on      "DiskWrites.DiskWritesRecorded"
+    acts_as "System"
     trigger DiskWrites::Overrun, with: {
       day: :day, process: { value: "git" }, steps: :git_steps, step_hundredths: :step_hundredths, budget: { value: 100000 },
       cause: { value: "about 240 worktrees until the pruner retires again" }
@@ -1644,6 +1650,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "JudgeRustcWritesOnTheDay" do
     on      "DiskWrites.DiskWritesRecorded"
+    acts_as "System"
     trigger DiskWrites::Overrun, with: {
       day: :day, process: { value: "rustc" }, steps: :rustc_steps, step_hundredths: :step_hundredths, budget: { value: 80000 },
       cause: { value: "a cold cargo target in each worktree until builds share one cache" }
@@ -1652,6 +1659,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "JudgePostgresWritesOnTheDay" do
     on      "DiskWrites.DiskWritesRecorded"
+    acts_as "System"
     trigger DiskWrites::Overrun, with: {
       day: :day, process: { value: "postgres" }, steps: :postgres_steps, step_hundredths: :step_hundredths, budget: { value: 20000 },
       cause: { value: "a service restarting every 10 seconds until it is stopped" }
@@ -1660,17 +1668,20 @@ Hecks.bluebook "Signalbox" do
 
   policy "WarnWhenTheDiskRunsLow" do
     on      "Beat.DiskRecorded"
+    acts_as "System"
     where   { disk_free.value * 10 < disk_total.value }
     trigger Beat::WarnDisk, with: { beat: :beat }
   end
 
   policy "FaultTheLook" do
     on      "Beat.BeatUnlooked"
+    acts_as "System"
     trigger Beat::Fault, with: { beat: :beat, refusal: :refusal }
   end
 
   policy "AskClearanceForTheBeat" do
     on      "Beat.BeatLooked"
+    acts_as "System"
     trigger Clearance::Grant, with: {
       clearance: :beat, part: { value: "pressure-beat" }, head: :head, main: :main, missing: :missing,
       age: :age, stale_after: :stale_after
@@ -1681,6 +1692,7 @@ Hecks.bluebook "Signalbox" do
   # does, so the band and the rulings it sets off are not cut off by the look before it.
   policy "PublishTheClearedBeat" do
     on       "Clearance.ClearanceGranted"
+    acts_as "System"
     root
     where    { part.value == "pressure-beat" }
     for_each "Beat.ClearedBy"
@@ -1697,11 +1709,13 @@ Hecks.bluebook "Signalbox" do
 
   policy "OpenTheClearedBeatsPressure" do
     on      "Beat.BeatPublished"
+    acts_as "System"
     trigger Pressure::Open, with: { pressure: :beat, capacity: :capacity, now: :at }
   end
 
   policy "PublishTheClearedBeatsPressure" do
     on      "Beat.BeatPublished"
+    acts_as "System"
     trigger Pressure::Read, with: {
       pressure: :beat, headroom: :headroom, target: :target, floor: :floor, gap: :gap, load: :load,
       cores: :cores, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
@@ -1712,6 +1726,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "HearDelegateOnTheClearedBeat" do
     on      "Beat.BeatPublished"
+    acts_as "System"
     trigger Shadow::Hear, with: {
       shadow: :beat, headroom: :headroom, floor: :floor, load: :load, cores: :cores,
       load_short: :load_short, target: :target, load_tight: :load_tight,
@@ -1727,6 +1742,7 @@ Hecks.bluebook "Signalbox" do
   # memory; an unread level (0) leaves the headroom marks to judge, as before.
   policy "TripWhenHeadroomFallsUnderTheFloor" do
     on      "Pressure.PressureRead"
+    acts_as "System"
     where   do
       (headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4 ||
         load.value > cores.value * load_short.value
@@ -1736,6 +1752,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "TightenWhenHeadroomFallsUnderTheTarget" do
     on      "Pressure.PressureRead"
+    acts_as "System"
     where   do
       !((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) &&
         load.value <= cores.value * load_short.value &&
@@ -1750,6 +1767,7 @@ Hecks.bluebook "Signalbox" do
   # its mark while the OS reads its pressure normal.
   policy "EaseOnlyPastTheTargetByTheGap" do
     on      "Pressure.PressureRead"
+    acts_as "System"
     where   do
       (memory_pressure_level.value == 1 ||
         (memory_pressure_level.value != 2 && memory_pressure_level.value < 4 && headroom.value >= target.value + gap.value)) &&
@@ -1771,29 +1789,34 @@ Hecks.bluebook "Signalbox" do
   # which leaves its band and its since as they are.
   policy "OpenTheMachinesStanding" do
     on      "Pressure.PressureOpened"
+    acts_as "System"
     trigger Standing::Open, with: { standing: { value: "machine" }, since: :now }
   end
 
   policy "TightenTheStanding" do
     on       "Pressure.PressureTightened"
+    acts_as "System"
     for_each "Standing.NotTight"
     trigger  Standing::Tighten, with: { standing: :standing, pressure: :pressure, since: :at }
   end
 
   policy "TripTheStanding" do
     on       "Pressure.PressureFellShort"
+    acts_as "System"
     for_each "Standing.NotShort"
     trigger  Standing::Trip, with: { standing: :standing, pressure: :pressure, since: :at }
   end
 
   policy "EaseTheStanding" do
     on       "Pressure.PressureEased"
+    acts_as "System"
     for_each "Standing.NotNormal"
     trigger  Standing::Ease, with: { standing: :standing, pressure: :pressure, since: :at }
   end
 
   policy "DarkenTheStanding" do
     on       "Pressure.PressureDarkened"
+    acts_as "System"
     for_each "Standing.NotDark"
     trigger  Standing::Darken, with: { standing: :standing, pressure: :pressure, since: :now }
   end
@@ -1801,12 +1824,14 @@ Hecks.bluebook "Signalbox" do
   # A session admitted for real is held no more.
   policy "LiftTheAdmittedSessionsHolds" do
     on       "Admission.SessionAdmitted"
+    acts_as "System"
     for_each "Hold.HeldOf"
     trigger  Hold::Lift, with: { hold: :hold }
   end
 
   policy "EverySessionRunsInNormalPressure" do
     on      "Response.ResponseAsked"
+    acts_as "System"
     where   { band.value == "normal" }
     trigger Response::Run, with: { response: :response, session: :session }
   end
@@ -1815,6 +1840,7 @@ Hecks.bluebook "Signalbox" do
   # person's own job is the person's use, which the reserve already keeps out of the headroom.
   policy "UrgentCodersAndSeatsKeepRunning" do
     on      "Response.ResponseAsked"
+    acts_as "System"
     where   do
       band.value != "normal" &&
         (((role.value == "coder" || role.value == "gate") && tier.value == "urgent") ||
@@ -1828,24 +1854,28 @@ Hecks.bluebook "Signalbox" do
   # wait in. The holds below are for the short band and a dark signal.
   policy "WorkInFlightKeepsRunningInTightPressure" do
     on      "Response.ResponseAsked"
+    acts_as "System"
     where   { band.value == "tight" && (role.value == "coder" || role.value == "gate") && tier.value != "urgent" }
     trigger Response::Run, with: { response: :response, session: :session }
   end
 
   policy "LowerTierCodersDeferHeavySteps" do
     on      "Response.ResponseAsked"
+    acts_as "System"
     where   { band.value != "normal" && band.value != "tight" && role.value == "coder" && tier.value != "urgent" }
     trigger Response::Defer, with: { response: :response, session: :session }
   end
 
   policy "HelpersFinishAndLeave" do
     on      "Response.ResponseAsked"
+    acts_as "System"
     where   { band.value != "normal" && role.value == "helper" }
     trigger Response::Leave, with: { response: :response, session: :session }
   end
 
   policy "GatesWaitTheirTurn" do
     on      "Response.ResponseAsked"
+    acts_as "System"
     where   { band.value != "normal" && band.value != "tight" && role.value == "gate" && tier.value != "urgent" }
     trigger Response::Wait, with: { response: :response, session: :session }
   end
@@ -1855,6 +1885,7 @@ Hecks.bluebook "Signalbox" do
   # Exactly one policy answers each function of a beat; a fill with nothing planned is not ruled on.
   policy "RuleWithDelegatesStart" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       fill_delegate.value == "start" &&
         (draw.value <= headroom.value &&
@@ -1872,6 +1903,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RuleAgainstDelegatesStart" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       fill_delegate.value == "start" &&
         !(draw.value <= headroom.value &&
@@ -1889,6 +1921,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RuleWithDelegatesWait" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       fill_delegate.value == "wait" &&
         !(draw.value <= headroom.value &&
@@ -1906,6 +1939,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RuleAgainstDelegatesWait" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       fill_delegate.value == "wait" &&
         (draw.value <= headroom.value &&
@@ -1923,6 +1957,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RuleWithDelegatesShed" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       shed_delegate.value == "shed" &&
         (((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
@@ -1938,6 +1973,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RuleAgainstDelegatesShed" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       shed_delegate.value == "shed" &&
         !(((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
@@ -1953,6 +1989,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RuleWithDelegatesSparing" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       shed_delegate.value == "none" &&
         !(((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
@@ -1968,6 +2005,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "RuleAgainstDelegatesSparing" do
     on      "Shadow.DelegateHeard"
+    acts_as "System"
     where   do
       shed_delegate.value == "none" &&
         (((headroom.value < floor.value && memory_pressure_level.value != 1) || memory_pressure_level.value >= 4) ||
