@@ -19,7 +19,7 @@ pub enum Kind {
     Command,
     Query,
     Policy,
-    ProcessManager,
+    Saga,
     ReadModel,
 }
 
@@ -30,7 +30,7 @@ const CONSTRUCTS: &[(&str, Kind)] = &[
     ("command", Kind::Command),
     ("query", Kind::Query),
     ("policy", Kind::Policy),
-    ("process_manager", Kind::ProcessManager),
+    ("saga", Kind::Saga),
     ("read_model", Kind::ReadModel),
 ];
 

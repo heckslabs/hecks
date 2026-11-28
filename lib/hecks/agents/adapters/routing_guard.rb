@@ -4,6 +4,7 @@ require "hecks"
 require_relative "shell_reads"
 require_relative "role_server_env"
 require_relative "routing_guard/script_gate"
+require_relative "routing_guard/agreement_gate"
 require_relative "routing_guard/reads"
 require "hecks/role_server_cache"
 
@@ -39,6 +40,7 @@ module Hecks
         @stand_in = settings.key?(:rows)
         @checkout = checkout
         @scripts = settings.key?(:scripts) ? -> { settings[:scripts] } : -> { ScriptGate.store(registry) }
+        @agreements = AgreementGate.build(registry, settings)
       end
 
       # @param role [Hash, String] the role asking
@@ -108,9 +110,7 @@ module Hecks
       # server starts without the framework. Best effort, and only from the checkout's own rows: a
       # guard given stand-in rows would otherwise write them under the real checkout's key.
       def refresh_server_cache
-        return if @stand_in
-
-        RoleServerCache.write(checkout_root, server_table)
+        RoleServerCache.write(checkout_root, server_table) unless @stand_in
       rescue StandardError
         nil
       end
@@ -178,10 +178,13 @@ module Hecks
 
       def rows(table, role) = @rows.call(table).select { |row| row[:role] == role }
 
-      # The routing rows' step: a role with rows runs only a call they name.
+      # The routing rows' step: a role with rows runs only a call they name, and while an accepted
+      # agreement's guard resolves to nothing, no call but its repair.
       def route!(name, text)
         rules = rows("RoutingRule", name).map { |row| row[:pattern] }
         raise Refused, refusal(name, text) unless rules.empty? || allowed?(rules, text, name)
+
+        @agreements.judge!(text: text)
       end
 
       def held(value) = value.is_a?(Hash) ? value.fetch(:value) { value.fetch("value", nil) } : value

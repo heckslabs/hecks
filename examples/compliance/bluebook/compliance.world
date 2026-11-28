@@ -3,10 +3,10 @@ Hecks.world "Compliance" do
   # Project-wide defaults: `default_adapter` binds each aggregate
   # compliance.hecksagon leaves out; `default_database` supplies `database`
   # for every bound adapter that takes one. A bluebook's own binds still win.
-  default_adapter "PostgresEra"
+  default_adapter "Postgres"
   default_database "postgres://localhost/hecks_compliance"
 
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     # Runs as your shell's default (usually superuser) Postgres user; the
     # deployed stack's RDS master user is not a superuser, so this is inert there.
     allow_superuser true

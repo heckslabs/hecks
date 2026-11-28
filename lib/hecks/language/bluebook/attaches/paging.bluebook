@@ -51,6 +51,8 @@ Hecks.bluebook "Paging" do
       attribute :variadic,           String, optional: true
 
       member keyword: "limit",  context: "Query", at: "1", named: "", kind: "number", required: "true", fills: "limit"
+      # `limit :count` takes the page size from one of the query's own attributes, given when it runs.
+      member keyword: "limit",  context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "limit"
       member keyword: "offset", context: "Query", at: "1", named: "", kind: "number", required: "true", fills: "value"
       member keyword: "cursor", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "value"
       member keyword: "nulls",  context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "mode"

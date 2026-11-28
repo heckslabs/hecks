@@ -621,18 +621,20 @@ pub fn dispatch_open(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Settlement {
-                        r#ref: Some(args.r#ref.clone()),
-                        paid: Some(args.paid.clone()),
-                        refund: Some(Cents { value: 0 }),
-                        remaining: Some(Cents { value: 0 }),
-                        share: Some(Cents { value: 0 }),
-                        charged: Some(Charge {
-                            cents: 0,
-                            currency: "USD".to_string(),
-                        }),
-                        late_owed: Some(Cents { value: 0 }),
-                        net: Some(Cents { value: 0 }),
+                    build: Box::new(|| {
+                        Ok(Settlement {
+                            r#ref: Some(args.r#ref.clone()),
+                            paid: Some(args.paid.clone()),
+                            refund: Some(Cents { value: 0 }),
+                            remaining: Some(Cents { value: 0 }),
+                            share: Some(Cents { value: 0 }),
+                            charged: Some(Charge {
+                                cents: 0,
+                                currency: "USD".to_string(),
+                            }),
+                            late_owed: Some(Cents { value: 0 }),
+                            net: Some(Cents { value: 0 }),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -641,18 +643,20 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.r#ref.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Settlement {
-                        r#ref: Some(args.r#ref.clone()),
-                        paid: Some(args.paid.clone()),
-                        refund: Some(Cents { value: 0 }),
-                        remaining: Some(Cents { value: 0 }),
-                        share: Some(Cents { value: 0 }),
-                        charged: Some(Charge {
-                            cents: 0,
-                            currency: "USD".to_string(),
-                        }),
-                        late_owed: Some(Cents { value: 0 }),
-                        net: Some(Cents { value: 0 }),
+                    build: Box::new(|| {
+                        Ok(Settlement {
+                            r#ref: Some(args.r#ref.clone()),
+                            paid: Some(args.paid.clone()),
+                            refund: Some(Cents { value: 0 }),
+                            remaining: Some(Cents { value: 0 }),
+                            share: Some(Cents { value: 0 }),
+                            charged: Some(Charge {
+                                cents: 0,
+                                currency: "USD".to_string(),
+                            }),
+                            late_owed: Some(Cents { value: 0 }),
+                            net: Some(Cents { value: 0 }),
+                        })
                     }),
                     state_independent: true,
                 }

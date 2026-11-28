@@ -1,0 +1,6 @@
+{"note":"The resident scrum master that takes a question and neither answers nor hands it on: its window passes and the question goes on to the lead."}
+{"expect":"user","contains":"You are the scrum master"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-scrum-master-leaves","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Resident; waiting for a routed question."}}
+{"expect":"user","contains":"Message coder-1 from coder"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Looking into it."}}

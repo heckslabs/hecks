@@ -49,7 +49,7 @@
     "generated": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "TenantLedger::SettleAcrossRegions",
     "generated": true,
     "routed": true

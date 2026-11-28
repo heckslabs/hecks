@@ -1,6 +1,7 @@
 require_relative "base_sql"
 require_relative "domain_rename"
 require_relative "../shared_tables"
+require_relative "../../postgres/layout_record"
 
 module Hecks
   module Adapters
@@ -14,14 +15,15 @@ module Hecks
 
           # Builds or tops up this domain's lineage schema when the connected role owns the
           # journal (or none exists yet); any other role skips it. Also
-          # creates the event, saga and outbox tables the database shares.
+          # creates the event, saga and outbox tables the database shares, and records the revision
+          # layout for the domain (`PostgresLayoutRecord`).
           #
           # Only the mint path and the owner-only tools call it; a boot never does. ALTER TABLE and
           # REVOKE are owner-only, so a non-owner app role must skip them.
           #
           # @return [void]
           # @raise [Runtime::WiringError] if the domain's `formerly_known_as` rename is still
-          #   pending
+          #   pending, or the database holds the domain in the table layout
           # @raise [PG::Error] if Postgres refuses a provisioning statement
           def ensure_base!
             refuse_pending_rename!
@@ -34,6 +36,7 @@ module Hecks
             force_row_security!
             install_transforms!
             SharedTables.new(@db).provision!
+            PostgresLayoutRecord.new(@db, @domain).record!(PostgresLayoutRecord::REVISION_LAYOUT)
           end
 
           # Refuses to boot on a connection whose role Postgres exempts from row-level security
@@ -175,7 +178,7 @@ module Hecks
 
           def refuse_unfenced_role!(role, exempt)
             raise Runtime::WiringError,
-                  "cannot boot #{@domain}: PostgresEra's era write-fence is row-level security, and this " \
+                  "cannot boot #{@domain}: the revision layout's era write-fence is row-level security, and this " \
                   "connection's role #{role} is #{exempt.join(" and ")} — Postgres exempts it from every " \
                   "policy, FORCE included, so an old checkout connected this way keeps writing a superseded " \
                   "era and nothing refuses. Connect as an ordinary role instead (database " \

@@ -11,8 +11,9 @@ use crate::lineage_pass;
 use crate::resolve;
 
 /// Sets `ir["kept"]` to whether the target's data is kept: it is a framework member, or its first
-/// aggregate binds a lineage-capable adapter that the committed world does not mark
-/// `disposable_ledger`. A bluebook with no aggregate is bound to `Memory`.
+/// aggregate binds Postgres in a hecksagon that sets `revisions true` (the revision layout) and the
+/// committed world does not mark it `disposable_ledger`. A bluebook with no aggregate is bound to
+/// `Memory`.
 ///
 /// # Errors
 ///
@@ -34,17 +35,17 @@ pub fn run(
         .and_then(|a| a.get("name"))
         .and_then(Json::as_str)
         .map(str::to_string);
-    let binds = match hecksagon_path {
-        Some(path) => lineage_pass::persistence_binds(&read(path)?),
-        None => HashMap::new(),
+    let hecksagon = match hecksagon_path {
+        Some(path) => read(path)?,
+        None => String::new(),
     };
+    let binds = lineage_pass::persistence_binds(&hecksagon);
     let world_text = match world_path {
         Some(path) => read(path)?,
         None => String::new(),
     };
-    let capable = lineage_pass::lineage_capable_adapter_names(root)?;
     let adapter = adapter_of(first.as_deref(), &binds, world_default);
-    let era = capable.iter().any(|c| c == adapter);
+    let era = lineage_pass::revision_layout(adapter, &hecksagon);
     ir.set_bool(
         "kept",
         framework || (era && !disposable(&world_text, adapter)),
@@ -97,39 +98,36 @@ fn sets_true(line: &str) -> bool {
 mod tests {
     use super::*;
 
-    const DISPOSABLE: &str = "persisted_by(\"PostgresEra\") do\n  disposable_ledger true\nend\n";
+    const DISPOSABLE: &str = "persisted_by(\"Postgres\") do\n  disposable_ledger true\nend\n";
 
     #[test]
     fn a_block_marking_the_ledger_disposable_is_disposable() {
-        assert!(disposable(DISPOSABLE, "PostgresEra"));
+        assert!(disposable(DISPOSABLE, "Postgres"));
     }
 
     #[test]
     fn a_setting_in_another_adapters_block_does_not_count() {
         let text = "persisted_by(\"Heki\") do\n  disposable_ledger true\nend\n";
-        assert!(!disposable(text, "PostgresEra"));
+        assert!(!disposable(text, "Postgres"));
     }
 
     #[test]
     fn other_settings_or_false_are_not_disposable() {
-        let text = "persisted_by(\"PostgresEra\") do\n  allow_superuser true\n  disposable_ledger false\nend\n";
-        assert!(!disposable(text, "PostgresEra"));
+        let text = "persisted_by(\"Postgres\") do\n  allow_superuser true\n  disposable_ledger false\nend\n";
+        assert!(!disposable(text, "Postgres"));
     }
 
     #[test]
     fn a_setting_after_the_block_ends_does_not_count() {
-        let text = "persisted_by(\"PostgresEra\") do\nend\ndisposable_ledger true\n";
-        assert!(!disposable(text, "PostgresEra"));
+        let text = "persisted_by(\"Postgres\") do\nend\ndisposable_ledger true\n";
+        assert!(!disposable(text, "Postgres"));
     }
 
     #[test]
     fn the_adapter_is_the_bind_then_the_world_default_then_memory() {
         let binds = HashMap::from([("A".to_string(), "Heki".to_string())]);
-        assert_eq!(adapter_of(Some("A"), &binds, Some("PostgresEra")), "Heki");
-        assert_eq!(
-            adapter_of(Some("B"), &binds, Some("PostgresEra")),
-            "PostgresEra"
-        );
+        assert_eq!(adapter_of(Some("A"), &binds, Some("Postgres")), "Heki");
+        assert_eq!(adapter_of(Some("B"), &binds, Some("Postgres")), "Postgres");
         assert_eq!(adapter_of(None, &binds, None), "Memory");
     }
 }

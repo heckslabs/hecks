@@ -149,6 +149,10 @@ fn build_value_object_attribute(
     let (attribute, closed_set) = super::build_attribute(file, 0, "attribute", args)?;
     let one_of = super::named_raw(args, "one_of").map(|raw| {
         let trimmed = raw.trim();
+        // `%w[a b]` is the same list as `["a", "b"]` to Ruby.
+        if let Some(ruby_value::Value::Array(items)) = ruby_value::read_percent_array(trimmed) {
+            return items;
+        }
         let inner = trimmed
             .strip_prefix('[')
             .and_then(|s| s.strip_suffix(']'))

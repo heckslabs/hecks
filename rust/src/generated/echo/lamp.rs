@@ -248,8 +248,10 @@ pub fn dispatch_install(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Lamp {
-                        name: Some(args.name.clone()),
+                    build: Box::new(|| {
+                        Ok(Lamp {
+                            name: Some(args.name.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

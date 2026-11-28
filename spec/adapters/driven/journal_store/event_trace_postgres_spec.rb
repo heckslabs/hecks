@@ -11,7 +11,7 @@ require_relative "../../../support/event_trace_shop"
 
 # The event trace on a scratch PostgresEra database: the same delivered, refused and unheard
 # outcomes as on SQLite, read over a session that cannot write.
-RSpec.describe "the event trace on PostgresEra", :io do
+RSpec.describe "the event trace on Postgres with revisions true", :io do
   EVENT_TRACE_SPEC_DB = "hecks_event_trace_spec"
 
   scratch_postgres EVENT_TRACE_SPEC_DB
@@ -20,7 +20,7 @@ RSpec.describe "the event trace on PostgresEra", :io do
   # would write the events first.
   before do
     @dir = Dir.mktmpdir("event-trace-pg-")
-    EventTraceShop.write(@dir, adapter: "PostgresEra", world: EventTraceShop.postgres_world(EVENT_TRACE_SPEC_DB))
+    EventTraceShop.write(@dir, adapter: "Postgres", revisions: true, world: EventTraceShop.postgres_world(EVENT_TRACE_SPEC_DB))
     EventTraceShop.run(@dir)
   end
 

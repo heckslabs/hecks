@@ -1,15 +1,15 @@
 module Hecks
   module Runtime
     class Registry
-      # The sentence the saga durability warning adds when a process manager starts on a kept
+      # The sentence the saga durability warning adds when a saga starts on a kept
       # aggregate: a `KeptAggregate` row of the Hecks bluebook's `LocalOverlay`, which the
       # development pipeline reads back in a later process. The fix is then the checkout's overlay,
       # not a new adapter. Mixed into {DurabilityWarnings}; the rows are read from the IR.
       module KeptSagaNote
         private
 
-        # @param domain [String] the domain declaring the process managers
-        # @param undurable [Array<Bluebook::Saga>] the process managers no store keeps
+        # @param domain [String] the domain declaring the sagas
+        # @param undurable [Array<Bluebook::Saga>] the sagas no store keeps
         # @return [String] the sentence, empty when none starts on a kept aggregate
         def kept_saga_note(domain, undurable)
           starters = undurable.flat_map { |declared| starting_aggregates(domain, declared.starts_on.to_s) }
@@ -21,7 +21,7 @@ module Hecks
             "checkout's overlay with `exe/hecks LocalOverlay.write!`."
         end
 
-        # Whether a row keeps the aggregate, under the bluebook that declares it: a process manager
+        # Whether a row keeps the aggregate, under the bluebook that declares it: a saga
         # may start on an aggregate of a bluebook its domain attaches.
         def kept?(home, aggregate)
           kept_rows.any? { |row| row[:domain].to_s == home.to_s && row[:aggregate].to_s == aggregate.hecks_name.to_s }

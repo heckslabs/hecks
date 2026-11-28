@@ -99,11 +99,13 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
   end
 
   # A program that ends by itself in a directory of its own; with `remove` it deletes that
-  # directory first, from outside it.
+  # directory first, from outside it. Its bound is far past any boot, so only how it ended can
+  # make it stopped: a loaded shard's ruby can take most of a 3-second bound just to start.
   def ending(code, remove:)
     home = Dir.mktmpdir("bounded-ends")
     code = "Dir.chdir('/'); require 'fileutils'; FileUtils.rm_rf(#{home.inspect}); #{code}" if remove
-    capture.call([RbConfig.ruby, "-e", code], env: { described_class::PROGRESS => nil }, chdir: home)
+    described_class.new(seconds: 30, setting: "spec_bounds.file_seconds")
+                   .call([RbConfig.ruby, "-e", code], env: { described_class::PROGRESS => nil }, chdir: home)
   ensure
     FileUtils.rm_rf(home)
   end
@@ -114,6 +116,12 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
 
   it "does not call a program that removes its own directory and exits 0 stopped" do
     expect(ending("exit 0", remove: true).stopped).to be(false)
+  end
+
+  # A look finds the directory gone while the program is still on its way out, which a loaded
+  # runner makes likely: it then has `ENDING` seconds to end by itself.
+  it "does not call a program stopped that is still ending when its directory is found gone" do
+    expect(ending("sleep 1.2; exit 0", remove: true).stopped).to be(false)
   end
 
   it "counts a failure that left its directory gone as vanished", :aggregate_failures do

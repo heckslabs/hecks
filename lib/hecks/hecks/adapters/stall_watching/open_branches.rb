@@ -8,9 +8,9 @@ module Hecks
   module Adapters
     class StallWatching
       # The `shared-files` read of the machine: for the work items a look names, each one that is
-      # a local branch, with its tip, when the tip was committed and the files it changes against
-      # main. One `git for-each-ref` lists the tips and one diff per branch ({BranchChanges}) names
-      # its files; it reads names only and changes nothing.
+      # a local branch, with its tip, when the tip was committed and the files its unlanded
+      # commits change (those main lacks by patch). One `git for-each-ref` lists the tips and
+      # {BranchChanges} names each branch's files; it reads names only and changes nothing.
       class OpenBranches
         # One line per local branch: its name, its short tip and the tip's commit time.
         FORMAT = "%(refname:short)%09%(objectname:short)%09%(committerdate:iso-strict)"
@@ -26,7 +26,7 @@ module Hecks
         # @return [Array<Hash>] `branch:`, `tip:`, `at:` (UTC, ISO 8601) and `files:` of each that
         #   is a local branch; none when git cannot list the branches
         def call(keys)
-          changes = BranchChanges.new(@repo, shell: @shell)
+          changes = BranchChanges.new(@repo, shell: @shell, unlanded: true)
           tips.select { |name, _, _| keys.include?(name) }.map do |name, tip, at|
             { branch: name, tip: tip, at: Time.iso8601(at).utc.iso8601, files: changes.of(name) }
           end

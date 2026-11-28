@@ -24,7 +24,7 @@ is setup + roadmap.
   `severity: Error` otherwise.
 - `textDocument/documentSymbol` — an outline of every
   `aggregate`/`entity`/`value_object`/`command`/`query`/`policy`/
-  `process_manager`/`read_model` in the open file, nested by `do`/`end`
+  `saga`/`read_model` in the open file, nested by `do`/`end`
   depth. Sourced from a text scan of the buffer (`outline.rs`), not from
   `hecks-parse`'s own IR — see that file's header for why (short version:
   the IR carries no source line for anything, and often fails to build

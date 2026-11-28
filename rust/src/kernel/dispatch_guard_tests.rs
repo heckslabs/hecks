@@ -304,7 +304,7 @@ fn fresh() -> Run {
 fn create(id: &str, state_independent: bool) -> Hydrate<'static, Acct> {
     Hydrate::Create {
         id: id.to_string(),
-        build: Box::new(acct),
+        build: Box::new(|| Ok(acct())),
         state_independent,
     }
 }
@@ -316,7 +316,7 @@ fn act(id: &str) -> Hydrate<'static, Acct> {
 fn create_or_act(id: &str) -> Hydrate<'static, Acct> {
     Hydrate::CreateOrAct {
         id: id.to_string(),
-        build: Box::new(acct),
+        build: Box::new(|| Ok(acct())),
     }
 }
 
@@ -831,4 +831,76 @@ fn a_create_or_act_dispatch_with_a_blank_identity_is_not_found() {
     .unwrap_err();
 
     assert_eq!(refusal.kind(), "NotFound");
+}
+
+#[test]
+fn a_create_dispatch_whose_build_refuses_saves_nothing() {
+    let mut run = fresh();
+    let refusing = Hydrate::Create {
+        id: "a1".to_string(),
+        build: Box::new(|| Err(Refusal::InvariantViolation("broken".to_string()))),
+        state_independent: false,
+    };
+
+    let refusal = run_dispatch(&mut run, refusing, &[], None, &[], &no_invariants()).unwrap_err();
+
+    assert_eq!(
+        (refusal, run.repo.find("a1").is_none()),
+        (Refusal::InvariantViolation("broken".to_string()), true)
+    );
+}
+
+#[test]
+fn a_create_or_act_dispatch_builds_only_when_the_record_is_missing() {
+    let mut run = fresh();
+    run_dispatch(
+        &mut run,
+        create_or_act("a1"),
+        &[],
+        None,
+        &[],
+        &no_invariants(),
+    )
+    .unwrap();
+    let refusing = Hydrate::CreateOrAct {
+        id: "a1".to_string(),
+        build: Box::new(|| Err(Refusal::InvariantViolation("never built".to_string()))),
+    };
+
+    assert!(run_dispatch(&mut run, refusing, &[], None, &[], &no_invariants()).is_ok());
+}
+
+fn identity_part(facts: &str, path: &str) -> Result<String, Refusal> {
+    let facts = Json::parse(facts).expect("the facts parse");
+    creation_identity_part(
+        &facts,
+        path,
+        "Rent",
+        "SafeDepositBox",
+        "branch_code, box_number",
+    )
+}
+
+#[test]
+fn a_creation_identity_part_reads_a_dotted_path() {
+    assert_eq!(
+        identity_part(r#"{"box_number": {"value": 7}}"#, "box_number.value"),
+        Ok("7".to_string())
+    );
+}
+
+#[test]
+fn a_missing_creation_identity_part_refuses_as_creating_with_no_identity() {
+    let expected = Refusal::NotFound(
+        "Rent creates a SafeDepositBox — pass branch_code, box_number:".to_string(),
+    );
+
+    assert_eq!(
+        [
+            identity_part("{}", "branch_code"),
+            identity_part(r#"{"branch_code": null}"#, "branch_code"),
+            identity_part(r#"{"branch_code": ""}"#, "branch_code"),
+        ],
+        [Err(expected.clone()), Err(expected.clone()), Err(expected)]
+    );
 }

@@ -476,7 +476,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                         route.aggregate().to_string(),
                         hop1_id.clone(),
                         hop1_id,
-                        hop2_id.clone(),
+                        Some(hop2_id.clone()),
                         hop2_id,
                     )
                 }
@@ -496,9 +496,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Annotate acts on one Board — pass number.value:".to_string(),
-                            )
+                            if store.workspace.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Workspace",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Annotate acts on one Board — pass number.value:".to_string(),
+                                )
+                            }
                         })?;
                     let hop1_wants =
                         crate::generated::nested_pieces::workspace::Board::extract_wants(
@@ -508,11 +519,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                         crate::generated::nested_pieces::workspace::Card::extract_id_lenient(
                             facts_json,
                         )
-                        .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Annotate acts on one Card — pass sequence.value:".to_string(),
-                            )
-                        })?;
+                        .ok();
                     let hop2_wants =
                         crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json);
                     (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants)
@@ -531,7 +538,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                 &parent_id,
                 &hop1_id,
                 &hop1_wants,
-                &hop2_id,
+                hop2_id.as_deref(),
                 &hop2_wants,
                 args,
                 mutations,
@@ -558,7 +565,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                         route.aggregate().to_string(),
                         hop1_id.clone(),
                         hop1_id,
-                        hop2_id.clone(),
+                        Some(hop2_id.clone()),
                         hop2_id,
                     )
                 }
@@ -578,9 +585,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Remark acts on one Board — pass number.value:".to_string(),
-                            )
+                            if store.workspace.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Workspace",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Remark acts on one Board — pass number.value:".to_string(),
+                                )
+                            }
                         })?;
                     let hop1_wants =
                         crate::generated::nested_pieces::workspace::Board::extract_wants(
@@ -590,11 +608,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                         crate::generated::nested_pieces::workspace::Card::extract_id_lenient(
                             facts_json,
                         )
-                        .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Remark acts on one Card — pass sequence.value:".to_string(),
-                            )
-                        })?;
+                        .ok();
                     let hop2_wants =
                         crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json);
                     (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants)
@@ -613,7 +627,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                 &parent_id,
                 &hop1_id,
                 &hop1_wants,
-                &hop2_id,
+                hop2_id.as_deref(),
                 &hop2_wants,
                 args,
                 mutations,
@@ -638,7 +652,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
 /// whatever payload the generated dispatch built with the raw,
 /// unfiltered `args_json` this router itself received, after the
 /// fact, once dispatch has already decided whether to accept it.
-/// Load-bearing for process managers, not just payload fidelity: a
+/// Load-bearing for sagas, not just payload fidelity: a
 /// saga leg that forwards `reference: :reference` into `Account.
 /// Debit` (which doesn't declare a `reference` attribute) needs
 /// that field to survive onto `AccountDebited`'s own payload for

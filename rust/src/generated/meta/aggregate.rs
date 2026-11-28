@@ -1184,7 +1184,7 @@ impl Mark {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rule {
-    pub description: Option<String>,
+    pub description: String,
     pub canonical: String,
 }
 
@@ -1193,11 +1193,7 @@ impl crate::kernel::Fielded for Rule {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "description" => self
-                .description
-                .as_ref()
-                .map(|v| Field::Value(Value::Str(v.clone())))
-                .or(Some(Field::Value(Value::Nil))),
+            "description" => Some(Field::Value(Value::Str(self.description.clone()))),
             "canonical" => Some(Field::Value(Value::Str(self.canonical.clone()))),
             _ => None,
         }
@@ -1227,11 +1223,7 @@ impl Rule {
         crate::kernel::Json::Object(vec![
             (
                 "description".to_string(),
-                self.description
-                    .as_ref()
-                    .map_or(crate::kernel::Json::Null, |v| {
-                        crate::kernel::Json::Str(v.clone())
-                    }),
+                crate::kernel::Json::Str(self.description.clone()),
             ),
             (
                 "canonical".to_string(),
@@ -1262,14 +1254,18 @@ impl Rule {
             ));
         }
         Ok(Self {
-            description: match v.get("description") {
-                Some(crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
+            description: {
+                let x = v.get("description").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "Rule.description expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "Rule.description expects String, got {}",
                         x.describe()
                     ))
-                })?),
+                })?
             },
             canonical: {
                 let x = v.get("canonical").ok_or_else(|| {
@@ -4268,25 +4264,27 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Aggregate {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        description: args.description.clone(),
-                        provenance: args.provenance.clone(),
-                        formerly_known_as: args.formerly_known_as.clone(),
-                        created_by: args.created_by.clone(),
-                        identified_by: vec![],
-                        attributes: vec![],
-                        value_objects: vec![],
-                        state_field: None,
-                        state_start: None,
-                        transitions: vec![],
-                        marks: vec![],
-                        invariants: vec![],
-                        preconditions: vec![],
-                        projected_fields: vec![],
-                        acknowledgements: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Aggregate {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            description: args.description.clone(),
+                            provenance: args.provenance.clone(),
+                            formerly_known_as: args.formerly_known_as.clone(),
+                            created_by: args.created_by.clone(),
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -4295,25 +4293,27 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", args.bluebook, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Aggregate {
-                        bluebook: Some(args.bluebook.clone()),
-                        name: Some(args.name.clone()),
-                        description: args.description.clone(),
-                        provenance: args.provenance.clone(),
-                        formerly_known_as: args.formerly_known_as.clone(),
-                        created_by: args.created_by.clone(),
-                        identified_by: vec![],
-                        attributes: vec![],
-                        value_objects: vec![],
-                        state_field: None,
-                        state_start: None,
-                        transitions: vec![],
-                        marks: vec![],
-                        invariants: vec![],
-                        preconditions: vec![],
-                        projected_fields: vec![],
-                        acknowledgements: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Aggregate {
+                            bluebook: Some(args.bluebook.clone()),
+                            name: Some(args.name.clone()),
+                            description: args.description.clone(),
+                            provenance: args.provenance.clone(),
+                            formerly_known_as: args.formerly_known_as.clone(),
+                            created_by: args.created_by.clone(),
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -4646,7 +4646,9 @@ pub struct IdentifyArgs {
 
 pub fn dispatch_identify(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: IdentifyArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4664,7 +4666,45 @@ pub fn dispatch_identify(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(AggregateName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Identify",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -4873,7 +4913,9 @@ pub struct AttributeArgs {
 
 pub fn dispatch_attribute(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: AttributeArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4907,7 +4949,47 @@ pub fn dispatch_attribute(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = AggregateName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(__created_name),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Attribute",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -5290,7 +5372,9 @@ pub struct ReferenceArgs {
 
 pub fn dispatch_reference(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: ReferenceArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -5324,7 +5408,47 @@ pub fn dispatch_reference(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = AggregateName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(__created_name),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Reference",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -5707,7 +5831,9 @@ pub struct HoldsArgs {
 
 pub fn dispatch_holds(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: HoldsArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -5741,7 +5867,47 @@ pub fn dispatch_holds(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = AggregateName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(__created_name),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Holds",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -6092,7 +6258,9 @@ pub struct LifecycleArgs {
 
 pub fn dispatch_lifecycle(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: LifecycleArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6111,7 +6279,53 @@ pub fn dispatch_lifecycle(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_state_field = IdentityField {
+                            value: args.state_field.value.clone(),
+                        };
+                        __created_state_field.check_invariants()?;
+                        let __created_state_start = IdentityField {
+                            value: args.state_start.value.clone(),
+                        };
+                        __created_state_start.check_invariants()?;
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(AggregateName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: Some(__created_state_field),
+                            state_start: Some(__created_state_start),
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Lifecycle",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -6309,7 +6523,9 @@ pub struct TransitionArgs {
 
 pub fn dispatch_transition(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: TransitionArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6331,7 +6547,45 @@ pub fn dispatch_transition(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(AggregateName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Transition",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -6550,7 +6804,9 @@ pub struct MarkArgs {
 
 pub fn dispatch_mark(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: MarkArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6569,7 +6825,47 @@ pub fn dispatch_mark(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = AggregateName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(__created_name),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Mark",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -6749,7 +7045,9 @@ pub struct SealArgs {}
 
 pub fn dispatch_seal(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: SealArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6766,7 +7064,45 @@ pub fn dispatch_seal(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(AggregateName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Seal",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -6893,7 +7229,9 @@ pub struct ValueArgs {
 
 pub fn dispatch_value(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: ValueArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6911,7 +7249,47 @@ pub fn dispatch_value(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = AggregateName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(__created_name),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Value",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -7086,7 +7464,9 @@ pub struct InvariantArgs {
 
 pub fn dispatch_invariant(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: InvariantArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -7107,7 +7487,51 @@ pub fn dispatch_invariant(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_description = args.description.clone().map(|v| Description {
+                            value: v.value.clone(),
+                        });
+                        if let Some(created) = &__created_description {
+                            created.check_invariants()?;
+                        }
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(AggregateName {
+                                value: name.to_string(),
+                            }),
+                            description: __created_description,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Invariant",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -7132,7 +7556,21 @@ pub fn dispatch_invariant(
         None,
         |record| {
             record.invariants.push(Rule {
-                description: args.description.clone().map(|v| v.value.clone()),
+                description: args
+                    .description
+                    .clone()
+                    .map(|v| v.value.clone())
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                                r#type: "Rule",
+                                field: "description",
+                                expected: "String",
+                                offered: "nil",
+                            }
+                            .render_args(),
+                        )
+                    })?,
                 canonical: args.canonical.value.clone(),
             });
             Ok(())
@@ -7316,7 +7754,9 @@ pub struct PreconditionArgs {
 
 pub fn dispatch_precondition(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: PreconditionArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -7337,7 +7777,51 @@ pub fn dispatch_precondition(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_description = args.description.clone().map(|v| Description {
+                            value: v.value.clone(),
+                        });
+                        if let Some(created) = &__created_description {
+                            created.check_invariants()?;
+                        }
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(AggregateName {
+                                value: name.to_string(),
+                            }),
+                            description: __created_description,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Precondition",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -7362,7 +7846,21 @@ pub fn dispatch_precondition(
         None,
         |record| {
             record.preconditions.push(Rule {
-                description: args.description.clone().map(|v| v.value.clone()),
+                description: args
+                    .description
+                    .clone()
+                    .map(|v| v.value.clone())
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                                r#type: "Rule",
+                                field: "description",
+                                expected: "String",
+                                offered: "nil",
+                            }
+                            .render_args(),
+                        )
+                    })?,
                 canonical: args.canonical.value.clone(),
             });
             Ok(())
@@ -7548,7 +8046,9 @@ pub struct AcknowledgesArgs {
 
 pub fn dispatch_acknowledges(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: AcknowledgesArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -7570,7 +8070,45 @@ pub fn dispatch_acknowledges(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(AggregateName {
+                                value: name.to_string(),
+                            }),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Acknowledges",
         "Bluebook::Aggregate",
         "Aggregate",
@@ -7783,7 +8321,9 @@ pub struct ProjectsArgs {
 
 pub fn dispatch_projects(
     repo: &mut impl crate::kernel::Repository<Aggregate>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    bluebook: &str,
+    name: &str,
     args: ProjectsArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -7803,7 +8343,47 @@ pub fn dispatch_projects(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", bluebook, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = AggregateName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Aggregate {
+                            bluebook: Some(bluebook.to_string()),
+                            name: Some(__created_name),
+                            description: None,
+                            provenance: None,
+                            formerly_known_as: None,
+                            created_by: None,
+                            identified_by: vec![],
+                            attributes: vec![],
+                            value_objects: vec![],
+                            state_field: None,
+                            state_start: None,
+                            transitions: vec![],
+                            marks: vec![],
+                            invariants: vec![],
+                            preconditions: vec![],
+                            projected_fields: vec![],
+                            acknowledgements: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Projects",
         "Bluebook::Aggregate",
         "Aggregate",

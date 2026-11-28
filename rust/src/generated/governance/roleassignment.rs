@@ -703,12 +703,14 @@ pub fn dispatch_assign(
                 );
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| RoleAssignment {
-                        actor_id: Some(args.actor_id.clone()),
-                        role_name: Some(args.role_name.clone()),
-                        scope: Some(args.scope.clone()),
-                        starts_at: Some(args.starts_at.clone()),
-                        ends_at: None,
+                    build: Box::new(|| {
+                        Ok(RoleAssignment {
+                            actor_id: Some(args.actor_id.clone()),
+                            role_name: Some(args.role_name.clone()),
+                            scope: Some(args.scope.clone()),
+                            starts_at: Some(args.starts_at.clone()),
+                            ends_at: None,
+                        })
                     }),
                     state_independent: false,
                 }

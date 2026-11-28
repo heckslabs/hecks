@@ -16,6 +16,15 @@ module Hecks
         { pid: supervisor.open(name: plain(name), brief: plain(brief))["pid"].to_i }
       end
 
+      # The runtime hands the ask the session as the ledger holds it, so the child of a reopened
+      # session is started on its brief and told the handover its last child left.
+      #
+      # @return [Hash] as {#open_session}
+      # @raise [Harness::Supervisor::Refused] as {#open_session}
+      def reopen_session(name:, brief:, handover: nil, **)
+        { pid: supervisor.open(name: plain(name), brief: plain(brief), handover: plain(handover))["pid"].to_i }
+      end
+
       # @return [Hash] nothing more: the child's exit is told later
       # @raise [Harness::Supervisor::Refused] when no supervisor runs
       def stop_session(name:, **)

@@ -8,14 +8,21 @@ RSpec.describe Hecks::ShapeLedger::Kept do
   after { remove_kept_directory }
 
   it "keeps an era-managed store", :aggregate_failures do
-    write_shop("PostgresEra")
+    write_shop("Postgres", revisions: true)
 
     expect(ruby_keeps?).to be(true)
     expect(ir_keeps?).to be(true)
   end
 
+  it "does not keep a Postgres store in the table layout", :aggregate_failures do
+    write_shop("Postgres")
+
+    expect(ruby_keeps?).to be(false)
+    expect(ir_keeps?).to be(false)
+  end
+
   it "does not keep an era-managed store the world marks disposable", :aggregate_failures do
-    write_shop("PostgresEra", world: %(  persisted_by("PostgresEra") { disposable_ledger true }))
+    write_shop("Postgres", revisions: true, world: %(  persisted_by("Postgres") { disposable_ledger true }))
 
     expect(ruby_keeps?).to be(false)
     expect(ir_keeps?).to be(false)

@@ -301,11 +301,13 @@ pub fn dispatch_open(
                 let __hydrate_id: String = args.r#ref.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Booking {
-                        r#ref: Some(args.r#ref.clone()),
-                        event: Some(args.event.clone()),
-                        starts_at: None,
-                        title: None,
+                    build: Box::new(|| {
+                        Ok(Booking {
+                            r#ref: Some(args.r#ref.clone()),
+                            event: Some(args.event.clone()),
+                            starts_at: None,
+                            title: None,
+                        })
                     }),
                     state_independent: false,
                 }

@@ -1,10 +1,10 @@
-# Connection for the event pump's rows, bound to PostgresEra by quality_control.hecksagon. Boot reads
+# Connection for the event pump's rows, bound to Postgres by quality_control.hecksagon. Boot reads
 # a world named after the bound domain; like governance.world, this one names the QualityControl
 # ledger's own database, so the pump's consumers, reactions and runs need no database of their own.
 Hecks.world "EventDelivery" do
   # `mint_eras` is off and `disposable_ledger` is on: a changed shape is applied by the boot itself
   # (additive in place, breaking archived), with no era, mint or edge. See quality_control.world.
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
     mint_eras false
     disposable_ledger true

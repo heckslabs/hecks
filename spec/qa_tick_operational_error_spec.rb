@@ -10,7 +10,7 @@ RSpec.describe "hecks quality_control tick", :io do
   include_context "with a qa_tick fixture", "hecks_qa_tick_operational_error_spec"
 
   TICK_ERROR_LINES = ["hecks quality_control check_pull_requests: clean (exit 0)",
-                      "hecks quality_control ask run --all: operational error (exit 1)",
+                      "hecks quality_control Sweep.run --all: operational error (exit 1)",
                       "tick: operational error (exit 1)"].freeze
 
   it "reports an operational error from the sweep as the tick's own exit 1", :aggregate_failures do

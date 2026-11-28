@@ -21,8 +21,8 @@ RSpec.describe "launcher defaults declared on their bluebook commands" do
   end
 
   it "shows each default in the command's own help", :aggregate_failures do
-    expect(help("host.check_era")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
-    expect(help("host.recheck")).to match(/timeout\.value\s+Float; defaults to 10; optional/)
+    expect(help("host.check_era")).to match(/timeout\s+Float; defaults to 10; optional/)
+    expect(help("host.recheck")).to match(/timeout\s+Float; defaults to 10; optional/)
   end
 
   it "has the era check's library take its timeout from the caller" do

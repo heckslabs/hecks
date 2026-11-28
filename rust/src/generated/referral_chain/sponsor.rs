@@ -304,9 +304,11 @@ pub fn dispatch_enroll(
                 let __hydrate_id: String = args.handle.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Sponsor {
-                        handle: Some(args.handle.clone()),
-                        standing: "good".to_string(),
+                    build: Box::new(|| {
+                        Ok(Sponsor {
+                            handle: Some(args.handle.clone()),
+                            standing: "good".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

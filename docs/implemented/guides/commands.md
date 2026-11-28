@@ -333,7 +333,7 @@ Banking::ScheduledPayment.find(sp.id).attempts.to_h  # => { value: 3 }
 that before this line even returned — a refusal raised INSIDE a
 policy's own reaction is caught and recorded there, not thrown back at
 whoever dispatched the command that started the chain (see
-[Policies and process managers](policies-and-process-managers.md) for
+[Policies and sagas](policies-and-sagas.md) for
 the mechanism). Dispatch `Retry` again yourself, directly, and the same
 `given` refuses it the ordinary way:
 

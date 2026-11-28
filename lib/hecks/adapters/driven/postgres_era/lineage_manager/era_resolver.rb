@@ -1,4 +1,5 @@
 require_relative "../lineage"
+require_relative "../../postgres/layout_record"
 require_relative "../../../../ports/persistence/plugins/era/storage_shape"
 require_relative "context"
 require_relative "mint_request"
@@ -47,14 +48,18 @@ module Hecks
           private
 
           # Opens the lineage: for reading on a boot, and provisioned first on a mint request.
-          # Either
-          # refuses, by name, while the domain's history still sits under its former name.
+          # Either refuses, by name, while the domain's history still sits under its former name,
+          # or while the database holds the domain in Postgres's table layout.
           def open_lineage(db, bluebook, settings, request)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as,
                                                      reading:           request.nil?)
             # First, before anything else: the earliest point the connection's role is known,
             # so a superuser connection refuses here by default.
             lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
+            # Before a mint provisions anything: a database that holds the domain in the table
+            # layout is refused, naming both layouts.
+            PostgresLayoutRecord.new(db, bluebook.name)
+                                .check!(PostgresLayoutRecord::REVISION_LAYOUT, bluebook.aggregates.map(&:storage_name))
             request ? lineage.ensure_base! : lineage.refuse_pending_rename!
             lineage
           end

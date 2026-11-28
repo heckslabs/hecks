@@ -5,7 +5,8 @@ require_relative "../isolated_boot"
 module Hecks
   module Fuzzing
     module ConcurrentDispatch
-      # Copies a target domain, rebinds it to a shared `PostgresEra` schema and boots it there.
+      # Copies a target domain, rebinds it to a shared schema in Postgres's revision layout and
+      # boots it there.
       module WorldCopy
         FUZZ_WORLD_FILE = "hecks_fuzz_postgres_era.world".freeze
         # A `Hecks.hecksagon "Name"` declaration, capturing the name.
@@ -19,7 +20,7 @@ module Hecks
             copy = File.join(tmp, File.basename(domain_path))
             IsolatedBoot.copy_dereferencing(domain_path, copy)
             FileUtils.rm_rf(File.join(copy, "data"))
-            IsolatedBoot.rewrite_bindings!(copy, "PostgresEra")
+            IsolatedBoot.rewrite_bindings!(copy, "Postgres", revisions: true)
             write_postgres_era_world!(copy, database: database, schema: schema)
             yield copy
           end
@@ -54,7 +55,7 @@ module Hecks
         def postgres_era_world(name, database, schema)
           <<~WORLD
             Hecks.world "#{name}" do
-              persisted_by("PostgresEra") do
+              persisted_by("Postgres") do
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true

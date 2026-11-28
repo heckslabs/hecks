@@ -15,7 +15,7 @@ RSpec.describe Hecks::Adapters::PipelineIntegration do
 
   def run(letter) = letter * 40
 
-  # A saga store holding one checkpoint per run, and one of another process manager.
+  # A saga store holding one checkpoint per run, and one of another saga.
   def saga_store(states)
     rows = states.map { |landed, stage| ["MainIntegration", landed, stage, {}, []] }
     Struct.new(:rows) { def each_saga = rows.each }.new(rows + [["BugCiWatch", "x", "watching", {}, []]])
@@ -61,7 +61,7 @@ RSpec.describe Hecks::Adapters::PipelineIntegration do
       expect(reading[:total]).to eq(4)
     end
 
-    it "leaves out the checkpoints of another process manager" do
+    it "leaves out the checkpoints of another saga" do
       expect(reading[:runs].map { |listed| listed[:landed] }).not_to include("x")
     end
 

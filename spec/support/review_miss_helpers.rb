@@ -1,13 +1,23 @@
 # The Agents bluebook booted in Memory for the review miss spec: clean and real_bug reviews of a
 # work item's commits, and Deliver's `RedEpisode.EpisodeReverting` reacted to as the event pump
-# would. Each example boots its own registry, so no state is shared.
+# would, by the Hecks domain's `RecordTheMissedReview`, which translates the episode into Agents'
+# command. Each example boots its own registry, so no state is shared.
 module ReviewMissHelpers
+  # The Hecks domain's reaction that records a miss, read once off a Memory boot of the domain.
+  #
+  # @return [Hecks::Bluebook::Policy] the policy, whose trigger reaches across into Agents
+  def self.missed_review
+    @missed_review ||= InMemoryDomain.boot_hecks_in_memory.registry.bluebook("Hecks").policies
+                                     .find { |policy| policy.name == "RecordTheMissedReview" }
+  end
+
   def agents_root = File.join(InMemoryDomain::ROOT, "lib/hecks/agents")
 
   # Loads the Agents bluebook into a fresh registry and binds its runtime.
   #
   # @return [Hecks::Runtime::Dispatcher] the dispatcher the bluebook's commands run through
   def boot_agents
+    ReviewMissHelpers.missed_review
     @registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(@registry) do
       [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
@@ -43,13 +53,15 @@ module ReviewMissHelpers
                 repo: value("/tmp/#{work}"), brief: value(work))
   end
 
-  # Reacts to `RedEpisode.EpisodeReverting` for `work`, as Deliver emits it.
+  # Reacts to `RedEpisode.EpisodeReverting` for `work`, as Deliver emits it, with the Hecks domain's
+  # reaction that records a miss.
   #
-  # @return [Array<Hash>] one record per policy that heard it
+  # @return [Array<Hash>] the record of that reaction
   def revert(episode, work)
     event = Hecks::Runtime::Event.new(name: "EpisodeReverting", aggregate: "Hecks::RedEpisode", id: episode,
                                       payload: episode_facts(episode, work), occurred_at: Hecks::Runtime::Event.stamp)
-    Hecks::Runtime::PolicyInterpreter.new(@registry, dispatcher: @dispatcher).react(event, "Agents")
+    reaction = [ReviewMissHelpers.missed_review, "Hecks"]
+    Hecks::Runtime::PolicyInterpreter.new(@registry, dispatcher: @dispatcher).react(event, "Hecks", only: reaction)
   end
 
   # @return [Hash{Symbol => Hash}] the facts a reverting episode carries

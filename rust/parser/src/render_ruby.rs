@@ -103,7 +103,7 @@ fn policy_text(out: &mut String, policy: &ir::Policy) -> Result<(), String> {
 fn refuse_unspelt(declaration: &ir::Bluebook) -> Result<(), String> {
     let held = [
         (!declaration.read_models.is_empty(), "read models"),
-        (!declaration.sagas.is_empty(), "process managers"),
+        (!declaration.sagas.is_empty(), "sagas"),
         (!declaration.provides.is_empty(), "provided capabilities"),
         (!declaration.attaches_to.is_empty(), "attaches"),
         (!declaration.modules.is_empty(), "modules"),

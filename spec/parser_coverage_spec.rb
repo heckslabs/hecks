@@ -71,7 +71,6 @@ RSpec.describe "the Rust parser's own coverage", :io do
     # `attribute`/`emits`/`answers`/`refuses` (all reported); the rest is a parser stage of its own.
     ["a sibling grammar (world, hecksagon ports, data translation, context map) hecks-parse does not build", [
       %w[aggregate Translation], %w[answers DomainPort], %w[answers Port],
-      %w[answers_query DomainPort],
       %w[backfill TranslationAggregate],
       %w[context ContextMap], %w[context_map File],
       %w[convert TranslationAggregate], %w[data_translation File],
@@ -113,7 +112,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
     # Work item `rust-parser-new-words` (Tickets) implements them, and each leaves here as it lands.
     ["a word added after the Rust parser's last pass (Work item rust-parser-new-words)", [
       %w[created_by Aggregate], %w[domain_module Bluebook], %w[formerly_known_as Aggregate],
-      %w[handles PortOperation], %w[resumes ProcessManager], %w[split TranslationAggregate]
+      %w[handles PortOperation], %w[resumes Saga], %w[split TranslationAggregate]
     ]]
   ].freeze
 

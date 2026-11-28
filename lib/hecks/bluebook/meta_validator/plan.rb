@@ -36,7 +36,7 @@ module Hecks
             # owning aggregate (ADR 0026), so `meta.aggregates` alone never
             # finds them; `add_nested_entities` walks each aggregate's own
             # `.entities`, recursing (Dispatch nests inside Handler inside
-            # ProcessManager), with `entity_owned: true` marking that this
+            # Saga), with `entity_owned: true` marking that this
             # category has no top-level aggregate a bare verb can dispatch into.
             add_nested_entities(aggregate)
           end
@@ -71,7 +71,7 @@ module Hecks
         private
 
         # Recurses to handle ADR 0026's two-level entity chain (Dispatch inside
-        # Handler inside ProcessManager).
+        # Handler inside Saga).
         def add_nested_entities(owner)
           owner.entities.each do |entity|
             next if entity.commands.empty?

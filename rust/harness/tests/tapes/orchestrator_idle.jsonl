@@ -1,0 +1,4 @@
+{"note":"An orchestrator that hears nothing: every question was settled before it."}
+{"expect":"user","contains":"You are the orchestrator"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-orchestrator-idle","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Leading; nothing for me."}}

@@ -592,11 +592,13 @@ pub fn dispatch_request(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Transfer {
-                        reference: Some(args.reference.clone()),
-                        region: Some(args.region.clone()),
-                        ledger: Some(args.ledger.clone()),
-                        amount_cents: Some(args.amount_cents.clone()),
+                    build: Box::new(|| {
+                        Ok(Transfer {
+                            reference: Some(args.reference.clone()),
+                            region: Some(args.region.clone()),
+                            ledger: Some(args.ledger.clone()),
+                            amount_cents: Some(args.amount_cents.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -605,11 +607,13 @@ pub fn dispatch_request(
                 let __hydrate_id: String = args.reference.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Transfer {
-                        reference: Some(args.reference.clone()),
-                        region: Some(args.region.clone()),
-                        ledger: Some(args.ledger.clone()),
-                        amount_cents: Some(args.amount_cents.clone()),
+                    build: Box::new(|| {
+                        Ok(Transfer {
+                            reference: Some(args.reference.clone()),
+                            region: Some(args.region.clone()),
+                            ledger: Some(args.ledger.clone()),
+                            amount_cents: Some(args.amount_cents.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

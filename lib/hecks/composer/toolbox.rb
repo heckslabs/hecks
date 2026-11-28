@@ -113,9 +113,17 @@ module Hecks
       # @api private
       def argv_for(kind, verb, pairs, help: false)
         tail = help ? ["--help"] : pairs
-        return ["query", verb, *tail] if kind == "query"
+        return [*query_word(verb), verb, *tail] if kind == "query"
 
         [verb, *tail, *(help ? [] : ["--wait"])]
+      end
+
+      # `query` before a query whose name a command shares, the one case the launcher takes it.
+      #
+      # @api private
+      def query_word(verb)
+        @all_commands ||= verbs(:commands)
+        @all_commands.key?(verb) ? ["query"] : []
       end
 
       # @api private

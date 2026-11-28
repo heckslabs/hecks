@@ -752,15 +752,17 @@ pub fn dispatch_request(
                 let __hydrate_id: String = args.end_to_end.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ExternalTransfer {
-                        account: Some(args.account.clone()),
-                        end_to_end: Some(args.end_to_end.clone()),
-                        amount: Some(args.amount.clone()),
-                        beneficiary: Some(args.beneficiary.clone()),
-                        direction: Some(args.direction.clone()),
-                        account_status: None,
-                        account_customer_status: None,
-                        status: "requested".to_string(),
+                    build: Box::new(|| {
+                        Ok(ExternalTransfer {
+                            account: Some(args.account.clone()),
+                            end_to_end: Some(args.end_to_end.clone()),
+                            amount: Some(args.amount.clone()),
+                            beneficiary: Some(args.beneficiary.clone()),
+                            direction: Some(args.direction.clone()),
+                            account_status: None,
+                            account_customer_status: None,
+                            status: "requested".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

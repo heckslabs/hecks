@@ -123,13 +123,14 @@ pub struct TransitionCheck {
 /// `'a` lets `build` borrow `args`, which is also borrowed as `&dyn Fielded` in the same call.
 pub enum Hydrate<'a, T> {
     /// A creating command: mint the identity, build a fresh record if nothing answers to it.
-    /// `build` assigns creation attributes (implicit, name-matched), not a `sets`.
+    /// `build` assigns creation attributes (implicit, name-matched), not a `sets`, and refuses
+    /// as Ruby's `assign_creation_attributes` does when a value it coerces breaks an invariant.
     ///
     /// `state_independent` defers the `AlreadyExists` check to just before `repo.save`, for
     /// commands whose givens, ensures and mutations never read the aggregate's own state.
     Create {
         id: String,
-        build: Box<dyn FnOnce() -> T + 'a>,
+        build: Box<dyn FnOnce() -> Result<T, Refusal> + 'a>,
         state_independent: bool,
     },
     /// An acting command: the identity already names a record.
@@ -138,7 +139,7 @@ pub enum Hydrate<'a, T> {
     /// and `build` makes a fresh one, as `Create` does, only when nothing answers to it.
     CreateOrAct {
         id: String,
-        build: Box<dyn FnOnce() -> T + 'a>,
+        build: Box<dyn FnOnce() -> Result<T, Refusal> + 'a>,
     },
 }
 
@@ -290,6 +291,40 @@ where
     Ok((record, events))
 }
 
+/// One identity part a creating command does not declare, read from the facts it was given at
+/// `path` (`name.value` reads the scalar inside `name`, or `name` itself when it is a scalar).
+///
+/// An absent, null or blank part names nothing, so the command refuses as Ruby's
+/// `creating_no_identity` does, quoting every identity path; a composite part refuses
+/// `TypeMismatch`, as `Json::to_id_component` does.
+///
+/// # Errors
+///
+/// `NotFound` when the part is missing or blank, `TypeMismatch` when it is not a scalar.
+pub fn creation_identity_part(
+    facts: &Json,
+    path: &str,
+    command_name: &'static str,
+    aggregate_name: &'static str,
+    identity_reading: &'static str,
+) -> Result<String, Refusal> {
+    let missing = || {
+        Refusal::NotFound(
+            NotFoundCreatingNoIdentityArgs {
+                command: command_name,
+                aggregate: aggregate_name,
+                identity: identity_reading,
+            }
+            .render_args(),
+        )
+    };
+    match facts.dig(path) {
+        None | Some(Json::Null) => Err(missing()),
+        Some(Json::Str(text)) if text.is_empty() => Err(missing()),
+        Some(part) => part.to_id_component(),
+    }
+}
+
 /// A blank identity names nothing: a creating hydration refuses it before any lookup rather
 /// than mint a record keyed by "".
 fn refuse_blank_creation_id(
@@ -346,11 +381,14 @@ where
                     .render_args(),
                 ));
             }
-            Ok((id, build()))
+            Ok((id, build()?))
         }
         Hydrate::CreateOrAct { id, build } => {
             refuse_blank_creation_id(&id, command_name, aggregate_name, identity_reading)?;
-            let record = repo.find(&id).unwrap_or_else(build);
+            let record = match repo.find(&id) {
+                Some(found) => found,
+                None => build()?,
+            };
             Ok((id, record))
         }
         Hydrate::Act { id } => {

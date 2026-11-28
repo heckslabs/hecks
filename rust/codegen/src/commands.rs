@@ -659,6 +659,11 @@ fn optional_source_mismatches_with(
                     _ => Vec::new(),
                 };
                 let element_attrs = element.get("attributes").map_or_default(Json::each);
+                let appends_entity = aggregate
+                    .get("entities")
+                    .map_or_default(Json::each)
+                    .iter()
+                    .any(|entity| std::ptr::eq(entity, element));
                 for (field_name, source) in &fields {
                     let parsed = mutations::append_field_source(&source.to_s());
                     let Literal::Symbol(arg_name) = &parsed else {
@@ -676,7 +681,11 @@ fn optional_source_mismatches_with(
                     let field_attr = element_attrs
                         .iter()
                         .find(|a| crate::attr::name(a) == field_name.as_str());
-                    if !field_attr.is_some_and(crate::attr::optional) {
+                    // A value object's required scalar field refuses the absent argument as
+                    // `Value.build` does (`mutations::required_value_object_field`).
+                    let refused_when_absent =
+                        !appends_entity && field_attr.is_some_and(|f| !crate::attr::list(f));
+                    if !refused_when_absent && !field_attr.is_some_and(crate::attr::optional) {
                         problems.push(format!(
                             "sets append {target}.{field_name} sources optional argument {}",
                             crate::attr::name(source_attr)
@@ -882,6 +891,33 @@ pub fn emit_command(
     let record_agg_attrs = record_agg_attrs_owned.as_slice();
 
     if creates {
+        // Each value the build coerces into a value object of another type is checked against
+        // that value object's invariants before the record is made, as Ruby's
+        // `assign_creation_attributes` coerces through `Value.for`.
+        let mut creation_checks: Vec<String> = Vec::new();
+        let mut checked = |field: &str, rhs: String, optional: bool, target: &str| -> String {
+            if !value_objects_by_name.contains_key(target) {
+                return if optional {
+                    rhs
+                } else {
+                    format!("Some({rhs})")
+                };
+            }
+            let binding = format!("__created_{field}");
+            let check = if optional {
+                format!("if let Some(created) = &{binding} {{ created.check_invariants()?; }}")
+            } else {
+                format!("{binding}.check_invariants()?;")
+            };
+            creation_checks.push(format!(
+                "            let {binding} = {rhs};\n            {check}"
+            ));
+            if optional {
+                binding
+            } else {
+                format!("Some({binding})")
+            }
+        };
         let record_fields: Vec<String> = record_agg_attrs
             .iter()
             .map(|attr| {
@@ -907,14 +943,15 @@ pub fn emit_command(
                         } else {
                             // A cross-aggregate argument named like the owner's field but of
                             // another type needs a bridge.
+                            let rhs = mutations::optional_value_rhs(
+                                &format!("args.{field}"),
+                                matched_type,
+                                attr_type,
+                                value_objects_by_name,
+                            );
                             format!(
                                 "            {field}: {},",
-                                mutations::optional_value_rhs(
-                                    &format!("args.{field}"),
-                                    matched_type,
-                                    attr_type,
-                                    value_objects_by_name
-                                )
+                                checked(&field, rhs, true, attr_type)
                             )
                         }
                     } else if crate::attr::list(attr) || matched_type == attr_type {
@@ -924,18 +961,35 @@ pub fn emit_command(
                             format!("            {field}: Some(args.{field}.clone()),")
                         }
                     } else {
+                        let rhs = crate::bridging::value_rhs(
+                            &format!("args.{field}"),
+                            matched_type,
+                            attr_type,
+                            value_objects_by_name,
+                        );
                         format!(
-                            "            {field}: Some({}),",
-                            crate::bridging::value_rhs(
-                                &format!("args.{field}"),
-                                matched_type,
-                                attr_type,
-                                value_objects_by_name
-                            )
+                            "            {field}: {},",
+                            checked(&field, rhs, false, attr_type)
                         )
                     }
                 } else if crate::attr::list(attr) {
-                    format!("            {field}: vec![],")
+                    // Every list starts empty on a fresh record; one a creating command may leave
+                    // unset is held as an `Option`, and starts as an empty list that is there.
+                    if crate::shared::list_attr_creation_optional(
+                        aggregate,
+                        crate::attr::name(attr),
+                    ) {
+                        format!("            {field}: Some(vec![]),")
+                    } else {
+                        format!("            {field}: vec![],")
+                    }
+                } else if let Some(rhs) = mutations::materialized_identity_rhs(
+                    aggregate,
+                    attr,
+                    &identity,
+                    value_objects_by_name,
+                ) {
+                    format!("            {field}: Some({rhs}),")
                 } else {
                     crate::bridging::creation_default_rhs(attr, value_objects_by_name).map_or_else(
                         || format!("            {field}: None,"),
@@ -969,14 +1023,18 @@ pub fn emit_command(
         );
         // A `creates_or_acts` command acts on the record it finds and builds one only when
         // nothing answers to it, so it has no existence check to defer.
+        let checks: String = creation_checks
+            .iter()
+            .flat_map(|line| [line.as_str(), "\n"])
+            .collect();
         let create_block = if creates_or_acts(command) {
             format!(
-                "crate::kernel::Hydrate::CreateOrAct {{\n        id: __hydrate_id,\n        build: Box::new(|| {record} {{\n{}\n        }}),\n    }}",
+                "crate::kernel::Hydrate::CreateOrAct {{\n        id: __hydrate_id,\n        build: Box::new(|| {{\n{checks}        Ok({record} {{\n{}\n        }})\n        }}),\n    }}",
                 record_fields.join("\n")
             )
         } else {
             format!(
-                "crate::kernel::Hydrate::Create {{\n        id: __hydrate_id,\n        build: Box::new(|| {record} {{\n{}\n        }}),\n        state_independent: {state_independent},\n    }}",
+                "crate::kernel::Hydrate::Create {{\n        id: __hydrate_id,\n        build: Box::new(|| {{\n{checks}        Ok({record} {{\n{}\n        }})\n        }}),\n        state_independent: {state_independent},\n    }}",
                 record_fields.join("\n")
             )
         };
@@ -1683,7 +1741,7 @@ pub fn emit_nested_entity_command(
     let nested_dispatch_fn = format!(
         "pub fn {fn_name}(\n    \
             repo: &mut impl crate::kernel::Repository<{parent_record}>, parent_id: &str, hop1_id: &str, hop1_wants: &str,\n    \
-            hop2_id: &str, hop2_wants: &str, args: {args_struct_name}, mutations: &mut Vec<crate::kernel::MutationRecord>,\n    \
+            hop2_id: Option<&str>, hop2_wants: &str, args: {args_struct_name}, mutations: &mut Vec<crate::kernel::MutationRecord>,\n    \
             owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,\n\
         ) -> crate::kernel::DispatchResult<{parent_record}> {{\n\
         {invariant_checks}\n    \
@@ -1706,6 +1764,9 @@ pub fn emit_nested_entity_command(
                 &[],\n        \
                 None,\n        \
                 |nested_owner: &mut {entity_record}| {{\n            \
+                    let Some(hop2_id) = hop2_id else {{\n                \
+                        return Err(crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundEntityElementNoIdentityArgs {{ command: {qualified_command_name_inspect}, entity: {nested_name_inspect}, identity: {nested_identity_reading_inspect} }}.render_args()));\n            \
+                    }};\n            \
                     crate::kernel::apply_entity_command(\n                \
                         nested_owner,\n                \
                         hop1_id,\n                \

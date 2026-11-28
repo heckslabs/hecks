@@ -4,12 +4,22 @@
 Hecks.hecksagon "Harness" do
   attaches "Governance"
   persisted_by "Memory"
+  # The resident staff engineer's relays are recorded in StaffEngineer, on the one bus.
+  attaches "StaffEngineer"
 
   # The supervisor's sessions: a child started on a brief, and closed.
   Harness::Session.port "Sessions" do
     asks "OpenSession", to: Session do
       attribute :name,  SessionName
       attribute :brief, Brief
+      answers "SessionSpawned"
+      refuses "SessionNotSpawned"
+    end
+
+    # A stopped session's next child, started on the session as the ledger holds it: its brief, and
+    # the handover it left.
+    asks "ReopenSession", to: Session do
+      attribute :name, SessionName
       answers "SessionSpawned"
       refuses "SessionNotSpawned"
     end
@@ -28,13 +38,28 @@ Hecks.hecksagon "Harness" do
       attribute :sender,    Party
       attribute :addressee, Party
       attribute :text,      MessageText
+      attribute :about,     MessageKey, optional: true
       answers "DeliveryHanded"
       refuses "DeliveryRefused"
+    end
+
+    # A message delivered as the ledger holds it, once routing or handing on changed its addressee.
+    asks "DeliverRecorded", to: Message do
+      attribute :key, MessageKey
+      answers "DeliveryHanded"
+      refuses "RecordedDeliveryRefused"
     end
   end
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.
 Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
+
+# StaffEngineer, the context Harness attaches: the resident staff engineer's relays are recorded
+# there as its mail passes through. It persists in Memory, thrown away with the run.
+Hecks.hecksagon "StaffEngineer" do
+  attaches "Governance"
   persisted_by "Memory"
 end

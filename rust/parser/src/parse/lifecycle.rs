@@ -234,9 +234,18 @@ fn text_value(raw: &str) -> String {
     }
 }
 
-// Reads `from: "a"` as one state and `from: ["a", "b"]` as a list.
-fn from_values(raw: &str) -> Vec<String> {
+// Reads `from: "a"` as one state and `from: ["a", "b"]` or `from: %w[a b]` as a list.
+pub(super) fn from_values(raw: &str) -> Vec<String> {
     let trimmed = raw.trim();
+    if let Some(ruby_value::Value::Array(items)) = ruby_value::read_percent_array(trimmed) {
+        return items
+            .iter()
+            .map(|item| match item {
+                ruby_value::Value::Str(s) => s.clone(),
+                other => ruby_value::to_s(other),
+            })
+            .collect();
+    }
     if trimmed.starts_with('[') && trimmed.ends_with(']') {
         return ruby_value::split_items(&trimmed[1..trimmed.len() - 1])
             .into_iter()
@@ -244,4 +253,17 @@ fn from_values(raw: &str) -> Vec<String> {
             .collect();
     }
     vec![text_value(trimmed)]
+}
+
+#[cfg(test)]
+mod from_values_tests {
+    use super::from_values;
+
+    #[test]
+    fn reads_one_state_a_list_or_a_percent_array() {
+        assert_eq!(from_values("\"open\""), vec!["open"]);
+        assert_eq!(from_values("[\"open\", \"held\"]"), vec!["open", "held"]);
+        assert_eq!(from_values("%w[open held]"), vec!["open", "held"]);
+        assert_eq!(from_values("%i[open held]"), vec!["open", "held"]);
+    }
 }

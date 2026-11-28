@@ -24,6 +24,9 @@ module Hecks
     # The line a sentence-form bluebook opens with, after any blank or comment lines.
     DOMAIN_LINE = /\A\s*Domain:/
 
+    # The parser's flag for frozen era text, which keeps the spellings it was written in.
+    FROZEN = "--frozen".freeze
+
     # Raised when a file reaches outside the closed vocabulary; the message is the parser's
     # diagnostic, `path:line[:column]: why`.
     class Refused < StandardError; end
@@ -81,7 +84,8 @@ module Hecks
     end
 
     # The text the parser admits for `source`, read from the cache when this parser has admitted
-    # the same text under the same name before.
+    # the same text under the same name, in the same era, before. While the gem shadow-parses,
+    # `source` is read as frozen era text.
     #
     # @param source [String] a declaration file's text
     # @param label [String] the file's path, which a refusal names
@@ -99,12 +103,20 @@ module Hecks
     # @return [String] the admitted text, straight from the parser
     # @raise [Refused] if the parser refuses the text
     def run_parser(source, label)
-      out, err, status = Open3.capture3(Parser.binary, "closed", "--stdin", label, stdin_data: source)
+      out, err, status = Open3.capture3(Parser.binary, "closed", *era, "--stdin", label, stdin_data: source)
       raise Refused, err.force_encoding(Encoding::UTF_8).strip unless status.success?
 
       out.force_encoding(Encoding::UTF_8)
     end
     private_class_method :run_parser
+
+    # @return [Array<String>] the parser's `--frozen` flag while the gem shadow-parses frozen era
+    #   text, so a spelling it was written in (`process_manager`) is admitted; none for live source
+    def era
+      frozen = defined?(Hecks::Bluebook::MetaValidator) && Hecks::Bluebook::MetaValidator.shadow_parsing?
+      frozen ? [FROZEN] : []
+    end
+    private_class_method :era
 
     # Evaluates admitted text at the top level, under the file's own path and line numbers.
     #
@@ -138,9 +150,9 @@ module Hecks
     private_class_method :sentences?
 
     # @return [String] where the admitted text of `source` under `label` is kept, named by the
-    #   parser that admitted it, the label and the text
+    #   parser that admitted it, the era it was read in, the label and the text
     def cache_file(source, label)
-      key = Digest::SHA256.hexdigest([Parser.identity, label, source].join("\0"))
+      key = Digest::SHA256.hexdigest([Parser.identity, *era, label, source].join("\0"))
       File.join(CacheDir.path("closed_form"), key[0, 2], "#{key}.rb")
     end
     private_class_method :cache_file

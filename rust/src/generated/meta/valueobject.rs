@@ -576,7 +576,7 @@ impl ShapeField {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assertion {
-    pub description: Option<String>,
+    pub description: String,
     pub canonical: String,
 }
 
@@ -585,11 +585,7 @@ impl crate::kernel::Fielded for Assertion {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "description" => self
-                .description
-                .as_ref()
-                .map(|v| Field::Value(Value::Str(v.clone())))
-                .or(Some(Field::Value(Value::Nil))),
+            "description" => Some(Field::Value(Value::Str(self.description.clone()))),
             "canonical" => Some(Field::Value(Value::Str(self.canonical.clone()))),
             _ => None,
         }
@@ -610,18 +606,16 @@ impl crate::kernel::Fielded for Assertion {
 
 impl Assertion {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if let Some(__optional_value) = &self.description {
-            if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &__optional_value) {
-                return Err(crate::kernel::Refusal::TypeMismatch(
-                    crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
-                        r#type: "Assertion",
-                        field: "description",
-                        pattern: "[^ \\t\\n\\r]",
-                        offered: format!("{:?}", __optional_value).as_str(),
-                    }
-                    .render_args(),
-                ));
-            }
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.description) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "Assertion",
+                    field: "description",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.description).as_str(),
+                }
+                .render_args(),
+            ));
         }
         if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.canonical) {
             return Err(crate::kernel::Refusal::TypeMismatch(
@@ -699,11 +693,7 @@ impl Assertion {
         crate::kernel::Json::Object(vec![
             (
                 "description".to_string(),
-                self.description
-                    .as_ref()
-                    .map_or(crate::kernel::Json::Null, |v| {
-                        crate::kernel::Json::Str(v.clone())
-                    }),
+                crate::kernel::Json::Str(self.description.clone()),
             ),
             (
                 "canonical".to_string(),
@@ -734,14 +724,18 @@ impl Assertion {
             ));
         }
         Ok(Self {
-            description: match v.get("description") {
-                Some(crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
+            description: {
+                let x = v.get("description").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "Assertion.description expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "Assertion.description expects String, got {}",
                         x.describe()
                     ))
-                })?),
+                })?
             },
             canonical: {
                 let x = v.get("canonical").ok_or_else(|| {
@@ -2608,14 +2602,16 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ValueObject {
-                        aggregate: Some(args.aggregate.clone()),
-                        name: Some(args.name.clone()),
-                        attributes: vec![],
-                        invariants: vec![],
-                        rows: None,
-                        members: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(ValueObject {
+                            aggregate: Some(args.aggregate.clone()),
+                            name: Some(args.name.clone()),
+                            attributes: vec![],
+                            invariants: vec![],
+                            rows: None,
+                            members: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2624,14 +2620,16 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", args.aggregate, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ValueObject {
-                        aggregate: Some(args.aggregate.clone()),
-                        name: Some(args.name.clone()),
-                        attributes: vec![],
-                        invariants: vec![],
-                        rows: None,
-                        members: vec![],
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(ValueObject {
+                            aggregate: Some(args.aggregate.clone()),
+                            name: Some(args.name.clone()),
+                            attributes: vec![],
+                            invariants: vec![],
+                            rows: None,
+                            members: vec![],
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2884,7 +2882,9 @@ pub struct FieldArgs {
 
 pub fn dispatch_field(
     repo: &mut impl crate::kernel::Repository<ValueObject>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    aggregate: &str,
+    name: &str,
     args: FieldArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -2919,7 +2919,32 @@ pub fn dispatch_field(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", aggregate, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ValueObject {
+                            aggregate: Some(aggregate.to_string()),
+                            name: Some(args.name.clone()),
+                            attributes: vec![],
+                            invariants: vec![],
+                            rows: None,
+                            members: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Field",
         "Bluebook::ValueObject",
         "ValueObject",
@@ -3259,7 +3284,9 @@ pub struct CloseArgs {
 
 pub fn dispatch_close(
     repo: &mut impl crate::kernel::Repository<ValueObject>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    aggregate: &str,
+    name: &str,
     args: CloseArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3279,7 +3306,34 @@ pub fn dispatch_close(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", aggregate, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ValueObject {
+                            aggregate: Some(aggregate.to_string()),
+                            name: Some(ValueObjectName {
+                                value: name.to_string(),
+                            }),
+                            attributes: vec![],
+                            invariants: vec![],
+                            rows: args.rows.clone(),
+                            members: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Close",
         "Bluebook::ValueObject",
         "ValueObject",
@@ -3430,7 +3484,9 @@ pub struct AssertArgs {
 
 pub fn dispatch_assert(
     repo: &mut impl crate::kernel::Repository<ValueObject>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    aggregate: &str,
+    name: &str,
     args: AssertArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3451,7 +3507,34 @@ pub fn dispatch_assert(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", aggregate, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(ValueObject {
+                            aggregate: Some(aggregate.to_string()),
+                            name: Some(ValueObjectName {
+                                value: name.to_string(),
+                            }),
+                            attributes: vec![],
+                            invariants: vec![],
+                            rows: None,
+                            members: vec![],
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Assert",
         "Bluebook::ValueObject",
         "ValueObject",
@@ -3476,7 +3559,21 @@ pub fn dispatch_assert(
         None,
         |record| {
             record.invariants.push(Assertion {
-                description: args.description.clone().map(|v| v.value.clone()),
+                description: args
+                    .description
+                    .clone()
+                    .map(|v| v.value.clone())
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                                r#type: "Assertion",
+                                field: "description",
+                                expected: "String",
+                                offered: "nil",
+                            }
+                            .render_args(),
+                        )
+                    })?,
                 canonical: args.canonical.value.clone(),
             });
             Ok(())
@@ -3654,7 +3751,9 @@ pub struct MemberArgs {
 
 pub fn dispatch_member(
     repo: &mut impl crate::kernel::Repository<ValueObject>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    aggregate: &str,
+    name: &str,
     args: MemberArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3672,7 +3771,38 @@ pub fn dispatch_member(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", aggregate, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_position = Position {
+                            value: args.position.value.clone(),
+                        };
+                        __created_position.check_invariants()?;
+                        Ok(ValueObject {
+                            aggregate: Some(aggregate.to_string()),
+                            name: Some(ValueObjectName {
+                                value: name.to_string(),
+                            }),
+                            attributes: vec![],
+                            invariants: vec![],
+                            rows: None,
+                            members: vec![],
+                            position: Some(__created_position),
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Member",
         "Bluebook::ValueObject",
         "ValueObject",

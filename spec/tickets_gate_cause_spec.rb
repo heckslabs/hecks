@@ -13,7 +13,7 @@ module GateCauseHelpers
 
   # @return [Array<Hash>] the undone work items of the key
   def undone(key)
-    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[tickets query work.undone])
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: %w[tickets work.undone])
     JSON.parse(out).select { |row| row["work"] == key }
   end
 end

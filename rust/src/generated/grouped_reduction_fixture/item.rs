@@ -795,13 +795,15 @@ pub fn dispatch_shelve(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Item {
-                        sku: Some(args.sku.clone()),
-                        aisle: Some(args.aisle.clone()),
-                        bay: Some(args.bay.clone()),
-                        units: Some(args.units.clone()),
-                        weight: Some(args.weight.clone()),
-                        fragile: Some(args.fragile.clone()),
+                    build: Box::new(|| {
+                        Ok(Item {
+                            sku: Some(args.sku.clone()),
+                            aisle: Some(args.aisle.clone()),
+                            bay: Some(args.bay.clone()),
+                            units: Some(args.units.clone()),
+                            weight: Some(args.weight.clone()),
+                            fragile: Some(args.fragile.clone()),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -810,13 +812,15 @@ pub fn dispatch_shelve(
                 let __hydrate_id: String = args.sku.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Item {
-                        sku: Some(args.sku.clone()),
-                        aisle: Some(args.aisle.clone()),
-                        bay: Some(args.bay.clone()),
-                        units: Some(args.units.clone()),
-                        weight: Some(args.weight.clone()),
-                        fragile: Some(args.fragile.clone()),
+                    build: Box::new(|| {
+                        Ok(Item {
+                            sku: Some(args.sku.clone()),
+                            aisle: Some(args.aisle.clone()),
+                            bay: Some(args.bay.clone()),
+                            units: Some(args.units.clone()),
+                            weight: Some(args.weight.clone()),
+                            fragile: Some(args.fragile.clone()),
+                        })
                     }),
                     state_independent: true,
                 }

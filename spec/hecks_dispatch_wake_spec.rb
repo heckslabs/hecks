@@ -67,7 +67,7 @@ RSpec.describe "waking the queue on the clock" do
 
   describe "the adapter's answer" do
     # The cap is full, so a beat after the retry was heard has no free slot to wake for.
-    let(:items) { instance_double(dispatching::WorkItems, rollable: [parked("due", now - 5)], started: []) }
+    let(:items) { instance_double(dispatching::WorkItems, rollable: [parked("due", now - 5)], started: [], runs: {}) }
     let(:adapter) do
       dispatching.new(registry: registry_of([]),
                       settings: { work_items: items, now: -> { now }, load: -> { 0.5 }, cpus: 4, cap: 0 })

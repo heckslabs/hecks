@@ -1,10 +1,8 @@
-# The Governance framework bluebook's own connection. Since 2.0.0 the ledger's
-# context_map.hecksagon binds Governance's aggregates to PostgresEra, and boot
-# reads a world named Governance (not the consuming domain's) for the database.
-# It is the same database quality_control.world names, so one ledger holds both, and it is disposable
-# the same way (see quality_control.world).
+# Governance's own connection: context_map.hecksagon binds its aggregates to Postgres (revisions),
+# and boot reads this world, named Governance, for the database. It is quality_control.world's
+# database, so one ledger holds both, disposable the same way.
 Hecks.world "Governance" do
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
     disposable_ledger true
   end

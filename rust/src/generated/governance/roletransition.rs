@@ -460,11 +460,13 @@ pub fn dispatch_grant(
                 );
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| RoleTransition {
-                        from_role: Some(args.from_role.clone()),
-                        to_role: Some(args.to_role.clone()),
-                        starts_at: Some(args.starts_at.clone()),
-                        ends_at: None,
+                    build: Box::new(|| {
+                        Ok(RoleTransition {
+                            from_role: Some(args.from_role.clone()),
+                            to_role: Some(args.to_role.clone()),
+                            starts_at: Some(args.starts_at.clone()),
+                            ends_at: None,
+                        })
                     }),
                     state_independent: false,
                 }

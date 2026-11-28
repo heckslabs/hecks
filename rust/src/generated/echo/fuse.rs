@@ -265,9 +265,11 @@ pub fn dispatch_lay(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Fuse {
-                        name: Some(args.name.clone()),
-                        status: "laid".to_string(),
+                    build: Box::new(|| {
+                        Ok(Fuse {
+                            name: Some(args.name.clone()),
+                            status: "laid".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

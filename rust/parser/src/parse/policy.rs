@@ -47,7 +47,7 @@ pub fn parse_body(
                     1,
                 )?);
                 // Shares `dispatch`'s `with:` parser so the two cannot drift.
-                policy.with_spec = super::process_manager::parse_with_pairs_opt(&gated.args);
+                policy.with_spec = super::saga::parse_with_pairs_opt(&gated.args);
             }
             // Same `with:` projection as `trigger`; which port answers is the hecksagon's to say.
             "ask" => {
@@ -58,7 +58,7 @@ pub fn parse_body(
                     &gated.args,
                     1,
                 )?);
-                policy.with_spec = super::process_manager::parse_with_pairs_opt(&gated.args);
+                policy.with_spec = super::saga::parse_with_pairs_opt(&gated.args);
             }
             "across" => {
                 policy.target_domain = Some(super::positional_text(

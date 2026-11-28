@@ -1,4 +1,4 @@
-//! A process manager in sentences: what it follows, when it starts and ends, and each step it takes
+//! A saga in sentences: what it follows, when it starts and ends, and each step it takes
 //! when an event is announced, with the commands it tells aggregates to run and what undoes them.
 //!
 //! ```text
@@ -22,7 +22,7 @@ use crate::diag::ParseResult;
 use crate::ir;
 
 impl Parser<'_> {
-    /// Reads one `Process:` block into the process manager it describes.
+    /// Reads one `Process:` block into the saga it describes.
     pub(super) fn process(&mut self, header: &Matched) -> ParseResult<ir::Saga> {
         let mut pm = ir::Saga {
             name: camel(&header.text_of("name")),
@@ -69,7 +69,7 @@ impl Parser<'_> {
                 "a process says what it is matched up by, like `It is matched up by reference.value`",
             ));
         }
-        pm.states = crate::parse::process_manager::derived_states(&pm.handlers);
+        pm.states = crate::parse::saga::derived_states(&pm.handlers);
         Ok(pm)
     }
 
@@ -120,7 +120,7 @@ impl Parser<'_> {
     }
 }
 
-/// A process manager as a `Process:` block, or the name of what in it the sentence form cannot say.
+/// A saga as a `Process:` block, or the name of what in it the sentence form cannot say.
 pub(super) fn said(pm: &ir::Saga) -> Result<String, String> {
     let refused = |what: &str| {
         format!(
@@ -128,7 +128,7 @@ pub(super) fn said(pm: &ir::Saga) -> Result<String, String> {
             pm.name
         )
     };
-    if pm.states != crate::parse::process_manager::derived_states(&pm.handlers) {
+    if pm.states != crate::parse::saga::derived_states(&pm.handlers) {
         return Err(refused("states that are not the ones its steps name"));
     }
     if !pm

@@ -1,0 +1,7 @@
+{"note":"Miette, played from a tape: in a real run she is her own system, reached the same way. She answers the staff engineer about the question it carried."}
+{"expect":"user","contains":"You are Miette"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-miette","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Here when the staff engineer asks."}}
+{"expect":"user","contains":"from staff-engineer, about coder-1"}
+{"emit":{"type":"control_request","request_id":"m-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"staff-engineer","text":"Keep it. The run names who asked, and a question the scrum master passes on is still that run's question.","about":"coder-1"}}}}},"after_ms":40,"answered":"success","reply_contains":"Sent to staff-engineer"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Answered the coder's question."}}

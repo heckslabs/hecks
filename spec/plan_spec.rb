@@ -16,25 +16,25 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
     end
 
     PLAN_CATEGORY_PARENTS = {
-      "Bluebook"       => nil,
-      "Aggregate"      => "Bluebook",
-      "Command"        => "Aggregate",
-      "ValueObject"    => "Aggregate",
-      "Query"          => "Aggregate",
-      "Entity"         => "Aggregate",
-      "Member"         => "ValueObject",
-      "Policy"         => "Bluebook",
-      "ProcessManager" => "Bluebook",
-      "Handler"        => "ProcessManager",
-      "Dispatch"       => "Handler",
-      "ReadModel"      => "Bluebook",
+      "Bluebook"    => nil,
+      "Aggregate"   => "Bluebook",
+      "Command"     => "Aggregate",
+      "ValueObject" => "Aggregate",
+      "Query"       => "Aggregate",
+      "Entity"      => "Aggregate",
+      "Member"      => "ValueObject",
+      "Policy"      => "Bluebook",
+      "Saga"        => "Bluebook",
+      "Handler"     => "Saga",
+      "Dispatch"    => "Handler",
+      "ReadModel"   => "Bluebook",
       # S14, ADR 0026 — Syntax now declares real commands
       # (Declare/Keyword/Argument), so `Plan` finds it (and its own
       # entities, Keyword/Argument) the same way it finds every other
       # real aggregate.
-      "Syntax"         => "Bluebook",
-      "Keyword"        => "Syntax",
-      "Argument"       => "Syntax"
+      "Syntax"      => "Bluebook",
+      "Keyword"     => "Syntax",
+      "Argument"    => "Syntax"
     }.freeze
 
     it "reads each category's parent off the creating command's reference" do

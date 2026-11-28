@@ -62,7 +62,7 @@
     "generated": true
   },
   {
-    "kind": "process_manager",
+    "kind": "saga",
     "id": "Waybill::Packing",
     "generated": true,
     "routed": true

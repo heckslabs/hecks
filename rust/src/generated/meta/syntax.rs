@@ -128,7 +128,7 @@ pub enum Context {
     Oneof,
     Lifecycle,
     Policy,
-    Processmanager,
+    Saga,
     Handler,
     Dispatch,
     Readmodel,
@@ -160,7 +160,7 @@ impl crate::kernel::Fielded for Context {
                 Self::Oneof => "OneOf".to_string(),
                 Self::Lifecycle => "Lifecycle".to_string(),
                 Self::Policy => "Policy".to_string(),
-                Self::Processmanager => "ProcessManager".to_string(),
+                Self::Saga => "Saga".to_string(),
                 Self::Handler => "Handler".to_string(),
                 Self::Dispatch => "Dispatch".to_string(),
                 Self::Readmodel => "ReadModel".to_string(),
@@ -200,7 +200,7 @@ impl Context {
             Self::Oneof => "OneOf",
             Self::Lifecycle => "Lifecycle",
             Self::Policy => "Policy",
-            Self::Processmanager => "ProcessManager",
+            Self::Saga => "Saga",
             Self::Handler => "Handler",
             Self::Dispatch => "Dispatch",
             Self::Readmodel => "ReadModel",
@@ -286,7 +286,7 @@ impl Context {
             "OneOf" => Ok(Self::Oneof),
             "Lifecycle" => Ok(Self::Lifecycle),
             "Policy" => Ok(Self::Policy),
-            "ProcessManager" => Ok(Self::Processmanager),
+            "Saga" => Ok(Self::Saga),
             "Handler" => Ok(Self::Handler),
             "Dispatch" => Ok(Self::Dispatch),
             "ReadModel" => Ok(Self::Readmodel),
@@ -315,7 +315,7 @@ impl Context {
                         "OneOf",
                         "Lifecycle",
                         "Policy",
-                        "ProcessManager",
+                        "Saga",
                         "Handler",
                         "Dispatch",
                         "ReadModel",
@@ -2682,11 +2682,13 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Syntax {
-                        bluebook: Some(args.bluebook.value.clone()),
-                        name: Some(args.name.clone()),
-                        keywords: vec![],
-                        arguments: vec![],
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: Some(args.bluebook.value.clone()),
+                            name: Some(args.name.clone()),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2695,11 +2697,13 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = args.name.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Syntax {
-                        bluebook: Some(args.bluebook.value.clone()),
-                        name: Some(args.name.clone()),
-                        keywords: vec![],
-                        arguments: vec![],
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: Some(args.bluebook.value.clone()),
+                            name: Some(args.name.clone()),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
                     }),
                     state_independent: true,
                 }
@@ -2923,7 +2927,8 @@ pub struct KeywordArgs {
 
 pub fn dispatch_keyword(
     repo: &mut impl crate::kernel::Repository<Syntax>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: KeywordArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -2943,7 +2948,7 @@ pub fn dispatch_keyword(
         "OneOf",
         "Lifecycle",
         "Policy",
-        "ProcessManager",
+        "Saga",
         "Handler",
         "Dispatch",
         "ReadModel",
@@ -2976,7 +2981,7 @@ pub fn dispatch_keyword(
                     "OneOf",
                     "Lifecycle",
                     "Policy",
-                    "ProcessManager",
+                    "Saga",
                     "Handler",
                     "Dispatch",
                     "ReadModel",
@@ -3062,7 +3067,31 @@ pub fn dispatch_keyword(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: None,
+                            name: Some(SyntaxName {
+                                value: name.to_string(),
+                            }),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Keyword",
         "Bluebook::Syntax",
         "Syntax",
@@ -3278,7 +3307,7 @@ impl KeywordArgs {
             "OneOf",
             "Lifecycle",
             "Policy",
-            "ProcessManager",
+            "Saga",
             "Handler",
             "Dispatch",
             "ReadModel",
@@ -3311,7 +3340,7 @@ impl KeywordArgs {
                         "OneOf",
                         "Lifecycle",
                         "Policy",
-                        "ProcessManager",
+                        "Saga",
                         "Handler",
                         "Dispatch",
                         "ReadModel",
@@ -3656,7 +3685,8 @@ pub struct ArgumentArgs {
 
 pub fn dispatch_argument(
     repo: &mut impl crate::kernel::Repository<Syntax>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    name: &str,
     args: ArgumentArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -3676,7 +3706,7 @@ pub fn dispatch_argument(
         "OneOf",
         "Lifecycle",
         "Policy",
-        "ProcessManager",
+        "Saga",
         "Handler",
         "Dispatch",
         "ReadModel",
@@ -3709,7 +3739,7 @@ pub fn dispatch_argument(
                     "OneOf",
                     "Lifecycle",
                     "Policy",
-                    "ProcessManager",
+                    "Saga",
                     "Handler",
                     "Dispatch",
                     "ReadModel",
@@ -3791,7 +3821,31 @@ pub fn dispatch_argument(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = name.to_string();
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Syntax {
+                            bluebook: None,
+                            name: Some(SyntaxName {
+                                value: name.to_string(),
+                            }),
+                            keywords: vec![],
+                            arguments: vec![],
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Argument",
         "Bluebook::Syntax",
         "Syntax",
@@ -4062,7 +4116,7 @@ impl ArgumentArgs {
             "OneOf",
             "Lifecycle",
             "Policy",
-            "ProcessManager",
+            "Saga",
             "Handler",
             "Dispatch",
             "ReadModel",
@@ -4095,7 +4149,7 @@ impl ArgumentArgs {
                         "OneOf",
                         "Lifecycle",
                         "Policy",
-                        "ProcessManager",
+                        "Saga",
                         "Handler",
                         "Dispatch",
                         "ReadModel",

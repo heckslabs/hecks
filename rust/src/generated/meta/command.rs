@@ -957,7 +957,7 @@ impl Argument {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rule {
-    pub description: Option<String>,
+    pub description: String,
     pub canonical: String,
 }
 
@@ -966,11 +966,7 @@ impl crate::kernel::Fielded for Rule {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "description" => self
-                .description
-                .as_ref()
-                .map(|v| Field::Value(Value::Str(v.clone())))
-                .or(Some(Field::Value(Value::Nil))),
+            "description" => Some(Field::Value(Value::Str(self.description.clone()))),
             "canonical" => Some(Field::Value(Value::Str(self.canonical.clone()))),
             _ => None,
         }
@@ -1000,11 +996,7 @@ impl Rule {
         crate::kernel::Json::Object(vec![
             (
                 "description".to_string(),
-                self.description
-                    .as_ref()
-                    .map_or(crate::kernel::Json::Null, |v| {
-                        crate::kernel::Json::Str(v.clone())
-                    }),
+                crate::kernel::Json::Str(self.description.clone()),
             ),
             (
                 "canonical".to_string(),
@@ -1035,14 +1027,18 @@ impl Rule {
             ));
         }
         Ok(Self {
-            description: match v.get("description") {
-                Some(crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
+            description: {
+                let x = v.get("description").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "Rule.description expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
                         "Rule.description expects String, got {}",
                         x.describe()
                     ))
-                })?),
+                })?
             },
             canonical: {
                 let x = v.get("canonical").ok_or_else(|| {
@@ -4218,28 +4214,30 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Command {
-                        aggregate: Some(args.aggregate.clone()),
-                        entity_id: args.entity_id.clone(),
-                        name: Some(args.name.clone()),
-                        role: args.role.clone(),
-                        roles: vec![],
-                        audience: vec![],
-                        goal: args.goal.clone(),
-                        emits: vec![],
-                        references: None,
-                        attributes: vec![],
-                        givens: vec![],
-                        ensures: vec![],
-                        needs: vec![],
-                        mutations: vec![],
-                        provenance: args.provenance.clone(),
-                        idempotent: args.idempotent.clone(),
-                        mints_era: args.mints_era.clone(),
-                        policy_only: args.policy_only.clone(),
-                        creates_or_acts: args.creates_or_acts.clone(),
-                        from: args.from.clone(),
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: Some(args.aggregate.clone()),
+                            entity_id: args.entity_id.clone(),
+                            name: Some(args.name.clone()),
+                            role: args.role.clone(),
+                            roles: vec![],
+                            audience: vec![],
+                            goal: args.goal.clone(),
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: args.provenance.clone(),
+                            idempotent: args.idempotent.clone(),
+                            mints_era: args.mints_era.clone(),
+                            policy_only: args.policy_only.clone(),
+                            creates_or_acts: args.creates_or_acts.clone(),
+                            from: args.from.clone(),
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -4248,28 +4246,30 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", owner_id, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Command {
-                        aggregate: Some(args.aggregate.clone()),
-                        entity_id: args.entity_id.clone(),
-                        name: Some(args.name.clone()),
-                        role: args.role.clone(),
-                        roles: vec![],
-                        audience: vec![],
-                        goal: args.goal.clone(),
-                        emits: vec![],
-                        references: None,
-                        attributes: vec![],
-                        givens: vec![],
-                        ensures: vec![],
-                        needs: vec![],
-                        mutations: vec![],
-                        provenance: args.provenance.clone(),
-                        idempotent: args.idempotent.clone(),
-                        mints_era: args.mints_era.clone(),
-                        policy_only: args.policy_only.clone(),
-                        creates_or_acts: args.creates_or_acts.clone(),
-                        from: args.from.clone(),
-                        position: args.position.clone(),
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: Some(args.aggregate.clone()),
+                            entity_id: args.entity_id.clone(),
+                            name: Some(args.name.clone()),
+                            role: args.role.clone(),
+                            roles: vec![],
+                            audience: vec![],
+                            goal: args.goal.clone(),
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: args.provenance.clone(),
+                            idempotent: args.idempotent.clone(),
+                            mints_era: args.mints_era.clone(),
+                            policy_only: args.policy_only.clone(),
+                            creates_or_acts: args.creates_or_acts.clone(),
+                            from: args.from.clone(),
+                            position: args.position.clone(),
+                        })
                     }),
                     state_independent: true,
                 }
@@ -4752,7 +4752,9 @@ pub struct ArgumentArgs {
 
 pub fn dispatch_argument(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: ArgumentArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -4787,7 +4789,50 @@ pub fn dispatch_argument(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = CommandName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(__created_name),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Argument",
         "Bluebook::Command",
         "Command",
@@ -5157,7 +5202,9 @@ pub struct ReferenceArgs {
 
 pub fn dispatch_reference(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: ReferenceArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -5191,7 +5238,50 @@ pub fn dispatch_reference(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        let __created_name = CommandName {
+                            value: args.name.value.clone(),
+                        };
+                        __created_name.check_invariants()?;
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(__created_name),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Reference",
         "Bluebook::Command",
         "Command",
@@ -5546,7 +5636,9 @@ pub struct RuleArgs {
 
 pub fn dispatch_rule(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: RuleArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -5567,7 +5659,48 @@ pub fn dispatch_rule(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Rule",
         "Bluebook::Command",
         "Command",
@@ -5592,7 +5725,21 @@ pub fn dispatch_rule(
         None,
         |record| {
             record.givens.push(Rule {
-                description: args.description.clone().map(|v| v.value.clone()),
+                description: args
+                    .description
+                    .clone()
+                    .map(|v| v.value.clone())
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                                r#type: "Rule",
+                                field: "description",
+                                expected: "String",
+                                offered: "nil",
+                            }
+                            .render_args(),
+                        )
+                    })?,
                 canonical: args.canonical.value.clone(),
             });
             Ok(())
@@ -5776,7 +5923,9 @@ pub struct EnsureArgs {
 
 pub fn dispatch_ensure(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: EnsureArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -5797,7 +5946,48 @@ pub fn dispatch_ensure(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Ensure",
         "Bluebook::Command",
         "Command",
@@ -5822,7 +6012,21 @@ pub fn dispatch_ensure(
         None,
         |record| {
             record.ensures.push(Rule {
-                description: args.description.clone().map(|v| v.value.clone()),
+                description: args
+                    .description
+                    .clone()
+                    .map(|v| v.value.clone())
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            crate::kernel::refusal_wording::TypeMismatchNumericFieldArgs {
+                                r#type: "Rule",
+                                field: "description",
+                                expected: "String",
+                                offered: "nil",
+                            }
+                            .render_args(),
+                        )
+                    })?,
                 canonical: args.canonical.value.clone(),
             });
             Ok(())
@@ -6014,7 +6218,9 @@ pub struct ChangeArgs {
 
 pub fn dispatch_change(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: ChangeArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6072,7 +6278,48 @@ pub fn dispatch_change(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Change",
         "Bluebook::Command",
         "Command",
@@ -6372,7 +6619,9 @@ pub struct ActsOnArgs {
 
 pub fn dispatch_acts_on(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: ActsOnArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6390,7 +6639,48 @@ pub fn dispatch_acts_on(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "ActsOn",
         "Bluebook::Command",
         "Command",
@@ -6572,7 +6862,9 @@ pub struct AnnounceArgs {
 
 pub fn dispatch_announce(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: AnnounceArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6590,7 +6882,48 @@ pub fn dispatch_announce(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Announce",
         "Bluebook::Command",
         "Command",
@@ -6765,7 +7098,9 @@ pub struct AllowArgs {
 
 pub fn dispatch_allow(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: AllowArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6783,7 +7118,48 @@ pub fn dispatch_allow(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Allow",
         "Bluebook::Command",
         "Command",
@@ -6958,7 +7334,9 @@ pub struct AddressArgs {
 
 pub fn dispatch_address(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: AddressArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -6976,7 +7354,48 @@ pub fn dispatch_address(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Address",
         "Bluebook::Command",
         "Command",
@@ -7151,7 +7570,9 @@ pub struct NeedArgs {
 
 pub fn dispatch_need(
     repo: &mut impl crate::kernel::Repository<Command>,
-    id: &str,
+    route: Option<&crate::kernel::RoutingEnvelope>,
+    owner_id: &str,
+    name: &str,
     args: NeedArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
@@ -7169,7 +7590,48 @@ pub fn dispatch_need(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Act { id: id.to_string() },
+        match route {
+            Some(__route) => {
+                __route.require_depth(0)?;
+                crate::kernel::Hydrate::Act {
+                    id: __route.aggregate().to_string(),
+                }
+            }
+            None => {
+                let __hydrate_id: String = format!("{}:{}", owner_id, name);
+                crate::kernel::Hydrate::Create {
+                    id: __hydrate_id,
+                    build: Box::new(|| {
+                        Ok(Command {
+                            aggregate: None,
+                            entity_id: None,
+                            name: Some(CommandName {
+                                value: name.to_string(),
+                            }),
+                            role: None,
+                            roles: vec![],
+                            audience: vec![],
+                            goal: None,
+                            emits: vec![],
+                            references: None,
+                            attributes: vec![],
+                            givens: vec![],
+                            ensures: vec![],
+                            needs: vec![],
+                            mutations: vec![],
+                            provenance: None,
+                            idempotent: None,
+                            mints_era: None,
+                            policy_only: None,
+                            creates_or_acts: None,
+                            from: None,
+                            position: None,
+                        })
+                    }),
+                    state_independent: false,
+                }
+            }
+        },
         "Need",
         "Bluebook::Command",
         "Command",

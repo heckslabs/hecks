@@ -158,7 +158,7 @@ RSpec.describe "the stdio MCP servers" do
     FileUtils.cp_r(File.join(root, "examples/pizzas/bluebook"), target)
     FileUtils.rm_f(File.join(target, "pizzas.world"))
     hecksagon = File.join(target, "pizzas.hecksagon")
-    File.write(hecksagon, File.read(hecksagon).gsub('persisted_by("PostgresEra")', 'persisted_by("Memory")'))
+    File.write(hecksagon, File.read(hecksagon).gsub('persisted_by("Postgres")', 'persisted_by("Memory")'))
     "pizzas"
   end
 

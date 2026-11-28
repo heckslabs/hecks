@@ -75,7 +75,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecks::Runtime::WiringError, %r{cannot bind PostgresEra at postgres://localhost:1/nowhere for Order})
+      .to raise_error(Hecks::Runtime::WiringError, %r{cannot bind Postgres at postgres://localhost:1/nowhere for Order})
   end
 
   # The factory merges `era: nil` for a domain the boot gate has not resolved; `setting` must

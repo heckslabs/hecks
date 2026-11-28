@@ -1,7 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 
-# A process manager is checkpointed with the records that start it when the hecksagon binds that
+# A saga is checkpointed with the records that start it when the hecksagon binds that
 # aggregate on its own: the domain stays in Memory, the Wire aggregate (whose Ask starts Carry)
 # is bound to SqlitePersistence in a temporary database, and a stuck Carry survives a restart.
 RSpec.describe "a saga checkpointed with the aggregate that starts it" do
@@ -59,7 +59,7 @@ RSpec.describe "a saga checkpointed with the aggregate that starts it" do
     expect(boot.registry.saga_instances["Carry"]["wire-1"]).to include(state: "returned")
   end
 
-  it "warns of no lost saga when every process manager has a store" do
+  it "warns of no lost saga when every saga has a store" do
     expect { boot.registry.verify! }.not_to output(/LOST on restart/).to_stderr
   end
 end

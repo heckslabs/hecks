@@ -24,7 +24,7 @@ module McpRunHelper
     target = File.join(sandbox, "pizzas")
     FileUtils.cp_r(File.join(repo_root, "examples/pizzas/bluebook"), target)
     FileUtils.rm_f(File.join(target, "pizzas.world"))
-    rewrite(File.join(target, "pizzas.hecksagon")) { |text| text.gsub('persisted_by("PostgresEra")', 'persisted_by("Memory")') }
+    rewrite(File.join(target, "pizzas.hecksagon")) { |text| text.gsub('persisted_by("Postgres")', 'persisted_by("Memory")') }
     rewrite(File.join(target, "pizzas.bluebook")) { |text| text.sub(/^    command "CreatePizza" do\n/, DISCARD_MENU) }
   end
 

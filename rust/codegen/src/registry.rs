@@ -43,6 +43,10 @@ pub struct CommandEntry {
     pub args_struct: String,
     pub creates: bool,
     pub identity_extra_params: Vec<String>,
+    /// The whole identity path each of `identity_extra_params` is read at, in the same order.
+    pub identity_extra_paths: Vec<String>,
+    /// The aggregate's identity paths as a refusal quotes them (`Identity.reading`).
+    pub identity_reading: String,
     pub reference_checks: Vec<ReferenceCheck>,
     /// Write-side tenant boundary checks run before dispatch.
     pub tenant_boundary_checks: Vec<TenantBoundaryCheck>,
@@ -96,7 +100,6 @@ pub struct NestedEntityCommandEntry {
     pub entity_name: String,
     pub entity_identity_reading: String,
     pub nested_name: String,
-    pub nested_identity_reading: String,
     /// Whether the router gets a flat-args (`None`) fallback for this command; true only when both
     /// hops' identity is `extract_id`-supported.
     pub unrouted_supported: bool,
@@ -454,15 +457,19 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .iter()
                 .map(|n| naming::rust_ident_field(n))
                 .collect();
-            let extra_lines: Vec<String> = extra_names
+            // An absent, null or blank part names nothing, so the command refuses as Ruby's
+            // `creating_no_identity` does; a dotted path reads the scalar inside its value object.
+            let extra_lines: Vec<String> = c
+                .identity_extra_paths
                 .iter()
                 .zip(extra_idents.iter())
-                .map(|(name, ident)| {
-                    let msg = format!("{} creates a {} — pass {name}", c.verb, a.record);
+                .map(|(path, ident)| {
                     format!(
-                        "let {ident} = facts_json.dig({}).ok_or_else(|| crate::kernel::Refusal::NotFound({}.to_string()))?.to_id_component()?;",
-                        naming::ruby_inspect_string(name),
-                        naming::ruby_inspect_string(&msg)
+                        "let {ident} = crate::kernel::creation_identity_part(facts_json, {}, {}, {}, {})?;",
+                        naming::ruby_inspect_string(path),
+                        naming::ruby_inspect_string(&c.name),
+                        naming::ruby_inspect_string(&a.record),
+                        naming::ruby_inspect_string(&c.identity_reading)
                     )
                 })
                 .collect();
@@ -696,7 +703,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 )
             );
             let dispatch_call = format!(
-                "{mod_path}::dispatch_entity_{}(&mut store.{}, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))",
+                "{mod_path}::dispatch_entity_{}(&mut store.{}, &parent_id, &hop1_id, &hop1_wants, hop2_id.as_deref(), &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))",
                 c.fn_name, a.module_name
             );
 
@@ -714,22 +721,23 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "{} acts on one {} — pass {}:",
                 c.name, c.entity_name, c.entity_identity_reading
             );
-            let hop2_no_identity_message = format!(
-                "{} acts on one {} — pass {}:",
-                c.name, c.nested_name, c.nested_identity_reading
-            );
-            // Both hops resolve through `extract_id_lenient`; `parent_id` stays strict.
+            // Both hops resolve through `extract_id_lenient`; `parent_id` stays strict. Ruby hydrates
+            // the parent before it locates either hop, so a first hop the arguments do not name
+            // refuses as the missing parent when there is none, and a second hop they do not name
+            // is refused inside the dispatch, once the first hop's element is found.
             let route_binding = if c.unrouted_supported {
                 format!(
-                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
+                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, Some(hop2_id.clone()), hop2_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| {{ if store.{module}.find(&parent_id).is_none() {{ crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs {{ aggregate: {record_name}, identity: {identity_reading}, offered: &format!(\"{{parent_id:?}}\") }}.render_args()) }} else {{ crate::kernel::Refusal::NotFound({}.to_string()) }} }})?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id_lenient(facts_json).ok(); let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
                     a.record,
                     naming::ruby_inspect_string(&entity_parent_no_identity_message),
                     c.entity_record,
                     naming::ruby_inspect_string(&hop1_no_identity_message),
                     c.entity_record,
                     c.nested_record,
-                    naming::ruby_inspect_string(&hop2_no_identity_message),
-                    c.nested_record
+                    c.nested_record,
+                    module = a.module_name,
+                    record_name = naming::ruby_inspect_string(&a.record),
+                    identity_reading = naming::ruby_inspect_string(&a.identified_by.join(", ")),
                 )
             } else {
                 let route_error = format!(
@@ -737,7 +745,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     c.verb
                 );
                 format!(
-                    "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch({}.to_string()))?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();",
+                    "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch({}.to_string()))?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone(); let hop2_id = Some(hop2_id);",
                     naming::ruby_inspect_string(&route_error)
                 )
             };
@@ -930,6 +938,8 @@ mod tests {
                         "branch_code".to_string(),
                         "box_number".to_string(),
                     ],
+                    identity_extra_paths: vec!["branch_code".to_string(), "box_number".to_string()],
+                    identity_reading: "branch_code, box_number".to_string(),
                     reference_checks: Vec::new(),
                     tenant_boundary_checks: Vec::new(),
                     reference_specs: Vec::new(),
@@ -945,6 +955,8 @@ mod tests {
                     args_struct: "CloseArgs".to_string(),
                     creates: false,
                     identity_extra_params: Vec::new(),
+                    identity_extra_paths: Vec::new(),
+                    identity_reading: String::new(),
                     reference_checks: Vec::new(),
                     tenant_boundary_checks: Vec::new(),
                     reference_specs: Vec::new(),
@@ -988,8 +1000,14 @@ mod tests {
         let generated = emit_registry(&Exemplar::load(), &[aggregate]);
 
         assert!(generated.contains("CommandInvocation::from_json(args_json)?"));
-        assert!(generated.contains("let branch_code = facts_json.dig(\"branch_code\")"));
-        assert!(generated.contains("let box_number = facts_json.dig(\"box_number\")"));
+        // An identity part the command does not declare is read whole from its facts and refuses
+        // with Ruby's `creating_no_identity` wording, quoting every identity path.
+        assert!(generated.contains(
+            "let branch_code = crate::kernel::creation_identity_part(facts_json, \"branch_code\", \"Rent\", \"SafeDepositBox\", \"branch_code, box_number\")?;"
+        ));
+        assert!(generated.contains(
+            "let box_number = crate::kernel::creation_identity_part(facts_json, \"box_number\", \"Rent\", \"SafeDepositBox\", \"branch_code, box_number\")?;"
+        ));
         // `from_json` is reached through the `normalize_args` hook; route depth leads the body and
         // identity resolves after every gate.
         assert!(generated.contains(
@@ -1032,6 +1050,8 @@ mod tests {
                 args_struct: "PrioritizeArgs".to_string(),
                 creates: false,
                 identity_extra_params: Vec::new(),
+                identity_extra_paths: Vec::new(),
+                identity_reading: String::new(),
                 reference_checks: Vec::new(),
                 tenant_boundary_checks: Vec::new(),
                 reference_specs: Vec::new(),
@@ -1072,6 +1092,8 @@ mod tests {
                 args_struct: "CloseArgs".to_string(),
                 creates: false,
                 identity_extra_params: Vec::new(),
+                identity_extra_paths: Vec::new(),
+                identity_reading: String::new(),
                 reference_checks: Vec::new(),
                 tenant_boundary_checks: Vec::new(),
                 reference_specs: Vec::new(),
@@ -1101,5 +1123,50 @@ mod tests {
         assert!(generated.contains(
             "SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs { command: \"Close\", aggregate: \"SafeDepositBox\", identity: \"branch_code.value, box_number.value\" }.render_args()))?,"
         ));
+    }
+
+    // Ruby hydrates the parent before it locates either hop: a first hop the arguments do not
+    // name refuses as the missing parent when there is none, and the second hop's identity
+    // reaches the dispatch as an `Option`, refused there once the first hop is found.
+    #[test]
+    fn a_nested_entity_command_locates_its_hops_in_ruby_order() {
+        let aggregate = AggregateEntry {
+            name: "Saga".to_string(),
+            module_name: "saga".to_string(),
+            record: "Saga".to_string(),
+            commands: Vec::new(),
+            entity_commands: Vec::new(),
+            nested_entity_commands: vec![NestedEntityCommandEntry {
+                verb: "Bluebook::Saga.Handler.Dispatch.Bind".to_string(),
+                name: "Bind".to_string(),
+                entity_record: "Handler".to_string(),
+                nested_record: "Dispatch".to_string(),
+                fn_name: "handler_dispatch_bind".to_string(),
+                args_struct: "DispatchBindNestedEntityArgs".to_string(),
+                reference_checks: Vec::new(),
+                reference_specs: Vec::new(),
+                invariant_check_lines: Vec::new(),
+                role: None,
+                roles: Vec::new(),
+                entity_name: "Handler".to_string(),
+                entity_identity_reading: "event_type.value".to_string(),
+                nested_name: "Dispatch".to_string(),
+                unrouted_supported: true,
+            }],
+            ports: Vec::new(),
+            bluebook_mod: "meta".to_string(),
+            domain_name: "Bluebook".to_string(),
+            reference_specs: Vec::new(),
+            identified_by: vec!["bluebook".to_string(), "name.value".to_string()],
+            entities: Vec::new(),
+        };
+
+        let generated = emit_registry(&Exemplar::load(), &[aggregate]);
+
+        assert!(
+            generated.contains("if store.saga.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs")
+                && generated.contains("let hop2_id = crate::generated::meta::saga::Dispatch::extract_id_lenient(facts_json).ok();")
+                && generated.contains("&hop1_wants, hop2_id.as_deref(), &hop2_wants,")
+        );
     }
 }

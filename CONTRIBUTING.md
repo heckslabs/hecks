@@ -176,7 +176,7 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   check them with `schema_revision.audit_translation`. CI runs the same ledger check as part of `checks`.
 - **Only the copy that owns a database migrates it.** A boot that finds a newer storage shape
   mints the next era, which every older checkout of that database is then refused until it
-  catches up. `mint_eras true` or `false` in the world's `persisted_by("PostgresEra")` block, or in
+  catches up. `mint_eras true` or `false` in the world's `persisted_by("Postgres")` block, or in
   your `environments/local.world`, says whether a copy may; `exe/hecks config domain.value=<dir>`
   prints it. An unset world refuses, so a copy that should migrate a database says so; the
   refusal names the line to add.

@@ -81,7 +81,7 @@ RSpec.describe "client launcher smoke" do
     short:         CREATE,
     long:          %w[order.create_pizza! name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
     qualified:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large],
-    question:      %w[ask order.available],
+    queried:       %w[query order.available],
     bare_question: %w[order.available],
     invariant:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=huge],
     missing:       %w[order.purchase! to=nope amount=5],
@@ -116,7 +116,7 @@ RSpec.describe "client launcher smoke" do
   # Rebinds the copy's hecksagon to Memory and writes its world, with `world` as an extra setting.
   def self.bind_to_memory(dir, world)
     hecksagon = File.join(dir, "pizzas.hecksagon")
-    File.write(hecksagon, File.read(hecksagon).gsub("PostgresEra", "Memory"))
+    File.write(hecksagon, File.read(hecksagon).gsub("Postgres", "Memory"))
     File.write(File.join(dir, "pizzas.world"), <<~RUBY)
       Hecks.world "Pizzas" do
         realm "Examples"
@@ -182,7 +182,7 @@ RSpec.describe "client launcher smoke" do
       wait:       %w[order.create_pizza! name=C pizza.price_cents=1 pizza.size=small --wait],
       confirm:    %w[order.create_pizza! name=D pizza.price_cents=1 pizza.size=small --confirm],
       run_given:  %w[order.create_pizza! name=E pizza.price_cents=1 pizza.size=small run=mine-1],
-      wait_bad:   %w[ask order.available --wait],
+      wait_bad:   %w[order.available --wait],
       unknown:    %w[order.create_piza],
       bad_word:   %w[order.create_pizza! nonsense=1],
       invariant:  %w[order.create_pizza! name=F pizza.price_cents=900 pizza.size=huge]
@@ -209,7 +209,7 @@ RSpec.describe "client launcher smoke" do
     end
 
     it "says what a command wants and how it refuses", :aggregate_failures do
-      expect(results[:verb_help][:out]).to include("dispatches Pizzas::Order.CreatePizza", "name.value")
+      expect(results[:verb_help][:out]).to include("dispatches Pizzas::Order.CreatePizza", "name=…")
       expect(results[:refusal_help][:out]).to include("refused when:", "the payment covers the price")
       expect(results[:refusal_help][:status]).to eq(0)
     end
@@ -223,9 +223,15 @@ RSpec.describe "client launcher smoke" do
       expect(answers.first.dig("state", "status")).to eq("available")
     end
 
-    it "answers a question with and without `ask`", :aggregate_failures do
-      expect(created(results[:question])).to eq([])
+    it "answers a question by its bare name" do
       expect(created(results[:bare_question])).to eq([])
+    end
+
+    it "refuses `query` before a question no command shares a name with, as the earlier tail folds every status",
+       :aggregate_failures do
+      expect(results[:queried][:status]).to eq(1)
+      expect(results[:queried][:err]).to include("query is needed only where a command shares the name",
+                                                 "write order.available bare")
     end
 
     it "prints the domain's own reason and exits 1 when a value is refused", :aggregate_failures do

@@ -18,7 +18,7 @@ module Hecks
           )
         SQL
 
-        # Checkpoints one saga instance, replacing the row for the same (domain, process manager,
+        # Checkpoints one saga instance, replacing the row for the same (domain, saga,
         # correlation) if one exists.
         #
         # @param memory [Hash] the saga's memory, stored as JSON

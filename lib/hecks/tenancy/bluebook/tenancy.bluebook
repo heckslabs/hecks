@@ -41,7 +41,7 @@ Hecks.bluebook "Tenancy" do
     end
 
     # Fires after provisioning, never before: driving provisioning from this command's emission
-    # would need a process manager, the durable-saga cost `deploy.bluebook` argues against.
+    # would need a saga, the durable-saga cost `deploy.bluebook` argues against.
     command "Register" do
       goal "Record that a tenant now exists, after its shape has been validated and its schema provisioned"
 

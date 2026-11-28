@@ -1,7 +1,7 @@
 //! The `Bluebook` construct and the driver for `hecks-parse bluebook`.
 //! Parses each `.bluebook` file into one `ir::Bluebook`, then applies `.hecksagon` files onto it.
 
-use super::{aggregate, command, entity, policy, process_manager, read_model};
+use super::{aggregate, command, entity, policy, read_model, saga};
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, SourceLine};
@@ -507,6 +507,7 @@ fn parse_body_into(
             }
             "aggregate" => {
                 let agg_name = super::positional_text(file, line, "aggregate", &gated.args, 1)?;
+                let kind = super::named_text(&gated.args, "kind");
                 let (
                     built,
                     policies,
@@ -514,14 +515,50 @@ fn parse_body_into(
                     command_pending,
                     entity_given_pending,
                     entity_command_pending,
-                ) = aggregate::parse_body(
-                    file,
-                    lines,
-                    pos,
-                    &agg_name,
-                    bluebook_named_givens,
-                    bluebook_entity_named_givens,
-                )?;
+                ) = match kind {
+                    None => aggregate::parse_body(
+                        file,
+                        lines,
+                        pos,
+                        &agg_name,
+                        bluebook_named_givens,
+                        bluebook_entity_named_givens,
+                    )?,
+                    Some(kind) => {
+                        let (before, after) =
+                            super::kinds::halves(&kind, &agg_name).ok_or_else(|| {
+                                Diagnostic::new(
+                                    file,
+                                    line,
+                                    format!(
+                                        "{agg_name} declares kind {}, which has no file at {}",
+                                        crate::ruby_value::quote(&kind),
+                                        super::kinds::path(&kind)
+                                    ),
+                                )
+                            })?;
+                        let (before, after) = (
+                            lex::join_continuations(&before),
+                            lex::join_continuations(&after),
+                        );
+                        let kinded = with_kind_around_body(
+                            file,
+                            lines,
+                            pos,
+                            &gated.call.opener,
+                            &before,
+                            &after,
+                        )?;
+                        aggregate::parse_body(
+                            file,
+                            &kinded,
+                            &mut 0,
+                            &agg_name,
+                            bluebook_named_givens,
+                            bluebook_entity_named_givens,
+                        )?
+                    }
+                };
                 let aggregate_index = bluebook.aggregates.len();
                 bluebook.aggregates.push(built);
                 aggregate_policies.extend(policies);
@@ -553,12 +590,12 @@ fn parse_body_into(
                     .read_models
                     .push(read_model::parse_body(file, lines, pos, &rm_name)?);
             }
-            "process_manager" => {
-                let pm_name =
-                    super::positional_text(file, line, "process_manager", &gated.args, 1)?;
+            "saga" => {
+                super::refuse_retired_saga_spelling(file, line, &gated.call.word)?;
+                let saga_name = super::positional_text(file, line, "saga", &gated.args, 1)?;
                 bluebook
                     .sagas
-                    .push(process_manager::parse_body(file, lines, pos, &pm_name)?);
+                    .push(saga::parse_body(file, lines, pos, &saga_name)?);
             }
             _ => {
                 return Err(super::not_built_yet(
@@ -641,4 +678,34 @@ fn group_in_module(
         row.vision.clone_from(&vision);
     }
     Ok(())
+}
+
+/// The aggregate body a kind builds, as `Kinds.wrap` evaluates it: the kind's text before its body
+/// line, the aggregate's own body, the kind's text after it, then the closing `end`. Consumes the
+/// aggregate's own `do ... end`, if it has one. The kind's lines keep their numbers in the kind's
+/// file.
+fn with_kind_around_body<'a>(
+    file: &str,
+    lines: &[SourceLine<'a>],
+    pos: &mut usize,
+    opener: &crate::lex::Opener,
+    before: &'a str,
+    after: &'a str,
+) -> ParseResult<Vec<SourceLine<'a>>> {
+    let own_body: &[SourceLine<'a>] = if matches!(opener, crate::lex::Opener::DoBlock { .. }) {
+        let start = *pos;
+        lex::capture_do_block_body(file, lines, pos)?;
+        &lines[start..*pos - 1]
+    } else {
+        &[]
+    };
+    let mut kinded = lex::lines(before);
+    kinded.extend_from_slice(own_body);
+    kinded.extend(lex::lines(after));
+    let last = kinded.last().map_or(0, |l| l.number);
+    kinded.push(SourceLine {
+        number: last,
+        text: "end",
+    });
+    Ok(kinded)
 }

@@ -183,7 +183,7 @@ The table is the store as `DecisionFiles` reads it, by number, written by `hecks
 | [0179](0179-ledger-names-the-seal-chain-only.md) | Ledger names the seal chain only | draft |  |  |
 | [0180](0180-a-process-manager-has-one-name-in-the-language-and-the-runtime.md) | A process manager has one name in the language and the runtime | accepted |  |  |
 | [0181](0181-main-moves-only-by-promotion-of-a-green-candidate.md) | Main moves only by promotion of a green candidate | superseded | 0187 |  |
-| [0182](0182-one-postgres-adapter-picks-its-layout-from-the-hecksagon.md) | One Postgres adapter picks its layout from the hecksagon | draft |  |  |
+| [0182](0182-one-postgres-adapter-picks-its-layout-from-the-hecksagon.md) | One Postgres adapter picks its layout from the hecksagon | accepted |  |  |
 | [0183](0183-the-persisted-event-records-who-dispatched-it.md) | The persisted event records who dispatched it | draft |  |  |
 | [0184](0184-a-clock-is-a-driving-adapter-that-dispatches-a-command-on-a-schedule.md) | A clock is a driving adapter that dispatches a command on a schedule | draft |  |  |
 | [0186](0186-a-refusal-is-ok-false-with-an-error-and-no-supported-flag.md) | A refusal is `ok: false` with an error, and has no `supported` flag | accepted |  |  |

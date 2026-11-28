@@ -69,7 +69,7 @@ RSpec.describe "the launcher's opt-in options" do
 
       expect(status).to eq(0)
       expect(key).not_to be_empty
-      expect(JSON.parse(run_verb("query", "model_check_run.verdict", key).first).first["run"]).to eq(key)
+      expect(JSON.parse(run_verb("model_check_run.verdict", key).first).first["run"]).to eq(key)
     end
 
     it "refuses, saying to name a key, when no identity adapter can mint one" do
@@ -91,7 +91,7 @@ RSpec.describe "the launcher's opt-in options" do
     it "shows the minted run key as optional in help, and fills the next argument from a bare word", :aggregate_failures do
       help, = run_verb("operation.run_behaviors!", "--help")
 
-      expect(help).to match(/run\.value\s+.*minted when omitted; optional/)
+      expect(help).to match(/run\s+.*minted when omitted; optional/)
       expect(Hecks::Adapters::Driving::Cli.arguments(hecks_spec("operation.run_behaviors"), ["examples/banking"]))
         .to eq(subject: { value: "examples/banking" })
     end
@@ -100,7 +100,7 @@ RSpec.describe "the launcher's opt-in options" do
       out, = run_verb("model_check_run.model_check!", "run=mine-1", "domains=#{File.join(@dir, "clean")}")
 
       expect(JSON.parse(out)).not_to have_key("run")
-      expect(JSON.parse(run_verb("query", "model_check_run.verdict", "mine-1").first).first["run"]).to eq("mine-1")
+      expect(JSON.parse(run_verb("model_check_run.verdict", "mine-1").first).first["run"]).to eq("mine-1")
     end
 
     it "leaves a bluebook that did not opt in alone" do
@@ -172,7 +172,7 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "makes a question fail when its refusal or its report names a gap", :aggregate_failures do
-      text, status = run_verb("ask", "build.rust_coverage", "module_name=nosuchmodule", "--wait")
+      text, status = run_verb("build.rust_coverage", "module_name=nosuchmodule", "--wait")
 
       expect(status).to eq(1)
       expect(text).to include("no such generated module")

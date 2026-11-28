@@ -1,0 +1,9 @@
+{"note":"A coder whose question finds no scrum master: the harness tells it so, and the orchestrator answers."}
+{"expect":"user","contains":"You are the coder"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-coder-unreached","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"control_request","request_id":"c-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"scrum-master","text":"May I land my branch before the freeze lifts?"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to scrum-master"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Asked the scrum master."}}
+{"expect":"user","contains":"was not delivered"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"The scrum master is not here; waiting."}}
+{"expect":"user","contains":"from orchestrator, about coder-1"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Holding the branch."}}

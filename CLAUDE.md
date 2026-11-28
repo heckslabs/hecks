@@ -141,8 +141,8 @@ current list of what this repo can do.
 - `exe/hecks` lists the public commands and queries (`exe/hecks --all` adds the internal ones); `exe/hecks <command> --help`
   says what one wants and how it refuses.
 - `exe/hecks <command>! name=value …` does something;
-  `exe/hecks <query> name=value …` reads something, written bare (`query` is the old spelling,
-  kept as an alias until 8.0.0, and needed only where a command shares the query's name).
+  `exe/hecks <query> name=value …` reads something, written bare. `query` before the name is
+  taken only where a command shares the query's name, and refused anywhere else.
 - A command is named by its aggregate and verb, as the bluebook spells them: `SendTrain.board!`,
   `Hecks::SendTrain.board!` and `Hecks::SendTrain.Board` all reach it, and so does the older
   snake-case `send_train.board!`. The listing and `--help` print `SendTrain.board!`; the heading

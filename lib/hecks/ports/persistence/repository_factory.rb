@@ -1,5 +1,6 @@
 require_relative "append_only"
 require_relative "codec_boundary"
+require_relative "layout"
 
 module Hecks
   module Ports
@@ -26,29 +27,16 @@ module Hecks
         # @raise [ArgumentError] on an unknown option
         def build(registry, domain, aggregate, bind, **)
           opts = BuildOptions.new(**)
-          bind = layout_bind(registry, domain, bind)
           settings = adapter_settings(registry, domain, aggregate, bind, opts.settings_verb)
-          adapter = registry.adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: registry.root)
+          # The bind names the adapter its settings are declared under; the domain's hecksagon
+          # picks the layout class that keeps the rows (`revisions true`, ADR 0182).
+          klass = Layout.adapter_class(registry, domain, bind.adapter)
+          adapter = klass.new(aggregate: aggregate, settings: settings, root: registry.root)
           repository = AppendOnly.new(CodecBoundary.guard!(adapter))
-          # `:atomic_append` (PostgresEra) means `append` already committed the
+          # `:atomic_append` (the revision layout) means `append` already committed the
           # projected state in the same transaction as the journal row, so a
           # boot-time replay through `project` has nothing left to fix up.
           opts.recover && !repository.capabilities.include?(:atomic_append) ? repository.recover! : repository
-        end
-
-        # A `Postgres` bind in a hecksagon that sets `revisions` builds the revision layout, which
-        # is the `PostgresEra` adapter until the layout is extracted (ADR 0182, delegation step).
-        # Every other bind is returned unchanged.
-        #
-        # @param registry [Runtime::Registry] the booted registry
-        # @param domain [String, Symbol] the domain the aggregate belongs to
-        # @param bind [Bluebook::Bind] the bind as the hecksagon declared it
-        # @return [Bluebook::Bind] the bind the adapter is built and configured under
-        def layout_bind(registry, domain, bind)
-          return bind unless bind.adapter.to_s == "Postgres" && registry.hecksagon(domain)&.revisions?
-
-          Bluebook::Bind.new(aggregate: bind.aggregate, verb: bind.verb, adapter: "PostgresEra",
-                             role: bind.role)
         end
 
         # Checks the bind against the registry and gathers the settings its adapter is built with.
@@ -62,13 +50,20 @@ module Hecks
         #   the domain, resolved era, superseding era and whether the shape is unminted
         def adapter_settings(registry, domain, aggregate, bind, settings_verb)
           registry.check_verb(bind)
+          Layout.refuse_table_settings!(registry, domain, bind.adapter, declared_block(registry, domain, settings_verb, bind))
           settings = registry.binding_settings(domain, settings_verb, bind.adapter)
-                             .reject { |key, _| key.to_sym == :role }
+          settings = settings.reject { |key, _| key.to_sym == :role }
           registry.check_settings(bind, settings)
           settings = registry.with_adapter_defaults(bind.adapter, aggregate, settings)
           # domain, resolved era and superseding era ride along outside the declared
           # settings: a lineage adapter needs them to journal per domain, per-era.
           settings.merge(boot_marks(registry, domain))
+        end
+
+        # What the domain's world block for the bound adapter says itself, before world-wide
+        # defaults (`default_database`, `minting commands:`) join it.
+        def declared_block(registry, domain, verb, bind)
+          registry.world(domain)&.for_binding(verb, bind.adapter) || {}
         end
 
         # The per-domain marks the boot gate left on the registry, merged into an adapter's

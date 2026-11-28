@@ -67,7 +67,8 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
     write_world
     File.write(File.join(ledger_dir, "ledger.hecksagon"), <<~RUBY)
       Hecks.hecksagon "Ledger" do
-        Ledger::Acct.persisted_by("PostgresEra")
+        Ledger::Acct.persisted_by("Postgres")
+        revisions true
       end
     RUBY
   end
@@ -75,7 +76,7 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
   def write_world
     File.write(File.join(ledger_dir, "ledger.world"), <<~RUBY)
       Hecks.world "Ledger" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "#{FencedOwner.url(MINT_SPEC_DB)}"
           mint_eras false
         end

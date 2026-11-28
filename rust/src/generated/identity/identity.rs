@@ -277,8 +277,10 @@ pub fn dispatch_register(
                 let __hydrate_id: String = args.identity_id.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Identity {
-                        identity_id: Some(args.identity_id.clone()),
+                    build: Box::new(|| {
+                        Ok(Identity {
+                            identity_id: Some(args.identity_id.clone()),
+                        })
                     }),
                     state_independent: false,
                 }

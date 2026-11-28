@@ -1,0 +1,4 @@
+{"note":"A session in the scrum master's seat that ends its only turn saying nothing, so it leaves the seat no handover."}
+{"expect":"user","contains":"You are the scrum master"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-seat-silent","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":""}}

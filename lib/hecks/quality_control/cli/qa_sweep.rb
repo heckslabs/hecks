@@ -48,7 +48,7 @@ module Hecks
       # A character a filename component may not carry.
       UNSAFE_FILENAME_CHARACTER = /[^A-Za-z0-9_.-]/
 
-      USAGE = "usage: hecks quality_control ask run [target=<reference>] arguments=\"[--seeds N] [--steps N] " \
+      USAGE = "usage: hecks quality_control Sweep.run [target=<reference>] arguments=\"[--seeds N] [--steps N] " \
               "[--adversarial FRACTION] [--role-draw FRACTION] [--dry-run FRACTION] " \
               "[--self-consistency true|false] [--modes a,b,c]\"\n       " \
               "arguments=\"--all [--seeds N] [--steps N] [--adversarial FRACTION] [--role-draw FRACTION] " \

@@ -1,0 +1,7 @@
+{"note":"The resident scrum master with a question it must not settle: landing is the lead's, so it sends the lead what it found, about the question."}
+{"expect":"user","contains":"You are the scrum master"}
+{"emit":{"type":"system","subtype":"init","session_id":"replay-scrum-master-notes","tools":["mcp__hecks__send_message"],"mcp_servers":[{"name":"hecks","status":"connected"}]}}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Resident; waiting for a routed question."}}
+{"expect":"user","contains":"Message coder-1 from coder"}
+{"emit":{"type":"control_request","request_id":"m-mcp-1","request":{"subtype":"mcp_message","server_name":"hecks","message":{"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"orchestrator","text":"Landing during the freeze is the lead's to decide. The branch is green and touches only the harness.","about":"coder-1"}}}}},"after_ms":20,"answered":"success","reply_contains":"Sent to orchestrator"}
+{"emit":{"type":"result","subtype":"success","is_error":false,"result":"Left my findings for the lead."}}

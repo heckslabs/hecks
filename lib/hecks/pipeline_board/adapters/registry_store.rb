@@ -72,11 +72,11 @@ module Hecks
           @lock.synchronize { fresh([domain, name, :events]) { logged(current, domain, name) } }
         end
 
-        # The checkpoints a process manager keeps, asked of the store the registry resolves for it
+        # The checkpoints a saga keeps, asked of the store the registry resolves for it
         # and not of the registry's own memory: a read-only boot restores no saga, and a stored
         # checkpoint moves after the boot.
         #
-        # @param domain [String] the bluebook that declares the process manager, such as `"Hecks"`
+        # @param domain [String] the bluebook that declares the saga, such as `"Hecks"`
         # @param process_manager [String] its name, such as `"MainIntegration"`
         # @return [Hash{String => String}] each instance's correlation and the state stored for
         #   it; none when the store keeps no checkpoint

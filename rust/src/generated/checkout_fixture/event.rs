@@ -895,14 +895,16 @@ pub fn dispatch_schedule(
                 let __hydrate_id: String = args.slug.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| Event {
-                        slug: Some(args.slug.clone()),
-                        name: Some(args.name.clone()),
-                        price: Some(args.price.clone()),
-                        capacity: Some(args.capacity.clone()),
-                        starts_at: args.starts_at.clone(),
-                        registration_cutoff_hours: args.registration_cutoff_hours.clone(),
-                        status: "open".to_string(),
+                    build: Box::new(|| {
+                        Ok(Event {
+                            slug: Some(args.slug.clone()),
+                            name: Some(args.name.clone()),
+                            price: Some(args.price.clone()),
+                            capacity: Some(args.capacity.clone()),
+                            starts_at: args.starts_at.clone(),
+                            registration_cutoff_hours: args.registration_cutoff_hours.clone(),
+                            status: "open".to_string(),
+                        })
                     }),
                     state_independent: false,
                 }

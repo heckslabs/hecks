@@ -25,7 +25,6 @@ require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
 require_relative "cli_runner/verb_names"
-require_relative "cli_runner/renamed_names"
 require_relative "cli_runner/verbosity"
 require_relative "cli_runner/since"
 require_relative "cli_runner/name_index"
@@ -43,8 +42,9 @@ module Hecks
 
         # The class an adapter raises when the tool it wraps refuses.
         TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze
-        # The words that open the query namespace; `ask` is the older spelling.
-        QUERY_WORDS = %w[query ask].freeze
+        # The word that reaches a query whose name a command shares, the one case a bare name
+        # cannot say.
+        QUERY_WORDS = %w[query].freeze
 
         extend Resolution
         extend AttachedCommands
@@ -57,7 +57,6 @@ module Hecks
         extend Suggestions
         extend NameIndex
         extend VerbNames
-        extend RenamedNames
         extend Answers
         extend Settling
         extend Streaming

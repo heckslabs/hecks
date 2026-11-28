@@ -460,13 +460,13 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).not_to include("OnboardingDeclined /")
   end
 
-  it "generates one saga diagram per real process_manager, across all of banking" do
+  it "generates one saga diagram per real saga, across all of banking" do
     files = Hecks::Projector.call(:diagrams, bluebook: banking_bluebook)
     saga_files = files.keys.select { |name| name.end_with?("_saga.mmd") }
     expect(saga_files).to contain_exactly("Onboarding_saga.mmd", "Settlement_saga.mmd", "ExternalSettlement_saga.mmd")
   end
 
-  it "draws no saga diagram at all for pizzas — the real corpus declares no process_manager there", :io do
+  it "draws no saga diagram at all for pizzas — the real corpus declares no saga there", :io do
     files = Hecks::Projector.call(:diagrams, bluebook: pizzas_bluebook)
     expect(files.keys).not_to include(a_string_ending_with("_saga.mmd"))
   end

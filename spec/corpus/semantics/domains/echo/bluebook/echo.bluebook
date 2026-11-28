@@ -194,7 +194,7 @@ Hecks.bluebook "Echo" do
     end
   end
 
-  process_manager "Charge" do
+  saga "Charge" do
     correlates_by :"name.value"
     starts_on "FuseLaid"
     ends_on   "Scrapped"
@@ -214,7 +214,7 @@ Hecks.bluebook "Echo" do
     end
   end
 
-  process_manager "Watch" do
+  saga "Watch" do
     correlates_by :"name.value"
     starts_on "LampInstalled"
     ends_on   "LampRetired"

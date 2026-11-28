@@ -5,7 +5,7 @@ require "hecks/hecks/adapters/dispatching"
 # A confirmed filling says, for each work item it chose, that the item started or why it went back
 # to the plan. The launcher's commands are answered by a stand-in runner; no session starts.
 RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
-  WARNING = "[hecks] QualityControl declares process_manager(s) BugCiWatch but its resolved persistence " \
+  WARNING = "[hecks] QualityControl declares saga(s) BugCiWatch but its resolved persistence " \
             "adapter has no save_saga\n".freeze
 
   let(:calls) { [] }
@@ -53,7 +53,7 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
     text = report(["a"], "AgentRun.dispatch!" => result("", "#{WARNING}AgentRun cannot start: repo missing", success: false))
 
     expect(text).to include("yielded a: dispatch of a failed: AgentRun cannot start: repo missing")
-    expect(text).not_to include("process_manager")
+    expect(text).not_to include("declares saga(s)")
   end
 
   it "yields a work item with the record's refusal when the command printed one" do

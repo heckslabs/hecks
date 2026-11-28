@@ -9,7 +9,8 @@ require_relative "support/first_era_hold"
 
 # The Hecks domain's journal outlives the process. One process runs a journaled command through
 # the launcher against a real Postgres; a second, started afterwards, reads it back with
-# `hecks ask history` and `exe/hecks Introspection.stores`. Needs a reachable Postgres.
+# `exe/hecks Introspection.history` and `exe/hecks Introspection.stores`. Needs a reachable
+# Postgres.
 RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   JOURNAL_DB = "hecks_journal_survives_spec".freeze
   HECKS_ROOT = InMemoryDomain::ROOT
@@ -80,7 +81,8 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   def write_local_hecksagon(directory)
     File.write(File.join(directory, "hecks.local.hecksagon"), <<~HECKSAGON)
       Hecks.hecksagon "Hecks" do
-        persisted_by "PostgresEra"
+        persisted_by "Postgres"
+        revisions true
       end
     HECKSAGON
   end
@@ -132,7 +134,7 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   end
 
   def history_operations(domain)
-    out = launch("query", "introspection.history", "domain=#{domain}")
+    out = launch("introspection.history", "domain=#{domain}")
     JSON.parse(out.lines.last).fetch("model_check_run").map { |entry| entry.fetch("operation") }
   end
 

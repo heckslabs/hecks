@@ -4,6 +4,7 @@ require "hecks"
 require_relative "supervisor"
 require_relative "launch"
 require_relative "tells"
+require_relative "roles"
 
 module Hecks
   module Harness
@@ -26,9 +27,10 @@ module Hecks
 
       # @param launch [#call] how each session's child starts (see {Launch})
       # @param dir [String] the Harness directory to boot
-      def initialize(launch:, dir: DIR)
+      # @param tick_ms [Integer, nil] how often the supervisor's clock ticks (see {Supervisor})
+      def initialize(launch:, dir: DIR, tick_ms: nil)
         @runtime = Hecks.boot(dir, install_driving: false, environment: "memory")
-        @supervisor = Supervisor.current = Supervisor.new(launch: launch)
+        @supervisor = Supervisor.current = Supervisor.new(launch: launch, tick_ms: tick_ms)
         @tells = []
       end
 
@@ -36,6 +38,27 @@ module Hecks
       #
       # @return [void]
       def open(name, brief) = owner("Session.Open", name: { value: name }, brief: { value: brief })
+
+      # Opens a session for one of the crew's roles, briefed from its role file (see {Roles}).
+      #
+      # @return [void]
+      def open_role(role) = self.open(role, Roles.brief(role))
+
+      # Starts a run of one role under its own key, opening its session on the brief, as the Owner.
+      # The run holds the session's last report and is finished only when the session ended.
+      #
+      # @return [void]
+      def start(key, session, brief)
+        owner("AgentRun.Start", run: { value: key }, session: { value: session }, brief: { value: brief })
+      end
+
+      # Starts a run in a standing seat whose session stopped, as the Owner: the session is reopened
+      # on the brief, and its new child starts from the handover the seat's last session left.
+      #
+      # @return [void]
+      def take_seat(key, session, brief)
+        owner("AgentRun.TakeSeat", run: { value: key }, session: { value: session }, brief: { value: brief })
+      end
 
       # Stops a running session, as the Owner.
       #

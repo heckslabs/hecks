@@ -1,6 +1,6 @@
 {
   "name": "banking-parity",
-  "note": "Every declared banking command and query is exercised, including refusal paths. The flagship corpus member: composite identity, entities, read models, process managers, policies — every rare form the coverage gates exist to catch, walked end to end.",
+  "note": "Every declared banking command and query is exercised, including refusal paths. The flagship corpus member: composite identity, entities, read models, sagas, policies — every rare form the coverage gates exist to catch, walked end to end.",
   "expectations": {
     "event_names": [
       "TransferCredited",

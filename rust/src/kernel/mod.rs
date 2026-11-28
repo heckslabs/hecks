@@ -24,9 +24,10 @@ pub mod run_keys;
 pub mod serve;
 
 pub use dispatch::{
-    aggregate_step_site, apply_entity_command, decode_aggregate_arguments, decode_entity_arguments,
-    dispatch, dispatch_entity, enforce_invariants, entity_step_site, ArgumentGates, EnsuresSpec,
-    EntityInvariants, GivenSpec, Hydrate, InvariantSet, InvariantSpec, StepSite, TransitionCheck,
+    aggregate_step_site, apply_entity_command, creation_identity_part, decode_aggregate_arguments,
+    decode_entity_arguments, dispatch, dispatch_entity, enforce_invariants, entity_step_site,
+    ArgumentGates, EnsuresSpec, EntityInvariants, GivenSpec, Hydrate, InvariantSet, InvariantSpec,
+    StepSite, TransitionCheck,
 };
 pub use expr::{
     interpret, BlockMode, Bound, Comparison, EvalContext, Expr, Field, Fielded, NoFields,

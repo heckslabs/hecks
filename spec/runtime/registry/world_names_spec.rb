@@ -101,7 +101,7 @@ RSpec.describe "the world's names for what is stored" do
   end
 
   describe "the domain's former name" do
-    let(:era_block) { proc { persisted_by("PostgresEra") { formerly "Old" } } }
+    let(:era_block) { proc { persisted_by("Postgres") { formerly "Old" } } }
 
     it "is adopted from the PostgresEra block" do
       registry = registry_with(&era_block).apply_world_names!

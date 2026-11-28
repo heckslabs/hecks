@@ -127,6 +127,7 @@ fn every_provider_reader_answers_any_ir_shape() {
                 if let Err(message) = refuse_unsupported_persistence_adapters(&ir) {
                     assert!(
                         message.contains("rust/host only has a backend")
+                            || message.contains("which Hecks 8.0 removed. Write persisted_by")
                             || message.contains("does not declare")
                             || message.contains("rather than \"persistence\"")
                             || message.contains("\"adapters\""),
@@ -156,16 +157,23 @@ fn an_unsupported_persistence_adapter_is_always_refused_at_boot() {
     // No `adapters` key (every deployed IR today): the old behaviour, byte for byte.
     for adapter in ["Heki", "memory", "Sqlite", "", "postgres", "Postgres "] {
         let message = refusal(&ir_binding(adapter, None));
-        assert!(message.starts_with("rust/host only has a backend for [\"Postgres\", \"PostgresEra\", \"Memory\"] today; this domain also binds: A (persisted_by "), "{adapter:?}");
+        assert!(message.starts_with("rust/host only has a backend for [\"Postgres\", \"Memory\"] today; this domain also binds: A (persisted_by "), "{adapter:?}");
     }
-    for adapter in ["Postgres", "PostgresEra", "Memory"] {
+    for adapter in ["Postgres", "Memory"] {
         assert!(refuse_unsupported_persistence_adapters(&ir_binding(adapter, None)).is_ok());
+    }
+    for adapter in ["PostgresEra", "postgres_era"] {
+        let message = refusal(&ir_binding(adapter, None));
+        assert!(
+            message.starts_with(&format!("D: A binds {adapter}, which Hecks 8.0 removed")),
+            "{message}"
+        );
     }
 }
 
 #[test]
 fn declared_supported_adapters_boot() {
-    for adapter in ["Postgres", "PostgresEra"] {
+    for adapter in ["Postgres"] {
         for port in [json!("persistence"), Value::Null] {
             let ir = ir_binding(
                 adapter,
