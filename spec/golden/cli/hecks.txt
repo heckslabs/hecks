@@ -1,5 +1,5 @@
 Hecks —
-  hecks 7.1.0
+  hecks 8.0.0
 
   hecks <command>! [name=value …]       do something
   hecks <query> [name=value …]          read something, written bare
